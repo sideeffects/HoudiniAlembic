@@ -1,12 +1,40 @@
 #ifndef _SOP_ALEMBICIN_H_
 #define _SOP_ALEMBICIN_H_
 
+#include <UT/UT_Version.h>
 #include <SOP/SOP_Node.h>
-#include <GA/GA_AttributeRef.h>
 
 #include <Alembic/AbcGeom/All.h>
 using namespace Alembic::AbcGeom;
 
+// The Houdini Geometry libraries changed radically between H11 and H12.
+#if UT_MAJOR_VERSION_INT >= 12
+    #include <GA/GA_AttributeRef.h>
+#else
+    #include <GB/GB_AttributeRef.h>
+    // These typedefs allow us to use the GA types from within H11 code
+    typedef GB_AttributeRef	GA_ROAttributeRef;
+    typedef GB_AttributeRef	GA_RWAttributeRef;
+    typedef GB_PrimitiveGroup	GA_PrimitiveGroup;
+    typedef int			GA_Offset;
+
+    enum GA_Storage
+    {
+	GA_STORE_REAL32,
+	GA_STORE_INT32,
+	GA_STORE_STRING
+    };
+    enum GA_TypeInfo
+    {
+	GA_TYPE_VOID,
+	GA_TYPE_POINT,
+	GA_TYPE_VECTOR,
+	GA_TYPE_NORMAL,
+	GA_TYPE_COLOR,
+    };
+    inline bool	GAisIntStorage(GA_Storage s)	{ return s == GA_STORE_INT32; }
+    inline bool	GAisFloatStorage(GA_Storage s)	{ return s == GA_STORE_REAL32; }
+#endif
 
 class SOP_AlembicIn : public SOP_Node
 {
@@ -16,6 +44,7 @@ public:
     static OP_Node *myConstructor(OP_Network *net, const char *name,
             OP_Operator *entry);
     static PRM_Template myTemplateList[];
+    typedef std::vector<std::string> PathList;
     
 protected:
     //--------------------------------------------------------------------------
@@ -36,9 +65,10 @@ private:
     {
         double abcTime;
         bool includeXform;
+        bool isConstant;
     };
     
-    typedef std::vector<std::string> PathList;
+    
     void walkObject( Args & args, IObject parent, const ObjectHeader &ohead,
             PathList::const_iterator I, PathList::const_iterator E,
                     M44d parentXform);
