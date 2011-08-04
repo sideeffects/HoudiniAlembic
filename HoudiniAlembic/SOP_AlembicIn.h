@@ -3,6 +3,7 @@
 
 #include <UT/UT_Version.h>
 #include <SOP/SOP_Node.h>
+#include <map>
 
 #include <Alembic/AbcGeom/All.h>
 using namespace Alembic::AbcGeom;
@@ -64,14 +65,21 @@ private:
     struct Args
     {
         double abcTime;
+	size_t pointCount;
+	size_t primCount;
         bool includeXform;
-        bool isConstant;
+        bool isConstant;		// Attributes are constant
+	bool isTopologyConstant;	// Flag whether topology is constant
+	bool reusePrimitives;		// Reuse existing primitives
+
+	// Attribute name map
+	const std::map<std::string,std::string> *nameMap;
     };
     
     
     void walkObject( Args & args, IObject parent, const ObjectHeader &ohead,
             PathList::const_iterator I, PathList::const_iterator E,
-                    M44d parentXform);
+                    M44d parentXform, bool parentXformIsConstant);
     
     
     
@@ -79,12 +87,16 @@ private:
     
     
     
-    void buildSubD( Args & args, ISubD & subd, M44d parentXform);
-    void buildPolyMesh( Args & args, IPolyMesh & polymesh, M44d parentXform);
+    void buildSubD( Args & args, ISubD & subd, M44d parentXform, bool parentXformIsConstant);
+    void buildPolyMesh( Args & args, IPolyMesh & polymesh, M44d parentXform, bool parentXformIsConstant);
     
     GA_PrimitiveGroup * buildMesh(const std::string & groupName,
-            V3fArraySamplePtr positions, Int32ArraySamplePtr counts,
-                    Int32ArraySamplePtr indicies);
+            V3fArraySamplePtr positions,
+	    Int32ArraySamplePtr counts,
+	    Int32ArraySamplePtr indicies,
+	    size_t startPointIdx);
+    GA_PrimitiveGroup * reuseMesh(const std::string &groupName,
+            V3fArraySamplePtr positions, size_t startPointIdx);
     
     bool addOrFindTextureAttribute(GEO_AttributeOwner owner,
             GA_RWAttributeRef & attrIdx);
@@ -92,15 +104,19 @@ private:
             GA_RWAttributeRef & attrIdx);
     
     void addUVs(Args & args, IV2fGeomParam param,
-             size_t startPointIdx, size_t startPrimIdx);
+             size_t startPointIdx, size_t endPointIdx,
+	     size_t startPrimIdx, size_t endPrimIdx);
     
     void addNormals(Args & args, IN3fGeomParam param,
-             size_t startPointIdx, size_t startPrimIdx);
+             size_t startPointIdx, size_t endPointIdx,
+            size_t startPrimIdx, size_t endPrimIdx,
+            bool parentXformIsConstant);
     
     void addArbitraryGeomParams(Args & args,
             ICompoundProperty parent,
-            size_t startPointIdx,
-            size_t startPrimIdx);
+            size_t startPointIdx, size_t endPointIdx,
+            size_t startPrimIdx, size_t endPrimIdx,
+            bool parentXformIsConstant);
     
     template <typename geomParamT, typename podT>
     void processArbitraryGeomParam(
@@ -111,7 +127,10 @@ private:
 	    GA_TypeInfo attrTypeInfo,
             const GA_RWAttributeRef & existingAttr,
             size_t startPointIdx,
-            size_t startPrimIdx
+	    size_t endPointIdx,
+            size_t startPrimIdx,
+	    size_t endPrimIdx,
+        bool parentXformIsConstant
             );
     
     template <typename geomParamSampleT, typename podT>
@@ -120,8 +139,15 @@ private:
             const GA_RWAttributeRef & attrIdx,
             size_t totalExtent,
             size_t startPointIdx,
-            size_t startPrimIdx
+	    size_t endPointIdx,
+            size_t startPrimIdx,
+	    size_t endPrimIdx
             );
+
+    UT_String	myFileObjectCache;
+    bool	myTopologyConstant;
+    bool	myEntireSceneIsConstant;
+    std::map<std::string, size_t> myPrimitiveCountCache;
 };
 
 #endif

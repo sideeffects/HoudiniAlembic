@@ -15,6 +15,7 @@
 #include <OP/OP_OperatorTable.h>
 #include <OP/OP_Director.h>
 #include <PRM/PRM_Include.h>
+#include <PRM/PRM_SpareData.h>
 
 #include <UT/UT_Interrupt.h>
 #include <GU/GU_Detail.h>
@@ -117,23 +118,41 @@ OP_Node * SOP_AlembicIn::myConstructor( OP_Network *net, const char *name,
 
 //-*****************************************************************************
 
+static PRM_Name prm_abcAttribName("abcName#", "Alembic Name #");
+static PRM_Name prm_hAttribName("hName#", "Houdini Name #");
+static PRM_Template prm_AttributeRemapTemplate[] = {
+    PRM_Template(PRM_STRING, 1, &prm_abcAttribName),
+    PRM_Template(PRM_STRING, 1, &prm_hAttribName),
+    PRM_Template()
+};
+
 static PRM_Name prm_fileNameName("fileName", "File Name");
 static PRM_Name prm_frameName("frame", "Frame");
 static PRM_Name prm_fpsName("fps", "Frames Per Second");
 static PRM_Name prm_objectPathName("objectPath", "Object Path");
 static PRM_Name prm_includeXformName("includeXform", "Include Xform");
+static PRM_Name prm_remapAttribName("remapAttributes", "Remap Attributes");
 
 static PRM_Default prm_frameDefault(1, "$F");
+static PRM_Default prm_objectPathDefault(0, "");
 static PRM_Default prm_fpsDefault(24, "$FPS");
 static PRM_Default prm_includeXformDefault(true);
+
+static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
+		"__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu(hou.pwd().evalParm('fileName'))[:16380]",
+		CH_PYTHON_SCRIPT);
 
 PRM_Template SOP_AlembicIn::myTemplateList[] =
 {
     PRM_Template(PRM_FILE, 1, &prm_fileNameName),
     PRM_Template(PRM_FLT_J, 1, &prm_frameName, &prm_frameDefault),
     PRM_Template(PRM_FLT_J, 1, &prm_fpsName, &prm_fpsDefault),
-    PRM_Template(PRM_STRING, 1, &prm_objectPathName),
+    PRM_Template(PRM_STRING, 1, &prm_objectPathName, &prm_objectPathDefault,
+				&prm_objectPathMenu),
     PRM_Template(PRM_TOGGLE, 1, &prm_includeXformName, &prm_includeXformDefault),
+    PRM_Template(PRM_MULTITYPE_LIST, prm_AttributeRemapTemplate, 2,
+		    &prm_remapAttribName, PRMzeroDefaults, 0,
+		    &PRM_SpareData::multiStartOffsetOne),
     PRM_Template()
 };
 
@@ -142,7 +161,9 @@ PRM_Template SOP_AlembicIn::myTemplateList[] =
 SOP_AlembicIn::SOP_AlembicIn(OP_Network *net, const char *name,
         OP_Operator *op)
 : SOP_Node(net, name, op)
+, myFileObjectCache(UT_String::ALWAYS_DEEP, "")
 , myTopologyConstant(false)
+, myEntireSceneIsConstant(false)
 {
 }
 
@@ -169,7 +190,12 @@ bool SOP_AlembicIn::unloadData()
 
 OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
 {
+    Args args;
+    std::map<std::string,std::string> nameMap;
+    
     const float now = context.myTime;
+    
+    args.includeXform = evalInt("includeXform", 0, now);
     
     std::string fileName;
     {
@@ -188,6 +214,25 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
         
         objectPath = str.toStdString();
     }
+    // If the file or object parameter has changed, we need to reset our
+    // primitive cache.
+    UT_WorkBuffer fileobjecthash;
+    fileobjecthash.sprintf("%s:%s:%d", fileName.c_str(), objectPath.c_str(), args.includeXform);
+    if (strcmp(myFileObjectCache, fileobjecthash.buffer()) != 0)
+    {
+	myFileObjectCache.harden(fileobjecthash.buffer());
+	myTopologyConstant = false;
+    myEntireSceneIsConstant = false;
+    myPrimitiveCountCache.clear();
+    }
+    
+    if (myEntireSceneIsConstant)
+    {
+        //std::cerr << "cook early exit\n";
+        return error();
+    }
+    
+    //std::cerr << "cooking\n";
     
     if ( !objectPath.empty() )
     {
@@ -209,16 +254,28 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
 #endif
     }
     
-    Args args;
+    int nmapSize = evalInt("remapAttributes", 0, now);
+    // Entries are one based (not zero based)
+    for (int i = 1; i <= nmapSize; ++i)
+    {
+	UT_String	abcName, hName;
+	evalStringInst("abcName#", &i, abcName, 0, now);
+	evalStringInst("hName#", &i, hName, 0, now);
+	if (abcName.isstring() && hName.isstring())
+	{
+	    nameMap[abcName.toStdString()] = hName.toStdString();
+	}
+    }
+    
     
     double fps = evalFloat("fps", 0, now);
     args.abcTime = evalFloat("frame", 0, now) / fps;
-    args.includeXform = evalInt("includeXform", 0, now);
     args.isConstant = true;
     args.isTopologyConstant = true;
     args.reusePrimitives = myTopologyConstant && gdp->primitives().entries()>0;
     args.pointCount = 0;
     args.primCount = 0;
+    args.nameMap = &nameMap;
     
     try
     {
@@ -242,7 +299,7 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
             for ( size_t i = 0; i < root.getNumChildren(); ++i )
             {
                 walkObject( args, root, root.getChildHeader(i),
-                            pathList.end(), pathList.end(), xform);
+                            pathList.end(), pathList.end(), xform, true);
             }
         }
         else //walk to a location + its children
@@ -254,11 +311,12 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
             if ( nextChildHeader != NULL )
             {
                 walkObject( args, root, *nextChildHeader, I+1, pathList.end(),
-                        xform);
+                        xform, true);
             }
         }
         if (args.isConstant)
         {
+            myEntireSceneIsConstant = true;
             //TODO, prevent recooking on frame changes
             //(assuming other arguments are equivalent)
         }
@@ -472,7 +530,7 @@ GA_ROAttributeRef  SOP_AlembicIn::attachDetailStringData(
 
 void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader &ohead,
             PathList::const_iterator I, PathList::const_iterator E,
-                    M44d parentXform)
+                    M44d parentXform, bool parentXformIsConstant)
 {
     //for now, let's be time-dependent
     //OP_Node::flags().setTimeDep(true);
@@ -490,6 +548,7 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
             if (!xs.isConstant())
             {
                 args.isConstant = false;
+                parentXformIsConstant = false;
             }
             
             XformSample xformSample = xs.getValue(
@@ -524,7 +583,7 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
 	    args.isTopologyConstant = false;
 	}
 
-        buildSubD( args, subd, parentXform );
+        buildSubD( args, subd, parentXform, parentXformIsConstant );
         
         nextParentObject = subd;
     }
@@ -537,7 +596,7 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
 	    args.isTopologyConstant = false;
 	}
         
-        buildPolyMesh( args, polymesh, parentXform );
+        buildPolyMesh( args, polymesh, parentXform, parentXformIsConstant );
         
         nextParentObject = polymesh;
     }
@@ -559,7 +618,7 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
             {
                 walkObject( args, nextParentObject,
                         nextParentObject.getChildHeader( i ), I, E,
-                                parentXform);
+                                parentXform, parentXformIsConstant);
             }
         }
         else
@@ -571,7 +630,7 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
             {
                 walkObject( args, nextParentObject,
                         *nextChildHeader, I+1, E,
-                                parentXform);
+                                parentXform, parentXformIsConstant);
             }
         }
     }
@@ -598,7 +657,6 @@ void SOP_AlembicIn::addUVs(Args & args, IV2fGeomParam param,
 	size_t startPrimIdx, size_t endPrimIdx)
 {
     if (!param.valid()) { return; }
-    
     
     GA_RWAttributeRef uvAttrIndex;
     switch (param.getScope())
@@ -628,7 +686,7 @@ void SOP_AlembicIn::addUVs(Args & args, IV2fGeomParam param,
 		    GA_TYPE_VOID,
                     uvAttrIndex,
 		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx);
+		    startPrimIdx, endPrimIdx, false);
     }
 }
 
@@ -636,10 +694,10 @@ void SOP_AlembicIn::addUVs(Args & args, IV2fGeomParam param,
 
 void SOP_AlembicIn::addNormals(Args & args, IN3fGeomParam param,
         size_t startPointIdx, size_t endPointIdx,
-	size_t startPrimIdx, size_t endPrimIdx)
+        size_t startPrimIdx, size_t endPrimIdx,
+        bool parentXformIsConstant)
 {
     if (!param.valid()) { return; }
-    
     
     GA_RWAttributeRef nAttrIndex;
     switch (param.getScope())
@@ -669,7 +727,8 @@ void SOP_AlembicIn::addNormals(Args & args, IN3fGeomParam param,
 		    GA_TYPE_NORMAL,
                     nAttrIndex,
                     startPointIdx, endPointIdx,
-                    startPrimIdx, endPrimIdx);
+                    startPrimIdx, endPrimIdx,
+                    parentXformIsConstant);
     }
     
 }
@@ -715,13 +774,14 @@ bool SOP_AlembicIn::addOrFindNormalAttribute(GEO_AttributeOwner owner,
 }
 
 //-*****************************************************************************
-
 void SOP_AlembicIn::addArbitraryGeomParams(Args & args,
         ICompoundProperty parent,
         size_t startPointIdx, size_t endPointIdx,
-        size_t startPrimIdx, size_t endPrimIdx)
+        size_t startPrimIdx, size_t endPrimIdx,
+        bool parentXformIsConstant)
 {
-    if (!parent.valid()) return;
+    if (!parent.valid())
+	return;
     
     for (size_t i = 0; i < parent.getNumProperties(); ++i)
     {
@@ -736,7 +796,7 @@ void SOP_AlembicIn::addArbitraryGeomParams(Args & args,
 		    GA_TYPE_VOID,
                     GA_RWAttributeRef(),
 		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx);
+		    startPrimIdx, endPrimIdx, false);
         }
         else if (IInt32GeomParam::matches(propHeader))
         {
@@ -746,7 +806,7 @@ void SOP_AlembicIn::addArbitraryGeomParams(Args & args,
 		    GA_TYPE_VOID,
                     GA_RWAttributeRef(),
 		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx);
+		    startPrimIdx, endPrimIdx, false);
         }
         else if (IStringGeomParam::matches(propHeader))
         {
@@ -756,7 +816,7 @@ void SOP_AlembicIn::addArbitraryGeomParams(Args & args,
 		    GA_TYPE_VOID,
                     GA_RWAttributeRef(),
 		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx);
+		    startPrimIdx, endPrimIdx, false);
                     
         }
         else if (IV2fGeomParam::matches(propHeader))
@@ -767,7 +827,7 @@ void SOP_AlembicIn::addArbitraryGeomParams(Args & args,
 		    GA_TYPE_VOID,
                     GA_RWAttributeRef(),
 		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx);
+		    startPrimIdx, endPrimIdx, false);
         }
         else if (IV3fGeomParam::matches(propHeader))
         {
@@ -777,7 +837,7 @@ void SOP_AlembicIn::addArbitraryGeomParams(Args & args,
 		    GA_TYPE_VECTOR,
                     GA_RWAttributeRef(),
 		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx);
+		    startPrimIdx, endPrimIdx, parentXformIsConstant);
         }
         else if (IN3fGeomParam::matches(propHeader))
         {
@@ -787,7 +847,7 @@ void SOP_AlembicIn::addArbitraryGeomParams(Args & args,
 		    GA_TYPE_NORMAL,
                     GA_RWAttributeRef(),
 		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx);
+		    startPrimIdx, endPrimIdx, parentXformIsConstant);
             
         }
         else if (IC3fGeomParam::matches(propHeader))
@@ -795,10 +855,20 @@ void SOP_AlembicIn::addArbitraryGeomParams(Args & args,
             processArbitraryGeomParam<IC3fGeomParam, float>(
                     args, parent, propHeader,
                     GA_STORE_REAL32,
-		    GA_TYPE_VOID,
+		    GA_TYPE_COLOR,
                     GA_RWAttributeRef(),
 		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx);
+		    startPrimIdx, endPrimIdx, false);
+        }
+        else if (IP3fGeomParam::matches(propHeader))
+        {
+            processArbitraryGeomParam<IP3fGeomParam, float>(
+                    args, parent, propHeader,
+                    GA_STORE_REAL32,
+		    GA_TYPE_POINT,
+                    GA_RWAttributeRef(),
+		    startPointIdx, endPointIdx,
+		    startPrimIdx, endPrimIdx, false);
         }
         
     }
@@ -815,12 +885,26 @@ void SOP_AlembicIn::processArbitraryGeomParam(
 	GA_TypeInfo attrTypeInfo,
         const GA_RWAttributeRef & existingAttr,
         size_t startPointIdx, size_t endPointIdx,
-        size_t startPrimIdx, size_t endPrimIdx
+        size_t startPrimIdx, size_t endPrimIdx,
+        bool parentXformIsConstant
 )
 {
     GA_RWAttributeRef attrIdx = existingAttr;
     
     geomParamT param(parent, propHeader.getName());
+    
+    
+    
+    //if param isn't changing and isn't affected by animation in inherited
+    //transformations, exit early
+    if (param.isConstant())
+    {
+        if (args.reusePrimitives && (!args.includeXform || parentXformIsConstant))
+        {
+            return;
+        }
+    }
+    
     
     ISampleSelector sampleSelector( args.abcTime );
     typename geomParamT::sample_type paramSample;
@@ -848,36 +932,50 @@ void SOP_AlembicIn::processArbitraryGeomParam(
     }
     if (!attrIdx.isValid())
     {
+	std::string	aname = propHeader.getName();
+	std::map<std::string,std::string>::const_iterator it = args.nameMap->find(aname);
+	if (it != args.nameMap->end())
+	{
+	    aname = it->second;
+	}
 	if (GAisIntStorage(attrStorage))
 	{
-	    attrIdx = findIntTuple(*gdp, owner, propHeader.getName().c_str(),
+	    attrIdx = findIntTuple(*gdp, owner, aname.c_str(),
 			    totalExtent);
 	    if (!attrIdx.isValid())
 	    {
 		attrIdx = addIntTuple(*gdp, owner,
-			propHeader.getName().c_str(), totalExtent);
+			aname.c_str(), totalExtent);
 	    }
 	}
 	else if (GAisFloatStorage(attrStorage))
 	{
-	    attrIdx = findFloatTuple(*gdp, owner, propHeader.getName().c_str(),
+	    if (getenv("SIGGRAPH_2011"))
+	    {
+		if (!strcmp(aname.c_str(), "SPT_HwColor") &&
+			attrTypeInfo == GA_TYPE_COLOR)
+		{
+		    aname = "Cd";
+		}
+	    }
+	    attrIdx = findFloatTuple(*gdp, owner, aname.c_str(),
 			    totalExtent);
 	    if (!attrIdx.isValid())
 	    {
 		attrIdx = addFloatTuple(*gdp, owner,
-			propHeader.getName().c_str(), totalExtent,
+			aname.c_str(), totalExtent,
 			attrTypeInfo == GA_TYPE_NORMAL);
 	    }
 	}
 	else
 	{
 	    UT_ASSERT(attrStorage == GA_STORE_STRING);
-	    attrIdx = findStringTuple(*gdp, owner, propHeader.getName().c_str(),
+	    attrIdx = findStringTuple(*gdp, owner, aname.c_str(),
 			    totalExtent);
 	    if (!attrIdx.isValid())
 	    {
 		attrIdx = addStringTuple(*gdp, owner,
-			propHeader.getName().c_str(), totalExtent);
+			aname.c_str(), totalExtent);
 	    }
 	}
     }
@@ -1136,7 +1234,7 @@ void SOP_AlembicIn::applyArbitraryGeomParamSample<
 
 //-*****************************************************************************
 
-void SOP_AlembicIn::buildSubD( Args & args, ISubD &subd, M44d parentXform )
+void SOP_AlembicIn::buildSubD( Args & args, ISubD &subd, M44d parentXform, bool parentXformIsConstant)
 {
     ISampleSelector sampleSelector( args.abcTime );
     ISubDSchema &ss = subd.getSchema();
@@ -1144,37 +1242,58 @@ void SOP_AlembicIn::buildSubD( Args & args, ISubD &subd, M44d parentXform )
     {
         args.isConstant = false;
     }
-    
-    ISubDSchema::Sample sample = ss.getValue( sampleSelector );
-    
+    // If the schema is constant and we've already cooked once, we can exit
+    // early assuming that we're either not baking in tranforms or the inherited
+    // transformations are constant.
+    else if (args.reusePrimitives)
+    {
+        if (!args.includeXform || parentXformIsConstant)
+        {
+            return;
+        }
+    }
     
     //store the primitive and point start indices
     size_t startPointIdx = args.pointCount;
     size_t startPrimIdx = args.primCount;
 
-    args.pointCount += sample.getPositions()->size();	// Add # points
-    args.primCount += sample.getFaceCounts()->size();	// Add # faces
-
-    size_t endPointIdx = args.pointCount;
-    size_t endPrimIdx = args.primCount;
-    
     GA_PrimitiveGroup * primGrp;
     if (args.reusePrimitives)
     {
-	primGrp = reuseMesh(getFullName(subd),
-		sample.getPositions(), startPointIdx);
+        Abc::V3fArraySamplePtr pSample =
+                ss.getPositions /*Property*/().getValue(sampleSelector);
+        
+        primGrp = reuseMesh(getFullName(subd), pSample, startPointIdx);
+        
+        args.pointCount += pSample->size();     // Add # points
+        
+        
+        
+        //always present in myPrimitiveCountCache if args.reusePrimitives
+        args.primCount += myPrimitiveCountCache[getFullName(subd)];
     }
     else
     {
+        ISubDSchema::Sample sample = ss.getValue( sampleSelector );
+        
+    args.pointCount += sample.getPositions()->size();	// Add # points
+    args.primCount += sample.getFaceCounts()->size();	// Add # faces
+
+        
 	primGrp = buildMesh(getFullName(subd),
                 sample.getPositions(), sample.getFaceCounts(),
 		sample.getFaceIndices(), startPointIdx);
     }
     
+    size_t endPointIdx = args.pointCount;
+    size_t endPrimIdx = args.primCount;
+    
+    
     addUVs(args, subd.getSchema().getUVs/*Param*/(),
 	    startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
     addArbitraryGeomParams(args, subd.getSchema().getArbGeomParams(),
-            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
+            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx,
+                    parentXformIsConstant);
     
     //apply xforms via gdp->transform so that we don't have to think
     //about normals and other affected attributes
@@ -1191,7 +1310,7 @@ void SOP_AlembicIn::buildSubD( Args & args, ISubD &subd, M44d parentXform )
 //-*****************************************************************************
 
 void SOP_AlembicIn::buildPolyMesh( Args & args, IPolyMesh & polymesh,
-        M44d parentXform)
+        M44d parentXform, bool parentXformIsConstant)
 {
     ISampleSelector sampleSelector( args.abcTime );
     IPolyMeshSchema &schema = polymesh.getSchema();
@@ -1199,39 +1318,62 @@ void SOP_AlembicIn::buildPolyMesh( Args & args, IPolyMesh & polymesh,
     {
         args.isConstant = false;
     }
-    IPolyMeshSchema::Sample sample = schema.getValue( sampleSelector );
+    // If the schema is constant and we've already cooked once, we can exit
+    // early assuming that we're either not baking in tranforms or the inherited
+    // transformations are constant.else if (args.reusePrimitives)
+    else if (args.reusePrimitives)
+    {
+        if (!args.includeXform || parentXformIsConstant)
+        {
+            return;
+        }
+    }
     
     
     //store the primitive and point start indices
     size_t startPointIdx = args.pointCount;
     size_t startPrimIdx = args.primCount;
 
-    args.pointCount += sample.getPositions()->size();	// Add # points
-    args.primCount += sample.getFaceCounts()->size();	// Add # faces
-
-    size_t endPointIdx = args.pointCount;
-    size_t endPrimIdx = args.primCount;
-    
     GA_PrimitiveGroup * primGrp;
     if (args.reusePrimitives)
     {
-	primGrp = reuseMesh(getFullName(polymesh),
-		sample.getPositions(), startPointIdx);
+        Abc::V3fArraySamplePtr pSample =
+                schema.getPositions /*Property*/().getValue(sampleSelector);
+        
+        primGrp = reuseMesh(getFullName(polymesh), pSample, startPointIdx);
+        
+        args.pointCount += pSample->size();     // Add # points
+        
+        //always present in myPrimitiveCountCache if args.reusePrimitives
+        args.primCount += myPrimitiveCountCache[getFullName(polymesh)];
+        
     }
     else
     {
+        IPolyMeshSchema::Sample sample = schema.getValue( sampleSelector );
+        
+    args.pointCount += sample.getPositions()->size();	// Add # points
+    args.primCount += sample.getFaceCounts()->size();	// Add # faces
+
 	primGrp = buildMesh(getFullName(polymesh),
 		sample.getPositions(), sample.getFaceCounts(),
 		sample.getFaceIndices(), startPointIdx);
     }
     
+    
+    size_t endPointIdx = args.pointCount;
+    size_t endPrimIdx = args.primCount;
+    
+    
     addUVs(args, polymesh.getSchema().getUVs/*Param*/(),
 	    startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
     addNormals(args, polymesh.getSchema().getNormals/*Param*/(),
-	    startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
+            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx,
+                    parentXformIsConstant);
     
     addArbitraryGeomParams(args, polymesh.getSchema().getArbGeomParams(),
-	    startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
+            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx,
+                    parentXformIsConstant);
     
     //apply xforms via gdp->transform so that we don't have to think
     //about normals and other affected attributes
@@ -1274,6 +1416,7 @@ GA_PrimitiveGroup * SOP_AlembicIn::buildMesh(
         Int32ArraySamplePtr counts, Int32ArraySamplePtr indicies,
 	size_t startPointIdx)
 {
+    myPrimitiveCountCache[groupName] = counts->size();
     for ( size_t i = 0, e = positions->size(); i < e; ++i )
     {
 #if UT_MAJOR_VERSION_INT >= 12
@@ -1549,6 +1692,105 @@ namespace
         }
         return result;
     }
+    
+    
+    PY_PyObject *
+    Py_AlembicGetCameraDict(PY_PyObject *self, PY_PyObject *args)
+    {
+        const char * archivePath = NULL;
+        const char * objectPath = NULL;
+        double sampleTime = 0.0;
+        
+        if (!PY_PyArg_ParseTuple(args, "ssd", &archivePath, &objectPath,
+                &sampleTime)) return NULL;
+        
+        bool isConstant = true;
+        
+        PY_PyObject * resultDict = PY_PyDict_New();
+        
+        try
+        {
+            ArchiveCacheEntryRcPtr cacheEntry = LoadArchive(archivePath);
+            if (cacheEntry->archive.valid() )
+            {
+                IObject root = cacheEntry->archive.getTop();
+                SOP_AlembicIn::PathList pathList;
+                TokenizeObjectPath(objectPath, pathList);
+                IObject currentObject = root;
+                for (SOP_AlembicIn::PathList::const_iterator I = pathList.begin();
+                        I != pathList.end() && currentObject.valid(); ++I)
+                {
+                    currentObject = currentObject.getChild(*I);
+                }
+                
+                if (currentObject.valid() &&
+                        ICamera::matches( currentObject.getHeader()))
+                {
+                    ICamera cameraObject(currentObject, kWrapExisting);
+                    isConstant = cameraObject.getSchema().isConstant();
+                    
+                    CameraSample cameraSample = cameraObject.getSchema().getValue(
+                            ISampleSelector(sampleTime));
+                    
+                    //Express in houdini terms?
+                    
+                    PY_PyObject * val = NULL;
+                    
+                    val = PY_PyFloat_FromDouble(cameraSample.getFocalLength());
+                    PY_PyDict_SetItemString(resultDict, "focal", val);
+                    PY_Py_DECREF(val);
+                    
+                    
+                    
+                    val = PY_PyFloat_FromDouble(cameraSample.getNearClippingPlane());
+                    PY_PyDict_SetItemString(resultDict, "near", val);
+                    PY_Py_DECREF(val);
+                    
+                    val = PY_PyFloat_FromDouble(cameraSample.getFarClippingPlane());
+                    PY_PyDict_SetItemString(resultDict, "far", val);
+                    PY_Py_DECREF(val);
+                    
+                    val = PY_PyFloat_FromDouble(cameraSample.getFocusDistance());
+                    PY_PyDict_SetItemString(resultDict, "focus", val);
+                    PY_Py_DECREF(val);
+                    
+                    double top, bottom, left, right;
+                    cameraSample.getScreenWindow(top, bottom, left, right);
+                    
+//                     val = PY_PyFloat_FromDouble((right-left)/2.0 + left);
+//                     PY_PyDict_SetItemString(resultDict, "winx", val);
+//                     PY_Py_DECREF(val);
+//                     
+//                     val = PY_PyFloat_FromDouble((top-bottom)/2.0 + bottom);
+//                     PY_PyDict_SetItemString(resultDict, "winy", val);
+//                     PY_Py_DECREF(val);
+//                     
+//                     val = PY_PyFloat_FromDouble(right-left);
+//                     PY_PyDict_SetItemString(resultDict, "winsizex", val);
+//                     PY_Py_DECREF(val);
+//                     
+//                     val = PY_PyFloat_FromDouble(top-bottom);
+//                     PY_PyDict_SetItemString(resultDict, "winsizey", val);
+//                     PY_Py_DECREF(val);
+                    
+                    val = PY_PyFloat_FromDouble(
+                            cameraSample.getHorizontalAperture()*10.0*(right-left));
+                    PY_PyDict_SetItemString(resultDict, "aperture", val);
+                    PY_Py_DECREF(val);
+                    
+                    
+                }
+            }
+        }
+        catch (const std::exception & e)
+        {
+            PY_PyErr_SetString(PY_PyExc_RuntimeError(), e.what());
+            return NULL;
+        }
+        
+        return resultDict;
+    }
+    
 }
 void
 HOMextendLibrary()
@@ -1570,8 +1812,19 @@ HOMextendLibrary()
                 PY_METH_VARARGS(), ""},
         {"alembicGetObjectPathListForMenu", Py_AlembicGetObjectPathListForMenu,
                 PY_METH_VARARGS(), ""},
+        {"alembicGetCameraDict", Py_AlembicGetCameraDict,
+                PY_METH_VARARGS(), ""},
         { NULL, NULL, 0, NULL }
     };
     PY_Py_InitModule("_alembic_hom_extensions", alembic_hom_extension_methods);
     }
+    
+    
+    PYrunPythonStatementsAndExpectNoErrors(
+    "def _alembicGetCameraDict(self, archivePath, objectPath, sampleTime):\n"
+    "    '''Return camera information.'''\n"
+    "    import _alembic_hom_extensions\n"
+    "    return _alembic_hom_extensions.alembicGetCameraDict(archivePath, objectPath, sampleTime)\n"
+    "__import__('hou').ObjNode.alembicGetCameraDict = _alembicGetCameraDict\n"
+    "del _alembicGetCameraDict\n");
 }
