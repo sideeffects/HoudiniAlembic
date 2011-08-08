@@ -1,13 +1,9 @@
-// Include Houdini's equivalent of python/Python.h.  It creates wrappers of
-// Python's C API functions, so that Houdini can determine at runtime which
-// version of Python to use.  This file needs to be included first to avoid
-// gcc warnings.  See PY_CPythonAPI.h for more information about the API
-// wrapper.  Note that you are limited to the Python API functions wrapped by
-// PY_CPythonAPI.h.
+// Used for internal python bindings
 #include <PY/PY_CPythonAPI.h>
-
-// This file contains functions that will run arbitrary Python code:
+// This file contains functions that will run arbitrary Python code
 #include <PY/PY_Python.h>
+
+
 #include "SOP_AlembicIn.h"
 
 #include <Alembic/AbcCoreHDF5/All.h>
@@ -17,7 +13,7 @@
 #include <PRM/PRM_Include.h>
 #include <PRM/PRM_SpareData.h>
 
-#include <UT/UT_Interrupt.h>
+
 #include <GU/GU_Detail.h>
 #include <GU/GU_PrimNURBSurf.h>
 #include <GU/GU_PrimNURBCurve.h>
@@ -30,33 +26,43 @@
 #include <boost/tokenizer.hpp>
 #include <sstream>
 #include <boost/shared_ptr.hpp>
-struct ArchiveCacheEntry
-{
-    ArchiveCacheEntry()
-    : objectPathMenuList(NULL)
-    {
-    }
-    
-    ~ArchiveCacheEntry()
-    {
-        if (objectPathMenuList != NULL)
-        {
-            PY_Py_DECREF(objectPathMenuList);
-        }
-    }
-    
-    Abc::IArchive archive;
-    std::string error;
-    PY_PyObject * objectPathMenuList;
-};
-typedef boost::shared_ptr<ArchiveCacheEntry> ArchiveCacheEntryRcPtr;
-typedef std::map<std::string, ArchiveCacheEntryRcPtr> ArchiveCache;
+
+//-*****************************************************************************
+
 namespace
 {
-    const size_t kMaxCache = 1;
+    struct ArchiveCacheEntry
+    {
+        ArchiveCacheEntry()
+        : objectPathMenuList(NULL)
+        {
+        }
+        
+        ~ArchiveCacheEntry()
+        {
+            if (objectPathMenuList != NULL)
+            {
+                PY_Py_DECREF(objectPathMenuList);
+            }
+        }
+        
+        Abc::IArchive archive;
+        std::string error;
+        PY_PyObject * objectPathMenuList;
+    };
+    
+    typedef boost::shared_ptr<ArchiveCacheEntry> ArchiveCacheEntryRcPtr;
+    typedef std::map<std::string, ArchiveCacheEntryRcPtr> ArchiveCache;
+    
+    //-*************************************************************************
+    
+    size_t g_maxCache = 50;
     //for now, leak the pointer to the archive cache so we don't
     //crash at shutdown
     ArchiveCache * g_archiveCache(new ArchiveCache);
+    
+    //-*************************************************************************
+    
     ArchiveCacheEntryRcPtr LoadArchive(const std::string & path)
     {
         ArchiveCache::iterator I = g_archiveCache->find(path);
@@ -68,17 +74,18 @@ namespace
                 new ArchiveCacheEntry);
         try
         {
-            entry->archive = Abc::IArchive(::Alembic::AbcCoreHDF5::ReadArchive(), path);
+            entry->archive = Abc::IArchive(
+                    ::Alembic::AbcCoreHDF5::ReadArchive(), path);
         }
         catch (const std::exception & e)
         {
             entry->error = e.what();
         }
-        while (g_archiveCache->size() >= kMaxCache)
+        while (g_archiveCache->size() >= g_maxCache)
         {
             long d = static_cast<long>(std::floor(
                     static_cast<double>(std::rand())
-                            / RAND_MAX * kMaxCache - 0.5));
+                            / RAND_MAX * g_maxCache - 0.5));
             if (d < 0)
             {
                 d = 0;
@@ -93,6 +100,9 @@ namespace
         (*g_archiveCache)[path] = entry;
         return entry;
     }
+    
+    //-**************************************************************************
+    
     void TokenizeObjectPath(const std::string & objectPath,
             SOP_AlembicIn::PathList & pathList)
     {
@@ -139,8 +149,9 @@ static PRM_Default prm_fpsDefault(24, "$FPS");
 static PRM_Default prm_includeXformDefault(true);
 
 static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
-		"__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu(hou.pwd().evalParm('fileName'))[:16380]",
-		CH_PYTHON_SCRIPT);
+        "__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu"
+                "(hou.pwd().evalParm('fileName'))[:16380]",
+        CH_PYTHON_SCRIPT);
 
 PRM_Template SOP_AlembicIn::myTemplateList[] =
 {
@@ -148,11 +159,11 @@ PRM_Template SOP_AlembicIn::myTemplateList[] =
     PRM_Template(PRM_FLT_J, 1, &prm_frameName, &prm_frameDefault),
     PRM_Template(PRM_FLT_J, 1, &prm_fpsName, &prm_fpsDefault),
     PRM_Template(PRM_STRING, 1, &prm_objectPathName, &prm_objectPathDefault,
-				&prm_objectPathMenu),
+            &prm_objectPathMenu),
     PRM_Template(PRM_TOGGLE, 1, &prm_includeXformName, &prm_includeXformDefault),
     PRM_Template(PRM_MULTITYPE_LIST, prm_AttributeRemapTemplate, 2,
-		    &prm_remapAttribName, PRMzeroDefaults, 0,
-		    &PRM_SpareData::multiStartOffsetOne),
+            &prm_remapAttribName, PRMzeroDefaults, 0,
+            &PRM_SpareData::multiStartOffsetOne),
     PRM_Template()
 };
 
@@ -217,22 +228,43 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
     // If the file or object parameter has changed, we need to reset our
     // primitive cache.
     UT_WorkBuffer fileobjecthash;
-    fileobjecthash.sprintf("%s:%s:%d", fileName.c_str(), objectPath.c_str(), args.includeXform);
+    fileobjecthash.sprintf("%s:%s:%d", fileName.c_str(), objectPath.c_str(),
+            args.includeXform);
+    
+    
+    int nmapSize = evalInt("remapAttributes", 0, now);
+    // Entries are one based (not zero based)
+    for (int i = 1; i <= nmapSize; ++i)
+    {
+        UT_String abcName, hName;
+        evalStringInst("abcName#", &i, abcName, 0, now);
+        evalStringInst("hName#", &i, hName, 0, now);
+        if (abcName.isstring() && hName.isstring())
+        {
+            nameMap[abcName.toStdString()] = hName.toStdString();
+            
+            // Incorporate attribute remapping values into the fileobjecthash
+            // so that recooks reflect the new state even for constant data
+            fileobjecthash.sprintf(":%s->%s",
+                    (const char *)abcName, (const char *)hName);
+        }
+    }
+    
     if (strcmp(myFileObjectCache, fileobjecthash.buffer()) != 0)
     {
-	myFileObjectCache.harden(fileobjecthash.buffer());
-	myTopologyConstant = false;
-    myEntireSceneIsConstant = false;
-    myPrimitiveCountCache.clear();
+        myFileObjectCache.harden(fileobjecthash.buffer());
+        myTopologyConstant = false;
+        myEntireSceneIsConstant = false;
+        myPrimitiveCountCache.clear();
     }
     
+    // Exit early if the entire scene (within this SOP) was recognized
+    // as constant on a previous cook. Note that we haven't yet evaluated
+    // the "frame" parm so we won't be called for subsequent cooks.
     if (myEntireSceneIsConstant)
     {
-        //std::cerr << "cook early exit\n";
         return error();
     }
-    
-    //std::cerr << "cooking\n";
     
     if ( !objectPath.empty() )
     {
@@ -243,28 +275,15 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
     
     if (!myTopologyConstant)
     {
-	gdp->clearAndDestroy();
+        gdp->clearAndDestroy();
     }
     else
     {
 #if UT_MAJOR_VERSION_INT >= 12
-	gdp->destroyInternalNormalAttribute();
+        gdp->destroyInternalNormalAttribute();
 #else
-	gdp->destroyPointAttrib("internalN", sizeof(UT_Vector3), GB_ATTRIB_MIXED);
+        gdp->destroyPointAttrib("internalN", sizeof(UT_Vector3), GB_ATTRIB_MIXED);
 #endif
-    }
-    
-    int nmapSize = evalInt("remapAttributes", 0, now);
-    // Entries are one based (not zero based)
-    for (int i = 1; i <= nmapSize; ++i)
-    {
-	UT_String	abcName, hName;
-	evalStringInst("abcName#", &i, abcName, 0, now);
-	evalStringInst("hName#", &i, hName, 0, now);
-	if (abcName.isstring() && hName.isstring())
-	{
-	    nameMap[abcName.toStdString()] = hName.toStdString();
-	}
     }
     
     
@@ -276,6 +295,14 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
     args.pointCount = 0;
     args.primCount = 0;
     args.nameMap = &nameMap;
+    args.boss = UTgetInterrupt();
+    
+    
+    if (!args.boss->opStart("Loading and walking Alembic data"))
+    {
+        args.boss->opEnd();
+        return error();
+    }
     
     try
     {
@@ -287,6 +314,7 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
             buffer << "Alembic exception: ";
             buffer << cacheEntry->error;
             addWarning(SOP_MESSAGE, buffer.str().c_str());
+            args.boss->opEnd();
             return error();
         }
         
@@ -314,13 +342,21 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
                         xform, true);
             }
         }
+        
+        // If after doing our traversal nothing has changed args.isConstant,
+        // then we copy that state back to our member variables.
         if (args.isConstant)
         {
             myEntireSceneIsConstant = true;
-            //TODO, prevent recooking on frame changes
-            //(assuming other arguments are equivalent)
         }
-	myTopologyConstant = args.isTopologyConstant;
+        myTopologyConstant = args.isTopologyConstant;
+    }
+    catch ( const InterruptedException & e )
+    {
+        //currently thrown by WalkObject
+        myEntireSceneIsConstant = false;
+        myTopologyConstant = false;
+        myPrimitiveCountCache.clear();
     }
     catch ( const std::exception &e )
     {
@@ -329,8 +365,8 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
         buffer << e.what();
         addWarning(SOP_MESSAGE, buffer.str().c_str());
     }
-
     
+    args.boss->opEnd();
     return error();
 }
 
@@ -338,7 +374,6 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
 
 void SOP_AlembicIn::nodeUnlocked()
 {
-    //TODO
 }
 
 //-*****************************************************************************
@@ -346,130 +381,145 @@ void SOP_AlembicIn::nodeUnlocked()
 #if UT_MAJOR_VERSION_INT >= 12
     static GA_RWAttributeRef
     findStringTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
-		const char *name, int min_size=1)
+            const char *name, int min_size=1)
     {
-	return gdp.findStringTuple(owner, name, min_size);
+        return gdp.findStringTuple(owner, name, min_size);
     }
     static GA_RWAttributeRef
     addStringTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
-		const char *name, int size)
+            const char *name, int size)
     {
-	return gdp.addStringTuple(owner, name, size);
+        return gdp.addStringTuple(owner, name, size);
     }
     static GA_RWAttributeRef
     findIntTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
-		const char *name, int min_size)
+            const char *name, int min_size)
     {
-	return gdp.findIntTuple(owner, name, min_size);
+        return gdp.findIntTuple(owner, name, min_size);
     }
     static GA_RWAttributeRef
     addIntTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
-		const char *name, int size)
+            const char *name, int size)
     {
-	return gdp.addIntTuple(owner, name, size);
+        return gdp.addIntTuple(owner, name, size);
     }
     static GA_RWAttributeRef
     findFloatTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
-		const char *name, int min_size)
+            const char *name, int min_size)
     {
-	return gdp.findFloatTuple(owner, name, min_size);
+        return gdp.findFloatTuple(owner, name, min_size);
     }
     static GA_RWAttributeRef
     addFloatTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
-		const char *name, int size, bool normal)
+            const char *name, int size, bool normal)
     {
-	GA_RWAttributeRef	h = gdp.addFloatTuple(owner, name, size);
-	if (h.isValid() && normal)
-	    h.getAttribute()->setTypeInfo(GA_TYPE_NORMAL);
-	return h;
+        GA_RWAttributeRef h = gdp.addFloatTuple(owner, name, size);
+        if (h.isValid() && normal)
+        {
+            h.getAttribute()->setTypeInfo(GA_TYPE_NORMAL);
+        }
+        return h;
     }
     static void
     setTypeInfo(GA_RWAttributeRef &aref, GA_TypeInfo tinfo)
     {
-	if (aref.isValid() && tinfo != GA_TYPE_VOID)
-	    aref.getAttribute()->setTypeInfo(tinfo);
+        if (aref.isValid() && tinfo != GA_TYPE_VOID)
+        {
+            aref.getAttribute()->setTypeInfo(tinfo);
+        }
     }
     static void
     addToGroup(GA_PrimitiveGroup *group, GEO_Primitive *gb)
     {
-	group->add(gb);
+        group->add(gb);
     }
 #else
     static GA_RWAttributeRef
     findAttribute(GU_Detail &gdp, GEO_AttributeOwner owner, const char *name,
-		    GB_AttribType type, size_t bytes)
+            GB_AttribType type, size_t bytes)
     {
-	switch (owner)
-	{
-	    case GEO_POINT_DICT:
-		return gdp.findPointAttrib(name, bytes, type);
-	    case GEO_VERTEX_DICT:
-		return gdp.findVertexAttrib(name, bytes, type);
-	    case GEO_PRIMITIVE_DICT:
-		return gdp.findPrimAttrib(name, bytes, type);
-	    case GEO_DETAIL_DICT:
-		return gdp.findAttrib(name, bytes, type);
-	}
-	return GA_RWAttributeRef();
+        switch (owner)
+        {
+        case GEO_POINT_DICT:
+            return gdp.findPointAttrib(name, bytes, type);
+        case GEO_VERTEX_DICT:
+            return gdp.findVertexAttrib(name, bytes, type);
+        case GEO_PRIMITIVE_DICT:
+            return gdp.findPrimAttrib(name, bytes, type);
+        case GEO_DETAIL_DICT:
+            return gdp.findAttrib(name, bytes, type);
+        default:
+            return GA_RWAttributeRef();
+        }
     }
+    
     static GA_RWAttributeRef
     addAttribute(GU_Detail &gdp, GEO_AttributeOwner owner, const char *name,
-		    GB_AttribType type, size_t bytes, const void *def=NULL)
+        GB_AttribType type, size_t bytes, const void *def=NULL)
     {
-	switch (owner)
-	{
-	    case GEO_POINT_DICT:
-		return gdp.addPointAttrib(name, bytes, type, def);
-	    case GEO_VERTEX_DICT:
-		return gdp.addVertexAttrib(name, bytes, type, def);
-	    case GEO_PRIMITIVE_DICT:
-		return gdp.addPrimAttrib(name, bytes, type, def);
-	    case GEO_DETAIL_DICT:
-		return gdp.addAttrib(name, bytes, type, def);
-	}
-	return GA_RWAttributeRef();
+        switch (owner)
+        {
+        case GEO_POINT_DICT:
+            return gdp.addPointAttrib(name, bytes, type, def);
+        case GEO_VERTEX_DICT:
+            return gdp.addVertexAttrib(name, bytes, type, def);
+        case GEO_PRIMITIVE_DICT:
+            return gdp.addPrimAttrib(name, bytes, type, def);
+        case GEO_DETAIL_DICT:
+            return gdp.addAttrib(name, bytes, type, def);
+        default:
+            return GA_RWAttributeRef();
+        }
     }
     static GA_RWAttributeRef
     findStringTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
-		const char *name, int min_size=1)
+            const char *name, int min_size=1)
     {
-	return findAttribute(gdp, owner, name, GB_ATTRIB_INDEX, sizeof(int));
+        return findAttribute(gdp, owner, name, GB_ATTRIB_INDEX, sizeof(int));
     }
     static GA_RWAttributeRef
     addStringTuple(GU_Detail &gdp, GEO_AttributeOwner owner, const char *name,
-			int)
+            int)
     {
-	return addAttribute(gdp, owner, name, GB_ATTRIB_INDEX, sizeof(int));
+        return addAttribute(gdp, owner, name, GB_ATTRIB_INDEX, sizeof(int));
     }
     static GA_RWAttributeRef
     findIntTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
-		const char *name, int size)
+        const char *name, int size)
     {
-	return findAttribute(gdp, owner, name, GB_ATTRIB_INT, sizeof(int)*size);
+        return findAttribute(gdp, owner, name, GB_ATTRIB_INT, sizeof(int)*size);
     }
     static GA_RWAttributeRef
     addIntTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
-		const char *name, int size)
+            const char *name, int size)
     {
-	return addAttribute(gdp, owner, name, GB_ATTRIB_INT, sizeof(int)*size);
+        return addAttribute(gdp, owner, name, GB_ATTRIB_INT, sizeof(int)*size);
     }
     static GA_RWAttributeRef
     findFloatTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
-		const char *name, int size)
+            const char *name, int size)
     {
-	GA_RWAttributeRef	h;
-	h = findAttribute(gdp, owner, name, GB_ATTRIB_FLOAT, sizeof(float)*size);
-	if (!h.isValid() && size == 3)
-	    h = findAttribute(gdp, owner, name, GB_ATTRIB_VECTOR, sizeof(float)*size);
-	return h;
+        GA_RWAttributeRef h;
+        h = findAttribute(gdp, owner, name, GB_ATTRIB_FLOAT,
+                sizeof(float)*size);
+        if (!h.isValid() && size == 3)
+        {
+            h = findAttribute(gdp, owner, name, GB_ATTRIB_VECTOR,
+                    sizeof(float)*size);
+        }
+        return h;
     }
     static GA_RWAttributeRef
     addFloatTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
-		const char *name, int size, bool normal)
+            const char *name, int size, bool normal)
     {
-	if (normal)
-	    return addAttribute(gdp, owner, name, GB_ATTRIB_VECTOR, sizeof(float)*size);
-	return addAttribute(gdp, owner, name, GB_ATTRIB_FLOAT, sizeof(float)*size);
+        if (normal)
+        {
+            return addAttribute(gdp, owner, name, GB_ATTRIB_VECTOR,
+                    sizeof(float)*size);
+        }
+        return addAttribute(gdp, owner, name, GB_ATTRIB_FLOAT,
+                sizeof(float)*size);
     }
     static void
     setTypeInfo(GA_RWAttributeRef &, GA_TypeInfo)
@@ -478,7 +528,7 @@ void SOP_AlembicIn::nodeUnlocked()
     static void
     addToGroup(GB_PrimitiveGroup *group, GEO_Primitive *gb)
     {
-	group->add(gb, 0);	// Un-ordered group
+        group->add(gb, 0); // Un-ordered group
     }
 #endif
 
@@ -486,11 +536,11 @@ GA_ROAttributeRef  SOP_AlembicIn::attachDetailStringData(
         const std::string &attrName, const std::string &value)
 {
     GA_RWAttributeRef attrIdx = findStringTuple(*gdp, GEO_DETAIL_DICT,
-					attrName.c_str());
+            attrName.c_str());
     if (attrIdx.isInvalid())
     {
         attrIdx = addStringTuple(*gdp, GEO_DETAIL_DICT, attrName.c_str(), 1);
-
+        
         if (error() >= UT_ERROR_ABORT || attrIdx.isInvalid())
         {
             std::ostringstream buffer;
@@ -503,8 +553,8 @@ GA_ROAttributeRef  SOP_AlembicIn::attachDetailStringData(
     const GA_AIFStringTuple *aifstring = attrIdx.getAIFStringTuple();
     if (aifstring)
     {
-	aifstring->setString(attrIdx.getAttribute(), GA_Offset(0),
-			value.c_str(), 0);
+        aifstring->setString(attrIdx.getAttribute(), GA_Offset(0),
+                value.c_str(), 0);
     }
     else
     {
@@ -532,8 +582,11 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
             PathList::const_iterator I, PathList::const_iterator E,
                     M44d parentXform, bool parentXformIsConstant)
 {
-    //for now, let's be time-dependent
-    //OP_Node::flags().setTimeDep(true);
+    if ( args.boss->opInterrupt() )
+    {
+        throw InterruptedException(
+                parent.getFullName() + ohead.getName() );
+    }
     
     //set this if we should continue traversing
     IObject nextParentObject;
@@ -577,12 +630,12 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
     else if ( ISubD::matches( ohead ) )
     {
         ISubD subd( parent, ohead.getName() );
-	ISubDSchema &ss = subd.getSchema();
-	if (ss.getTopologyVariance() == kHeterogenousTopology)
-	{
-	    args.isTopologyConstant = false;
-	}
-
+        ISubDSchema &ss = subd.getSchema();
+        if (ss.getTopologyVariance() == kHeterogenousTopology)
+        {
+            args.isTopologyConstant = false;
+        }
+        
         buildSubD( args, subd, parentXform, parentXformIsConstant );
         
         nextParentObject = subd;
@@ -590,11 +643,11 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
     else if ( IPolyMesh::matches( ohead ) )
     {
         IPolyMesh polymesh( parent, ohead.getName() );
-	IPolyMeshSchema &ps = polymesh.getSchema();
-	if (ps.getTopologyVariance() == kHeterogenousTopology)
-	{
-	    args.isTopologyConstant = false;
-	}
+        IPolyMeshSchema &ps = polymesh.getSchema();
+        if (ps.getTopologyVariance() == kHeterogenousTopology)
+        {
+            args.isTopologyConstant = false;
+        }
         
         buildPolyMesh( args, polymesh, parentXform, parentXformIsConstant );
         
@@ -602,10 +655,7 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
     }
     else
     {
-//         std::cerr << "could not determine type of " << ohead.getName()
-//                   << std::endl; 
-//         std::cerr << ohead.getName() << " has MetaData: "
-//                   << ohead.getMetaData().serialize() << std::endl;
+        //For now, silently skip types we don't recognize
     }
     
     
@@ -654,7 +704,7 @@ std::string SOP_AlembicIn::getFullName( IObject object )
 
 void SOP_AlembicIn::addUVs(Args & args, IV2fGeomParam param,
         size_t startPointIdx, size_t endPointIdx,
-	size_t startPrimIdx, size_t endPrimIdx)
+        size_t startPrimIdx, size_t endPrimIdx)
 {
     if (!param.valid()) { return; }
     
@@ -679,14 +729,15 @@ void SOP_AlembicIn::addUVs(Args & args, IV2fGeomParam param,
     if (uvAttrIndex.isValid())
     {
         processArbitraryGeomParam<IV2fGeomParam, float>(
-                    args,
-                    param.getParent(),
-                    param.getHeader(),
-                    GA_STORE_REAL32,
-		    GA_TYPE_VOID,
-                    uvAttrIndex,
-		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx, false);
+            args,
+            param.getParent(),
+            param.getHeader(),
+            GA_STORE_REAL32,
+            GA_TYPE_VOID,
+            uvAttrIndex,
+            startPointIdx, endPointIdx,
+            startPrimIdx, endPrimIdx,
+            false);
     }
 }
 
@@ -720,15 +771,15 @@ void SOP_AlembicIn::addNormals(Args & args, IN3fGeomParam param,
     if (nAttrIndex.isValid())
     {
         processArbitraryGeomParam<IN3fGeomParam, float>(
-                    args,
-                    param.getParent(),
-                    param.getHeader(),
-                    GA_STORE_REAL32,
-		    GA_TYPE_NORMAL,
-                    nAttrIndex,
-                    startPointIdx, endPointIdx,
-                    startPrimIdx, endPrimIdx,
-                    parentXformIsConstant);
+                args,
+                param.getParent(),
+                param.getHeader(),
+                GA_STORE_REAL32,
+                GA_TYPE_NORMAL,
+                nAttrIndex,
+                startPointIdx, endPointIdx,
+                startPrimIdx, endPrimIdx,
+                parentXformIsConstant);
     }
     
 }
@@ -781,96 +832,102 @@ void SOP_AlembicIn::addArbitraryGeomParams(Args & args,
         bool parentXformIsConstant)
 {
     if (!parent.valid())
-	return;
+    {
+        return;
+    }
     
     for (size_t i = 0; i < parent.getNumProperties(); ++i)
     {
         const PropertyHeader &propHeader = parent.getPropertyHeader(i);
-        //const std::string &propName = propHeader.getName();
         
         if (IFloatGeomParam::matches(propHeader))
         {
             processArbitraryGeomParam<IFloatGeomParam, float>(
                     args, parent, propHeader,
                     GA_STORE_REAL32,
-		    GA_TYPE_VOID,
+                    GA_TYPE_VOID,
                     GA_RWAttributeRef(),
-		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx, false);
+                    startPointIdx, endPointIdx,
+                    startPrimIdx, endPrimIdx,
+                    false);
         }
         else if (IInt32GeomParam::matches(propHeader))
         {
             processArbitraryGeomParam<IInt32GeomParam, int>(
                     args, parent, propHeader,
                     GA_STORE_INT32,
-		    GA_TYPE_VOID,
+                    GA_TYPE_VOID,
                     GA_RWAttributeRef(),
-		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx, false);
+                    startPointIdx, endPointIdx,
+                    startPrimIdx, endPrimIdx,
+                    false);
         }
         else if (IStringGeomParam::matches(propHeader))
         {
             processArbitraryGeomParam<IStringGeomParam, std::string>(
                     args, parent, propHeader,
                     GA_STORE_STRING,
-		    GA_TYPE_VOID,
+                    GA_TYPE_VOID,
                     GA_RWAttributeRef(),
-		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx, false);
-                    
+                    startPointIdx, endPointIdx,
+                    startPrimIdx, endPrimIdx,
+                    false);
         }
         else if (IV2fGeomParam::matches(propHeader))
         {
             processArbitraryGeomParam<IV2fGeomParam, float>(
                     args, parent, propHeader,
                     GA_STORE_REAL32,
-		    GA_TYPE_VOID,
+                    GA_TYPE_VOID,
                     GA_RWAttributeRef(),
-		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx, false);
+                    startPointIdx, endPointIdx,
+                    startPrimIdx, endPrimIdx,
+                    false);
         }
         else if (IV3fGeomParam::matches(propHeader))
         {
             processArbitraryGeomParam<IV3fGeomParam, float>(
                     args, parent, propHeader,
                     GA_STORE_REAL32,
-		    GA_TYPE_VECTOR,
+                    GA_TYPE_VECTOR,
                     GA_RWAttributeRef(),
-		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx, parentXformIsConstant);
+                    startPointIdx, endPointIdx,
+                    startPrimIdx, endPrimIdx,
+                    parentXformIsConstant);
         }
         else if (IN3fGeomParam::matches(propHeader))
         {
             processArbitraryGeomParam<IN3fGeomParam, float>(
                     args, parent, propHeader,
                     GA_STORE_REAL32,
-		    GA_TYPE_NORMAL,
+                    GA_TYPE_NORMAL,
                     GA_RWAttributeRef(),
-		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx, parentXformIsConstant);
-            
+                    startPointIdx, endPointIdx,
+                    startPrimIdx, endPrimIdx,
+                    parentXformIsConstant);
         }
         else if (IC3fGeomParam::matches(propHeader))
         {
             processArbitraryGeomParam<IC3fGeomParam, float>(
                     args, parent, propHeader,
                     GA_STORE_REAL32,
-		    GA_TYPE_COLOR,
+                    GA_TYPE_COLOR,
                     GA_RWAttributeRef(),
-		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx, false);
+                    startPointIdx, endPointIdx,
+                    startPrimIdx, endPrimIdx,
+                    false);
         }
         else if (IP3fGeomParam::matches(propHeader))
         {
             processArbitraryGeomParam<IP3fGeomParam, float>(
                     args, parent, propHeader,
                     GA_STORE_REAL32,
-		    GA_TYPE_POINT,
+                    GA_TYPE_POINT,
                     GA_RWAttributeRef(),
-		    startPointIdx, endPointIdx,
-		    startPrimIdx, endPrimIdx, false);
+                    startPointIdx, endPointIdx,
+                    startPrimIdx, endPrimIdx,
+                    false);
         }
-        
     }
 }
 
@@ -882,7 +939,7 @@ void SOP_AlembicIn::processArbitraryGeomParam(
         ICompoundProperty parent,
         const PropertyHeader & propHeader,
         GA_Storage attrStorage,
-	GA_TypeInfo attrTypeInfo,
+        GA_TypeInfo attrTypeInfo,
         const GA_RWAttributeRef & existingAttr,
         size_t startPointIdx, size_t endPointIdx,
         size_t startPrimIdx, size_t endPrimIdx,
@@ -893,18 +950,16 @@ void SOP_AlembicIn::processArbitraryGeomParam(
     
     geomParamT param(parent, propHeader.getName());
     
-    
-    
-    //if param isn't changing and isn't affected by animation in inherited
-    //transformations, exit early
+    // If the param isn't changing and isn't affected by animation in inherited
+    // transformations, exit early
     if (param.isConstant())
     {
-        if (args.reusePrimitives && (!args.includeXform || parentXformIsConstant))
+        if (args.reusePrimitives &&
+                (!args.includeXform || parentXformIsConstant))
         {
             return;
         }
     }
-    
     
     ISampleSelector sampleSelector( args.abcTime );
     typename geomParamT::sample_type paramSample;
@@ -914,70 +969,63 @@ void SOP_AlembicIn::processArbitraryGeomParam(
     size_t arrayExtent = param.getArrayExtent();
     size_t totalExtent = extent*arrayExtent;
     
-    GEO_AttributeOwner	owner = GEO_POINT_DICT;
+    GEO_AttributeOwner owner = GEO_POINT_DICT;
     switch (paramSample.getScope())
     {
-	case kVaryingScope:
-	case kVertexScope:
-	    // TODO: For NURBS, kVertexScope should use GEO_VERTEX_DICT
-	    owner = GEO_POINT_DICT;
-	    break;
-	case kFacevaryingScope:
-	    owner = GEO_VERTEX_DICT;
-	    break;
-        case kUniformScope:
-        case kConstantScope:
-        case kUnknownScope:
-	    owner = GEO_PRIMITIVE_DICT;
+    case kVaryingScope:
+    case kVertexScope:
+        // TODO: For NURBS, kVertexScope should use GEO_VERTEX_DICT
+        owner = GEO_POINT_DICT;
+        break;
+    case kFacevaryingScope:
+        owner = GEO_VERTEX_DICT;
+        break;
+    case kUniformScope:
+    case kConstantScope:
+    case kUnknownScope:
+        owner = GEO_PRIMITIVE_DICT;
     }
+    
     if (!attrIdx.isValid())
     {
-	std::string	aname = propHeader.getName();
-	std::map<std::string,std::string>::const_iterator it = args.nameMap->find(aname);
-	if (it != args.nameMap->end())
-	{
-	    aname = it->second;
-	}
-	if (GAisIntStorage(attrStorage))
-	{
-	    attrIdx = findIntTuple(*gdp, owner, aname.c_str(),
-			    totalExtent);
-	    if (!attrIdx.isValid())
-	    {
-		attrIdx = addIntTuple(*gdp, owner,
-			aname.c_str(), totalExtent);
-	    }
-	}
-	else if (GAisFloatStorage(attrStorage))
-	{
-	    if (getenv("SIGGRAPH_2011"))
-	    {
-		if (!strcmp(aname.c_str(), "SPT_HwColor") &&
-			attrTypeInfo == GA_TYPE_COLOR)
-		{
-		    aname = "Cd";
-		}
-	    }
-	    attrIdx = findFloatTuple(*gdp, owner, aname.c_str(),
-			    totalExtent);
-	    if (!attrIdx.isValid())
-	    {
-		attrIdx = addFloatTuple(*gdp, owner,
-			aname.c_str(), totalExtent,
-			attrTypeInfo == GA_TYPE_NORMAL);
-	    }
-	}
-	else
-	{
-	    UT_ASSERT(attrStorage == GA_STORE_STRING);
-	    attrIdx = findStringTuple(*gdp, owner, aname.c_str(),
-			    totalExtent);
-	    if (!attrIdx.isValid())
-	    {
-		attrIdx = addStringTuple(*gdp, owner,
-			aname.c_str(), totalExtent);
-	    }
-	}
+        std::string aname = propHeader.getName();
+        std::map<std::string,std::string>::const_iterator it =
+                args.nameMap->find(aname);
+        if (it != args.nameMap->end())
+        {
+            aname = it->second;
+        }
+        if (GAisIntStorage(attrStorage))
+        {
+            attrIdx = findIntTuple(*gdp, owner, aname.c_str(), totalExtent);
+            if (!attrIdx.isValid())
+            {
+                attrIdx = addIntTuple(*gdp, owner,
+                        aname.c_str(), totalExtent);
+            }
+        }
+        else if (GAisFloatStorage(attrStorage))
+        {
+            attrIdx = findFloatTuple(*gdp, owner, aname.c_str(),
+                    totalExtent);
+            if (!attrIdx.isValid())
+            {
+                attrIdx = addFloatTuple(*gdp, owner,
+                        aname.c_str(), totalExtent,
+                        attrTypeInfo == GA_TYPE_NORMAL);
+            }
+        }
+        else
+        {
+            UT_ASSERT(attrStorage == GA_STORE_STRING);
+            attrIdx = findStringTuple(*gdp, owner, aname.c_str(),
+                    totalExtent);
+            if (!attrIdx.isValid())
+            {
+                attrIdx = addStringTuple(*gdp, owner,
+                        aname.c_str(), totalExtent);
+            }
+        }
     }
     
     if (!attrIdx.isValid())
@@ -985,7 +1033,7 @@ void SOP_AlembicIn::processArbitraryGeomParam(
         //TODO, indicate as error, for now just skip it
         return;
     }
-
+    
     setTypeInfo(attrIdx, attrTypeInfo);
     applyArbitraryGeomParamSample<typename geomParamT::sample_type, podT>(
             paramSample,
@@ -1038,14 +1086,14 @@ void SOP_AlembicIn::applyArbitraryGeomParamSample(
             point->set(attrIdx, values+i*totalExtent, totalExtent);
         }
 #else
-	GA_RWHandleTS<podT>	h(attrIdx.getAttribute());
-	int	tsize = SYSmin((int)totalExtent, attrIdx.getTupleSize());
-	for (size_t i = 0, pointIdx = startPointIdx;
-		pointIdx < endPointIdx; ++pointIdx, ++i)
-	{
-	    GA_Offset	pt = gdp->pointOffset(GA_Index(pointIdx));
-	    h.setV(pt, values+i*totalExtent, tsize);
-	}
+        GA_RWHandleTS<podT>	h(attrIdx.getAttribute());
+        int	tsize = SYSmin((int)totalExtent, attrIdx.getTupleSize());
+        for (size_t i = 0, pointIdx = startPointIdx;
+                pointIdx < endPointIdx; ++pointIdx, ++i)
+        {
+            GA_Offset pt = gdp->pointOffset(GA_Index(pointIdx));
+            h.setV(pt, values+i*totalExtent, tsize);
+        }
 #endif
         
         break;
@@ -1060,7 +1108,6 @@ void SOP_AlembicIn::applyArbitraryGeomParamSample(
                 primIdx < endPrimIdx; ++primIdx)
         {
             GEO_Primitive *prim = gdp->primitives()(primIdx);
-            
             
             int vtxCount = prim->getVertexCount();
             for(int i=0; i < vtxCount; ++i, ++vertexIdx)
@@ -1110,9 +1157,9 @@ void SOP_AlembicIn::applyArbitraryGeomParamSample<
                 paramSample.getVals()->get());
         
 #if UT_MAJOR_VERSION_INT < 12
-	GB_Attribute	*attr = gdp->primitiveAttribs().findByOffset(attrIdx);
+        GB_Attribute *attr = gdp->primitiveAttribs().findByOffset(attrIdx);
 #endif
-	size_t i = 0;
+        size_t i = 0;
         for (size_t primIdx = startPrimIdx;
                 primIdx < endPrimIdx; ++primIdx, ++i)
         {
@@ -1123,8 +1170,8 @@ void SOP_AlembicIn::applyArbitraryGeomParamSample<
 #if UT_MAJOR_VERSION_INT >= 12
                 prim->setString(attrIdx, values[i*totalExtent+j].c_str(), j);
 #else
-		prim->setValue<int>(attrIdx,
-			attr->addIndex(values[i*totalExtent+j].c_str()), j);
+                prim->setValue<int>(attrIdx,
+                        attr->addIndex(values[i*totalExtent+j].c_str()), j);
 #endif
             }
         }
@@ -1138,26 +1185,26 @@ void SOP_AlembicIn::applyArbitraryGeomParamSample<
         
         size_t i = 0;
 #if UT_MAJOR_VERSION_INT < 12
-	GB_Attribute	*attr = gdp->pointAttribs().findByOffset(attrIdx);
+        GB_Attribute *attr = gdp->pointAttribs().findByOffset(attrIdx);
 #else
-	const GA_AIFStringTuple	*stuple = attrIdx.getAIFStringTuple();
-	GA_Attribute		*attr = attrIdx.getAttribute();
+        const GA_AIFStringTuple	*stuple = attrIdx.getAIFStringTuple();
+        GA_Attribute *attr = attrIdx.getAttribute();
 #endif
         for (size_t pointIdx = startPointIdx;
                 pointIdx < endPointIdx; ++pointIdx, ++i)
         {
 #if UT_MAJOR_VERSION_INT >= 12
-	    GA_Offset	pt = gdp->pointOffset(GA_Index(pointIdx));
-	    for (size_t j = 0; j < totalExtent; ++j)
-	    {
-		stuple->setString(attr, pt, values[i*totalExtent+j].c_str(), j);
-	    }
+            GA_Offset pt = gdp->pointOffset(GA_Index(pointIdx));
+            for (size_t j = 0; j < totalExtent; ++j)
+            {
+                stuple->setString(attr, pt, values[i*totalExtent+j].c_str(), j);
+            }
 #else
             GEO_Point *point = gdp->points()(pointIdx);
             for (size_t j = 0; j < totalExtent; ++j)
             {
-		point->setValue<int>(attrIdx,
-			attr->addIndex(values[i*totalExtent+j].c_str()), j);
+                point->setValue<int>(attrIdx,
+                        attr->addIndex(values[i*totalExtent+j].c_str()), j);
             }
 #endif
         }
@@ -1171,30 +1218,28 @@ void SOP_AlembicIn::applyArbitraryGeomParamSample<
         
         size_t vertexIdx = 0;
 #if UT_MAJOR_VERSION_INT < 12
-	GB_Attribute	*attr = gdp->pointAttribs().findByOffset(attrIdx);
+        GB_Attribute *attr = gdp->pointAttribs().findByOffset(attrIdx);
 #endif
         for (size_t primIdx = startPrimIdx;
                 primIdx < endPrimIdx; ++primIdx)
         {
             GEO_Primitive *prim = gdp->primitives()(primIdx);
-
+            
             int vtxCount = prim->getVertexCount();
             for(int i=0; i < vtxCount; ++i, ++vertexIdx)
             {
-
                 for (size_t j = 0; j < totalExtent; ++j)
                 {
 #if UT_MAJOR_VERSION_INT >= 12
-		    GEO_Vertex vtx = prim->getVertex(i);
-		    vtx.setString(attrIdx,
-			    values[vertexIdx*totalExtent+j].c_str(), j);
+                    GEO_Vertex vtx = prim->getVertex(i);
+                    vtx.setString(attrIdx,
+                            values[vertexIdx*totalExtent+j].c_str(), j);
 #else
-		    GEO_Vertex &vtx = prim->getVertex(i);
-		    vtx.setValue<int>(attrIdx,
-			    attr->addIndex(values[i*totalExtent+j].c_str()), j);
+                    GEO_Vertex &vtx = prim->getVertex(i);
+                    vtx.setValue<int>(attrIdx,
+                            attr->addIndex(values[i*totalExtent+j].c_str()), j);
 #endif
                 }
-            
             }
         }
         
@@ -1208,7 +1253,7 @@ void SOP_AlembicIn::applyArbitraryGeomParamSample<
                 paramSample.getVals()->get());
         
 #if UT_MAJOR_VERSION_INT < 12
-	GB_Attribute	*attr = gdp->primitiveAttribs().findByOffset(attrIdx);
+        GB_Attribute *attr = gdp->primitiveAttribs().findByOffset(attrIdx);
 #endif
         for (size_t primIdx = startPrimIdx;
                 primIdx < endPrimIdx; ++primIdx)
@@ -1220,8 +1265,8 @@ void SOP_AlembicIn::applyArbitraryGeomParamSample<
 #if UT_MAJOR_VERSION_INT >= 12
                 prim->setString(attrIdx, values[j].c_str(), j);
 #else
-		prim->setValue<int>(attrIdx,
-			attr->addIndex(values[j].c_str()), j);
+                prim->setValue<int>(attrIdx,
+                        attr->addIndex(values[j].c_str()), j);
 #endif
             }
             
@@ -1260,37 +1305,38 @@ void SOP_AlembicIn::buildSubD( Args & args, ISubD &subd, M44d parentXform, bool 
     GA_PrimitiveGroup * primGrp;
     if (args.reusePrimitives)
     {
-        Abc::V3fArraySamplePtr pSample =
-                ss.getPositions /*Property*/().getValue(sampleSelector);
+        Abc::P3fArraySamplePtr pSample =
+                ss.getPositionsProperty().getValue(sampleSelector);
         
         primGrp = reuseMesh(getFullName(subd), pSample, startPointIdx);
         
-        args.pointCount += pSample->size();     // Add # points
+        args.pointCount += pSample->size(); // Add # points
         
         
         
         //always present in myPrimitiveCountCache if args.reusePrimitives
         args.primCount += myPrimitiveCountCache[getFullName(subd)];
+        
     }
     else
     {
         ISubDSchema::Sample sample = ss.getValue( sampleSelector );
         
-    args.pointCount += sample.getPositions()->size();	// Add # points
-    args.primCount += sample.getFaceCounts()->size();	// Add # faces
-
+        args.pointCount += sample.getPositions()->size(); // Add # points
+        args.primCount += sample.getFaceCounts()->size(); // Add # faces
         
-	primGrp = buildMesh(getFullName(subd),
+        
+        primGrp = buildMesh(getFullName(subd),
                 sample.getPositions(), sample.getFaceCounts(),
-		sample.getFaceIndices(), startPointIdx);
+                sample.getFaceIndices(), startPointIdx);
     }
     
     size_t endPointIdx = args.pointCount;
     size_t endPrimIdx = args.primCount;
     
     
-    addUVs(args, subd.getSchema().getUVs/*Param*/(),
-	    startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
+    addUVs(args, subd.getSchema().getUVsParam(),
+            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
     addArbitraryGeomParams(args, subd.getSchema().getArbGeomParams(),
             startPointIdx, endPointIdx, startPrimIdx, endPrimIdx,
                     parentXformIsConstant);
@@ -1337,8 +1383,8 @@ void SOP_AlembicIn::buildPolyMesh( Args & args, IPolyMesh & polymesh,
     GA_PrimitiveGroup * primGrp;
     if (args.reusePrimitives)
     {
-        Abc::V3fArraySamplePtr pSample =
-                schema.getPositions /*Property*/().getValue(sampleSelector);
+        Abc::P3fArraySamplePtr pSample =
+                schema.getPositionsProperty().getValue(sampleSelector);
         
         primGrp = reuseMesh(getFullName(polymesh), pSample, startPointIdx);
         
@@ -1346,18 +1392,17 @@ void SOP_AlembicIn::buildPolyMesh( Args & args, IPolyMesh & polymesh,
         
         //always present in myPrimitiveCountCache if args.reusePrimitives
         args.primCount += myPrimitiveCountCache[getFullName(polymesh)];
-        
     }
     else
     {
         IPolyMeshSchema::Sample sample = schema.getValue( sampleSelector );
         
-    args.pointCount += sample.getPositions()->size();	// Add # points
-    args.primCount += sample.getFaceCounts()->size();	// Add # faces
-
-	primGrp = buildMesh(getFullName(polymesh),
-		sample.getPositions(), sample.getFaceCounts(),
-		sample.getFaceIndices(), startPointIdx);
+        args.pointCount += sample.getPositions()->size();   // Add # points
+        args.primCount += sample.getFaceCounts()->size();   // Add # faces
+        
+        primGrp = buildMesh(getFullName(polymesh),
+                sample.getPositions(), sample.getFaceCounts(),
+                sample.getFaceIndices(), startPointIdx);
     }
     
     
@@ -1365,9 +1410,9 @@ void SOP_AlembicIn::buildPolyMesh( Args & args, IPolyMesh & polymesh,
     size_t endPrimIdx = args.primCount;
     
     
-    addUVs(args, polymesh.getSchema().getUVs/*Param*/(),
-	    startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
-    addNormals(args, polymesh.getSchema().getNormals/*Param*/(),
+    addUVs(args, polymesh.getSchema().getUVsParam(),
+            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
+    addNormals(args, polymesh.getSchema().getNormalsParam(),
             startPointIdx, endPointIdx, startPrimIdx, endPrimIdx,
                     parentXformIsConstant);
     
@@ -1389,13 +1434,13 @@ void SOP_AlembicIn::buildPolyMesh( Args & args, IPolyMesh & polymesh,
 //-*****************************************************************************
 
 GA_PrimitiveGroup * SOP_AlembicIn::reuseMesh(const std::string & groupName,
-	V3fArraySamplePtr positions, size_t startPointIdx)
+        P3fArraySamplePtr positions, size_t startPointIdx)
 {
     for (size_t i = 0, e = positions->size(); i < e; ++i)
     {
 #if UT_MAJOR_VERSION_INT >= 12
-	GA_Offset	pt = gdp->pointOffset(GA_Index(startPointIdx+i));
-	gdp->setPos3(pt, 
+        GA_Offset pt = gdp->pointOffset(GA_Index(startPointIdx+i));
+        gdp->setPos3(pt, 
                 (*positions)[i][0],
                 (*positions)[i][1],
                 (*positions)[i][2]);
@@ -1407,21 +1452,22 @@ GA_PrimitiveGroup * SOP_AlembicIn::reuseMesh(const std::string & groupName,
                 (*positions)[i][2]));
 #endif
     }
-
+    
     return gdp->findPrimitiveGroup( groupName.c_str() );
 }
 
 GA_PrimitiveGroup * SOP_AlembicIn::buildMesh(
-        const std::string & groupName, V3fArraySamplePtr positions,
+        const std::string & groupName, P3fArraySamplePtr positions,
         Int32ArraySamplePtr counts, Int32ArraySamplePtr indicies,
-	size_t startPointIdx)
+        size_t startPointIdx)
 {
     myPrimitiveCountCache[groupName] = counts->size();
+
     for ( size_t i = 0, e = positions->size(); i < e; ++i )
     {
 #if UT_MAJOR_VERSION_INT >= 12
-	GA_Offset	pt = gdp->appendPointOffset();
-	gdp->setPos3(pt, 
+        GA_Offset pt = gdp->appendPointOffset();
+        gdp->setPos3(pt, 
                 (*positions)[i][0],
                 (*positions)[i][1],
                 (*positions)[i][2]);
@@ -1455,9 +1501,9 @@ GA_PrimitiveGroup * SOP_AlembicIn::buildMesh(
                 ++ptN, ++currentVtxIndex )
         {
 #if UT_MAJOR_VERSION_INT >= 12
-	    GA_Index	idx = GA_Index((*indicies)[currentVtxIndex]
-					+ startPointIdx);
-	    poly->setVertexPoint(ptN, gdp->pointOffset(idx));
+            GA_Index idx = GA_Index((*indicies)[currentVtxIndex]
+                    + startPointIdx);
+            poly->setVertexPoint(ptN, gdp->pointOffset(idx));
 #else
             GEO_Point *point = gdp->points()(
                     (*indicies)[currentVtxIndex] + startPointIdx);
@@ -1467,7 +1513,7 @@ GA_PrimitiveGroup * SOP_AlembicIn::buildMesh(
         
         if ( primGrp )
         {
-	    addToGroup(primGrp, poly);
+            addToGroup(primGrp, poly);
         }
     }
     
@@ -1630,13 +1676,33 @@ namespace
         PY_Py_RETURN_NONE;
     }
     //-*************************************************************************
+    
     PY_PyObject *
     Py_AlembicClearArchiveCache(PY_PyObject *self, PY_PyObject *args)
     {
         g_archiveCache->clear();
         PY_Py_RETURN_NONE;
     }
+    
+    PY_PyObject *
+    Py_AlembicSetArchiveMaxCacheSize(PY_PyObject *self, PY_PyObject *args)
+    {
+        unsigned int value;
+        if (!PY_PyArg_ParseTuple(args, "I", &value)) return NULL;
+        
+        g_maxCache = value;
+        
+        PY_Py_RETURN_NONE;
+    }
+    
+    PY_PyObject *
+    Py_AlembicGetArchiveMaxCacheSize(PY_PyObject *self, PY_PyObject *args)
+    {
+        return PY_PyInt_FromLong((long) g_maxCache);
+    }
+    
     //-*************************************************************************
+    
     void Py_AlembicWalkNodeForMenu(IObject obj, PY_PyObject * result,
             bool isRoot=false)
     {
@@ -1655,6 +1721,9 @@ namespace
             Py_AlembicWalkNodeForMenu(obj.getChild(i), result);
         }
     }
+    
+    //-*************************************************************************
+    
     PY_PyObject *
     Py_AlembicGetObjectPathListForMenu(PY_PyObject *self, PY_PyObject *args)
     {
@@ -1693,6 +1762,7 @@ namespace
         return result;
     }
     
+    //-*************************************************************************
     
     PY_PyObject *
     Py_AlembicGetCameraDict(PY_PyObject *self, PY_PyObject *args)
@@ -1757,24 +1827,56 @@ namespace
                     double top, bottom, left, right;
                     cameraSample.getScreenWindow(top, bottom, left, right);
                     
-//                     val = PY_PyFloat_FromDouble((right-left)/2.0 + left);
-//                     PY_PyDict_SetItemString(resultDict, "winx", val);
-//                     PY_Py_DECREF(val);
-//                     
-//                     val = PY_PyFloat_FromDouble((top-bottom)/2.0 + bottom);
-//                     PY_PyDict_SetItemString(resultDict, "winy", val);
-//                     PY_Py_DECREF(val);
-//                     
-//                     val = PY_PyFloat_FromDouble(right-left);
-//                     PY_PyDict_SetItemString(resultDict, "winsizex", val);
-//                     PY_Py_DECREF(val);
-//                     
-//                     val = PY_PyFloat_FromDouble(top-bottom);
-//                     PY_PyDict_SetItemString(resultDict, "winsizey", val);
-//                     PY_Py_DECREF(val);
+                    double winx = cameraSample.getHorizontalFilmOffset() *
+                            cameraSample.getLensSqueezeRatio() /
+                                    cameraSample.getHorizontalAperture();
+                    
+                    double winy = cameraSample.getVerticalFilmOffset() *
+                            cameraSample.getLensSqueezeRatio() /
+                                    cameraSample.getVerticalAperture();
+                    
+                    //TODO, full 2D transformations
+                    
+                    Abc::V2d postScale(1.0, 1.0);
+                    for ( size_t i = 0; i < cameraSample.getNumOps(); ++i )
+                    {
+                        const FilmBackXformOp & op = cameraSample.getOp(i);
+                        
+                        if ( op.isScaleOp() )
+                        {
+                            postScale *= op.getScale();
+                        }
+                    }
+                    
+                    //TODO overscan
+                    double winsizex =
+                            cameraSample.getLensSqueezeRatio() / postScale[0];
+                    //TODO overscan
+                    double winsizey =
+                            cameraSample.getLensSqueezeRatio() / postScale[1];
+                    
+                    
+                    
+                    
+                    
+                    val = PY_PyFloat_FromDouble(winx);
+                    PY_PyDict_SetItemString(resultDict, "winx", val);
+                    PY_Py_DECREF(val);
+                    
+                    val = PY_PyFloat_FromDouble(winy);
+                    PY_PyDict_SetItemString(resultDict, "winy", val);
+                    PY_Py_DECREF(val);
+                    
+                    val = PY_PyFloat_FromDouble(winsizex);
+                    PY_PyDict_SetItemString(resultDict, "winsizex", val);
+                    PY_Py_DECREF(val);
+                    
+                    val = PY_PyFloat_FromDouble(winsizey);
+                    PY_PyDict_SetItemString(resultDict, "winsizey", val);
+                    PY_Py_DECREF(val);
                     
                     val = PY_PyFloat_FromDouble(
-                            cameraSample.getHorizontalAperture()*10.0*(right-left));
+                            cameraSample.getHorizontalAperture()*10.0);
                     PY_PyDict_SetItemString(resultDict, "aperture", val);
                     PY_Py_DECREF(val);
                     
@@ -1790,6 +1892,9 @@ namespace
         
         return resultDict;
     }
+    
+    
+    
     
 }
 void
@@ -1808,8 +1913,15 @@ HOMextendLibrary()
                 PY_METH_VARARGS(), ""},
         {"alembicGetSceneHierarchy", Py_AlembicGetSceneHierarchy,
                 PY_METH_VARARGS(), ""},
+        
         {"alembicClearArchiveCache", Py_AlembicClearArchiveCache,
                 PY_METH_VARARGS(), ""},
+        {"alembicSetArchiveMaxCacheSize", Py_AlembicSetArchiveMaxCacheSize,
+                PY_METH_VARARGS(), ""},
+        {"alembicGetArchiveMaxCacheSize", Py_AlembicGetArchiveMaxCacheSize,
+                PY_METH_VARARGS(), ""},
+        
+        
         {"alembicGetObjectPathListForMenu", Py_AlembicGetObjectPathListForMenu,
                 PY_METH_VARARGS(), ""},
         {"alembicGetCameraDict", Py_AlembicGetCameraDict,
