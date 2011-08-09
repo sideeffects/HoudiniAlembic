@@ -1525,14 +1525,16 @@ GA_PrimitiveGroup * SOP_AlembicIn::buildMesh(
 void
 newSopOperator(OP_OperatorTable *table)
 {
-    table->addOperator(new OP_Operator(
-        "Alembic_In",             // Internal name
-        "Alembic_In",            // GUI name
+    OP_Operator *alembic_op = new OP_Operator(
+	"Alembic_In",			// Internal name
+        "Alembic_In",			// GUI name
         SOP_AlembicIn::myConstructor,   // Op Constructr
         SOP_AlembicIn::myTemplateList,  // GUI Definition
-        0,0,                         // Min,Max # of Inputs
-        0,OP_FLAG_GENERATOR)         // Local Variables/Generator
-    );
+        0, 0,				// Min,Max # of Inputs
+        0, OP_FLAG_GENERATOR);		// Local Variables/Generator
+    alembic_op->setIconName("SOP_alembic");
+
+    table->addOperator(alembic_op);
 }
 namespace
 {
