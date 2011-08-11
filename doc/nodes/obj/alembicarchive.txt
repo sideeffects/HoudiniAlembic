@@ -1,0 +1,32 @@
+= Alembic Archive =
+
+#type: node
+#context: obj
+#internal: alembicarchive
+#icon: SOP/alembic
+
+"""Loads the objects from an Alembic scene archive (`.abc`) file into the
+object level."""
+
+@parameters
+
+[Include:/nodes/sop/alembic#fileName]
+
+[Include:/nodes/sop/alembic#frame]
+
+[Include:/nodes/sop/alembic#fps]
+
+[Include:/nodes/sop/alembic#remapAttributes]
+
+[Include:/nodes/sop/alembic#abcName]
+
+[Include:/nodes/sop/alembic#hName]
+
+Build or update hierarchy:
+    Click to read the archive file in __File name__ and build a hierarchy of
+    Houdini objects from the objects in the archive.
+
+
+
+
+

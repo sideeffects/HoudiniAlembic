@@ -1,0 +1,23 @@
+= Alembic Xform =
+
+#type: node
+#context: obj
+#internal: alembicxform
+#icon: SOP/alembic
+
+"""Loads only the transform from an object or objects in an Alembic scene 
+archive (`.abc`)."""
+
+@parameters
+
+[Include:/nodes/sop/alembic#fileName]
+
+[Include:/nodes/sop/alembic#objectPath]
+
+[Include:/nodes/sop/alembic#frame]
+
+[Include:/nodes/sop/alembic#fps]
+
+
+
+
