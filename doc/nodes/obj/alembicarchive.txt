@@ -12,6 +12,8 @@ object level."""
 
 [Include:/nodes/sop/alembic#fileName]
 
+[Include:/nodes/sop/alembic#objectPath]
+
 [Include:/nodes/sop/alembic#frame]
 
 [Include:/nodes/sop/alembic#fps]
