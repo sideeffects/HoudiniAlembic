@@ -13,7 +13,7 @@ geometry network."""
 File name:
     #id: fileName
     
-    Path the Alembic archive (`.abc`) file.
+    Path to the Alembic archive (`.abc`) file.
 
 Frame:
     #id: frame
@@ -25,7 +25,7 @@ Frame:
 Frames per second:
     #id: fps
     
-    Combined with the __Frame__ parameter, this is used to convert alembic's
+    Combined with the __Frame__ parameter, this is used to convert Alembic's
     time-based animation to Houdini frames. The default is `$FPS` (Houdini's
     current frames-per-second setting). If the archive file was created with a
     different FPS, you will need to enter it here.
