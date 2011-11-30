@@ -80,12 +80,33 @@ private:
         bool isConstant;            // Attributes are constant
         bool isTopologyConstant;    // Flag whether topology is constant
         bool reusePrimitives;       // Reuse existing primitives
+	bool rebuiltNurbs;
+
+	// normally set to 0 but useful for interpolation of
+	// varying GeomParams across NuPatch
+	int activePatchRows;
+	int activePatchCols;
         
         // Attribute name map
         const std::map<std::string,std::string> *nameMap;
-        
-        
+
         UT_Interrupt *boss;
+    };
+
+    struct ArgsRowColumnReset
+    {
+	Args &m_args;
+
+	ArgsRowColumnReset(Args &args, int rows, int cols)
+	: m_args(args)
+	{
+	    m_args.activePatchRows = rows;
+	    m_args.activePatchCols = cols;
+	}
+	~ArgsRowColumnReset()
+	{
+	    m_args.activePatchRows = m_args.activePatchCols = 0;
+	}
     };
     
     class InterruptedException : public std::runtime_error
@@ -108,6 +129,7 @@ private:
     
     void buildSubD( Args & args, ISubD & subd, M44d parentXform, bool parentXformIsConstant);
     void buildPolyMesh( Args & args, IPolyMesh & polymesh, M44d parentXform, bool parentXformIsConstant);
+    void buildNuPatch( Args & args, INuPatch & nupatch, M44d parentXform, bool paretnXformIsConstant);
     
     GA_PrimitiveGroup * buildMesh(const std::string & groupName,
             P3fArraySamplePtr positions,
@@ -155,6 +177,7 @@ private:
     
     template <typename geomParamSampleT, typename podT>
     void applyArbitraryGeomParamSample(
+	    Args & args,
             geomParamSampleT & paramSample,
             const GA_RWAttributeRef & attrIdx,
             size_t totalExtent,
@@ -167,6 +190,9 @@ private:
     bool myTopologyConstant;
     bool myEntireSceneIsConstant;
     std::map<std::string, size_t> myPrimitiveCountCache;
+    int myConstantPointCount;	// Point count for constant topology
+    int myConstantPrimitiveCount; // Primitive count for constant topology
+    int myConstantUniqueId; // Detail unique id for constant topology
 };
 
 #endif

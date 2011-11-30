@@ -175,6 +175,9 @@ SOP_AlembicIn::SOP_AlembicIn(OP_Network *net, const char *name,
 , myFileObjectCache(UT_String::ALWAYS_DEEP, "")
 , myTopologyConstant(false)
 , myEntireSceneIsConstant(false)
+, myConstantUniqueId(-1)
+, myConstantPointCount(0)
+, myConstantPrimitiveCount(0)
 {
 }
 
@@ -203,10 +206,21 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
 {
     Args args;
     std::map<std::string,std::string> nameMap;
+    bool sop_flushed = false;
     
     const float now = context.myTime;
     
     args.includeXform = evalInt("includeXform", 0, now);
+    if (gdp->getUniqueId() != myConstantUniqueId ||
+	    gdp->points().entries() != myConstantPointCount ||
+	    gdp->primitives().entries() != myConstantPrimitiveCount)
+    {
+	// When the SOP cache flushes my geometry, make sure to recreate
+	// primitives etc.
+	// This may also happen if the geometry is instanced by time shift or
+	// by DOPs.
+	sop_flushed = true;
+    }
     
     std::string fileName;
     {
@@ -250,7 +264,7 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
         }
     }
     
-    if (strcmp(myFileObjectCache, fileobjecthash.buffer()) != 0)
+    if (sop_flushed || strcmp(myFileObjectCache, fileobjecthash.buffer()) != 0)
     {
         myFileObjectCache.harden(fileobjecthash.buffer());
         myTopologyConstant = false;
@@ -296,11 +310,21 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
     args.primCount = 0;
     args.nameMap = &nameMap;
     args.boss = UTgetInterrupt();
+    args.rebuiltNurbs = false;
+    args.activePatchRows = 0;
+    args.activePatchCols = 0;
     
     
     if (!args.boss->opStart("Loading and walking Alembic data"))
     {
         args.boss->opEnd();
+        return error();
+    }
+    
+    if (fileName.empty())
+    {
+        args.boss->opEnd();
+        addWarning(SOP_MESSAGE, "No file specified.");
         return error();
     }
     
@@ -350,8 +374,13 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
             myEntireSceneIsConstant = true;
         }
         myTopologyConstant = args.isTopologyConstant;
+        
+        if (args.rebuiltNurbs)
+        {
+            gdp->notifyCache(GU_CACHE_ALL);
+        }
     }
-    catch ( const InterruptedException & e )
+    catch ( const InterruptedException & /*e*/ )
     {
         //currently thrown by WalkObject
         myEntireSceneIsConstant = false;
@@ -364,6 +393,12 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
         buffer << "Alembic exception: ";
         buffer << e.what();
         addWarning(SOP_MESSAGE, buffer.str().c_str());
+    }
+    if (myTopologyConstant)
+    {
+	myConstantPointCount = gdp->points().entries();
+	myConstantPrimitiveCount = gdp->primitives().entries();
+	myConstantUniqueId = gdp->getUniqueId();
     }
     
     args.boss->opEnd();
@@ -653,6 +688,20 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
         
         nextParentObject = polymesh;
     }
+    else if ( INuPatch::matches( ohead ) )
+    {
+        INuPatch nupatch( parent, ohead.getName() );
+        
+        if ( nupatch.getSchema().getTopologyVariance()
+                == kHeterogenousTopology )
+        {
+            args.isTopologyConstant = false;
+        }
+        
+        buildNuPatch( args, nupatch, parentXform, parentXformIsConstant );
+        
+        nextParentObject = nupatch;
+    }
     else
     {
         //For now, silently skip types we don't recognize
@@ -687,6 +736,33 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
 }
 
 //-*****************************************************************************
+
+#if UT_MAJOR_VERSION_INT >= 12
+static std::string
+fixAttributeName(const std::string &name)
+{
+    // Houdini 12 only allows "variable" style names for group/attribute names
+    // Note that this may cause group collisions with trees like:
+    //   - /ABC/foo/bar
+    //   - /ABC/foo_bar
+    //   - /ABC/foo.bar
+    // since all three paths will be converted to _ABC_foo_bar
+    //
+    // The right thing todo is to maintain a map of groupnames to paths so that
+    // we can export the correct node path.
+    UT_String	var(name.c_str());
+    if (var.forceValidVariableName())
+	return std::string((const char *)var);
+    return name;
+}
+#else
+static inline std::string
+fixAttributeName(const std::string &name)
+{
+    // Houdini 11 allows arbitrary characters in group/attribute names
+    return name;
+}
+#endif
 
 std::string SOP_AlembicIn::getFullName( IObject object )
 {
@@ -845,6 +921,17 @@ void SOP_AlembicIn::addArbitraryGeomParams(Args & args,
             processArbitraryGeomParam<IFloatGeomParam, float>(
                     args, parent, propHeader,
                     GA_STORE_REAL32,
+                    GA_TYPE_VOID,
+                    GA_RWAttributeRef(),
+                    startPointIdx, endPointIdx,
+                    startPrimIdx, endPrimIdx,
+                    false);
+        }
+        else if (IDoubleGeomParam::matches(propHeader))
+        {
+            processArbitraryGeomParam<IDoubleGeomParam, double>(
+                    args, parent, propHeader,
+                    GA_STORE_REAL32, //TODO, store as double in h12?
                     GA_TYPE_VOID,
                     GA_RWAttributeRef(),
                     startPointIdx, endPointIdx,
@@ -1036,6 +1123,7 @@ void SOP_AlembicIn::processArbitraryGeomParam(
     
     setTypeInfo(attrIdx, attrTypeInfo);
     applyArbitraryGeomParamSample<typename geomParamT::sample_type, podT>(
+            args,
             paramSample,
             attrIdx,
             totalExtent,
@@ -1047,6 +1135,7 @@ void SOP_AlembicIn::processArbitraryGeomParam(
 
 template <typename geomParamSampleT, typename podT>
 void SOP_AlembicIn::applyArbitraryGeomParamSample(
+        Args & args,
         geomParamSampleT & paramSample,
         const GA_RWAttributeRef & attrIdx,
         size_t totalExtent,
@@ -1074,6 +1163,17 @@ void SOP_AlembicIn::applyArbitraryGeomParamSample(
     case kVaryingScope:
     case kVertexScope:
     {
+        // TODO, for kVaryingScope on a nupatch, need to interpolate
+        // from the corner values and apply to the points as normal
+        // We'll know if we're a nupatch if args.activePatchRows > 0
+        // For now, skip it
+        if (args.activePatchRows > 0 &&
+                paramSample.getScope() == kVaryingScope )
+        {
+            return;
+        }
+        
+        
         const podT * values = reinterpret_cast<const podT *>(
                 paramSample.getVals()->get());
         
@@ -1086,7 +1186,7 @@ void SOP_AlembicIn::applyArbitraryGeomParamSample(
             point->set(attrIdx, values+i*totalExtent, totalExtent);
         }
 #else
-        GA_RWHandleTS<podT>	h(attrIdx.getAttribute());
+        GA_RWHandleT<podT>	h(attrIdx.getAttribute());
         int	tsize = SYSmin((int)totalExtent, attrIdx.getTupleSize());
         for (size_t i = 0, pointIdx = startPointIdx;
                 pointIdx < endPointIdx; ++pointIdx, ++i)
@@ -1142,6 +1242,7 @@ void SOP_AlembicIn::applyArbitraryGeomParamSample(
 template <>
 void SOP_AlembicIn::applyArbitraryGeomParamSample<
             IStringGeomParam::sample_type, std::string>(
+        Args & args,
         IStringGeomParam::sample_type & paramSample,
         const GA_RWAttributeRef & attrIdx,
         size_t totalExtent,
@@ -1308,14 +1409,15 @@ void SOP_AlembicIn::buildSubD( Args & args, ISubD &subd, M44d parentXform, bool 
         Abc::P3fArraySamplePtr pSample =
                 ss.getPositionsProperty().getValue(sampleSelector);
         
-        primGrp = reuseMesh(getFullName(subd), pSample, startPointIdx);
+	std::string	groupName = fixAttributeName(getFullName(subd));
+        primGrp = reuseMesh(groupName, pSample, startPointIdx);
         
         args.pointCount += pSample->size(); // Add # points
         
         
         
         //always present in myPrimitiveCountCache if args.reusePrimitives
-        args.primCount += myPrimitiveCountCache[getFullName(subd)];
+        args.primCount += myPrimitiveCountCache[groupName];
         
     }
     else
@@ -1326,7 +1428,8 @@ void SOP_AlembicIn::buildSubD( Args & args, ISubD &subd, M44d parentXform, bool 
         args.primCount += sample.getFaceCounts()->size(); // Add # faces
         
         
-        primGrp = buildMesh(getFullName(subd),
+	std::string	groupName = fixAttributeName(getFullName(subd));
+        primGrp = buildMesh(groupName,
                 sample.getPositions(), sample.getFaceCounts(),
                 sample.getFaceIndices(), startPointIdx);
     }
@@ -1386,12 +1489,13 @@ void SOP_AlembicIn::buildPolyMesh( Args & args, IPolyMesh & polymesh,
         Abc::P3fArraySamplePtr pSample =
                 schema.getPositionsProperty().getValue(sampleSelector);
         
-        primGrp = reuseMesh(getFullName(polymesh), pSample, startPointIdx);
+	std::string	groupName = fixAttributeName(getFullName(polymesh));
+        primGrp = reuseMesh(groupName, pSample, startPointIdx);
         
         args.pointCount += pSample->size();     // Add # points
         
         //always present in myPrimitiveCountCache if args.reusePrimitives
-        args.primCount += myPrimitiveCountCache[getFullName(polymesh)];
+        args.primCount += myPrimitiveCountCache[groupName];
     }
     else
     {
@@ -1400,7 +1504,8 @@ void SOP_AlembicIn::buildPolyMesh( Args & args, IPolyMesh & polymesh,
         args.pointCount += sample.getPositions()->size();   // Add # points
         args.primCount += sample.getFaceCounts()->size();   // Add # faces
         
-        primGrp = buildMesh(getFullName(polymesh),
+	std::string	groupName = fixAttributeName(getFullName(polymesh));
+        primGrp = buildMesh(groupName,
                 sample.getPositions(), sample.getFaceCounts(),
                 sample.getFaceIndices(), startPointIdx);
     }
@@ -1430,6 +1535,163 @@ void SOP_AlembicIn::buildPolyMesh( Args & args, IPolyMesh & polymesh,
     }
     
 }
+
+//-*****************************************************************************
+
+
+void SOP_AlembicIn::buildNuPatch( Args & args, INuPatch & nupatch,
+        M44d parentXform, bool parentXformIsConstant)
+{
+    ISampleSelector sampleSelector( args.abcTime );
+    INuPatchSchema &schema = nupatch.getSchema();
+    if (!schema.isConstant())
+    {
+        args.isConstant = false;
+    }
+    else if (args.reusePrimitives)
+    {
+        if (!args.includeXform || parentXformIsConstant)
+        {
+            return;
+        }
+    }
+    
+    
+    //store the primitive and point start indices
+    size_t startPointIdx = args.pointCount;
+    size_t startPrimIdx = args.primCount;
+    
+    
+    GEO_PrimNURBSurf * surfPrim = 0;
+    
+    
+    GA_PrimitiveGroup * primGrp = 0;
+    if (args.reusePrimitives)
+    {
+        surfPrim = dynamic_cast<GEO_PrimNURBSurf *>(
+                gdp->primitives()[args.primCount]);
+        
+        Abc::P3fArraySamplePtr pSample =
+                schema.getPositionsProperty().getValue(sampleSelector);
+        
+        //only update point positions
+        for (size_t i = 0, e = pSample->size(); i < e; ++i)
+        {
+#if UT_MAJOR_VERSION_INT >= 12
+        GA_Offset pt = gdp->pointOffset(GA_Index(startPointIdx+i));
+        gdp->setPos3(pt, 
+                (*pSample)[i][0],
+                (*pSample)[i][1],
+                (*pSample)[i][2]);
+#else
+        GEO_Point *pt = gdp->points()(startPointIdx+i);
+        pt->setPos(UT_Vector3(
+                (*pSample)[i][0],
+                (*pSample)[i][1],
+                (*pSample)[i][2]));
+#endif
+        }
+        
+	std::string groupName = fixAttributeName(nupatch.getFullName().c_str());
+        primGrp = gdp->findPrimitiveGroup( groupName.c_str() );
+        
+        
+        
+        args.pointCount += pSample->size();     // Add # points
+        args.primCount += 1;
+        
+        args.rebuiltNurbs = true;
+    }
+    else
+    {
+        INuPatchSchema::Sample sample = schema.getValue( sampleSelector );
+        args.pointCount += sample.getPositions()->size();   // Add # points
+        args.primCount += 1;
+        
+        
+        
+        int cols = sample.getUKnot()->size() - sample.getUOrder();
+        int rows = sample.getVKnot()->size() - sample.getVOrder();
+        
+        
+        GU_PrimNURBSurf *surf = GU_PrimNURBSurf::build(
+                gdp,
+                rows,                   // rows
+                cols,                   // columns
+                sample.getUOrder(),     // U order
+                sample.getVOrder(),     // V order
+                0,                      // wrap U
+                0,                      // wrap V
+                0,//(uClosed) ? 0:1,        // interpEndsU
+                0,//(vClosed) ? 0:1,        // interpEndsV
+                GEO_PATCH_QUADS);
+        
+#if UT_MAJOR_VERSION_INT >= 12
+        //copy in the u and v knots
+	GA_KnotVector	&uknots = surf->getUBasis()->getKnotVector();
+	GA_KnotVector	&vknots = surf->getVBasis()->getKnotVector();
+	for (int i = 0; i < sample.getUKnot()->size(); ++i)
+	    uknots.setValue(i, sample.getUKnot()->get()[i]);
+	for (int i = 0; i < sample.getVKnot()->size(); ++i)
+	    vknots.setValue(i, sample.getVKnot()->get()[i]);
+#else
+        //copy in the u and v knots directly
+        memcpy(surf->getUBasis()->getData(), sample.getUKnot()->get(),
+                sample.getUKnot()->size() * sizeof(float));
+        memcpy(surf->getVBasis()->getData(), sample.getVKnot()->get(),
+                sample.getVKnot()->size() * sizeof(float));
+#endif
+        
+        for (int v = 0; v < rows; ++v)
+        {
+            for( int u = 0; u < cols; ++u )
+            {
+                const V3f & p = sample.getPositions()->get()[v * cols + u];
+                (*surf)(v,u).setPos(p[0], p[1], p[2], 1);
+                
+                //std::cerr << "ptnum: " << (*surf)(v,u).getPt()->getNum() << std::endl;
+            }
+        }
+        
+        //TODO, check for getPositionWeights()
+        //For now, don't throw any W on there.
+        surf->weights(false);
+        
+	std::string groupName = fixAttributeName(nupatch.getFullName().c_str());
+        primGrp = gdp->newPrimitiveGroup( groupName.c_str() );
+        addToGroup(primGrp, surf);
+        
+        
+        surfPrim = surf;
+    }
+    
+    
+    size_t endPointIdx = args.pointCount;
+    size_t endPrimIdx = args.primCount;
+    
+    
+    if (surfPrim)
+    {
+        // Make sure this is reset back to 0 when we're done even in the case
+        // of an exception.
+        ArgsRowColumnReset argsReset(args,
+                surfPrim->getNumRows(), surfPrim->getNumCols());
+        addArbitraryGeomParams(args, nupatch.getSchema().getArbGeomParams(),
+            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx,
+                    parentXformIsConstant);
+    }
+    
+    //apply xforms via gdp->transform so that we don't have to think
+    //about normals and other affected attributes
+    if (args.includeXform && parentXform != M44d())
+    {
+        UT_DMatrix4 dxform(parentXform.x);
+        UT_Matrix4 xform(dxform);
+        gdp->transform(xform, primGrp);
+    }
+}
+
+
 
 //-*****************************************************************************
 
@@ -1526,18 +1788,73 @@ void
 newSopOperator(OP_OperatorTable *table)
 {
     OP_Operator *alembic_op = new OP_Operator(
-	"Alembic_In",			// Internal name
-        "Alembic_In",			// GUI name
+        "alembic",                      // Internal name
+        "Alembic",                      // GUI name
         SOP_AlembicIn::myConstructor,   // Op Constructr
         SOP_AlembicIn::myTemplateList,  // GUI Definition
-        0, 0,				// Min,Max # of Inputs
-        0, OP_FLAG_GENERATOR);		// Local Variables/Generator
+        0, 0,                           // Min,Max # of Inputs
+        0, OP_FLAG_GENERATOR);          // Local Variables/Generator
     alembic_op->setIconName("SOP_alembic");
 
     table->addOperator(alembic_op);
 }
 namespace
 {
+    void DecomposeXForm(
+            const Imath::M44d &mat,
+            Imath::V3d &scale,
+            Imath::V3d &shear,
+            Imath::Quatd &rotation,
+            Imath::V3d &translation
+    )
+    {
+        Imath::M44d mat_remainder(mat);
+        
+        // Extract Scale, Shear
+        Imath::extractAndRemoveScalingAndShear(mat_remainder, scale, shear);
+        
+        // Extract translation
+        translation.x = mat_remainder[3][0];
+        translation.y = mat_remainder[3][1];
+        translation.z = mat_remainder[3][2];
+        
+        // Extract rotation
+        rotation = extractQuat(mat_remainder);
+    }
+    
+    M44d RecomposeXForm(
+            const Imath::V3d &scale,
+            const Imath::V3d &shear,
+            const Imath::Quatd &rotation,
+            const Imath::V3d &translation
+    )
+    {
+        Imath::M44d scale_mtx, shear_mtx, rotation_mtx, translation_mtx;
+        
+        scale_mtx.setScale(scale);
+        shear_mtx.setShear(shear);
+        rotation_mtx = rotation.toMatrix44();
+        translation_mtx.setTranslation(translation);
+        
+        return scale_mtx * shear_mtx * rotation_mtx * translation_mtx;
+    }
+    
+    
+    // when amt is 0, a is returned
+    inline double lerp(double a, double b, double amt)
+    {
+        return (a + (b-a)*amt);
+    }
+    
+    Imath::V3d lerp(const Imath::V3d &a, const Imath::V3d &b, double amt)
+    {
+        return Imath::V3d(lerp(a[0], b[0], amt),
+                          lerp(a[1], b[1], amt),
+                          lerp(a[2], b[2], amt));
+    }
+    
+    
+    
     PY_PyObject *
     Py_AlembicGetLocalXform(PY_PyObject *self, PY_PyObject *args)
     {
@@ -1567,13 +1884,78 @@ namespace
                 {
                     IXform xformObject(currentObject, kWrapExisting);
                     isConstant = xformObject.getSchema().isConstant();
-                    XformSample xformSample = xformObject.getSchema().getValue(
-                            ISampleSelector(sampleTime));
-                    localXform = xformSample.getMatrix();
+                    
+                    
+                    
+                    TimeSamplingPtr timeSampling = xformObject.getSchema().getTimeSampling();
+                    size_t numSamples = xformObject.getSchema().getNumSamples();
+                    
+                    
+                    chrono_t inTime = sampleTime;
+                    chrono_t outTime = sampleTime;
+                    
+                    if (numSamples > 1)
+                    {
+                        const chrono_t epsilon = 1.0 / 10000.0;
+                        
+                        std::pair<index_t, chrono_t> floorIndex =
+                                timeSampling->getFloorIndex(sampleTime, numSamples);
+                        
+                        //make sure we're not equal enough
+                        if (fabs(floorIndex.second - sampleTime) > epsilon)
+                        {
+                            //make sure we're not before the first sample
+                            if (floorIndex.second < sampleTime)
+                            {
+                                //make sure there's another sample available afterwards
+                                if (floorIndex.first+1 < numSamples)
+                                {
+                                    inTime = floorIndex.second;
+                                    outTime = timeSampling->getSampleTime(
+                                            floorIndex.first+1);
+                                }
+                            }
+                        }
+                    }
+                    
+                    //interpolate if necessary
+                    if (inTime != outTime )
+                    {
+                        XformSample inSample = xformObject.getSchema().getValue(
+                                ISampleSelector(inTime));
+                        
+                        XformSample outSample = xformObject.getSchema().getValue(
+                                ISampleSelector(outTime));
+                        
+                        double t = (sampleTime - inTime) / (outTime - inTime);
+                        
+                        Imath::V3d s_l,s_r,h_l,h_r,t_l,t_r;
+                        Imath::Quatd quat_l,quat_r;
+                        
+                        DecomposeXForm(inSample.getMatrix(), s_l, h_l, quat_l, t_l);
+                        DecomposeXForm(outSample.getMatrix(), s_r, h_r, quat_r, t_r);
+                        
+                        if ((quat_l ^ quat_r) < 0)
+                        {
+                            quat_r = -quat_r;
+                        }
+                        
+                        localXform = RecomposeXForm(lerp(s_l, s_r, t),
+                                 lerp(h_l, h_r, t),
+                                 Imath::slerp(quat_l, quat_r, t),
+                                 lerp(t_l, t_r, t));
+                        
+                    }
+                    else
+                    {
+                        XformSample xformSample = xformObject.getSchema().getValue(
+                                ISampleSelector(sampleTime));
+                        localXform = xformSample.getMatrix();
+                    }
                 }
             }
         }
-        catch (const std::exception & e)
+        catch (const std::exception & /*e*/)
         {
         }
         PY_PyObject* matrixTuple = PY_PyTuple_New(16);
@@ -1752,7 +2134,7 @@ namespace
                 }
             }
         }
-        catch (const std::exception & e)
+        catch (const std::exception & /*e*/)
         {
             //PY_PyErr_SetString(PY_PyExc_RuntimeError(), e.what());
             //return NULL;

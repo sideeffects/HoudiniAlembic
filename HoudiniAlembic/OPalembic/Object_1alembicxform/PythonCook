@@ -11,7 +11,10 @@ cacheTuple = self.hdaModule().GetConstantXform(self)
 if isinstance(cacheTuple, tuple) and cacheTuple[0] == cacheKey:
     hou.pwd().setCookTransform(cacheTuple[1])
 else:
-    sampleTime = self.evalParm('frame') / self.evalParm('fps')
+    cooktime = kwargs['cooktime']
+    frameParm = self.parm('frame')
+    fpsParm = self.parm('fps')
+    sampleTime = frameParm.evalAtTime(cooktime) / fpsParm.evalAtTime(cooktime)
     xform, isConstant = _ahe.alembicGetLocalXform(abcPath, objPath, sampleTime)
     m = hou.Matrix4(xform)
     hou.pwd().setCookTransform(m)
