@@ -8,6 +8,7 @@
 
 #include <Alembic/AbcCoreHDF5/All.h>
 
+#include <UT/UT_StopWatch.h>
 #include <OP/OP_OperatorTable.h>
 #include <OP/OP_Director.h>
 #include <PRM/PRM_Include.h>
@@ -45,10 +46,93 @@ namespace
                 PY_Py_DECREF(objectPathMenuList);
             }
         }
+
+	// Build a cache of constant transforms
+	void	buildTransformCache(IObject root, const char *path)
+	{
+	    UT_WorkBuffer	fullpath;
+	    for (size_t i = 0; i < root.getNumChildren(); ++i)
+	    {
+		const ObjectHeader	&ohead = root.getChildHeader(i);
+		if (IXform::matches(ohead))
+		{
+		    IXform		xform(root, ohead.getName());
+		    IXformSchema	&xs = xform.getSchema();
+		    fullpath.sprintf("%s/%s", path, ohead.getName().c_str());
+		    if (xs.isConstant())
+		    {
+			XformSample	xsample = xs.getValue(ISampleSelector(0.0));
+			myTransforms[fullpath.buffer()] = xsample.getMatrix();
+		    }
+		    buildTransformCache(xform, fullpath.buffer());
+		}
+	    }
+	}
+	static bool	isSupportedGeometry(const ObjectHeader &h)
+	{
+	    if (ISubD::matches(h) ||
+		    IPolyMesh::matches(h) ||
+		    INuPatch::matches(h))
+		return true;
+	    return false;
+	}
+
+	void	buildGeometryCache(IObject root, const char *path)
+	{
+	    UT_WorkBuffer	fullpath;
+	    for (size_t i = 0; i < root.getNumChildren(); ++i)
+	    {
+		const ObjectHeader	&ohead = root.getChildHeader(i);
+		IObject	kid = root.getChild(i);
+		fullpath.sprintf("%s/%s", path, ohead.getName().c_str());
+		if (isSupportedGeometry(ohead))
+		{
+		    myGeometry[fullpath.buffer()] = kid;
+		}
+		buildGeometryCache(kid, fullpath.buffer());
+	    }
+	}
+
+	bool	findTransform(const char *fullpath, M44d &xform)
+		{
+		    if (myTransforms.size() == 0)
+		    {
+			IObject root = archive.getTop();
+			buildTransformCache(root, "");
+			//fprintf(stderr, "%d transforms\n", (int)myTransforms.size());
+		    }
+		    std::map<std::string, M44d>::const_iterator	it;
+		    it = myTransforms.find(fullpath);
+		    if (it != myTransforms.end())
+		    {
+			xform = it->second;
+			return true;
+		    }
+		    return false;
+		}
+
+	const IObject	*findGeometry(const char *fullpath)
+		{
+		    if (myGeometry.size() == 0)
+		    {
+			IObject root = archive.getTop();
+			buildGeometryCache(root, "");
+			//fprintf(stderr, "%d geometry\n", (int)myGeometry.size());
+		    }
+		    std::map<std::string, IObject>::const_iterator	it;
+		    it = myGeometry.find(fullpath);
+		    if (it != myGeometry.end())
+		    {
+			return  &(it->second);
+		    }
+		    return NULL;
+		}
         
         Abc::IArchive archive;
         std::string error;
         PY_PyObject * objectPathMenuList;
+	std::map<std::string, M44d> myTransforms;
+	std::map<std::string, IObject> myGeometry;
     };
     
     typedef boost::shared_ptr<ArchiveCacheEntry> ArchiveCacheEntryRcPtr;
@@ -1870,16 +1954,32 @@ namespace
             ArchiveCacheEntryRcPtr cacheEntry = LoadArchive(archivePath);
             if (cacheEntry->archive.valid() )
             {
-                IObject root = cacheEntry->archive.getTop();
                 SOP_AlembicIn::PathList pathList;
-                TokenizeObjectPath(objectPath, pathList);
+                IObject root = cacheEntry->archive.getTop();
                 IObject currentObject = root;
-                for (SOP_AlembicIn::PathList::const_iterator I = pathList.begin();
-                        I != pathList.end() && currentObject.valid(); ++I)
-                {
-                    currentObject = currentObject.getChild(*I);
-                }
-                if (currentObject.valid() &&
+
+		bool	found = false;
+#if 0
+		static int		count = 0;
+		static UT_StopWatch	timer;
+		if (count == 0)
+		    timer.start();
+		count++;
+		if (count % 500 == 0)
+		    fprintf(stderr, "%d calls %g\n", count, timer.lap());
+#endif
+		if (cacheEntry->findTransform(objectPath, localXform))
+		    found = true;
+		else
+		{
+		    TokenizeObjectPath(objectPath, pathList);
+		    for (SOP_AlembicIn::PathList::const_iterator I = pathList.begin();
+			    I != pathList.end() && currentObject.valid(); ++I)
+		    {
+			currentObject = currentObject.getChild(*I);
+		    }
+		}
+                if (!found && currentObject.valid() &&
                         IXform::matches( currentObject.getHeader()))
                 {
                     IXform xformObject(currentObject, kWrapExisting);
@@ -1978,8 +2078,18 @@ namespace
         const AbcA::ObjectHeader & header = obj.getHeader();
         if (IXform::matches(header))
         {
-            PY_PyTuple_SET_ITEM(result, 1,
-                    PY_PyString_FromString("xform"));
+	    IXform xformObject(obj, kWrapExisting);
+	    if (xformObject.getSchema().isConstant())
+	    {
+		// constant transform
+		PY_PyTuple_SET_ITEM(result, 1,
+			PY_PyString_FromString("cxform"));
+	    }
+	    else
+	    {
+		PY_PyTuple_SET_ITEM(result, 1,
+			PY_PyString_FromString("xform"));
+	    }
         }
         else if (IPolyMesh::matches(header))
         {
@@ -2041,16 +2151,16 @@ namespace
             if (cacheEntry->archive.valid())
             {
                 IObject root = cacheEntry->archive.getTop();
-            SOP_AlembicIn::PathList pathList;
-            TokenizeObjectPath(objectPath, pathList);
-            IObject currentObject = root;
-            for (SOP_AlembicIn::PathList::const_iterator I = pathList.begin();
-                    I != pathList.end() && currentObject.valid(); ++I)
-            {
-                currentObject = currentObject.getChild(*I);
-            }
-            return Py_AlembicWalkNode(currentObject);
-        }
+		SOP_AlembicIn::PathList pathList;
+		TokenizeObjectPath(objectPath, pathList);
+		IObject currentObject = root;
+		for (SOP_AlembicIn::PathList::const_iterator I = pathList.begin();
+			I != pathList.end() && currentObject.valid(); ++I)
+		{
+		    currentObject = currentObject.getChild(*I);
+		}
+		return Py_AlembicWalkNode(currentObject);
+	    }
         }
         catch (const std::exception & e)
         {
