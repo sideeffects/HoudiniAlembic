@@ -1,0 +1,8 @@
+#type: node
+#context: out
+#internal: alembic
+#icon: ROP/alembic
+
+= Alembic =
+
+This node is a work in progress and not documented yet. Feel free to test it and give us feedback.
