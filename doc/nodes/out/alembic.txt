@@ -1,8 +1,107 @@
 #type: node
 #context: out
 #internal: alembic
-#icon: ROP/alembic
+#icon: SOP/alembic
 
 = Alembic =
 
-This node is a work in progress and not documented yet. Feel free to test it and give us feedback.
+The Alembic ROP can export your scene as an Alembic archive.
+See the following link for further information about the [Alembic format|http://code.google.com/p/alembic/].
+
+NOTE:
+    This is a preliminary exporter. A more full featured exporter will be included in the future. The future version will likely be SOHO based. 
+
+@parameters
+
+Render:
+    Begins the render with the last render control settings.
+
+Render Control:
+    Opens the render control dialog to allow adjustments of the render parameters before rendering.
+
+Valid Frame Range:
+    Controls whether this render node outputs the current frame (__Render any frame__) or the image sequence specified in the __Start/End/Inc__ parameters (__Render Frame Range__).
+
+    __Render Frame Range (strict)__ will render frames START to END when it is rendered, but will not allow frames outside this range to be rendered at all. __Render Frame Range__ will allow outside frames to be rendered. This is used in conjunction with render dependencies. It also affects the behavior of the 'Override Frame Range' in the Render Control dialog.
+
+    Two possible cases where you'd want the strict behavior:
+    
+    - A 60 frame walk cycle written out to a geo, but part of a larger ROP net to render out a larger frame range.
+
+    - A texture loop from 1-20.
+
+    Otherwise, you will usually set this to non-strict.
+
+    Render Any Frame: 
+        Renders a single frame, based on the value in the playbar or the frame that is requested by a connected output render node.
+
+    Render Frame Range:
+        Renders a sequence of frames. If an output render node is connected, this range is generally ignored in favor of frames requested by the output render node.
+    
+    Render Frame Range (Strict):
+        Renders a sequence of frames. If an output render node is connected, this range restricts its requested frames to this frame range.
+
+Start/End/Inc:
+    Specifies the range of frames to render (start frame, end frame, and increment). All values may be floating point values. The range is inclusive. 
+
+    These parameters determine the values of the local variables for the output driver.
+        `$NRENDER`:
+            The number of frames to be rendered by the output driver.
+        `$N`:
+            The current frame being rendered (starting at 1 and going to `$NRENDER`).
+        
+    For example, if the parameters are set to:
+    table>>
+        tr>>
+            th>> Start
+            th>> End
+            th>> Inc
+        tr>> 
+            td>> 10.5
+            td>> 12
+            td>> 0.5
+
+    There will be 4 frames rendered (10.5, 11, 11.5, and 12), so `$NRENDER` will have a value of 4. `$N` will have the value:
+    table>>
+        tr>>
+            th>> Frame
+            th>> 10.5
+            th>> 11
+            th>> 11.5
+            th>> 12
+        tr>> 
+            td>> $N
+            td>> 1
+            td>> 2
+            td>> 3
+            td>> 4
+
+Render With Take:
+    The output driver will switch to this take before rendering and then restore the current take when rendering is done.
+
+    TIP:
+        use `chs("take")` to use this value in other parameters. See the [Exp:chs] expression function for more information.
+
+Alembic File:
+    The name of the archive to generate.
+
+Root Object:
+    The root object of the scene. All displayed objects contained under this node will be included in the Alembic archive.
+
+Objects:
+    A pattern/bundle of objects to include in the alembic archive.
+    
+    NOTE:
+        Only objects that are displayed on the start frame will be output to the archive.
+
+Collapse identity transforms:
+    This option will skip writing any transform nodes which have no transform (an identity transform) for the entire animation.
+
+    When importing an Alembic scene, there are often empty geometry nodes
+    created to contain [Alembic SOPs|Node:sop/alembic]. These objects are simply
+    placeholders to contain the geometry. However, when exporting the
+    scene, they will be added as dummy transform nodes (roughly doubling
+    the size of the Alembic archive node count).
+
+Verbosity:
+    Add information to the Alembic ROP based on objects written to the archive.
