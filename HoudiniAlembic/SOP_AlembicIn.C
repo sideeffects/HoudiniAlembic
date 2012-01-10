@@ -23,6 +23,10 @@
 #include <UT/UT_DSOVersion.h>
 #include <UT/UT_DMatrix4.h>
 
+#if UT_MAJOR_VERSION_INT >= 12
+#include <UT/UT_CappedCache.h>
+#endif
+
 #include <HOM/HOM_Module.h>
 #include <boost/tokenizer.hpp>
 #include <sstream>
@@ -32,10 +36,73 @@
 
 namespace
 {
+    void TokenizeObjectPath(const std::string & objectPath,
+            SOP_AlembicIn::PathList & pathList)
+    {
+        typedef boost::char_separator<char> Separator;
+        typedef boost::tokenizer<Separator> Tokenizer;
+        Tokenizer tokenizer( objectPath, Separator( "/" ) );
+        for ( Tokenizer::iterator iter = tokenizer.begin() ;
+                iter != tokenizer.end() ; ++iter )
+        {
+            if ( (*iter).empty() ) { continue; }
+            pathList.push_back( *iter );
+        }
+    }
+
+#if UT_MAJOR_VERSION_INT >= 12
+    class ArchiveObjectKey : public UT_CappedKey
+    {
+    public:
+	ArchiveObjectKey(const char *key)
+	    : UT_CappedKey()
+	    , myKey(UT_String::ALWAYS_DEEP, key)
+	{
+	}
+	virtual ~ArchiveObjectKey() {}
+	virtual UT_CappedKey	*duplicate() const
+				 {
+				     return new ArchiveObjectKey(myKey);
+				 }
+	virtual unsigned int	 getHash() const	{ return myKey.hash(); }
+	virtual bool		 isEqual(const UT_CappedKey &cmp) const
+				 {
+				     UT_ASSERT(dynamic_cast<const ArchiveObjectKey *>(&cmp));
+				     const ArchiveObjectKey	*key = static_cast<const ArchiveObjectKey *>(&cmp);
+				     return myKey == key->myKey;
+				 }
+    private:
+	UT_String	myKey;
+    };
+
+    class ArchiveObjectItem : public UT_CappedItem
+    {
+    public:
+	ArchiveObjectItem()
+	    : UT_CappedItem()
+	    , myIObject()
+	{
+	}
+	ArchiveObjectItem(const IObject &obj)
+	    : UT_CappedItem()
+	    , myIObject(obj)
+	{
+	}
+	// Approximate usage
+	virtual int64	getMemoryUsage() const	{ return 1024; }
+	IObject		getObject() const	{ return myIObject; }
+    private:
+	IObject		 myIObject;
+    };
+#endif
+
     struct ArchiveCacheEntry
     {
         ArchiveCacheEntry()
         : objectPathMenuList(NULL)
+#if UT_MAJOR_VERSION_INT >= 12
+	, myCache("abcObjects", 2)
+#endif
         {
         }
         
@@ -68,30 +135,6 @@ namespace
 		}
 	    }
 	}
-	static bool	isSupportedGeometry(const ObjectHeader &h)
-	{
-	    if (ISubD::matches(h) ||
-		    IPolyMesh::matches(h) ||
-		    INuPatch::matches(h))
-		return true;
-	    return false;
-	}
-
-	void	buildGeometryCache(IObject root, const char *path)
-	{
-	    UT_WorkBuffer	fullpath;
-	    for (size_t i = 0; i < root.getNumChildren(); ++i)
-	    {
-		const ObjectHeader	&ohead = root.getChildHeader(i);
-		IObject	kid = root.getChild(i);
-		fullpath.sprintf("%s/%s", path, ohead.getName().c_str());
-		if (isSupportedGeometry(ohead))
-		{
-		    myGeometry[fullpath.buffer()] = kid;
-		}
-		buildGeometryCache(kid, fullpath.buffer());
-	    }
-	}
 
 	bool	findTransform(const char *fullpath, M44d &xform)
 		{
@@ -111,28 +154,53 @@ namespace
 		    return false;
 		}
 
-	const IObject	*findGeometry(const char *fullpath)
+	IObject	findObject(IObject parent,
+		    UT_WorkBuffer &fullpath, const char *component)
 		{
-		    if (myGeometry.size() == 0)
+#if UT_MAJOR_VERSION_INT >= 12
+		    fullpath.append("/");
+		    fullpath.append(component);
+		    ArchiveObjectKey	key(fullpath.buffer());
+		    IObject		kid;
+		    UT_CappedItemHandle	item = myCache.findItem(key);
+		    if (item)
 		    {
-			IObject root = archive.getTop();
-			buildGeometryCache(root, "");
-			//fprintf(stderr, "%d geometry\n", (int)myGeometry.size());
+			kid = static_cast<ArchiveObjectItem *>(item.get())->getObject();
 		    }
-		    std::map<std::string, IObject>::const_iterator	it;
-		    it = myGeometry.find(fullpath);
-		    if (it != myGeometry.end())
+		    else
 		    {
-			return  &(it->second);
+			kid = parent.getChild(component);
+			if (kid.valid())
+			    myCache.addItem(key, new ArchiveObjectItem(kid));
 		    }
-		    return NULL;
+		    return kid;
+#else
+		    return parent.getChild(component);
+#endif
 		}
+
+	IObject getObject(const std::string &objectPath)
+	{
+	    SOP_AlembicIn::PathList	pathList;
+	    IObject			curr = archive.getTop();
+	    UT_WorkBuffer		fullpath;
+
+	    TokenizeObjectPath(objectPath, pathList);
+	    for (SOP_AlembicIn::PathList::const_iterator I = pathList.begin();
+		    I != pathList.end() && curr.valid(); ++I)
+	    {
+		curr = findObject(curr, fullpath, (*I).c_str());
+	    }
+	    return curr;
+	}
         
         Abc::IArchive archive;
         std::string error;
         PY_PyObject * objectPathMenuList;
 	std::map<std::string, M44d> myTransforms;
-	std::map<std::string, IObject> myGeometry;
+#if UT_MAJOR_VERSION_INT >= 12
+	UT_CappedCache	myCache;
+#endif
     };
     
     typedef boost::shared_ptr<ArchiveCacheEntry> ArchiveCacheEntryRcPtr;
@@ -186,21 +254,29 @@ namespace
     }
     
     //-**************************************************************************
-    
-    void TokenizeObjectPath(const std::string & objectPath,
-            SOP_AlembicIn::PathList & pathList)
-    {
-        typedef boost::char_separator<char> Separator;
-        typedef boost::tokenizer<Separator> Tokenizer;
-        Tokenizer tokenizer( objectPath, Separator( "/" ) );
-        for ( Tokenizer::iterator iter = tokenizer.begin() ;
-                iter != tokenizer.end() ; ++iter )
-        {
-            if ( (*iter).empty() ) { continue; }
-            pathList.push_back( *iter );
-        }
-    }
 }
+
+// Class to help us walk the tree
+//
+// The sop_IAlembicWalker class needs to be in a public namespace for forward
+// declarations.
+class sop_IAlembicWalker
+{
+public:
+    sop_IAlembicWalker(ArchiveCacheEntry &arch)
+	: myArchive(arch)
+	, myPathBuffer()
+    {
+    }
+    IObject	nextObject(IObject parent, const std::string &component)
+		{
+		    return myArchive.findObject(parent, myPathBuffer,
+				component.c_str());
+		}
+private:
+    ArchiveCacheEntry	&myArchive;
+    UT_WorkBuffer	myPathBuffer;
+};
 
 //-*****************************************************************************
 
@@ -386,7 +462,7 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
     
     
     double fps = evalFloat("fps", 0, now);
-    args.abcTime = evalFloat("frame", 0, now) / fps;
+    args.abcTime = (evalFloat("frame", 0, now) - 1.0)/ fps;
     args.isConstant = true;
     args.isTopologyConstant = true;
     args.reusePrimitives = myTopologyConstant && gdp->primitives().entries()>0;
@@ -432,22 +508,23 @@ OP_ERROR SOP_AlembicIn::cookMySop(OP_Context &context)
         
         if ( pathList.empty() ) //walk the entire scene
         {
+	    sop_IAlembicWalker	walker(*cacheEntry);
             for ( size_t i = 0; i < root.getNumChildren(); ++i )
             {
-                walkObject( args, root, root.getChildHeader(i),
+                walkObject( args, walker, root, root.getChildHeader(i),
                             pathList.end(), pathList.end(), xform, true);
             }
         }
         else //walk to a location + its children
         {
+	    sop_IAlembicWalker	walker(*cacheEntry);
             PathList::const_iterator I = pathList.begin();
             
-            const ObjectHeader *nextChildHeader =
-                    root.getChildHeader( *I );
+            const ObjectHeader *nextChildHeader = root.getChildHeader( *I );
             if ( nextChildHeader != NULL )
             {
-                walkObject( args, root, *nextChildHeader, I+1, pathList.end(),
-                        xform, true);
+                walkObject( args, walker, root, *nextChildHeader,
+			I+1, pathList.end(), xform, true);
             }
         }
         
@@ -523,6 +600,16 @@ void SOP_AlembicIn::nodeUnlocked()
         return gdp.addIntTuple(owner, name, size);
     }
     static GA_RWAttributeRef
+    addInt64Tuple(GU_Detail &gdp, GEO_AttributeOwner owner,
+            const char *name, int size)
+    {
+        return gdp.addIntTuple(owner, name, size,
+		GA_Defaults(0),
+		NULL,
+		NULL,
+		GA_STORE_INT64);
+    }
+    static GA_RWAttributeRef
     findFloatTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
             const char *name, int min_size)
     {
@@ -538,6 +625,11 @@ void SOP_AlembicIn::nodeUnlocked()
             h.getAttribute()->setTypeInfo(GA_TYPE_NORMAL);
         }
         return h;
+    }
+    static GA_RWAttributeRef
+    addVelocity(GU_Detail &gdp, GEO_AttributeOwner owner)
+    {
+	return gdp.addVelocityAttribute(owner);
     }
     static void
     setTypeInfo(GA_RWAttributeRef &aref, GA_TypeInfo tinfo)
@@ -615,6 +707,12 @@ void SOP_AlembicIn::nodeUnlocked()
         return addAttribute(gdp, owner, name, GB_ATTRIB_INT, sizeof(int)*size);
     }
     static GA_RWAttributeRef
+    addInt64Tuple(GU_Detail &gdp, GEO_AttributeOwner owner,
+            const char *name, int size)
+    {
+        return addAttribute(gdp, owner, name, GB_ATTRIB_INT, sizeof(int)*size);
+    }
+    static GA_RWAttributeRef
     findFloatTuple(GU_Detail &gdp, GEO_AttributeOwner owner,
             const char *name, int size)
     {
@@ -639,6 +737,11 @@ void SOP_AlembicIn::nodeUnlocked()
         }
         return addAttribute(gdp, owner, name, GB_ATTRIB_FLOAT,
                 sizeof(float)*size);
+    }
+    static GA_RWAttributeRef
+    addVelocity(GU_Detail &gdp, GEO_AttributeOwner owner)
+    {
+	return gdp.addVelocityAttribute(owner);
     }
     static void
     setTypeInfo(GA_RWAttributeRef &, GA_TypeInfo)
@@ -697,9 +800,10 @@ GA_ROAttributeRef  SOP_AlembicIn::attachDetailStringData(
 
 //-*****************************************************************************
 
-void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader &ohead,
-            PathList::const_iterator I, PathList::const_iterator E,
-                    M44d parentXform, bool parentXformIsConstant)
+void SOP_AlembicIn::walkObject( Args & args, sop_IAlembicWalker &walker,
+	IObject parent, const ObjectHeader &ohead,
+	PathList::const_iterator I, PathList::const_iterator E,
+	M44d parentXform, bool parentXformIsConstant)
 {
     if ( args.boss->opInterrupt() )
     {
@@ -743,7 +847,7 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
         {
             //if we're not processing transforms, just grab the child object
             //and move on
-            nextParentObject = IObject(parent, ohead.getName());
+	    nextParentObject = walker.nextObject(parent, ohead.getName());
         }
     }
     else if ( ISubD::matches( ohead ) )
@@ -772,6 +876,30 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
         
         nextParentObject = polymesh;
     }
+    else if ( ICurves::matches( ohead) )
+    {
+	ICurves curves(parent, ohead.getName());
+	ICurvesSchema &cs = curves.getSchema();
+	if (cs.getTopologyVariance() == kHeterogenousTopology)
+	{
+	    args.isTopologyConstant = false;
+	}
+	buildCurves( args, curves, parentXform, parentXformIsConstant );
+
+	nextParentObject = curves;
+    }
+    else if ( IPoints::matches( ohead) )
+    {
+	IPoints points(parent, ohead.getName());
+	IPointsSchema &ps = points.getSchema();
+	if (!ps.isConstant())
+	{
+	    args.isTopologyConstant = false;
+	}
+	buildPoints( args, points, parentXform, parentXformIsConstant );
+
+	nextParentObject = points;
+    }
     else if ( INuPatch::matches( ohead ) )
     {
         INuPatch nupatch( parent, ohead.getName() );
@@ -799,7 +927,7 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
         {
             for ( size_t i = 0; i < nextParentObject.getNumChildren(); ++i )
             {
-                walkObject( args, nextParentObject,
+                walkObject( args, walker, nextParentObject,
                         nextParentObject.getChildHeader( i ), I, E,
                                 parentXform, parentXformIsConstant);
             }
@@ -811,7 +939,7 @@ void SOP_AlembicIn::walkObject( Args & args, IObject parent, const ObjectHeader 
             
             if ( nextChildHeader != NULL )
             {
-                walkObject( args, nextParentObject,
+                walkObject( args, walker, nextParentObject,
                         *nextChildHeader, I+1, E,
                                 parentXform, parentXformIsConstant);
             }
@@ -901,6 +1029,46 @@ void SOP_AlembicIn::addUVs(Args & args, IV2fGeomParam param,
     }
 }
 
+void SOP_AlembicIn::addWidths(Args & args, IFloatGeomParam param,
+        size_t startPointIdx, size_t endPointIdx,
+        size_t startPrimIdx, size_t endPrimIdx)
+{
+    if (!param.valid()) { return; }
+    
+    GA_RWAttributeRef widthAttrIndex;
+    switch (param.getScope())
+    {
+    case kVaryingScope:
+    case kVertexScope:
+    {
+        addOrFindWidthAttribute(GEO_POINT_DICT, widthAttrIndex);
+        break;
+    }
+    case kFacevaryingScope:
+    {
+        addOrFindWidthAttribute(GEO_VERTEX_DICT, widthAttrIndex);
+        break;
+    }
+    default:
+        break;
+    }
+    
+    if (widthAttrIndex.isValid())
+    {
+        processArbitraryGeomParam<IFloatGeomParam, float>(
+            args,
+            param.getParent(),
+            param.getHeader(),
+            GA_STORE_REAL32,
+            GA_TYPE_VOID,
+            widthAttrIndex,
+            startPointIdx, endPointIdx,
+            startPrimIdx, endPrimIdx,
+            false);
+    }
+}
+
+
 //-*****************************************************************************
 
 void SOP_AlembicIn::addNormals(Args & args, IN3fGeomParam param,
@@ -963,6 +1131,26 @@ bool SOP_AlembicIn::addOrFindTextureAttribute(GEO_AttributeOwner owner,
     }
     return true;
 }
+
+bool SOP_AlembicIn::addOrFindWidthAttribute(GEO_AttributeOwner owner,
+        GA_RWAttributeRef & attrIdx)
+{
+#if UT_MAJOR_VERSION_INT < 12
+    float	def_width = 0.1;
+    attrIdx = gdp->addAttribute("width", sizeof(float), GB_ATTRIB_FLOAT,
+		    &def_width, owner);
+#else
+    attrIdx = gdp->addTuple(GA_STORE_REAL32, owner, GA_SCOPE_PUBLIC,
+	    "width", 1, GA_Defaults(0.1));
+#endif
+    if (error() >= UT_ERROR_ABORT || !attrIdx.isValid())
+    {
+	addError(SOP_MESSAGE, "could not create width attribute.");
+	return false;
+    }
+    return true;
+}
+
 
 //-*****************************************************************************
 
@@ -1479,6 +1667,12 @@ void SOP_AlembicIn::buildSubD( Args & args, ISubD &subd, M44d parentXform, bool 
     {
         if (!args.includeXform || parentXformIsConstant)
         {
+	    // Update point/prim counts
+	    Abc::P3fArraySamplePtr pSample =
+		    ss.getPositionsProperty().getValue(sampleSelector);
+	    std::string	groupName = fixAttributeName(getFullName(subd));
+	    args.pointCount += pSample->size();     // Add # points
+	    args.primCount += myPrimitiveCountCache[groupName];
             return;
         }
     }
@@ -1558,6 +1752,12 @@ void SOP_AlembicIn::buildPolyMesh( Args & args, IPolyMesh & polymesh,
     {
         if (!args.includeXform || parentXformIsConstant)
         {
+	    // Update point/prim counts
+	    Abc::P3fArraySamplePtr pSample =
+		    schema.getPositionsProperty().getValue(sampleSelector);
+	    std::string	groupName = fixAttributeName(getFullName(polymesh));
+	    args.pointCount += pSample->size();     // Add # points
+	    args.primCount += myPrimitiveCountCache[groupName];
             return;
         }
     }
@@ -1598,7 +1798,6 @@ void SOP_AlembicIn::buildPolyMesh( Args & args, IPolyMesh & polymesh,
     size_t endPointIdx = args.pointCount;
     size_t endPrimIdx = args.primCount;
     
-    
     addUVs(args, polymesh.getSchema().getUVsParam(),
             startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
     addNormals(args, polymesh.getSchema().getNormalsParam(),
@@ -1620,6 +1819,173 @@ void SOP_AlembicIn::buildPolyMesh( Args & args, IPolyMesh & polymesh,
     
 }
 
+void SOP_AlembicIn::buildCurves( Args & args, ICurves & curves,
+        M44d parentXform, bool parentXformIsConstant)
+{
+    ISampleSelector sampleSelector( args.abcTime );
+    ICurvesSchema &schema = curves.getSchema();
+    if (!schema.isConstant())
+    {
+        args.isConstant = false;
+    }
+    // If the schema is constant and we've already cooked once, we can exit
+    // early assuming that we're either not baking in tranforms or the inherited
+    // transformations are constant.else if (args.reusePrimitives)
+    else if (args.reusePrimitives)
+    {
+        if (!args.includeXform || parentXformIsConstant)
+        {
+	    // Update point/prim counts
+	    Abc::P3fArraySamplePtr pSample =
+		    schema.getPositionsProperty().getValue(sampleSelector);
+	    std::string	groupName = fixAttributeName(getFullName(curves));
+	    args.pointCount += pSample->size();     // Add # points
+	    args.primCount += myPrimitiveCountCache[groupName];
+            return;
+        }
+    }
+    
+    
+    //store the primitive and point start indices
+    size_t startPointIdx = args.pointCount;
+    size_t startPrimIdx = args.primCount;
+
+    GA_PrimitiveGroup * primGrp;
+    if (args.reusePrimitives)
+    {
+        Abc::P3fArraySamplePtr pSample =
+                schema.getPositionsProperty().getValue(sampleSelector);
+        
+	std::string	groupName = fixAttributeName(getFullName(curves));
+        primGrp = reuseMesh(groupName, pSample, startPointIdx);
+        
+        args.pointCount += pSample->size();     // Add # points
+        
+        //always present in myPrimitiveCountCache if args.reusePrimitives
+        args.primCount += myPrimitiveCountCache[groupName];
+    }
+    else
+    {
+        ICurvesSchema::Sample sample = schema.getValue( sampleSelector );
+        
+        args.pointCount += sample.getPositions()->size();   // Add # points
+        args.primCount += sample.getNumCurves();   // Add # curves
+        
+	std::string	groupName = fixAttributeName(getFullName(curves));
+        primGrp = buildCurves(groupName,
+                sample.getPositions(), sample.getCurvesNumVertices(),
+                startPointIdx);
+    }
+    
+    
+    size_t endPointIdx = args.pointCount;
+    size_t endPrimIdx = args.primCount;
+    
+    
+    addUVs(args, curves.getSchema().getUVsParam(),
+            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
+    addNormals(args, curves.getSchema().getNormalsParam(),
+            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx,
+                    parentXformIsConstant);
+    addWidths(args, curves.getSchema().getWidthsParam(),
+            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
+    
+    addArbitraryGeomParams(args, curves.getSchema().getArbGeomParams(),
+            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx,
+                    parentXformIsConstant);
+    
+    //apply xforms via gdp->transform so that we don't have to think
+    //about normals and other affected attributes
+    if (args.includeXform && parentXform != M44d())
+    {
+        UT_DMatrix4 dxform(parentXform.x);
+        UT_Matrix4 xform(dxform);
+        gdp->transform(xform, primGrp);
+    }
+    
+}
+
+void SOP_AlembicIn::buildPoints( Args & args, IPoints & points,
+        M44d parentXform, bool parentXformIsConstant)
+{
+    ISampleSelector sampleSelector( args.abcTime );
+    IPointsSchema &schema = points.getSchema();
+    if (!schema.isConstant())
+    {
+        args.isConstant = false;
+    }
+    // If the schema is constant and we've already cooked once, we can exit
+    // early assuming that we're either not baking in tranforms or the inherited
+    // transformations are constant.else if (args.reusePrimitives)
+    else if (args.reusePrimitives)
+    {
+        if (!args.includeXform || parentXformIsConstant)
+        {
+	    // Update point/prim counts
+	    Abc::P3fArraySamplePtr pSample =
+		    schema.getPositionsProperty().getValue(sampleSelector);
+	    args.pointCount += pSample->size();     // Add # points
+	    args.primCount += 1;
+            return;
+        }
+    }
+    
+    
+    //store the primitive and point start indices
+    size_t startPointIdx = args.pointCount;
+    size_t startPrimIdx = args.primCount;
+
+    GA_PrimitiveGroup * primGrp;
+    if (args.reusePrimitives)
+    {
+        Abc::P3fArraySamplePtr pSample =
+                schema.getPositionsProperty().getValue(sampleSelector);
+        
+	std::string	groupName = fixAttributeName(getFullName(points));
+        primGrp = reuseMesh(groupName, pSample, startPointIdx);
+        
+        args.pointCount += pSample->size();     // Add # points
+        
+        //always present in myPrimitiveCountCache if args.reusePrimitives
+        args.primCount += 1;
+    }
+    else
+    {
+        IPointsSchema::Sample sample = schema.getValue( sampleSelector );
+        
+        args.pointCount += sample.getPositions()->size();   // Add # points
+        args.primCount += 1;	// Add single particle system
+        
+	std::string	groupName = fixAttributeName(getFullName(points));
+        primGrp = buildPoints(groupName,
+		sample.getPositions(),
+		sample.getIds(),
+		sample.getVelocities(),
+		startPointIdx);
+    }
+    
+    size_t endPointIdx = args.pointCount;
+    size_t endPrimIdx = args.primCount;
+    
+    addWidths(args, points.getSchema().getWidthsParam(),
+            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx);
+    
+    addArbitraryGeomParams(args, points.getSchema().getArbGeomParams(),
+            startPointIdx, endPointIdx, startPrimIdx, endPrimIdx,
+                    parentXformIsConstant);
+    
+    //apply xforms via gdp->transform so that we don't have to think
+    //about normals and other affected attributes
+    if (args.includeXform && parentXform != M44d())
+    {
+        UT_DMatrix4 dxform(parentXform.x);
+        UT_Matrix4 xform(dxform);
+        gdp->transform(xform, primGrp);
+    }
+    
+}
+
+
 //-*****************************************************************************
 
 
@@ -1636,6 +2002,10 @@ void SOP_AlembicIn::buildNuPatch( Args & args, INuPatch & nupatch,
     {
         if (!args.includeXform || parentXformIsConstant)
         {
+	    Abc::P3fArraySamplePtr pSample =
+		    schema.getPositionsProperty().getValue(sampleSelector);
+	    args.pointCount += pSample->size();     // Add # points
+	    args.primCount += 1;
             return;
         }
     }
@@ -1662,17 +2032,17 @@ void SOP_AlembicIn::buildNuPatch( Args & args, INuPatch & nupatch,
         for (size_t i = 0, e = pSample->size(); i < e; ++i)
         {
 #if UT_MAJOR_VERSION_INT >= 12
-        GA_Offset pt = gdp->pointOffset(GA_Index(startPointIdx+i));
-        gdp->setPos3(pt, 
-                (*pSample)[i][0],
-                (*pSample)[i][1],
-                (*pSample)[i][2]);
+	    GA_Offset pt = gdp->pointOffset(GA_Index(startPointIdx+i));
+	    gdp->setPos3(pt, 
+		    (*pSample)[i][0],
+		    (*pSample)[i][1],
+		    (*pSample)[i][2]);
 #else
-        GEO_Point *pt = gdp->points()(startPointIdx+i);
-        pt->setPos(UT_Vector3(
-                (*pSample)[i][0],
-                (*pSample)[i][1],
-                (*pSample)[i][2]));
+	    GEO_Point *pt = gdp->points()(startPointIdx+i);
+	    pt->setPos(UT_Vector3(
+		    (*pSample)[i][0],
+		    (*pSample)[i][1],
+		    (*pSample)[i][2]));
 #endif
         }
         
@@ -1835,15 +2205,15 @@ GA_PrimitiveGroup * SOP_AlembicIn::buildMesh(
     
     size_t npolys = counts->size();
     
-    uint32_t currentVtxIndex = 0;
+    exint currentVtxIndex = 0;
     for ( size_t i = 0; i < npolys; ++i )
     {
-        uint32_t numPointsInFace = (*counts)[i];
+        exint numPointsInFace = (*counts)[i];
         
         GU_PrimPoly *poly = GU_PrimPoly::build(gdp,
                 numPointsInFace, GU_POLY_CLOSED, 0);
         
-        for ( uint32_t ptN = 0; ptN < numPointsInFace;
+        for ( exint ptN = 0; ptN < numPointsInFace;
                 ++ptN, ++currentVtxIndex )
         {
 #if UT_MAJOR_VERSION_INT >= 12
@@ -1865,6 +2235,152 @@ GA_PrimitiveGroup * SOP_AlembicIn::buildMesh(
     
     return primGrp;
 }
+
+GA_PrimitiveGroup * SOP_AlembicIn::buildCurves(
+        const std::string & groupName, P3fArraySamplePtr positions,
+        Int32ArraySamplePtr counts,
+        size_t startPointIdx)
+{
+    myPrimitiveCountCache[groupName] = counts->size();
+
+    UT_ASSERT(startPointIdx == gdp->points().entries());
+    for ( size_t i = 0, e = positions->size(); i < e; ++i )
+    {
+#if UT_MAJOR_VERSION_INT >= 12
+        GA_Offset pt = gdp->appendPointOffset();
+        gdp->setPos3(pt, 
+                (*positions)[i][0],
+                (*positions)[i][1],
+                (*positions)[i][2]);
+#else
+        GEO_Point *pt = gdp->appendPoint();
+        pt->setPos(UT_Vector3(
+                (*positions)[i][0],
+                (*positions)[i][1],
+                (*positions)[i][2]));
+#endif
+    }
+    UT_ASSERT(gdp->points().entries() == startPointIdx + positions->size());
+    
+    GA_PrimitiveGroup *primGrp = 0;
+    
+    if ( !groupName.empty() )
+    {
+        primGrp = gdp->newPrimitiveGroup( groupName.c_str() );
+    }
+    
+    size_t npolys = counts->size();
+    
+    exint currentVtxIndex = startPointIdx;
+    for ( size_t i = 0; i < npolys; ++i )
+    {
+        exint numPointsInFace = (*counts)[i];
+        
+        GU_PrimPoly *poly = GU_PrimPoly::build(gdp,
+                numPointsInFace, GU_POLY_OPEN, 0);
+        
+        for ( exint ptN = 0; ptN < numPointsInFace; ++ptN, ++currentVtxIndex )
+        {
+#if UT_MAJOR_VERSION_INT >= 12
+            poly->setVertexPoint(ptN, gdp->pointOffset(currentVtxIndex));
+#else
+            GEO_Point *point = gdp->points()(currentVtxIndex);
+            poly->getVertex(ptN).setPt(point);
+#endif
+        }
+        
+        if ( primGrp )
+        {
+            addToGroup(primGrp, poly);
+        }
+    }
+    
+    return primGrp;
+}
+
+GA_PrimitiveGroup * SOP_AlembicIn::buildPoints(
+        const std::string & groupName,
+	P3fArraySamplePtr positions,
+	UInt64ArraySamplePtr ids,
+	V3fArraySamplePtr velocities,
+        size_t startPointIdx)
+{
+    myPrimitiveCountCache[groupName] = 1;
+    size_t npts = positions->size();
+    GA_RWAttributeRef id_h;
+    GA_RWAttributeRef v_h;
+
+    if (ids && ids->size() == positions->size())
+	id_h = addInt64Tuple(*gdp, GEO_POINT_DICT, "id", 1);
+    if (velocities && velocities->size() == positions->size())
+	v_h = addVelocity(*gdp, GEO_POINT_DICT);
+
+    UT_ASSERT(startPointIdx == gdp->points().entries());
+    for ( size_t i = 0; i < npts; ++i )
+    {
+#if UT_MAJOR_VERSION_INT >= 12
+        GA_Offset pt = gdp->appendPointOffset();
+        gdp->setPos3(pt, 
+                (*positions)[i][0],
+                (*positions)[i][1],
+                (*positions)[i][2]);
+	if (id_h.isValid())
+	{
+	    id_h.getAIFTuple()->set(id_h.getAttribute(), pt, (int64)(*ids)[i]);
+	}
+	if (v_h.isValid())
+	{
+	    v_h.getAIFTuple()->set(v_h.getAttribute(), pt,
+		    (*velocities)[i].getValue(), 3);
+	}
+#else
+        GEO_Point *pt = gdp->appendPoint();
+        pt->setPos(UT_Vector3(
+                (*positions)[i][0],
+                (*positions)[i][1],
+                (*positions)[i][2]));
+	if (id_h.isValid())
+	    pt->setValue<int>(id_h, (*ids)[i]);
+	if (v_h.isValid())
+	{
+	    const V3f	&v = (*velocities)[i];
+	    pt->setValue<UT_Vector3>(v_h, UT_Vector3(v.x, v.y, v.z));
+	}
+#endif
+    }
+    UT_ASSERT(gdp->points().entries() == startPointIdx + positions->size());
+    
+    GA_PrimitiveGroup *primGrp = 0;
+    
+    if ( !groupName.empty() )
+    {
+        primGrp = gdp->newPrimitiveGroup( groupName.c_str() );
+    }
+
+    GU_PrimParticle	*part = GU_PrimParticle::build(gdp, npts, 0);
+
+    if (primGrp)
+    {
+	addToGroup(primGrp, part);
+    }
+    
+#if UT_MAJOR_VERSION_INT >= 12
+    for ( exint ptN = 0; ptN < npts; ++ptN)
+    {
+	part->setVertexPoint(ptN, gdp->pointOffset(ptN+startPointIdx));
+    }
+#else
+    exint ptN = startPointIdx;
+    for (GEO_ParticleVertex *vtx = part->iterateInit(); vtx;
+	    vtx = part->iterateFastNext(vtx), ++ptN)
+    {
+	vtx->setPt(gdp->points()(ptN));
+    }
+#endif
+    
+    return primGrp;
+}
+
 
 //-*****************************************************************************
 
@@ -1954,10 +2470,6 @@ namespace
             ArchiveCacheEntryRcPtr cacheEntry = LoadArchive(archivePath);
             if (cacheEntry->archive.valid() )
             {
-                SOP_AlembicIn::PathList pathList;
-                IObject root = cacheEntry->archive.getTop();
-                IObject currentObject = root;
-
 		bool	found = false;
 #if 0
 		static int		count = 0;
@@ -1968,16 +2480,12 @@ namespace
 		if (count % 500 == 0)
 		    fprintf(stderr, "%d calls %g\n", count, timer.lap());
 #endif
+                IObject currentObject;
 		if (cacheEntry->findTransform(objectPath, localXform))
 		    found = true;
 		else
 		{
-		    TokenizeObjectPath(objectPath, pathList);
-		    for (SOP_AlembicIn::PathList::const_iterator I = pathList.begin();
-			    I != pathList.end() && currentObject.valid(); ++I)
-		    {
-			currentObject = currentObject.getChild(*I);
-		    }
+		    currentObject = cacheEntry->getObject(objectPath);
 		}
                 if (!found && currentObject.valid() &&
                         IXform::matches( currentObject.getHeader()))
@@ -2116,6 +2624,11 @@ namespace
             PY_PyTuple_SET_ITEM(result, 1,
                     PY_PyString_FromString("curves"));
         }
+        else if (IPoints::matches(header))
+        {
+            PY_PyTuple_SET_ITEM(result, 1,
+                    PY_PyString_FromString("points"));
+        }
         else if (INuPatch::matches(header))
         {
             PY_PyTuple_SET_ITEM(result, 1,
@@ -2150,15 +2663,7 @@ namespace
             
             if (cacheEntry->archive.valid())
             {
-                IObject root = cacheEntry->archive.getTop();
-		SOP_AlembicIn::PathList pathList;
-		TokenizeObjectPath(objectPath, pathList);
-		IObject currentObject = root;
-		for (SOP_AlembicIn::PathList::const_iterator I = pathList.begin();
-			I != pathList.end() && currentObject.valid(); ++I)
-		{
-		    currentObject = currentObject.getChild(*I);
-		}
+		IObject currentObject = cacheEntry->getObject(objectPath);
 		return Py_AlembicWalkNode(currentObject);
 	    }
         }
@@ -2277,15 +2782,7 @@ namespace
             ArchiveCacheEntryRcPtr cacheEntry = LoadArchive(archivePath);
             if (cacheEntry->archive.valid() )
             {
-                IObject root = cacheEntry->archive.getTop();
-                SOP_AlembicIn::PathList pathList;
-                TokenizeObjectPath(objectPath, pathList);
-                IObject currentObject = root;
-                for (SOP_AlembicIn::PathList::const_iterator I = pathList.begin();
-                        I != pathList.end() && currentObject.valid(); ++I)
-                {
-                    currentObject = currentObject.getChild(*I);
-                }
+		IObject currentObject = cacheEntry->getObject(objectPath);
                 
                 if (currentObject.valid() &&
                         ICamera::matches( currentObject.getHeader()))
