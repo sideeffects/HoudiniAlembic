@@ -1,3 +1,4 @@
+import string
 
 def BuildHierarchyRoot(rootNode):
     #For now delete the existing children.
@@ -22,6 +23,33 @@ _primitiveTypes = frozenset((
     'points',
 ))
 
+_sanitizeTable = None
+
+def _sanitizeName(name):
+    def valid(i):
+	ch = chr(i)
+	if ch.isalnum():
+	    return ch
+	return '_'
+    global _sanitizeTable
+    if not _sanitizeTable:
+	letters = ''.join([string.letters, string.digits, '_'])
+	# Full alphabet
+	alpha = ''.join(map(chr, range(256)))
+	xlate = ''.join(map(valid, range(256)))
+	_sanitizeTable = string.maketrans(alpha, xlate)
+    name = string.translate(name, _sanitizeTable)
+    if name[0].isdigit():
+	name = '_' + name
+    return name
+
+def _setNodeName(node, name):
+    try:
+	node.setName(name, True)
+    except:
+	node.setName(_sanitizeName(name), True)
+	
+
 def ExpressionToParm(srcParm, dstParm, isString=False):
     relPath = dstParm.node().relativePathTo(srcParm.node())
     dstParm.setExpression('ch%s("%s/%s")' % (
@@ -39,7 +67,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList):
     currentPath = parentPath + '/' + name
     if typeName in _primitiveTypes:
         currentNode = parentNode.createNode('geo')
-        currentNode.setName(name)
+	_setNodeName(currentNode, name)
         for child in currentNode.children():
             child.destroy()
         sopNode = currentNode.createNode('alembic')
@@ -62,7 +90,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList):
         
     elif typeName == 'xform' or typeName == 'cxform':
         currentNode = parentNode.createNode('alembicxform')
-        currentNode.setName(name)
+        _setNodeName(currentNode, name)
         
         ExpressionToParm(rootNode.parm('fileName'), currentNode.parm('fileName'),
                 isString=True)
@@ -78,7 +106,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList):
             WalkHierarchy(rootNode, currentNode, currentPath, entry, pathList)
     elif typeName == 'camera':
         currentNode = parentNode.createNode('cam')
-        currentNode.setName(name)
+        _setNodeName(currentNode, name)
         currentNode.addSpareParmTuple(rootNode.parm('fileName').parmTemplate(),
                 ('Alembic',), True)
         currentNode.addSpareParmTuple(rootNode.parm('frame').parmTemplate(),
