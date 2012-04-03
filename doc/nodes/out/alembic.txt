@@ -85,6 +85,8 @@ Render With Take:
 Alembic File:
     The name of the archive to generate.
 
+[Include:standard#mkpath]
+
 Root Object:
     The root object of the scene. All displayed objects contained under this node will be included in the Alembic archive.
 
