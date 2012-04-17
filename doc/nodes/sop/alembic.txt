@@ -10,6 +10,9 @@ geometry network."""
 
 @parameters
 
+Reload Geometry:
+    Clears the Alembic cache and reloads fresh geometry
+
 File name:
     #id: fileName
     
@@ -43,22 +46,21 @@ Include Xform:
     Bake each object's world space transformation (relative to the root of the
     archive) into the object's points.
 
+Primitive Groups:
+    Whether to create group names on the Alembic shape nodes, or whether to use the transform (object) name. If a transform object has multiple shape nodes, it's sometimes useful to put the geometry into the same group.
+
+Add Path Attribute:
+    This option allows you to put the full path of the shape node into the named string attribute, since Houdini can mangle the group names (no special characters are allowed in group names).
+
+Path Attribute:
+    The name of the Path Attribute.
+
 Remap attributes:
     #id: remapAttributes
     
     Use this multiparm to rename Alembic point, vertex, and/or primitive
     attributes to their Houdini equivalents. For example, remapping `MyColor`
     to `Cd` (diffuse color). Click the + button to add a new mapping.
-
-Alembic name #:
-    #id: abcName
-    
-    The name of the Alembic attribute to map from.
-    
-Houdini name:
-    #id: hName
-    
-    The name of the Houdini attribute to map to.
 
 
 
