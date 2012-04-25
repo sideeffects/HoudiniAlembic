@@ -105,5 +105,11 @@ Collapse identity transforms:
     scene, they will be added as dummy transform nodes (roughly doubling
     the size of the Alembic archive node count).
 
+Save Attribute:
+    If this checkbox is turned on, geometry attributes will be saved to the Alembic file.
+
+Partition Attribute:
+    Specifies a string attribute which is used to partition a single geometry into multiple Alembic shape nodes. For example, you can use the `name` attribute to split a single piece of Houdini geometry into different Alembic shape nodes based on the value of the name. 
+
 Verbosity:
     Add information to the Alembic ROP based on objects written to the archive.
