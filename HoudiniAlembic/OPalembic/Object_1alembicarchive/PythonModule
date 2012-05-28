@@ -53,7 +53,8 @@ def _setNodeName(node, name):
 def ExpressionToParm(srcParm, dstParm, isString=False):
     relPath = dstParm.node().relativePathTo(srcParm.node())
     dstParm.setExpression('ch%s("%s/%s")' % (
-            bool(isString)*'s', relPath, srcParm.name()))
+            bool(isString)*'s', relPath, srcParm.name()),
+	    hou.exprLanguage.Hscript)
 
 def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList):
     name, typeName, children = childEntry
