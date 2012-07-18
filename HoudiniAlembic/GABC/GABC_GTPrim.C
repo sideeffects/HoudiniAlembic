@@ -264,6 +264,23 @@ getArbitraryPropertyScope(const PropertyHeader &propHeader)
     return GetGeometryScope(propHeader.getMetaData());
 }
 
+static bool
+replaceDataArray(const GT_AttributeListHandle &alist,
+		const char *name, const GT_DataArrayHandle &array,
+		int segment=0)
+{
+    // NOTE:  This is quite dangerous.  What we should likely do is to create
+    // a a new GT_AttributeListHandle instead.  We're changing the contents of
+    // the attribute list which may be referenced by other users.
+    int	idx = alist->getIndex(name);
+    if (idx < 0)
+	return false;
+    UT_ASSERT(alist->get(idx)->entries() == array->entries());
+    alist->set(idx, array, 0);
+    return true;
+}
+
+
 static void
 setAttributeData(GT_AttributeList &alist,
 	const char *name,
@@ -319,6 +336,17 @@ fillHoudiniAttributes(GT_AttributeList &alist,
     }
 }
 
+#define SET_ARRAY(VAR, NAME)	\
+    if (VAR && *VAR) { \
+	setAttributeData(alist, NAME, \
+		convertArray(VAR->getValue(sample)), filled); \
+    }
+#define SET_GEOM_PARAM(VAR, NAME)	\
+    if (VAR && VAR->valid() && matchScope(VAR->getScope(), scope, scope_size)){\
+	setAttributeData(alist, NAME, \
+		convertGeomParam(*VAR, sample), filled); \
+    }
+
 static void
 fillAttributeList(GT_AttributeList &alist,
 	const GABC_GEOPrim *prim,
@@ -339,31 +367,12 @@ fillAttributeList(GT_AttributeList &alist,
     UT_StackBuffer<bool>	filled(alist.entries());
     memset(filled, 0, sizeof(bool)*alist.entries());
     const GEO_ABCNameMapPtr	&namemap = prim->attributeNameMap();
-    if (P && *P)
-    {
-	setAttributeData(alist, "P", convertArray(P->getValue(sample)), filled);
-    }
-    if (v && *v)
-    {
-	setAttributeData(alist, "v", convertArray(v->getValue(sample)), filled);
-    }
-    if (ids && *ids)
-    {
-	setAttributeData(alist, "id", convertArray(ids->getValue(sample)), filled);
-    }
-    if (N && N->valid() && matchScope(N->getScope(), scope, scope_size))
-    {
-	setAttributeData(alist, "N", convertGeomParam(*N, sample), filled);
-    }
-    if (uvs && uvs->valid() && matchScope(uvs->getScope(), scope, scope_size))
-    {
-	setAttributeData(alist, "uv", convertGeomParam(*uvs, sample), filled);
-    }
-    if (widths && widths->valid()
-		&& matchScope(widths->getScope(), scope, scope_size))
-    {
-	setAttributeData(alist, "width", convertGeomParam(*widths, sample), filled);
-    }
+    SET_ARRAY(P, "P")
+    SET_ARRAY(v, "v")
+    SET_ARRAY(ids, "ids")
+    SET_GEOM_PARAM(N, "N")
+    SET_GEOM_PARAM(uvs, "uvs")
+    SET_GEOM_PARAM(widths, "width")
     if (matchScope(kConstantScope, scope, scope_size))
     {
 	setAttributeData(alist, "__primitive_id",
@@ -418,6 +427,84 @@ initializeHoudiniAttributes(const GABC_GEOPrim *prim, GT_AttributeMap *map,
 	    map->add(attrib->getName(), false);
     }
 }
+
+#define REPLACE_ARRAY(VAR, NAME)	\
+    if (VAR && *VAR) { \
+	UT_VERIFY(replaceDataArray(src, NAME, \
+		    convertArray(VAR->getValue(sample)))); \
+    }
+#define REPLACE_GEOM_PARAM(VAR, NAME)	\
+    if (VAR && VAR->valid() && matchScope(VAR->getScope(), scope, scope_size)){\
+	UT_VERIFY(replaceDataArray(src, NAME, \
+		    convertGeomParam(*VAR, sample))); \
+    }
+
+static GT_AttributeListHandle
+reuseAttributeList(const GABC_GEOPrim *prim,
+	ISampleSelector &sample,
+	const GT_AttributeListHandle &src,
+	const GeometryScope *scope,
+	int scope_size,
+	ICompoundProperty arb,
+	Abc::IP3fArrayProperty *P = NULL,
+	Abc::IV3fArrayProperty *v = NULL,
+	IN3fGeomParam *N = NULL,
+	IV2fGeomParam *uvs = NULL,
+	Abc::IUInt64ArrayProperty *ids = NULL,
+	IFloatGeomParam *widths = NULL)
+{
+    if (!src || !src->entries())
+	return src;
+
+    const GEO_ABCNameMapPtr	&namemap = prim->attributeNameMap();
+    REPLACE_ARRAY(P, "P")
+    REPLACE_ARRAY(v, "v")
+    REPLACE_ARRAY(ids, "ids")
+    REPLACE_GEOM_PARAM(N, "N")
+    REPLACE_GEOM_PARAM(uvs, "uvs")
+    REPLACE_GEOM_PARAM(widths, "width")
+    if (arb)
+    {
+	for (size_t i = 0; i < arb.getNumProperties(); ++i)
+	{
+	    const PropertyHeader	&propHeader = arb.getPropertyHeader(i);
+	    if (!matchScope(getArbitraryPropertyScope(propHeader),
+			scope, scope_size))
+	    {
+		continue;
+	    }
+
+	    const char		*name = propHeader.getName().c_str();
+	    if (namemap)
+	    {
+		name = namemap->getName(name);
+		if (!name)
+		    continue;
+	    }
+	    GT_Storage	store = GABC_GTUtil::getGTStorage(propHeader.getDataType());
+	    if (store == GT_STORE_INVALID)
+		continue;
+	    UT_VERIFY(replaceDataArray(src, name,
+		    convertArbitraryProperty(arb, propHeader, sample)));
+	}
+    }
+    return src;
+}
+
+static GT_AttributeListHandle
+reuseAttributeList(const GABC_GEOPrim *prim,
+	ISampleSelector &sample,
+	const GT_AttributeListHandle &src,
+	const GeometryScope scope,
+	ICompoundProperty arb,
+	Abc::IP3fArrayProperty *P = NULL,
+	Abc::IV3fArrayProperty *v = NULL,
+	IN3fGeomParam *N = NULL,
+	IV2fGeomParam *uvs = NULL)
+{
+    return reuseAttributeList(prim, sample, src, &scope, 1, arb, P, v, N, uvs);
+}
+
 
 static GT_AttributeListHandle
 initializeAttributeList(const GABC_GEOPrim *prim,
@@ -721,22 +808,6 @@ buildPoints(const GABC_GEOPrim *abc,
     return GT_PrimitiveHandle(pmesh);
 }
 
-static bool
-replaceDataArray(const GT_AttributeListHandle &alist,
-		const char *name, const GT_DataArrayHandle &array,
-		int segment=0)
-{
-    // NOTE:  This is quite dangerous.  What we should likely do is to create
-    // a a new GT_AttributeListHandle instead.  We're changing the contents of
-    // the attribute list which may be referenced by other users.
-    int	idx = alist->getIndex(name);
-    if (idx < 0)
-	return false;
-    UT_ASSERT(alist->get(idx)->entries() == array->entries());
-    alist->set(idx, array, 0);
-    return true;
-}
-
 static void
 initializeM44d(Imath::M44d &d, const UT_Matrix4D &s)
 {
@@ -955,20 +1026,19 @@ reusePoints(const GABC_GEOPrim *abc,
 {
     IPoints			 prim(object, kWrapExisting);
     IPointsSchema		&ss = prim.getSchema();
-    IPointsSchema::Sample	 sample = ss.getValue(selector);
+    Abc::IP3fArrayProperty	 P = ss.getPositionsProperty();
+    Abc::IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+    Abc::IUInt64ArrayProperty	 ids = ss.getIdsProperty();
+    IFloatGeomParam		 widths = ss.getWidthsParam();
+    GeometryScope	vertex_scope[3] = { kVertexScope, kVaryingScope, kFacevaryingScope };
+    GeometryScope	detail_scope[3] = { kUniformScope, kConstantScope, kUnknownScope };
 
-    GT_DataArrayHandle	P;
-    GT_DataArrayHandle	ids;
-    GT_DataArrayHandle	v;
-    P = getDataArray<P3fArraySamplePtr, float, GT_STORE_REAL32>
-			(sample.getPositions(), 3, GT_TYPE_POINT);
-    ids = getDataArray<UInt64ArraySamplePtr, int64, GT_STORE_INT64>
-			(sample.getIds(), 1);
-    v = getDataArray<V3fArraySamplePtr, float, GT_STORE_REAL32>
-			(sample.getVelocities(), 3, GT_TYPE_VECTOR);
-    UT_VERIFY(replaceDataArray(srcprim->getPointAttributes(), "P", P));
-    UT_VERIFY(replaceDataArray(srcprim->getPointAttributes(), "id", ids));
-    UT_VERIFY(replaceDataArray(srcprim->getPointAttributes(), "v", v));
+    reuseAttributeList(abc, selector, srcprim->getPointAttributes(),
+	    vertex_scope, 3, ss.getArbGeomParams(),
+	    &P, &v, NULL, NULL, &ids, &widths);
+    reuseAttributeList(abc, selector, srcprim->getDetailAttributes(),
+	    detail_scope, 3, ss.getArbGeomParams());
+
     return srcprim;
 }
 
@@ -983,11 +1053,16 @@ reuseNuPatch(const GABC_GEOPrim *abc,
     INuPatchSchema::Sample	 sample = ss.getValue(selector);
 
     // TODO: Deal with animated bases?
+    Abc::IP3fArrayProperty	 P = ss.getPositionsProperty();
+    Abc::IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+    GeometryScope	vertex_scope[3] = { kVertexScope, kVaryingScope, kFacevaryingScope };
+    GeometryScope	detail_scope[3] = { kUniformScope, kConstantScope, kUnknownScope };
 
-    GT_DataArrayHandle	P;
-    P = getDataArray<P3fArraySamplePtr, float, GT_STORE_REAL32>
-			(sample.getPositions(), 3, GT_TYPE_POINT);
-    UT_VERIFY(replaceDataArray(srcprim->getVertexAttributes(), "P", P));
+    reuseAttributeList(abc, selector, srcprim->getVertexAttributes(),
+		    vertex_scope, 3, ss.getArbGeomParams(),
+		    &P, &v, &ss.getNormalsParam(), &ss.getUVsParam());
+    reuseAttributeList(abc, selector, srcprim->getDetailAttributes(),
+		    detail_scope, 3, ss.getArbGeomParams());
     return srcprim;
 }
 
@@ -1000,11 +1075,20 @@ reuseCurves(const GABC_GEOPrim *abc,
     ICurves			 prim(object, kWrapExisting);
     ICurvesSchema		&ss = prim.getSchema();
     ICurvesSchema::Sample	 sample = ss.getValue(selector);
+    Abc::IP3fArrayProperty	P = ss.getPositionsProperty();
+    Abc::IV3fArrayProperty	v = ss.getVelocitiesProperty();
+    IFloatGeomParam		&widths = ss.getWidthsParam();
+    GeometryScope	 vertex_scope[3] = { kVertexScope, kVaryingScope, kFacevaryingScope };
 
-    GT_DataArrayHandle	P;
-    P = getDataArray<P3fArraySamplePtr, float, GT_STORE_REAL32>
-			(sample.getPositions(), 3, GT_TYPE_POINT);
-    UT_VERIFY(replaceDataArray(srcprim->getVertexAttributes(), "P", P));
+    reuseAttributeList(abc, selector, srcprim->getVertexAttributes(),
+			vertex_scope, 3, ss.getArbGeomParams(),
+			&P, &v, &ss.getNormalsParam(), &ss.getUVsParam(),
+			NULL, &widths);
+    reuseAttributeList(abc, selector, srcprim->getUniformAttributes(),
+			kUniformScope, ss.getArbGeomParams());
+    reuseAttributeList(abc, selector, srcprim->getDetailAttributes(),
+			theConstantUnknownScope, 2, ss.getArbGeomParams());
+
     return srcprim;
 }
 
@@ -1019,10 +1103,27 @@ reuseMesh(const GABC_GEOPrim *abc,
     SCHEMA_T			&ss = prim.getSchema();
     typename SCHEMA_T::Sample	 sample = ss.getValue(selector);
 
-    GT_DataArrayHandle	P;
-    P = getDataArray<P3fArraySamplePtr, float, GT_STORE_REAL32>
-			(sample.getPositions(), 3, GT_TYPE_POINT);
-    UT_VERIFY(replaceDataArray(srcprim->getPointAttributes(), "P", P));
+    Abc::IP3fArrayProperty	 P = ss.getPositionsProperty();
+    Abc::IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+    GeometryScope	point_scope[2] = { kVaryingScope, kVertexScope };
+    GeometryScope	vertex_scope[1] = { kFacevaryingScope };
+
+    reuseAttributeList(abc, selector, srcprim->getPointAttributes(),
+			point_scope, 2, ss.getArbGeomParams(),
+			&P,
+			&v,
+			getNormalsParam(ss),
+			&ss.getUVsParam());
+    reuseAttributeList(abc, selector, srcprim->getVertexAttributes(),
+			vertex_scope, 1, ss.getArbGeomParams(),
+			NULL,
+			&v,
+			getNormalsParam(ss),
+			&ss.getUVsParam());
+    reuseAttributeList(abc, selector, srcprim->getUniformAttributes(),
+			kUniformScope, ss.getArbGeomParams());
+    reuseAttributeList(abc, selector, srcprim->getDetailAttributes(),
+			theConstantUnknownScope, 2, ss.getArbGeomParams());
 
     return srcprim;
 }
