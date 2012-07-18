@@ -36,7 +36,7 @@ class GEO_ABCNameMap;
 typedef UT_IntrusivePtr<GEO_ABCNameMap>   GEO_ABCNameMapPtr;
 
 /// Map to translate from Alembic attribute names to Houdini names
-class GA_API GEO_ABCNameMap
+class GABC_API GEO_ABCNameMap
 {
 public:
     typedef UT_SymbolMap<UT_String>	MapType;
@@ -96,7 +96,7 @@ private:
 static inline void intrusive_ptr_add_ref(GEO_ABCNameMap *m) { m->incref(); }
 static inline void intrusive_ptr_release(GEO_ABCNameMap *m) { m->decref(); }
 
-class GA_API GABC_GEOPrim : public GEO_Primitive
+class GABC_API GABC_GEOPrim : public GEO_Primitive
 {
 public:
     typedef Alembic::Abc::IObject	IObject;
