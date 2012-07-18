@@ -63,7 +63,7 @@ public:
     static bool		isMayaLocator(const IObject &obj);
 
     /// Class used in traversal of Alembic trees
-    class Walker
+    class GABC_API Walker
     {
     public:
 	Walker()
