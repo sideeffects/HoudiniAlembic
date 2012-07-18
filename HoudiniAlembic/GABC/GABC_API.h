@@ -1,0 +1,14 @@
+#ifndef __GABC_API_h__
+#define __GABC_API_h__
+
+#include <SYS/SYS_Visibility.h>
+
+#ifdef EXPORT_GABC
+#define GABC_API SYS_VISIBILITY_EXPORT
+#define GABC_API_TINST SYS_VISIBILITY_EXPORT_TINST
+#else
+#define GABC_API SYS_VISIBILITY_IMPORT
+#define GABC_API_TINST SYS_VISIBILITY_IMPORT_TINST
+#endif
+
+#endif

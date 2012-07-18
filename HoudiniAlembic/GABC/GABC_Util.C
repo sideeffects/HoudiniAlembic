@@ -1,0 +1,858 @@
+/*
+ * PROPRIETARY INFORMATION.  This software is proprietary to
+ * Side Effects Software Inc., and is not to be reproduced,
+ * transmitted, or disclosed in any way without written permission.
+ *
+ * Produced by:
+ *	Side Effects Software Inc
+ *	123 Front Street West, Suite 1401
+ *	Toronto, Ontario
+ *	Canada   M5J 2M2
+ *	416-504-9876
+ *
+ * NAME:	GABC_Util.C (GABC Library, C++)
+ *
+ * COMMENTS:
+ */
+
+#include "GABC_Util.h"
+#include <Alembic/AbcGeom/All.h>
+#include <Alembic/AbcCoreHDF5/All.h>
+#include <UT/UT_CappedCache.h>
+#include <UT/UT_WorkBuffer.h>
+#include <UT/UT_StringArray.h>
+#include <UT/UT_FSA.h>
+#include <boost/tokenizer.hpp>
+
+namespace
+{
+    typedef Alembic::Abc::M44d			M44d;
+    typedef Alembic::Abc::index_t		index_t;
+    typedef Alembic::Abc::chrono_t		chrono_t;
+    typedef Alembic::Abc::IArchive		IArchive;
+    typedef Alembic::Abc::IObject		IObject;
+    typedef Alembic::Abc::ISampleSelector	ISampleSelector;
+    typedef Alembic::Abc::ObjectHeader		ObjectHeader;
+    typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
+    typedef Alembic::AbcGeom::IXform		IXform;
+    typedef Alembic::AbcGeom::IPolyMesh		IPolyMesh;
+    typedef Alembic::AbcGeom::ISubD		ISubD;
+    typedef Alembic::AbcGeom::ICurves		ICurves;
+    typedef Alembic::AbcGeom::IPoints		IPoints;
+    typedef Alembic::AbcGeom::INuPatch		INuPatch;
+    typedef Alembic::AbcGeom::IFaceSet		IFaceSet;
+    typedef Alembic::AbcGeom::ICamera		ICamera;
+    typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
+    typedef Alembic::AbcGeom::XformSample	XformSample;
+    typedef GABC_Util::PathList			PathList;
+
+    static UT_FSATable	theNodeTypeTable(
+	GABC_Util::GABC_XFORM,		"Xform",
+	GABC_Util::GABC_POLYMESH,	"PolyMesh",
+	GABC_Util::GABC_SUBD,		"SubD",
+	GABC_Util::GABC_CAMERA,		"Camera",
+	GABC_Util::GABC_FACESET,	"FaceSet",
+	GABC_Util::GABC_CURVES,		"Curves",
+	GABC_Util::GABC_POINTS,		"Points",
+	GABC_Util::GABC_NUPATCH,	"NuPatch",
+	-1, NULL
+    );
+
+    // Stores world (cumulative) transforms for objects in the cache.  These
+    // are stored at sample times but not at intermediate time samples.
+    class LocalWorldXform
+    {
+    public:
+	LocalWorldXform()
+	    : myLocal()
+	    , myWorld()
+	    , myConstant(false)
+	{
+	}
+	LocalWorldXform(const M44d &l, const M44d &w, bool is_const)
+	    : myLocal(l)
+	    , myWorld(w)
+	    , myConstant(is_const)
+	{
+	}
+	LocalWorldXform(const LocalWorldXform &x)
+	    : myLocal(x.myLocal)
+	    , myWorld(x.myWorld)
+	    , myConstant(x.myConstant)
+	{
+	}
+
+	const M44d	&getLocal() const	{ return myLocal; }
+	const M44d	&getWorld() const	{ return myWorld; }
+	bool		 isConstant() const	{ return myConstant; }
+    private:
+	M44d	myLocal;
+	M44d	myWorld;
+	bool	myConstant;
+    };
+
+    class ArchiveTransformItem : public UT_CappedItem
+    {
+    public:
+	ArchiveTransformItem()
+	    : UT_CappedItem()
+	    , myX()
+	{
+	}
+	ArchiveTransformItem(const M44d &l, const M44d &w, bool is_const)
+	    : UT_CappedItem()
+	    , myX(l, w, is_const)
+	{
+	}
+
+	virtual int64	 getMemoryUsage() const	{ return sizeof(*this); }
+	const M44d	&getLocal() const	{ return myX.getLocal(); }
+	const M44d	&getWorld() const	{ return myX.getWorld(); }
+	bool		 isConstant() const	{ return myX.isConstant(); }
+    private:
+	LocalWorldXform	myX;
+    };
+
+    class WalkPushFile
+    {
+    public:
+	WalkPushFile(GABC_Util::Walker &walk, const std::string &filename)
+	    : myWalk(walk)
+	    , myFilename(walk.filename())
+	{
+	    myWalk.setFilename(filename);
+	}
+	~WalkPushFile()
+	{
+	    myWalk.setFilename(myFilename);
+	}
+    private:
+	GABC_Util::Walker	&myWalk;
+	std::string		 myFilename;
+    };
+
+    #include <UT/UT_SymbolTable.h>
+    typedef UT_SymbolMap<LocalWorldXform>	AbcTransformMap;
+
+    void DecomposeXForm(
+            const Imath::M44d &mat,
+            Imath::V3d &scale,
+            Imath::V3d &shear,
+            Imath::Quatd &rotation,
+            Imath::V3d &translation
+    )
+    {
+        Imath::M44d mat_remainder(mat);
+
+        // Extract Scale, Shear
+        Imath::extractAndRemoveScalingAndShear(mat_remainder, scale, shear);
+
+        // Extract translation
+        translation.x = mat_remainder[3][0];
+        translation.y = mat_remainder[3][1];
+        translation.z = mat_remainder[3][2];
+
+        // Extract rotation
+        rotation = extractQuat(mat_remainder);
+    }
+
+    M44d RecomposeXForm(
+            const Imath::V3d &scale,
+            const Imath::V3d &shear,
+            const Imath::Quatd &rotation,
+            const Imath::V3d &translation
+    )
+    {
+        Imath::M44d scale_mtx, shear_mtx, rotation_mtx, translation_mtx;
+
+        scale_mtx.setScale(scale);
+        shear_mtx.setShear(shear);
+        rotation_mtx = rotation.toMatrix44();
+        translation_mtx.setTranslation(translation);
+
+        return scale_mtx * shear_mtx * rotation_mtx * translation_mtx;
+    }
+
+
+    // when amt is 0, a is returned
+    inline double lerp(double a, double b, double amt)
+    {
+        return (a + (b-a)*amt);
+    }
+
+    Imath::V3d lerp(const Imath::V3d &a, const Imath::V3d &b, double amt)
+    {
+        return Imath::V3d(lerp(a[0], b[0], amt),
+                          lerp(a[1], b[1], amt),
+                          lerp(a[2], b[2], amt));
+    }
+
+
+    void
+    TokenizeObjectPath(const std::string & objectPath, PathList & pathList)
+    {
+        typedef boost::char_separator<char> Separator;
+        typedef boost::tokenizer<Separator> Tokenizer;
+        Tokenizer tokenizer( objectPath, Separator( "/" ) );
+        for ( Tokenizer::iterator iter = tokenizer.begin() ;
+                iter != tokenizer.end() ; ++iter )
+        {
+            if ( (*iter).empty() ) { continue; }
+            pathList.push_back( *iter );
+        }
+    }
+
+    // Returns whether the transform is constant
+    bool
+    abcLocalTransform(M44d &localXform, IObject obj, fpreal sampleTime)
+    {
+	IXform		xformObject(obj, Alembic::Abc::kWrapExisting);
+	bool		isConstant = xformObject.getSchema().isConstant();
+	TimeSamplingPtr timeSampling =xformObject.getSchema().getTimeSampling();
+	size_t		numSamples = xformObject.getSchema().getNumSamples();
+
+	chrono_t inTime = sampleTime;
+	chrono_t outTime = sampleTime;
+
+	if (numSamples > 1)
+	{
+	    const chrono_t epsilon = 1.0 / 10000.0;
+
+	    std::pair<index_t, chrono_t> floorIndex =
+		    timeSampling->getFloorIndex(sampleTime, numSamples);
+
+	    //make sure we're not equal enough
+	    if (fabs(floorIndex.second - sampleTime) > epsilon)
+	    {
+		//make sure we're not before the first sample
+		if (floorIndex.second < sampleTime)
+		{
+		    //make sure there's another sample available afterwards
+		    if (floorIndex.first+1 < numSamples)
+		    {
+			inTime = floorIndex.second;
+			outTime = timeSampling->getSampleTime(
+				floorIndex.first+1);
+		    }
+		}
+	    }
+	}
+
+	//interpolate if necessary
+	if (inTime != outTime )
+	{
+	    XformSample inSample = xformObject.getSchema().getValue(
+		    ISampleSelector(inTime));
+
+	    XformSample outSample = xformObject.getSchema().getValue(
+		    ISampleSelector(outTime));
+
+	    double t = (sampleTime - inTime) / (outTime - inTime);
+
+	    Imath::V3d s_l,s_r,h_l,h_r,t_l,t_r;
+	    Imath::Quatd quat_l,quat_r;
+
+	    DecomposeXForm(inSample.getMatrix(), s_l, h_l, quat_l, t_l);
+	    DecomposeXForm(outSample.getMatrix(), s_r, h_r, quat_r, t_r);
+
+	    if ((quat_l ^ quat_r) < 0)
+	    {
+		quat_r = -quat_r;
+	    }
+
+	    localXform = RecomposeXForm(lerp(s_l, s_r, t),
+		     lerp(h_l, h_r, t),
+		     Imath::slerp(quat_l, quat_r, t),
+		     lerp(t_l, t_r, t));
+	}
+	else
+	{
+	    XformSample xformSample = xformObject.getSchema().getValue(
+		    ISampleSelector(sampleTime));
+	    localXform = xformSample.getMatrix();
+	}
+	return isConstant;
+    }
+
+    class ArchiveObjectKey : public UT_CappedKey
+    {
+    public:
+	ArchiveObjectKey(const char *key, fpreal sample_time = 0)
+	    : UT_CappedKey()
+	    , myKey(UT_String::ALWAYS_DEEP, key)
+	    , myTime(sample_time)
+	{
+	}
+	virtual ~ArchiveObjectKey() {}
+	virtual UT_CappedKey	*duplicate() const
+				 {
+				     return new ArchiveObjectKey(myKey, myTime);
+				 }
+	virtual unsigned int	 getHash() const
+				 {
+				     uint	hash = SYSreal_hash(myTime);
+				     hash = SYSwang_inthash(hash)^myKey.hash();
+				     return hash;
+				 }
+	virtual bool		 isEqual(const UT_CappedKey &cmp) const
+				 {
+				     const ArchiveObjectKey	*key = UTverify_cast<const ArchiveObjectKey *>(&cmp);
+				     return myKey == key->myKey && 
+					    SYSalmostEqual(myTime, key->myTime);
+				 }
+    private:
+	UT_String	myKey;
+	fpreal		myTime;
+    };
+
+    class ArchiveObjectItem : public UT_CappedItem
+    {
+    public:
+	ArchiveObjectItem()
+	    : UT_CappedItem()
+	    , myIObject()
+	{
+	}
+	ArchiveObjectItem(const IObject &obj)
+	    : UT_CappedItem()
+	    , myIObject(obj)
+	{
+	}
+	// Approximate usage
+	virtual int64	getMemoryUsage() const	{ return 1024; }
+	IObject		getObject() const	{ return myIObject; }
+    private:
+	IObject		 myIObject;
+    };
+
+    struct ArchiveCacheEntry
+    {
+        ArchiveCacheEntry()
+	    : myCache("abcObjects", 2)
+	    , myDynamicXforms("abxTransforms", 4)
+        {
+        }
+
+        ~ArchiveCacheEntry()
+        {
+        }
+
+	bool	walk(GABC_Util::Walker &walker)
+		{
+		    if (!walker.preProcess(root()))
+			return false;
+		    return walkTree(root(), walker);
+		}
+
+	// Build a cache of constant (non-changing) transforms
+	void	buildTransformCache(IObject root, const char *path,
+				    const M44d &parent)
+	{
+	    UT_WorkBuffer	fullpath;
+	    for (size_t i = 0; i < root.getNumChildren(); ++i)
+	    {
+		const ObjectHeader	&ohead = root.getChildHeader(i);
+		if (IXform::matches(ohead))
+		{
+		    IXform		xform(root, ohead.getName());
+		    IXformSchema	&xs = xform.getSchema();
+		    fullpath.sprintf("%s/%s", path, ohead.getName().c_str());
+		    M44d		world;
+		    world = parent;
+		    if (xs.isConstant())
+		    {
+			XformSample	xsample = xs.getValue(ISampleSelector(0.0));
+			M44d	localXform = xsample.getMatrix();
+			world = localXform * parent;
+			myStaticXforms[fullpath.buffer()] =
+			    LocalWorldXform(localXform, world, true);
+		    }
+		    buildTransformCache(xform, fullpath.buffer(), world);
+		}
+	    }
+	}
+
+	/// Check to see if there's a const local transform cached
+	bool	staticLocalTransform(const char *fullpath, M44d &xform)
+		{
+		    if (myStaticXforms.size() == 0)
+		    {
+			M44d	id;
+			id.makeIdentity();
+			buildTransformCache(root(), "", id);
+		    }
+		    AbcTransformMap::const_iterator	it;
+		    it = myStaticXforms.find(fullpath);
+		    if (it != myStaticXforms.map_end())
+		    {
+			xform = it->second.getLocal();
+			return true;
+		    }
+		    return false;
+		}
+	/// Check to see if there's a const world transform cached
+	bool	staticWorldTransform(const char *fullpath, M44d &xform)
+		{
+		    if (myStaticXforms.size() == 0)
+		    {
+			M44d	id;
+			id.makeIdentity();
+			buildTransformCache(root(), "", id);
+		    }
+		    AbcTransformMap::const_iterator	it;
+		    it = myStaticXforms.find(fullpath);
+		    if (it != myStaticXforms.map_end())
+		    {
+			xform = it->second.getWorld();
+			return true;
+		    }
+		    return false;
+		}
+
+	/// Get an object's local transform
+	void	getLocalTransform(M44d &x, const IObject &obj, fpreal now,
+			bool &isConstant)
+		{
+		    if (IXform::matches(obj.getHeader()))
+		    {
+			isConstant = abcLocalTransform(x, obj, now);
+		    }
+		    else
+		    {
+			x.makeIdentity();
+		    }
+		}
+
+	/// Find the full world transform for an object
+	bool	getWorldTransform(M44d &x, const IObject &obj, fpreal now,
+			bool &isConstant)
+		{
+		    isConstant = true;
+		    // First, check if we have a static 
+		    std::string	path = obj.getFullName();
+		    if (staticWorldTransform(path.c_str(), x))
+			return true;
+
+		    // Now check to see if it's in the dynamic cache
+		    ArchiveObjectKey	key(path.c_str(), now);
+		    UT_CappedItemHandle	item = myDynamicXforms.findItem(key);
+		    if (item)
+		    {
+			ArchiveTransformItem	*xitem;
+			xitem =UTverify_cast<ArchiveTransformItem*>(item.get());
+			x = xitem->getWorld();
+			isConstant = xitem->isConstant();
+		    }
+		    else
+		    {
+			// Get our local transform
+			M44d	localXform;
+			IObject	dad = const_cast<IObject &>(obj).getParent();
+
+			getLocalTransform(localXform, obj, now, isConstant);
+			if (dad.valid())
+			{
+			    M44d	dm;
+			    bool	dadConst;
+			    getWorldTransform(dm, dad, now, dadConst);
+			    if (!dadConst)
+				isConstant = false;
+			    x = localXform * dm;
+			}
+			else
+			{
+			    x = localXform;	// World transform same as local
+			}
+			myDynamicXforms.addItem(key,
+			    new ArchiveTransformItem(localXform, x, isConstant));
+		    }
+		    return true;
+		}
+
+	/// Find an object in the object cache -- this prevents having to
+	/// traverse from the root every time we need an object.
+	IObject	findObject(IObject parent,
+		    UT_WorkBuffer &fullpath, const char *component)
+		{
+		    fullpath.append("/");
+		    fullpath.append(component);
+		    ArchiveObjectKey	key(fullpath.buffer());
+		    IObject		kid;
+		    UT_CappedItemHandle	item = myCache.findItem(key);
+		    if (item)
+		    {
+			kid = UTverify_cast<ArchiveObjectItem *>(item.get())->getObject();
+		    }
+		    else
+		    {
+			kid = parent.getChild(component);
+			if (kid.valid())
+			    myCache.addItem(key, new ArchiveObjectItem(kid));
+		    }
+		    return kid;
+		}
+
+	/// Given a path to the object, return the object
+	IObject getObject(const std::string &objectPath)
+	{
+	    PathList		pathList;
+	    IObject		curr = root();
+	    UT_WorkBuffer	fullpath;
+
+	    TokenizeObjectPath(objectPath, pathList);
+	    for (PathList::const_iterator I = pathList.begin();
+		    I != pathList.end() && curr.valid(); ++I)
+	    {
+		curr = findObject(curr, fullpath, (*I).c_str());
+	    }
+	    return curr;
+	}
+
+	class PathListWalker : public GABC_Util::Walker
+	{
+	public:
+	    PathListWalker(PathList &objects)
+		: myObjects(objects)
+	    {
+	    }
+
+	    virtual bool	process(const IObject &obj)
+				{
+				    myObjects.push_back(obj.getFullName());
+				    return true;
+				}
+	private:
+	    PathList	&myObjects;
+	};
+
+	const PathList	&getObjectList()
+			{
+			    if (myArchive.valid() && !myObjectList.size())
+			    {
+				PathListWalker	func(myObjectList);
+				walk(func);
+			    }
+			    return myObjectList;
+			}
+
+	static bool	walkTree(IObject node, GABC_Util::Walker &walker)
+			{
+			    if (walker.interrupted())
+				return false;
+			    if (walker.process(node))
+				walker.walkChildren(node);
+			    return true;
+			}
+
+	bool	isValid() const		{ return myArchive.valid(); }
+	void	setArchive(const IArchive &a)	{ myArchive = a; }
+	void	setError(const std::string &e)	{ error = e; }
+
+    private:
+	IObject		root()	{ return myArchive.getTop(); }
+	IArchive	myArchive;
+	std::string	error;
+	PathList	myObjectList;
+	AbcTransformMap myStaticXforms;
+	UT_CappedCache	myCache;
+	UT_CappedCache	myDynamicXforms;
+    };
+
+    typedef boost::shared_ptr<ArchiveCacheEntry> ArchiveCacheEntryRcPtr;
+    typedef std::map<std::string, ArchiveCacheEntryRcPtr> ArchiveCache;
+
+    //-*************************************************************************
+
+    size_t g_maxCache = 50;
+    //for now, leak the pointer to the archive cache so we don't
+    //crash at shutdown
+    ArchiveCache *g_archiveCache(new ArchiveCache);
+
+    //-*************************************************************************
+
+    ArchiveCacheEntryRcPtr
+    LoadArchive(const std::string & path)
+    {
+        ArchiveCache::iterator I = g_archiveCache->find(path);
+        if (I != g_archiveCache->end())
+        {
+            return (*I).second;
+        }
+        ArchiveCacheEntryRcPtr entry = ArchiveCacheEntryRcPtr(
+                new ArchiveCacheEntry);
+        try
+        {
+            entry->setArchive(
+		    IArchive(::Alembic::AbcCoreHDF5::ReadArchive(), path)
+		);
+        }
+        catch (const std::exception & e)
+        {
+            entry->setError(e.what());
+        }
+        while (g_archiveCache->size() >= g_maxCache)
+        {
+            long d = static_cast<long>(std::floor(
+                    static_cast<double>(std::rand())
+                            / RAND_MAX * g_maxCache - 0.5));
+            if (d < 0)
+            {
+                d = 0;
+            }
+            ArchiveCache::iterator it = g_archiveCache->begin();
+            for (; d > 0; --d)
+            {
+                ++it;
+            }
+            g_archiveCache->erase(it);
+        }
+        (*g_archiveCache)[path] = entry;
+        return entry;
+    }
+
+    void
+    ClearArchiveFile(const std::string &path)
+    {
+        ArchiveCache::iterator it = g_archiveCache->find(path);
+	if (it != g_archiveCache->end())
+	    g_archiveCache->erase(it);
+    }
+    void
+    ClearArchiveCache()
+    {
+	delete g_archiveCache;
+	g_archiveCache = new ArchiveCache;
+    }
+}
+
+GABC_Util::Walker::~Walker()
+{
+}
+
+bool
+GABC_Util::Walker::preProcess(const IObject &)
+{
+    return true;
+}
+
+bool
+GABC_Util::Walker::walkChildren(const IObject &node)
+{
+    IObject	&obj = const_cast<IObject &>(node);
+    exint	nkids = obj.getNumChildren();
+    for (exint i = 0; i < nkids; ++i)
+    {
+	// Returns false on interrupt
+	if (!ArchiveCacheEntry::walkTree(obj.getChild(i), *this))
+	    return false;
+    }
+    return true;
+}
+
+const char *
+GABC_Util::nodeType(NodeType token)
+{
+    const char	*name = theNodeTypeTable.getToken(token);
+    return name ? name : "<unknown>";
+}
+
+GABC_Util::NodeType
+GABC_Util::nodeType(const char *name)
+{
+    return static_cast<GABC_Util::NodeType>(theNodeTypeTable.findSymbol(name));
+}
+
+GABC_Util::NodeType
+GABC_Util::getNodeType(const IObject &obj)
+{
+    const ObjectHeader	&ohead = obj.getHeader();
+    if (IXform::matches(ohead))
+	return GABC_XFORM;
+    if (IPolyMesh::matches(ohead))
+	return GABC_POLYMESH;
+    if (ISubD::matches(ohead))
+	return GABC_SUBD;
+    if (ICamera::matches(ohead))
+	return GABC_CAMERA;
+    if (IFaceSet::matches(ohead))
+	return GABC_FACESET;
+    if (ICurves::matches(ohead))
+	return GABC_CURVES;
+    if (IPoints::matches(ohead))
+	return GABC_POINTS;
+    if (INuPatch::matches(ohead))
+	return GABC_NUPATCH;
+    return GABC_UNKNOWN;
+}
+
+bool
+GABC_Util::isMayaLocator(const IObject &obj)
+{
+    UT_ASSERT(IXform::matches(obj.getHeader()));
+    IObject	*xform = const_cast<IObject *>(&obj);
+    return xform->getProperties().getPropertyHeader("locator") != NULL;
+}
+
+bool
+GABC_Util::walk(const std::string &filename, Walker &walker,
+			    const UT_StringArray &objects)
+{
+    ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+    WalkPushFile		walkfile(walker, filename);
+    for (exint i = 0; i < objects.entries(); ++i)
+    {
+	std::string	path(objects(i));
+	IObject	obj = findObject(filename, path);
+	if (obj.valid())
+	{
+	    if (!walker.preProcess(obj))
+		return false;
+	    if (!cacheEntry->walkTree(obj, walker))
+		return false;
+	}
+    }
+    return true;
+}
+
+bool
+GABC_Util::walk(const std::string &filename, GABC_Util::Walker &walker)
+{
+    ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+    WalkPushFile		walkfile(walker, filename);
+    return cacheEntry->isValid() ? cacheEntry->walk(walker) : false;
+}
+
+void
+GABC_Util::clearCache(const char *filename)
+{
+    if (filename)
+	ClearArchiveFile(filename);
+    else
+	ClearArchiveCache();
+}
+
+void
+GABC_Util::setFileCacheSize(int nfiles)
+{
+    g_maxCache = SYSmax(nfiles, 1);
+}
+
+int
+GABC_Util::fileCacheSize()
+{
+    return g_maxCache;
+}
+
+IObject
+GABC_Util::findObject(const std::string &filename,
+	const std::string &objectpath)
+{
+    ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+    return cacheEntry->isValid() ? cacheEntry->getObject(objectpath)
+		: IObject();
+}
+
+bool
+GABC_Util::getLocalTransform(const std::string &filename,
+	const std::string &objectpath,
+	fpreal sample_time,
+	UT_Matrix4D &xform,
+	bool &isConstant)
+{
+    bool	success = false;
+    M44d	lxform;
+    try
+    {
+	ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+	if (cacheEntry->isValid())
+	{
+	    IObject	obj = cacheEntry->getObject(objectpath);
+	    if (obj.valid())
+	    {
+		cacheEntry->getLocalTransform(lxform, obj,
+				    sample_time, isConstant);
+		success = true;
+	    }
+	}
+    }
+    catch (const std::exception &)
+    {
+    }
+    if (success)
+	xform = UT_Matrix4D(lxform.x);
+    return success;
+}
+
+bool
+GABC_Util::getWorldTransform(const std::string &filename,
+	const std::string &objectpath,
+	fpreal sample_time,
+	UT_Matrix4D &xform,
+	bool &isConstant)
+{
+    bool	success = false;
+    M44d	wxform;
+    try
+    {
+	ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+	if (cacheEntry->isValid())
+	{
+	    IObject	obj = cacheEntry->getObject(objectpath);
+	    if (obj.valid())
+	    {
+		success = cacheEntry->getWorldTransform(wxform, obj,
+				    sample_time, isConstant);
+	    }
+	}
+    }
+    catch (const std::exception &)
+    {
+	success = false;
+    }
+    if (success)
+	xform = UT_Matrix4D(wxform.x);
+    return success;
+}
+
+bool
+GABC_Util::getWorldTransform(const std::string &filename,
+	const IObject &obj,
+	fpreal sample_time,
+	UT_Matrix4D &xform,
+	bool &isConstant)
+{
+    bool	success = false;
+    M44d	wxform;
+    if (obj.valid())
+    {
+	try
+	{
+	    ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+	    UT_ASSERT(cacheEntry->getObject(obj.getFullName()).valid());
+	    success = cacheEntry->getWorldTransform(wxform, obj,
+				    sample_time, isConstant);
+	}
+	catch (const std::exception &)
+	{
+	    success = false;
+	}
+    }
+    if (success)
+	xform = UT_Matrix4D(wxform.x);
+    return success;
+}
+
+const PathList &
+GABC_Util::getObjectList(const std::string &filename)
+{
+    try
+    {
+	ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+	return cacheEntry->getObjectList();
+    }
+    catch (const std::exception &)
+    {
+    }
+    static PathList	theEmptyList;
+    return theEmptyList;
+}
