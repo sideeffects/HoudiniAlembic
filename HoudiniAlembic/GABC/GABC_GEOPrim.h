@@ -184,9 +184,11 @@ public:
     const std::string	&getFilename() const	{ return myFilename; }
     const std::string	&getObjectPath() const	{ return myObjectPath; }
     const IObject	&getObject() const	{ return myObject; }
-    bool		 isConstant() const;
-    Alembic::AbcGeom::MeshTopologyVariance	topology() const
-			    { return myTopology; }
+    GABC_Util::AnimationType	 animation() const	{ return myAnimation; }
+    bool		 isConstant() const
+			 {
+			     return myAnimation==GABC_Util::ANIMATION_CONSTANT;
+			 }
     fpreal		 getFrame() const	{ return myFrame; }
 
     void		 init(const std::string &filename,
@@ -239,6 +241,7 @@ protected:
 private:
     bool	getABCTransform(UT_Matrix4D &xform) const;
     void	resolveObject();
+    void	updateAnimation();
 
     void	copyMemberDataFrom(const GABC_GEOPrim &src);
 
@@ -249,11 +252,11 @@ private:
     GT_TransformHandle	myGeoTransform;
     GEO_ABCNameMapPtr	myAttributeNameMap;
 
-    mutable UT_BoundingBox				myBox;
-    mutable GT_TransformHandle				myGTTransform;
-    mutable GT_PrimitiveHandle				myGTPrimitive;
-    mutable Alembic::AbcGeom::MeshTopologyVariance	myTopology;
-    bool						myUseTransform;
+    mutable UT_BoundingBox	myBox;
+    mutable GT_TransformHandle	myGTTransform;
+    mutable GT_PrimitiveHandle	myGTPrimitive;
+    mutable GABC_Util::AnimationType	myAnimation;
+    bool			myUseTransform;
 };
 
 #endif

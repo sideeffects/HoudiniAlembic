@@ -79,6 +79,7 @@ namespace {
 	GABC_GEOWalker::TransformState	 myPop;
     };
 
+#if 0
     void
     updateTopology(GABC_GEOWalker &walk,
 		    Alembic::AbcGeom::MeshTopologyVariance top)
@@ -88,6 +89,7 @@ namespace {
 	    walk.setNonConstantTopology();
 	}
     }
+#endif
 
     static GA_AttributeOwner
     getGAOwner(Alembic::AbcGeom::GeometryScope scope)
@@ -616,14 +618,11 @@ namespace {
 	return getGAOwner(Alembic::AbcGeom::GetGeometryScope(ph.getMetaData()));
     }
     
-    bool
+    void
     fillArb(GABC_GEOWalker &walk, ICompoundProperty arb,
 		exint npoint, exint nvertex, exint nprim)
     {
 	exint	narb = arb ? arb.getNumProperties() : 0;
-	bool	isConstant = true;
-	if (!narb)
-	    return isConstant;
 
 	for (exint i = 0; i < narb; ++i)
 	{
@@ -638,7 +637,6 @@ namespace {
 	    arbitraryGeomAttribute(walk, arb, head,
 		    name, npoint, nvertex, nprim);
 	}
-	return isConstant;
     }
 
     void
@@ -673,6 +671,16 @@ namespace {
 
     }
 
+    GABC_Util::AnimationType
+    getAnimationType(GABC_GEOWalker &walk, const IObject &obj)
+    {
+	GABC_Util::AnimationType	atype;
+	atype = GABC_Util::getAnimationType(walk.filename(), obj, false);
+	if (atype == GABC_Util::ANIMATION_TOPOLOGY)
+	    walk.setNonConstantTopology();
+	return atype;
+    }
+
     void
     makeSubD(GABC_GEOWalker &walk, const IObject &obj)
     {
@@ -689,8 +697,8 @@ namespace {
 
 	//fprintf(stderr, "SubD: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
 
-	updateTopology(walk, ps.getTopologyVariance());
-	if (!ps.isConstant())
+	GABC_Util::AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GABC_Util::ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -741,8 +749,8 @@ namespace {
 
 	//fprintf(stderr, "PolyMesh %s: %d %d %d\n", obj.getFullName().c_str(), int(npoint), int(nvertex), int(nprim));
 
-	updateTopology(walk, ps.getTopologyVariance());
-	if (!ps.isConstant())
+	GABC_Util::AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GABC_Util::ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -774,10 +782,7 @@ namespace {
 		npoint, nvertex, nprim);
 	setGeomAttribute(walk, "N", ps.getNormalsParam(), iss,
 		npoint, nvertex, nprim);
-	if (!fillArb(walk, ps.getArbGeomParams(), npoint, nvertex, nprim))
-	{
-	    walk.setNonConstant();
-	}
+	fillArb(walk, ps.getArbGeomParams(), npoint, nvertex, nprim);
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
@@ -795,6 +800,7 @@ namespace {
 	exint			nvertex = npoint;
 	exint			nprim = nvtx->size();
 
+#if 0
 	//fprintf(stderr, "Curves: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
 
 	// Due to a bug in Alembic 1.0.5, the topology variance for curves
@@ -806,8 +812,10 @@ namespace {
 	{
 	    top = Alembic::AbcGeom::kHeterogenousTopology;
 	}
+#endif
 
-	if (!cs.isConstant())
+	GABC_Util::AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GABC_Util::ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -871,12 +879,15 @@ namespace {
 	const int			nvertex = 1;
 	const int			nprim = 1;
 
+#if 0
 	// IXform doesn't have getTopologyVariance()
 	//updateTopology(walk, loc.getTopologyVariance());
 	updateTopology(walk,
 		loc.isConstant() ? Alembic::AbcGeom::kConstantTopology
 				: Alembic::AbcGeom::kHomogenousTopology);
-	if (!loc.isConstant())
+#endif
+	GABC_Util::AnimationType	atype = getAnimationType(walk, xform);
+	if (atype != GABC_Util::ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -933,12 +944,15 @@ namespace {
 
 	//fprintf(stderr, "Points: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
 
+#if 0
 	// IPoints doesn't have getTopologyVariance()
 	//updateTopology(walk, ps.getTopologyVariance());
 	updateTopology(walk,
 		ps.isConstant() ? Alembic::AbcGeom::kConstantTopology
 				: Alembic::AbcGeom::kHomogenousTopology);
-	if (!ps.isConstant())
+#endif
+	GABC_Util::AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GABC_Util::ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -999,8 +1013,8 @@ namespace {
 
 	//fprintf(stderr, "NuPatch: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
 
-	updateTopology(walk, ps.getTopologyVariance());
-	if (!ps.isConstant())
+	GABC_Util::AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GABC_Util::ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}

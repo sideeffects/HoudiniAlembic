@@ -33,8 +33,9 @@ class UT_StringArray;
 class GABC_API GABC_Util
 {
 public:
-    typedef Alembic::Abc::IObject	IObject;
-    typedef std::vector<std::string>	PathList;
+    typedef Alembic::Abc::IObject		IObject;
+    typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
+    typedef std::vector<std::string>		PathList;
 
     /// A simple enum for the different Alembic node types supported
     enum NodeType
@@ -50,6 +51,14 @@ public:
 	GABC_NUPATCH,
     };
 
+    enum AnimationType
+    {
+	ANIMATION_CONSTANT,	// Constant animation
+	ANIMATION_TRANSFORM,	// Transform is animated
+	ANIMATION_ATTRIBUTE,	// Attribute or transform are animated
+	ANIMATION_TOPOLOGY,	// Topology is dynamic
+    };
+
     /// Determine the node type given an input object.  If GABC_UNKNOWN is
     /// returned, you can still check the ObjectHeader to see if it matches
     /// other object types.
@@ -61,6 +70,14 @@ public:
 
     /// Classify a transform node
     static bool		isMayaLocator(const IObject &obj);
+
+    /// Check whether an arbitrary property is animated
+    static bool		isConstant(ICompoundProperty arb, int property_index);
+
+    /// Get the animation type of a given node
+    static AnimationType	getAnimationType(const std::string &filename,
+						const IObject &node,
+						bool include_transform);
 
     /// Class used in traversal of Alembic trees
     class GABC_API Walker
@@ -90,7 +107,7 @@ public:
 
 	/// @{
 	///  Access the current filename
-	const std::string	filename() const	{ return myFilename; }
+	const std::string	&filename() const	{ return myFilename; }
 	void			setFilename(const std::string &f)
 					{ myFilename = f; }
 	/// @}

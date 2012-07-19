@@ -31,18 +31,25 @@ namespace
     typedef Alembic::Abc::chrono_t		chrono_t;
     typedef Alembic::Abc::IArchive		IArchive;
     typedef Alembic::Abc::IObject		IObject;
+    typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
     typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
     typedef Alembic::AbcGeom::IXform		IXform;
+    typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
     typedef Alembic::AbcGeom::IPolyMesh		IPolyMesh;
     typedef Alembic::AbcGeom::ISubD		ISubD;
     typedef Alembic::AbcGeom::ICurves		ICurves;
     typedef Alembic::AbcGeom::IPoints		IPoints;
     typedef Alembic::AbcGeom::INuPatch		INuPatch;
     typedef Alembic::AbcGeom::IFaceSet		IFaceSet;
+    typedef Alembic::AbcGeom::IPolyMeshSchema	IPolyMeshSchema;
+    typedef Alembic::AbcGeom::ISubDSchema	ISubDSchema;
+    typedef Alembic::AbcGeom::ICurvesSchema	ICurvesSchema;
+    typedef Alembic::AbcGeom::IPointsSchema	IPointsSchema;
+    typedef Alembic::AbcGeom::INuPatchSchema	INuPatchSchema;
+    typedef Alembic::AbcGeom::IFaceSetSchema	IFaceSetSchema;
     typedef Alembic::AbcGeom::ICamera		ICamera;
-    typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
     typedef Alembic::AbcGeom::XformSample	XformSample;
     typedef GABC_Util::PathList			PathList;
 
@@ -709,6 +716,230 @@ GABC_Util::isMayaLocator(const IObject &obj)
     UT_ASSERT(IXform::matches(obj.getHeader()));
     IObject	*xform = const_cast<IObject *>(&obj);
     return xform->getProperties().getPropertyHeader("locator") != NULL;
+}
+
+template <typename T>
+static bool
+arrayIsConstant(Alembic::AbcGeom::ICompoundProperty arb,
+	const Alembic::Abc::PropertyHeader &head)
+{
+    T	param(arb, head.getName());
+    return param.isConstant();
+}
+
+static bool
+abcArbsAreAnimated(ICompoundProperty arb)
+{
+    exint	narb = arb ? arb.getNumProperties() : 0;
+    for (exint i = 0; i < narb; ++i)
+    {
+	if (!GABC_Util::isConstant(arb, i))
+	    return true;
+    }
+    return false;
+}
+
+template <typename ABC_T, typename SCHEMA_T>
+static GABC_Util::AnimationType
+getAnimation(const IObject &obj)
+{
+    ABC_T				 prim(obj, Alembic::Abc::kWrapExisting);
+    SCHEMA_T			&schema = prim.getSchema();
+    GABC_Util::AnimationType	 atype;
+    
+    switch (schema.getTopologyVariance())
+    {
+	case Alembic::AbcGeom::kConstantTopology:
+	    atype = GABC_Util::ANIMATION_CONSTANT;
+	    if (abcArbsAreAnimated(schema.getArbGeomParams()))
+		atype = GABC_Util::ANIMATION_ATTRIBUTE;
+	    break;
+	case Alembic::AbcGeom::kHomogenousTopology:
+	    atype = GABC_Util::ANIMATION_ATTRIBUTE;
+	    break;
+	case Alembic::AbcGeom::kHeterogenousTopology:
+	    atype = GABC_Util::ANIMATION_TOPOLOGY;
+	    break;
+    }
+    return atype;
+}
+
+template <>
+GABC_Util::AnimationType
+getAnimation<IPoints, IPointsSchema>(const IObject &obj)
+{
+    IPoints			 prim(obj, Alembic::Abc::kWrapExisting);
+    IPointsSchema		&schema = prim.getSchema();
+    if (!schema.isConstant())
+	return GABC_Util::ANIMATION_TOPOLOGY;
+    if (abcArbsAreAnimated(schema.getArbGeomParams()))
+	return GABC_Util::ANIMATION_ATTRIBUTE;
+    return GABC_Util::ANIMATION_CONSTANT;
+}
+
+template <>
+GABC_Util::AnimationType
+getAnimation<IXform, IXformSchema>(const IObject &obj)
+{
+    IXform			 prim(obj, Alembic::Abc::kWrapExisting);
+    IXformSchema		&schema = prim.getSchema();
+    if (!schema.isConstant())
+	return GABC_Util::ANIMATION_TOPOLOGY;
+    if (abcArbsAreAnimated(schema.getArbGeomParams()))
+	return GABC_Util::ANIMATION_ATTRIBUTE;
+    return GABC_Util::ANIMATION_CONSTANT;
+}
+
+
+static GABC_Util::AnimationType
+getLocatorAnimation(const IObject &obj)
+{
+    IXform				prim(obj, Alembic::Abc::kWrapExisting);
+    Alembic::Abc::IScalarProperty	loc(prim.getProperties(), "locator");
+    return loc.isConstant() ? GABC_Util::ANIMATION_CONSTANT
+			    : GABC_Util::ANIMATION_ATTRIBUTE;
+}
+
+static bool
+abcCurvesChangingTopology(const IObject &obj)
+{
+    // There's a bug in Alembic 1.0.5 which doesn't properly detect
+    // heterogenous topology.
+    ICurves		 curves(obj, Alembic::Abc::kWrapExisting);
+    ICurvesSchema	&schema = curves.getSchema();
+    if (!schema.getNumVerticesProperty().isConstant())
+	return true;
+    return false;
+}
+
+#define MATCH_ARB(TYPENAME) \
+    if (Alembic::AbcGeom::TYPENAME::matches(head)) { \
+	return arrayIsConstant<Alembic::AbcGeom::TYPENAME>(arb, head); \
+    }
+
+bool
+GABC_Util::isConstant(Alembic::AbcGeom::ICompoundProperty arb, int idx)
+{
+    const Alembic::Abc::PropertyHeader	&head = arb.getPropertyHeader(idx);
+
+    MATCH_ARB(IBoolGeomParam);
+    MATCH_ARB(IUcharGeomParam);
+    MATCH_ARB(ICharGeomParam);
+    MATCH_ARB(IUInt16GeomParam);
+    MATCH_ARB(IInt16GeomParam);
+    MATCH_ARB(IUInt32GeomParam);
+    MATCH_ARB(IInt32GeomParam);
+    MATCH_ARB(IUInt64GeomParam);
+    MATCH_ARB(IInt64GeomParam);
+    MATCH_ARB(IHalfGeomParam);
+    MATCH_ARB(IFloatGeomParam);
+    MATCH_ARB(IDoubleGeomParam);
+    MATCH_ARB(IStringGeomParam);
+    MATCH_ARB(IWstringGeomParam);
+    MATCH_ARB(IV2sGeomParam);
+    MATCH_ARB(IV2iGeomParam);
+    MATCH_ARB(IV2fGeomParam);
+    MATCH_ARB(IV2dGeomParam);
+    MATCH_ARB(IV3sGeomParam);
+    MATCH_ARB(IV3iGeomParam);
+    MATCH_ARB(IV3fGeomParam);
+    MATCH_ARB(IV3dGeomParam);
+    MATCH_ARB(IP2sGeomParam);
+    MATCH_ARB(IP2iGeomParam);
+    MATCH_ARB(IP2fGeomParam);
+    MATCH_ARB(IP2dGeomParam);
+    MATCH_ARB(IP3sGeomParam);
+    MATCH_ARB(IP3iGeomParam);
+    MATCH_ARB(IP3fGeomParam);
+    MATCH_ARB(IP3dGeomParam);
+    MATCH_ARB(IBox2sGeomParam);
+    MATCH_ARB(IBox2iGeomParam);
+    MATCH_ARB(IBox2fGeomParam);
+    MATCH_ARB(IBox2dGeomParam);
+    MATCH_ARB(IBox3sGeomParam);
+    MATCH_ARB(IBox3iGeomParam);
+    MATCH_ARB(IBox3fGeomParam);
+    MATCH_ARB(IBox3dGeomParam);
+    MATCH_ARB(IM33fGeomParam);
+    MATCH_ARB(IM33dGeomParam);
+    MATCH_ARB(IM44fGeomParam);
+    MATCH_ARB(IM44dGeomParam);
+    MATCH_ARB(IQuatfGeomParam);
+    MATCH_ARB(IQuatdGeomParam);
+    MATCH_ARB(IC3hGeomParam);
+    MATCH_ARB(IC3fGeomParam);
+    MATCH_ARB(IC3cGeomParam);
+    MATCH_ARB(IC4hGeomParam);
+    MATCH_ARB(IC4fGeomParam);
+    MATCH_ARB(IC4cGeomParam);
+    MATCH_ARB(IN2fGeomParam);
+    MATCH_ARB(IN2dGeomParam);
+    MATCH_ARB(IN3fGeomParam);
+    MATCH_ARB(IN3dGeomParam);
+    return false;
+}
+
+GABC_Util::AnimationType
+GABC_Util::getAnimationType(const std::string &filename, const IObject &node,
+	bool include_transform)
+{
+    AnimationType	atype = ANIMATION_CONSTANT;
+    UT_ASSERT_P(node.valid());
+    // Set the topology based on a combination of conditions.
+    // We initialize based on the shape topology, but if the shape topology is
+    // constant, there are still various factors which can make the primitive
+    // non-constant (i.e. Homogeneous).
+    switch (GABC_Util::getNodeType(node))
+    {
+	case GABC_Util::GABC_POLYMESH:
+	    atype = getAnimation<IPolyMesh, IPolyMeshSchema>(node);
+	    break;
+	case GABC_Util::GABC_SUBD:
+	    atype = getAnimation<ISubD, ISubDSchema>(node);
+	    break;
+	case GABC_Util::GABC_CURVES:
+	    atype = getAnimation<ICurves, ICurvesSchema>(node);
+	    // There's a bug in Alembic 1.0.5 detecting changing topology on
+	    // curves.
+	    if (atype != ANIMATION_TOPOLOGY
+		    && abcCurvesChangingTopology(node))
+	    {
+		atype = ANIMATION_TOPOLOGY;
+	    }
+	    break;
+	case GABC_Util::GABC_POINTS:
+	    atype = getAnimation<IPoints, IPointsSchema>(node);
+	    break;
+	case GABC_Util::GABC_NUPATCH:
+	    atype = getAnimation<INuPatch, INuPatchSchema>(node);
+	    break;
+	case GABC_Util::GABC_XFORM:
+	    if (GABC_Util::isMayaLocator(node))
+		atype = getLocatorAnimation(node);
+	    else
+		atype = getAnimation<IXform, IXformSchema>(node);
+	    break;
+	default:
+	    atype = ANIMATION_TOPOLOGY;
+	    break;
+    }
+    if (atype == ANIMATION_CONSTANT && include_transform)
+    {
+	UT_Matrix4D	xform;
+	bool		is_const;
+	IObject		parent = const_cast<IObject &>(node).getParent();
+	if (parent.valid())
+	{
+	    // Check to see if transform is non-constant
+	    if (GABC_Util::getWorldTransform(filename, parent.getFullName(),
+			    0, xform, is_const))
+	    {
+		if (!is_const)
+		    atype = ANIMATION_TRANSFORM;
+	    }
+	}
+    }
+    return atype;
 }
 
 bool

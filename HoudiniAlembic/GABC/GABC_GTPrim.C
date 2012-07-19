@@ -369,7 +369,7 @@ fillAttributeList(GT_AttributeList &alist,
     const GEO_ABCNameMapPtr	&namemap = prim->attributeNameMap();
     SET_ARRAY(P, "P")
     SET_ARRAY(v, "v")
-    SET_ARRAY(ids, "ids")
+    SET_ARRAY(ids, "id")
     SET_GEOM_PARAM(N, "N")
     SET_GEOM_PARAM(uvs, "uv")
     SET_GEOM_PARAM(widths, "width")
@@ -459,7 +459,7 @@ reuseAttributeList(const GABC_GEOPrim *prim,
     const GEO_ABCNameMapPtr	&namemap = prim->attributeNameMap();
     REPLACE_ARRAY(P, "P")
     REPLACE_ARRAY(v, "v")
-    REPLACE_ARRAY(ids, "ids")
+    REPLACE_ARRAY(ids, "id")
     REPLACE_GEOM_PARAM(N, "N")
     REPLACE_GEOM_PARAM(uvs, "uv")
     REPLACE_GEOM_PARAM(widths, "width")
@@ -627,14 +627,11 @@ joinVector3Array(const GT_DataArrayHandle &x,
 static GT_PrimitiveHandle
 buildNuPatch(const GABC_GEOPrim *abc,
 	const Alembic::AbcGeom::IObject &object,
-	ISampleSelector selector,
-	Alembic::AbcGeom::MeshTopologyVariance &topology)
+	ISampleSelector selector)
 {
     INuPatch			 nupatch(object, kWrapExisting);
     INuPatchSchema		&ss = nupatch.getSchema();
     INuPatchSchema::Sample	 sample = ss.getValue(selector);
-
-    topology = ss.getTopologyVariance();
 
     int			 uorder = sample.getUOrder();
     int			 vorder = sample.getVOrder();
@@ -664,6 +661,7 @@ buildNuPatch(const GABC_GEOPrim *abc,
 
     if (ss.hasTrimCurve())
     {
+#if 0
 	if (!ss.trimCurveTopologyIsConstant())
 	{
 	    if (!ss.trimCurveTopologyIsHomogenous())
@@ -671,6 +669,7 @@ buildNuPatch(const GABC_GEOPrim *abc,
 	    else if (topology != kHeterogenousTopology)
 		topology = kHomogenousTopology;
 	}
+#endif
 	GT_DataArrayHandle	loopCount;
 	GT_DataArrayHandle	curveCount;
 	GT_DataArrayHandle	curveOrders;
@@ -715,13 +714,13 @@ buildNuPatch(const GABC_GEOPrim *abc,
 static GT_PrimitiveHandle
 buildCurves(const GABC_GEOPrim *abc,
 	    const Alembic::AbcGeom::IObject &object,
-	    ISampleSelector selector,
-	    Alembic::AbcGeom::MeshTopologyVariance &topology)
+	    ISampleSelector selector)
 {
     ICurves			 curves(object, kWrapExisting);
     ICurvesSchema		&ss = curves.getSchema();
     ICurvesSchema::Sample	 sample = ss.getValue(selector);
 
+#if 0
     topology = ss.getTopologyVariance();
 
     // Work around bug in Alembic 1.0.5 that doesn't properly detect
@@ -729,6 +728,7 @@ buildCurves(const GABC_GEOPrim *abc,
     if (topology == kHomogenousTopology &&
 	    !ss.getNumVerticesProperty().isConstant())
 	topology = kHeterogenousTopology;
+#endif
 
     GT_DataArrayHandle	 counts;
     GT_PrimCurveMesh	*cmesh;
@@ -774,19 +774,12 @@ buildCurves(const GABC_GEOPrim *abc,
 static GT_PrimitiveHandle
 buildPoints(const GABC_GEOPrim *abc,
 	    const Alembic::AbcGeom::IObject &object,
-	    ISampleSelector selector,
-	    Alembic::AbcGeom::MeshTopologyVariance &topology)
+	    ISampleSelector selector)
 {
     IPoints			 points(object, kWrapExisting);
     IPointsSchema		&ss = points.getSchema();
     IPointsSchema::Sample	 sample = ss.getValue(selector);
-
-    if (ss.isConstant())
-	topology = Alembic::AbcGeom::kConstantTopology;
-    else
-	topology = Alembic::AbcGeom::kHeterogenousTopology;
-
-    GT_PrimPointMesh	*pmesh;
+    GT_PrimPointMesh		*pmesh;
 
     GT_AttributeListHandle	vertex;
     GT_AttributeListHandle	detail;
@@ -881,8 +874,7 @@ reuseLocator(const GABC_GEOPrim *abc,
 static GT_PrimitiveHandle
 buildLocator(const GABC_GEOPrim *abc,
 	    const Alembic::AbcGeom::IObject &object,
-	    ISampleSelector selector,
-	    Alembic::AbcGeom::MeshTopologyVariance &topology)
+	    ISampleSelector selector)
 {
     IXform				 xform(object, kWrapExisting);
     GT_PrimPointMesh			*pmesh = NULL;
@@ -912,19 +904,10 @@ buildLocator(const GABC_GEOPrim *abc,
 	pxval = Imath::V3d(0,0,0);
     }
 
-    topology = Alembic::AbcGeom::kHomogenousTopology;
     if (loc.isConstant())
-    {
-	if (pxform_const)
-	{
-	    topology = Alembic::AbcGeom::kConstantTopology;
-	}
 	loc.get(locdata, 0);
-    }
     else
-    {
 	loc.get(locdata, selector);
-    }
 
     GT_AttributeMapHandle	vmap(new GT_AttributeMap());
     GT_AttributeMapHandle	umap(new GT_AttributeMap());
@@ -967,14 +950,11 @@ template <typename ABC_T, typename SCHEMA_T>
 static GT_PrimitiveHandle
 buildMesh(const GABC_GEOPrim *abc,
 	    const Alembic::AbcGeom::IObject &object,
-	    ISampleSelector selector,
-	    Alembic::AbcGeom::MeshTopologyVariance &topology)
+	    ISampleSelector selector)
 {
     ABC_T			 prim(object, kWrapExisting);
     SCHEMA_T			&ss = prim.getSchema();
     typename SCHEMA_T::Sample	 sample = ss.getValue(selector);
-
-    topology = ss.getTopologyVariance();
 
     GT_DataArrayHandle		 counts;
     GT_DataArrayHandle		 indices;
@@ -1137,11 +1117,12 @@ GABC_GEOPrim::gtPrimitive() const
     GT_PrimitiveHandle	result;
     ISampleSelector	sampleSelector(myFrame);
 
-    if (myTopology == Alembic::AbcGeom::kConstantTopology && myGTPrimitive)
+    if ((myAnimation == GABC_Util::ANIMATION_CONSTANT ||
+	 myAnimation == GABC_Util::ANIMATION_TRANSFORM) && myGTPrimitive)
     {
 	result = myGTPrimitive;
     }
-    else if (myTopology == Alembic::AbcGeom::kHomogenousTopology && myGTPrimitive)
+    else if (myAnimation == GABC_Util::ANIMATION_ATTRIBUTE && myGTPrimitive)
     {
 	// Update attributes
 	if (ISubD::matches(myObject.getHeader()))
@@ -1173,31 +1154,32 @@ GABC_GEOPrim::gtPrimitive() const
     }
     else
     {
+	UT_ASSERT(myAnimation == GABC_Util::ANIMATION_TOPOLOGY || !myGTPrimitive);
 	if (ISubD::matches(myObject.getHeader()))
 	{
 	    result = buildMesh<ISubD, ISubDSchema>(this, myObject,
-				sampleSelector, myTopology);
+				sampleSelector);
 	}
 	else if (IPolyMesh::matches(myObject.getHeader()))
 	{
 	    result = buildMesh<IPolyMesh, IPolyMeshSchema>(this, myObject,
-				sampleSelector, myTopology);
+				sampleSelector);
 	}
 	else if (ICurves::matches(myObject.getHeader()))
 	{
-	    result = buildCurves(this, myObject, sampleSelector, myTopology);
+	    result = buildCurves(this, myObject, sampleSelector);
 	}
 	else if (IPoints::matches(myObject.getHeader()))
 	{
-	    result = buildPoints(this, myObject, sampleSelector, myTopology);
+	    result = buildPoints(this, myObject, sampleSelector);
 	}
 	else if (INuPatch::matches(myObject.getHeader()))
 	{
-	    result = buildNuPatch(this, myObject, sampleSelector, myTopology);
+	    result = buildNuPatch(this, myObject, sampleSelector);
 	}
 	else if (GABC_Util::isMayaLocator(myObject))
 	{
-	    result = buildLocator(this, myObject, sampleSelector, myTopology);
+	    result = buildLocator(this, myObject, sampleSelector);
 	}
 	else
 	{
@@ -1216,9 +1198,10 @@ GABC_GEOPrim::gtPrimitive() const
 	}
     }
 
-    if (result && myTopology != Alembic::AbcGeom::kHeterogenousTopology)
+#if 0
+    // Enable this to turn on pre-convexing for faster viewport rendering
+    if (result && myAnimation != GABC_Util::ANIMATION_TOPOLOGY)
     {
-#if 0	// Enable for pre-convexing
 	if (result && result->getPrimitiveType() == GT_PRIM_POLYGON_MESH)
 	{
 	    const GT_PrimPolygonMesh	*pmesh;
@@ -1226,12 +1209,9 @@ GABC_GEOPrim::gtPrimitive() const
 	    myGTPrimitive = pmesh->convex(3);
 	    result = myGTPrimitive;
 	}
-	else
-#endif
-	{
-	    myGTPrimitive = result;
-	}
     }
+#endif
+    myGTPrimitive = result;
 
     return result;
 }

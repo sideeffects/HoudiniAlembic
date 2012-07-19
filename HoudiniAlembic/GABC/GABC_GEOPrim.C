@@ -125,7 +125,7 @@ GABC_GEOPrim::GABC_GEOPrim(GEO_Detail *d, GA_Offset offset)
     , myObjectPath()
     , myObject()
     , myFrame(0)
-    , myTopology(Alembic::AbcGeom::kHeterogenousTopology)
+    , myAnimation(GABC_Util::ANIMATION_TOPOLOGY)
     , myUseTransform(true)
     , myGTPrimitive()
 {
@@ -146,7 +146,7 @@ GABC_GEOPrim::copyMemberDataFrom(const GABC_GEOPrim &src)
 
     // Data which shouldn't be copied
     myBox.makeInvalid();
-    myTopology = Alembic::AbcGeom::kHeterogenousTopology;
+    myAnimation = GABC_Util::ANIMATION_TOPOLOGY;
     myGTPrimitive = GT_PrimitiveHandle();
 
     if (!myUseTransform)
@@ -467,6 +467,7 @@ namespace
     typedef Alembic::Abc::Box3d			Box3d;
     typedef Alembic::Abc::IObject		IObject;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
+    typedef Alembic::AbcGeom::ICompoundProperty	ICompoundProperty;
     typedef Alembic::AbcGeom::IXform		IXform;
     typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
     typedef Alembic::AbcGeom::ISubD		ISubD;
@@ -499,6 +500,7 @@ namespace
 	assignBox(box, sample.getSelfBounds());
     }
 
+#if 0
     template <typename ABC_T, typename SCHEMA_T>
     static bool
     abcIsConst(const IObject &obj)
@@ -506,8 +508,156 @@ namespace
 	ABC_T	prim(obj, Alembic::Abc::kWrapExisting);
 	return prim.getSchema().isConstant();
     }
+
+    static bool
+    abcArbsAreAnimated(ICompoundProperty arb)
+    {
+	exint	narb = arb ? arb.getNumProperties() : 0;
+	for (exint i = 0; i < narb; ++i)
+	{
+	    if (!GABC_Util::isConstant(arb, i))
+		return true;
+	}
+	return false;
+    }
+
+    template <typename ABC_T, typename SCHEMA_T>
+    static GABC_GEOPrim::AnimationType
+    getAnimation(const IObject &obj)
+    {
+	ABC_T				 prim(obj, Alembic::Abc::kWrapExisting);
+	SCHEMA_T			&schema = prim.getSchema();
+	GABC_GEOPrim::AnimationType	 atype;
+	
+	switch (schema.getTopologyVariance())
+	{
+	    case Alembic::AbcGeom::kConstantTopology:
+		atype = GABC_GEOPrim::AnimationConstant;
+		if (abcArbsAreAnimated(schema.getArbGeomParams()))
+		    atype = GABC_GEOPrim::AnimationAttribute;
+		break;
+	    case Alembic::AbcGeom::kHomogenousTopology:
+		atype = GABC_GEOPrim::AnimationAttribute;
+		break;
+	    case Alembic::AbcGeom::kHeterogenousTopology:
+		atype = GABC_GEOPrim::AnimationTopology;
+		break;
+	}
+	return atype;
+    }
+
+    template <>
+    GABC_GEOPrim::AnimationType
+    getAnimation<IPoints, IPointsSchema>(const IObject &obj)
+    {
+	IPoints			 prim(obj, Alembic::Abc::kWrapExisting);
+	IPointsSchema		&schema = prim.getSchema();
+	if (!schema.isConstant())
+	    return GABC_GEOPrim::AnimationTopology;
+	if (abcArbsAreAnimated(schema.getArbGeomParams()))
+	    return GABC_GEOPrim::AnimationAttribute;
+	return GABC_GEOPrim::AnimationConstant;
+    }
+
+    template <>
+    GABC_GEOPrim::AnimationType
+    getAnimation<IXform, IXformSchema>(const IObject &obj)
+    {
+	IXform			 prim(obj, Alembic::Abc::kWrapExisting);
+	IXformSchema		&schema = prim.getSchema();
+	if (!schema.isConstant())
+	    return GABC_GEOPrim::AnimationTopology;
+	if (abcArbsAreAnimated(schema.getArbGeomParams()))
+	    return GABC_GEOPrim::AnimationAttribute;
+	return GABC_GEOPrim::AnimationConstant;
+    }
+
+
+    static GABC_GEOPrim::AnimationType
+    getLocatorAnimation(const IObject &obj)
+    {
+	IXform				prim(obj, Alembic::Abc::kWrapExisting);
+	Alembic::Abc::IScalarProperty	loc(prim.getProperties(), "locator");
+	return loc.isConstant() ? GABC_GEOPrim::AnimationConstant
+				: GABC_GEOPrim::AnimationAttribute;
+    }
+
+    static bool
+    abcCurvesChangingTopology(const IObject &obj)
+    {
+	// There's a bug in Alembic 1.0.5 which doesn't properly detect
+	// heterogenous topology.
+	ICurves		 curves(obj, Alembic::Abc::kWrapExisting);
+	ICurvesSchema	&schema = curves.getSchema();
+	if (!schema.getNumVerticesProperty().isConstant())
+	    return true;
+	return false;
+    }
+#endif
 }
 
+void
+GABC_GEOPrim::updateAnimation()
+{
+    UT_ASSERT_P(myObject.valid());
+    // Set the topology based on a combination of conditions.
+    // We initialize based on the shape topology, but if the shape topology is
+    // constant, there are still various factors which can make the primitive
+    // non-constant (i.e. Homogeneous).
+    myAnimation = GABC_Util::getAnimationType(myFilename,
+			myObject, myUseTransform);
+#if 0
+    switch (GABC_Util::getNodeType(myObject))
+    {
+	case GABC_Util::GABC_POLYMESH:
+	    myAnimation = getAnimation<IPolyMesh, IPolyMeshSchema>(myObject);
+	    break;
+	case GABC_Util::GABC_SUBD:
+	    myAnimation = getAnimation<ISubD, ISubDSchema>(myObject);
+	    break;
+	case GABC_Util::GABC_CURVES:
+	    myAnimation = getAnimation<ICurves, ICurvesSchema>(myObject);
+	    // There's a bug in Alembic 1.0.5 detecting changing topology on
+	    // curves.
+	    if (myAnimation != AnimationTopology
+		    && abcCurvesChangingTopology(myObject))
+	    {
+		myAnimation = AnimationTopology;
+	    }
+	    break;
+	case GABC_Util::GABC_POINTS:
+	    myAnimation = getAnimation<IPoints, IPointsSchema>(myObject);
+	    break;
+	case GABC_Util::GABC_NUPATCH:
+	    myAnimation = getAnimation<INuPatch, INuPatchSchema>(myObject);
+	    break;
+	case GABC_Util::GABC_XFORM:
+	    if (GABC_Util::isMayaLocator(myObject))
+		myAnimation = getLocatorAnimation(myObject);
+	    else
+		myAnimation = getAnimation<IXform, IXformSchema>(myObject);
+	    break;
+	default:
+	    myAnimation = AnimationTopology;
+	    return;
+    }
+    if (myAnimation == AnimationConstant && myUseTransform)
+    {
+	UT_Matrix4D	xform;
+	bool		is_const;
+	IObject		 parent = myObject.getParent();
+	// Check to see if transform is non-constant
+	if (GABC_Util::getWorldTransform(myFilename, parent.getFullName(),
+			myFrame, xform, is_const))
+	{
+	    if (!is_const)
+		myAnimation = AnimationTransform;
+	}
+    }
+#endif
+}
+
+#if 0
 bool
 GABC_GEOPrim::isConstant() const
 {
@@ -533,6 +683,7 @@ GABC_GEOPrim::isConstant() const
 
     return false;
 }
+#endif
 
 int
 GABC_GEOPrim::getBBox(UT_BoundingBox *bbox) const
@@ -703,7 +854,7 @@ enum
     geo_INTRINSIC_ABC_FILE,	// Filename
     geo_INTRINSIC_ABC_PATH,	// Object path
     geo_INTRINSIC_ABC_FRAME,	// Time
-    geo_INTRINSIC_ABC_TOPOLOGY,	// Topology type
+    geo_INTRINSIC_ABC_ANIMATION,	// Animation type
     geo_INTRINSIC_ABC_TRANSFORM,	// Transform
 };
 
@@ -725,8 +876,8 @@ GABC_GEOPrim::registerIntrinsics(GA_PrimitiveDefinition &defn)
 		geo_INTRINSIC_ABC_PATH, true);
 	r.addAttribute(GA_STORECLASS_FLOAT, "abcframe",
 		geo_INTRINSIC_ABC_FRAME, true);
-	r.addAttribute(GA_STORECLASS_STRING, "abctopology",
-		geo_INTRINSIC_ABC_TOPOLOGY, true);
+	r.addAttribute(GA_STORECLASS_STRING, "abcanimation",
+		geo_INTRINSIC_ABC_ANIMATION, true);
 	r.addAttribute(GA_STORECLASS_STRING, "abcworldtransform",
 		geo_INTRINSIC_ABC_TRANSFORM, true);
     }
@@ -742,7 +893,7 @@ GABC_GEOPrim::localIntrinsicTupleSize(const GA_IntrinsicEval &eval) const
 	case geo_INTRINSIC_ABC_FILE:
 	case geo_INTRINSIC_ABC_PATH:
 	case geo_INTRINSIC_ABC_FRAME:
-	case geo_INTRINSIC_ABC_TOPOLOGY:
+	case geo_INTRINSIC_ABC_ANIMATION:
 	    return 1;
 	case geo_INTRINSIC_ABC_TRANSFORM:
 	    return 16;
@@ -792,17 +943,20 @@ GABC_GEOPrim::localGetIntrinsicS(const GA_IntrinsicEval &eval,
 	case geo_INTRINSIC_ABC_PATH:
 	    value.harden(myObjectPath.c_str());
 	    return 1;
-	case geo_INTRINSIC_ABC_TOPOLOGY:
-	    switch (myTopology)
+	case geo_INTRINSIC_ABC_ANIMATION:
+	    switch (myAnimation)
 	    {
-		case Alembic::AbcGeom::kConstantTopology:
+		case GABC_Util::ANIMATION_CONSTANT:
 		    value = "constant";
 		    break;
-		case Alembic::AbcGeom::kHomogenousTopology:
-		    value = "homogenous";
+		case GABC_Util::ANIMATION_TRANSFORM:
+		    value = "transform";
 		    break;
-		case Alembic::AbcGeom::kHeterogenousTopology:
-		    value = "heterogenous";
+		case GABC_Util::ANIMATION_ATTRIBUTE:
+		    value = "attribute";
+		    break;
+		case GABC_Util::ANIMATION_TOPOLOGY:
+		    value = "topology";
 		    break;
 		default:
 		    value = "<unknown>";
@@ -823,7 +977,7 @@ GABC_GEOPrim::localGetIntrinsicSA(const GA_IntrinsicEval &eval,
 	case geo_INTRINSIC_ABC_TYPE:
 	case geo_INTRINSIC_ABC_FILE:
 	case geo_INTRINSIC_ABC_PATH:
-	case geo_INTRINSIC_ABC_TOPOLOGY:
+	case geo_INTRINSIC_ABC_ANIMATION:
 	    if (localGetIntrinsicS(eval, single) == 1)
 	    {
 		strings.append(single);
@@ -868,6 +1022,7 @@ GABC_GEOPrim::init(const std::string &filename,
     myUseTransform = use_transform;
     setUseTransform(use_transform);
     myFrame = frame;
+    updateAnimation();
 }
 
 void
@@ -888,7 +1043,7 @@ void
 GABC_GEOPrim::setFrame(fpreal f)
 {
     myFrame = f;
-    if (myTopology != Alembic::AbcGeom::kConstantTopology)
+    if (myAnimation != GABC_Util::ANIMATION_CONSTANT)
 	myBox.makeInvalid();
 }
 
@@ -937,4 +1092,5 @@ GABC_GEOPrim::resolveObject()
 {
     // TODO: Set myObject based on myFilename/myObjectPath
     myObject = GABC_Util::findObject(myFilename, myObjectPath);
+    updateAnimation();
 }
