@@ -67,28 +67,34 @@ namespace
 	    : myLocal()
 	    , myWorld()
 	    , myConstant(false)
+	    , myInheritsXform(true)
 	{
 	}
-	LocalWorldXform(const M44d &l, const M44d &w, bool is_const)
+	LocalWorldXform(const M44d &l, const M44d &w,
+			bool is_const, bool inherits)
 	    : myLocal(l)
 	    , myWorld(w)
 	    , myConstant(is_const)
+	    , myInheritsXform(inherits)
 	{
 	}
 	LocalWorldXform(const LocalWorldXform &x)
 	    : myLocal(x.myLocal)
 	    , myWorld(x.myWorld)
 	    , myConstant(x.myConstant)
+	    , myInheritsXform(x.myInheritsXform)
 	{
 	}
 
 	const M44d	&getLocal() const	{ return myLocal; }
 	const M44d	&getWorld() const	{ return myWorld; }
 	bool		 isConstant() const	{ return myConstant; }
+	bool		 inheritsXform() const	{ return myInheritsXform; }
     private:
 	M44d	myLocal;
 	M44d	myWorld;
 	bool	myConstant;
+	bool	myInheritsXform;
     };
 
     class ArchiveTransformItem : public UT_CappedItem
@@ -99,9 +105,10 @@ namespace
 	    , myX()
 	{
 	}
-	ArchiveTransformItem(const M44d &l, const M44d &w, bool is_const)
+	ArchiveTransformItem(const M44d &l, const M44d &w,
+			bool is_const, bool inherits_xform)
 	    : UT_CappedItem()
-	    , myX(l, w, is_const)
+	    , myX(l, w, is_const, inherits_xform)
 	{
 	}
 
@@ -109,6 +116,7 @@ namespace
 	const M44d	&getLocal() const	{ return myX.getLocal(); }
 	const M44d	&getWorld() const	{ return myX.getWorld(); }
 	bool		 isConstant() const	{ return myX.isConstant(); }
+	bool		 inheritsXform() const	{ return myX.inheritsXform(); }
     private:
 	LocalWorldXform	myX;
     };
@@ -203,13 +211,16 @@ namespace
     }
 
     // Returns whether the transform is constant
-    bool
-    abcLocalTransform(M44d &localXform, IObject obj, fpreal sampleTime)
+    void
+    abcLocalTransform(M44d &localXform, IObject obj, fpreal sampleTime,
+	    bool &isConstant, bool &inheritsXform)
     {
 	IXform		xformObject(obj, Alembic::Abc::kWrapExisting);
-	bool		isConstant = xformObject.getSchema().isConstant();
 	TimeSamplingPtr timeSampling =xformObject.getSchema().getTimeSampling();
 	size_t		numSamples = xformObject.getSchema().getNumSamples();
+
+	isConstant = xformObject.getSchema().isConstant();
+	inheritsXform = xformObject.getSchema().getInheritsXforms();
 
 	chrono_t inTime = sampleTime;
 	chrono_t outTime = sampleTime;
@@ -271,7 +282,6 @@ namespace
 		    ISampleSelector(sampleTime));
 	    localXform = xformSample.getMatrix();
 	}
-	return isConstant;
     }
 
     class ArchiveObjectKey : public UT_CappedKey
@@ -356,18 +366,22 @@ namespace
 		{
 		    IXform		xform(root, ohead.getName());
 		    IXformSchema	&xs = xform.getSchema();
-		    fullpath.sprintf("%s/%s", path, ohead.getName().c_str());
 		    M44d		world;
 		    world = parent;
 		    if (xs.isConstant())
 		    {
+			fullpath.sprintf("%s/%s", path, ohead.getName().c_str());
 			XformSample	xsample = xs.getValue(ISampleSelector(0.0));
+			bool	inherits = xs.getInheritsXforms();
 			M44d	localXform = xsample.getMatrix();
-			world = localXform * parent;
+			if (inherits)
+			    world = localXform * parent;
+			else
+			    world = localXform;
 			myStaticXforms[fullpath.buffer()] =
-			    LocalWorldXform(localXform, world, true);
+			    LocalWorldXform(localXform, world, true, inherits);
+			buildTransformCache(xform, fullpath.buffer(), world);
 		    }
-		    buildTransformCache(xform, fullpath.buffer(), world);
 		}
 	    }
 	}
@@ -411,11 +425,11 @@ namespace
 
 	/// Get an object's local transform
 	void	getLocalTransform(M44d &x, const IObject &obj, fpreal now,
-			bool &isConstant)
+			bool &isConstant, bool &inheritsXform)
 		{
 		    if (IXform::matches(obj.getHeader()))
 		    {
-			isConstant = abcLocalTransform(x, obj, now);
+			abcLocalTransform(x, obj, now, isConstant, inheritsXform);
 		    }
 		    else
 		    {
@@ -447,24 +461,28 @@ namespace
 		    {
 			// Get our local transform
 			M44d	localXform;
+			bool	inheritsXform;
 			IObject	dad = const_cast<IObject &>(obj).getParent();
 
-			getLocalTransform(localXform, obj, now, isConstant);
-			if (dad.valid())
+			getLocalTransform(localXform, obj, now,
+				isConstant, inheritsXform);
+			if (dad.valid() && inheritsXform)
 			{
 			    M44d	dm;
 			    bool	dadConst;
 			    getWorldTransform(dm, dad, now, dadConst);
 			    if (!dadConst)
 				isConstant = false;
-			    x = localXform * dm;
+			    if (inheritsXform)
+				x = localXform * dm;
 			}
 			else
 			{
 			    x = localXform;	// World transform same as local
 			}
 			myDynamicXforms.addItem(key,
-			    new ArchiveTransformItem(localXform, x, isConstant));
+			    new ArchiveTransformItem(localXform, x,
+					    isConstant, inheritsXform));
 		    }
 		    return true;
 		}
@@ -757,7 +775,8 @@ GABC_Util::getLocalTransform(const std::string &filename,
 	const std::string &objectpath,
 	fpreal sample_time,
 	UT_Matrix4D &xform,
-	bool &isConstant)
+	bool &isConstant,
+	bool &inheritsXform)
 {
     bool	success = false;
     M44d	lxform;
@@ -770,7 +789,7 @@ GABC_Util::getLocalTransform(const std::string &filename,
 	    if (obj.valid())
 	    {
 		cacheEntry->getLocalTransform(lxform, obj,
-				    sample_time, isConstant);
+				    sample_time, isConstant, inheritsXform);
 		success = true;
 	    }
 	}

@@ -163,7 +163,8 @@ public:
     /// whether the transform node is constant or not.  The current state will
     /// be stashed in @c stash_prev and should be passed to popTransform().
     void	pushTransform(const M44d &xform, bool const_xform,
-				TransformState &prev_state);
+				TransformState &prev_state,
+				bool inheritXforms);
     /// Pop transform in traveral, pass in the value stored in pushTransform().
     void	popTransform(const TransformState &prev_state);
 

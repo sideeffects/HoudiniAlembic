@@ -67,7 +67,8 @@ namespace {
 	    XformSample		 sample = xs.getValue(walk.timeSample());
 	    if (!xs.isConstant())
 		walk.setNonConstant();
-	    walk.pushTransform(sample.getMatrix(), xs.isConstant(), myPop);
+	    walk.pushTransform(sample.getMatrix(), xs.isConstant(), myPop,
+		    xs.getInheritsXforms());
 	}
 	~PushTransform()
 	{
@@ -1230,7 +1231,8 @@ GABC_GEOWalker::translateAttributeName(GA_AttributeOwner own, UT_String &name)
 
 void
 GABC_GEOWalker::pushTransform(const M44d &xform, bool const_xform,
-	GABC_GEOWalker::TransformState &stash)
+	GABC_GEOWalker::TransformState &stash,
+	bool inheritXforms)
 {
     stash.push(myMatrix, myTransformConstant);
     if (!const_xform)
@@ -1238,7 +1240,7 @@ GABC_GEOWalker::pushTransform(const M44d &xform, bool const_xform,
 	myTransformConstant = false;
 	myAllTransformConstant = false;
     }
-    if (includeXform())
+    if (inheritXforms && includeXform())
 	myMatrix = xform * myMatrix;
     else
 	myMatrix = xform;
