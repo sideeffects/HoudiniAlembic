@@ -371,7 +371,7 @@ fillAttributeList(GT_AttributeList &alist,
     SET_ARRAY(v, "v")
     SET_ARRAY(ids, "ids")
     SET_GEOM_PARAM(N, "N")
-    SET_GEOM_PARAM(uvs, "uvs")
+    SET_GEOM_PARAM(uvs, "uv")
     SET_GEOM_PARAM(widths, "width")
     if (matchScope(kConstantScope, scope, scope_size))
     {
@@ -461,7 +461,7 @@ reuseAttributeList(const GABC_GEOPrim *prim,
     REPLACE_ARRAY(v, "v")
     REPLACE_ARRAY(ids, "ids")
     REPLACE_GEOM_PARAM(N, "N")
-    REPLACE_GEOM_PARAM(uvs, "uvs")
+    REPLACE_GEOM_PARAM(uvs, "uv")
     REPLACE_GEOM_PARAM(widths, "width")
     if (arb)
     {
@@ -1218,7 +1218,7 @@ GABC_GEOPrim::gtPrimitive() const
 
     if (result && myTopology != Alembic::AbcGeom::kHeterogenousTopology)
     {
-#if 0
+#if 0	// Enable for pre-convexing
 	if (result && result->getPrimitiveType() == GT_PRIM_POLYGON_MESH)
 	{
 	    const GT_PrimPolygonMesh	*pmesh;
