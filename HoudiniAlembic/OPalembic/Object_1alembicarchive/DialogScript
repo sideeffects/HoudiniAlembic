@@ -220,6 +220,7 @@
 	range	{ 0 1 }
 	export	none
 	parmtag	{ "filechooser_mode" "read" }
+	parmtag	{ "filechooser_pattern" "*.abc" }
     }
     parm {
 	name	"objectPath"
