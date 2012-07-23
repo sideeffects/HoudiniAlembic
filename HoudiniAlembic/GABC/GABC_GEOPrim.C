@@ -1076,9 +1076,10 @@ GABC_GEOPrim::getABCTransform(UT_Matrix4D &xform) const
 
     UT_AutoLock		 lock(theH5Lock);
     bool		 is_const = false;
+    bool		 inheritsXform;
     IObject		 parent = const_cast<IObject &>(myObject).getParent();
     if (GABC_Util::getWorldTransform(myFilename, parent.getFullName(),
-			myFrame, xform, is_const))
+			myFrame, xform, is_const, inheritsXform))
     {
 	if (is_const)
 	    myGTTransform = GT_TransformHandle(new GT_Transform(&xform, 1));

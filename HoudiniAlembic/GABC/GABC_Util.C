@@ -446,7 +446,7 @@ namespace
 
 	/// Find the full world transform for an object
 	bool	getWorldTransform(M44d &x, const IObject &obj, fpreal now,
-			bool &isConstant)
+			bool &isConstant, bool &inheritsXform)
 		{
 		    isConstant = true;
 		    // First, check if we have a static 
@@ -463,12 +463,12 @@ namespace
 			xitem =UTverify_cast<ArchiveTransformItem*>(item.get());
 			x = xitem->getWorld();
 			isConstant = xitem->isConstant();
+			inheritsXform = xitem->inheritsXform();
 		    }
 		    else
 		    {
 			// Get our local transform
 			M44d	localXform;
-			bool	inheritsXform;
 			IObject	dad = const_cast<IObject &>(obj).getParent();
 
 			getLocalTransform(localXform, obj, now,
@@ -477,7 +477,8 @@ namespace
 			{
 			    M44d	dm;
 			    bool	dadConst;
-			    getWorldTransform(dm, dad, now, dadConst);
+			    getWorldTransform(dm, dad, now, dadConst,
+				    inheritsXform);
 			    if (!dadConst)
 				isConstant = false;
 			    if (inheritsXform)
@@ -930,9 +931,10 @@ GABC_Util::getAnimationType(const std::string &filename, const IObject &node,
 	IObject		parent = const_cast<IObject &>(node).getParent();
 	if (parent.valid())
 	{
+	    bool	inheritsXform;
 	    // Check to see if transform is non-constant
 	    if (GABC_Util::getWorldTransform(filename, parent.getFullName(),
-			    0, xform, is_const))
+			    0, xform, is_const, inheritsXform))
 	    {
 		if (!is_const)
 		    atype = ANIMATION_TRANSFORM;
@@ -1038,7 +1040,8 @@ GABC_Util::getWorldTransform(const std::string &filename,
 	const std::string &objectpath,
 	fpreal sample_time,
 	UT_Matrix4D &xform,
-	bool &isConstant)
+	bool &isConstant,
+	bool &inheritsXform)
 {
     bool	success = false;
     M44d	wxform;
@@ -1051,7 +1054,7 @@ GABC_Util::getWorldTransform(const std::string &filename,
 	    if (obj.valid())
 	    {
 		success = cacheEntry->getWorldTransform(wxform, obj,
-				    sample_time, isConstant);
+				    sample_time, isConstant, inheritsXform);
 	    }
 	}
     }
@@ -1069,7 +1072,8 @@ GABC_Util::getWorldTransform(const std::string &filename,
 	const IObject &obj,
 	fpreal sample_time,
 	UT_Matrix4D &xform,
-	bool &isConstant)
+	bool &isConstant,
+	bool &inheritsXform)
 {
     bool	success = false;
     M44d	wxform;
@@ -1080,7 +1084,7 @@ GABC_Util::getWorldTransform(const std::string &filename,
 	    ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
 	    UT_ASSERT(cacheEntry->getObject(obj.getFullName()).valid());
 	    success = cacheEntry->getWorldTransform(wxform, obj,
-				    sample_time, isConstant);
+				    sample_time, isConstant, inheritsXform);
 	}
 	catch (const std::exception &)
 	{

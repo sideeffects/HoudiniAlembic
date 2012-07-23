@@ -1,5 +1,6 @@
 # This code is called when instances of this object cook.
 import _alembic_hom_extensions as _ahe
+import os
 self = hou.pwd()
 abcPath = self.evalParm('fileName')
 objPath = self.evalParm('objectPath')
@@ -14,10 +15,15 @@ else:
     frameParm = self.parm('frame')
     fpsParm = self.parm('fps')
     sampleTime = frameParm.eval() / fpsParm.eval()
-    xform, isConstant = _ahe.alembicGetLocalXform(abcPath, objPath, sampleTime)
+    xform, isConstant, inherit = _ahe.getLocalXform(abcPath, objPath, sampleTime)
     m = hou.Matrix4(xform)
+    if not inherit:
+	parentPath = os.path.split(objPath)[0]
+	parent = _ahe.getWorldXform(abcPath, parentPath, sampleTime)
+	if parent:
+	    p = hou.Matrix4(parent[0])
+	    m *= p.inverted()
     hou.pwd().setCookTransform(m)
     
     if isConstant:
         self.hdaModule().SetConstantXform(self, (cacheKey, m))
-

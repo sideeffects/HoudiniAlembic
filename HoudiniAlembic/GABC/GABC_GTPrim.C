@@ -821,13 +821,15 @@ reuseLocator(const GABC_GEOPrim *abc,
     Alembic::AbcGeom::IObject		 parent;
     UT_Matrix4D				 pxform;
     bool				 pxform_const = false;
+    bool				 inheritsXform = true;
 
     parent = xform.getParent();
     if (!GABC_Util::getWorldTransform(abc->getFilename(),
 				parent,
 				selector.getRequestedTime(),
 				pxform,
-				pxform_const))
+				pxform_const,
+				inheritsXform))
     {
 	pxform.identity();
 	pxform_const = true;
@@ -882,13 +884,15 @@ buildLocator(const GABC_GEOPrim *abc,
     Alembic::AbcGeom::IObject		 parent;
     UT_Matrix4D				 pxform;
     bool				 pxform_const = false;
+    bool				 inheritsXform = true;
 
     parent = xform.getParent();
     if (!GABC_Util::getWorldTransform(abc->getFilename(),
 				parent,
 				selector.getRequestedTime(),
 				pxform,
-				pxform_const))
+				pxform_const,
+				inheritsXform))
     {
 	pxform.identity();
 	pxform_const = true;

@@ -162,7 +162,8 @@ public:
 				const std::string &objectpath,
 				fpreal sample_time,
 				UT_Matrix4D &xform,
-				bool &isConstant);
+				bool &isConstant,
+				bool &inheritsXform);
 
     /// Get the world transform for an IObject in an Alembic file.  If the
     /// given node is a shape node, the transform up to its parent will be
@@ -172,7 +173,8 @@ public:
 				const IObject &object,
 				fpreal sample_time,
 				UT_Matrix4D &xform,
-				bool &isConstant);
+				bool &isConstant,
+				bool &inheritsXform);
 
     /// Return a list of all the objects in an Alembic file
     static const PathList	&getObjectList(const std::string &filename);
