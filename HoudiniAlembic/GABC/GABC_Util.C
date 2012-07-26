@@ -22,6 +22,8 @@
 #include <UT/UT_WorkBuffer.h>
 #include <UT/UT_StringArray.h>
 #include <UT/UT_FSA.h>
+#include <UT/UT_SharedPtr.h>
+#include <UT/UT_SysClone.h>
 #include <boost/tokenizer.hpp>
 
 namespace
@@ -584,8 +586,8 @@ namespace
 	UT_CappedCache	myDynamicXforms;
     };
 
-    typedef boost::shared_ptr<ArchiveCacheEntry> ArchiveCacheEntryRcPtr;
-    typedef std::map<std::string, ArchiveCacheEntryRcPtr> ArchiveCache;
+    typedef UT_SharedPtr<ArchiveCacheEntry>		ArchiveCacheEntryPtr;
+    typedef std::map<std::string, ArchiveCacheEntryPtr> ArchiveCache;
 
     //-*************************************************************************
 
@@ -596,15 +598,19 @@ namespace
 
     //-*************************************************************************
 
-    ArchiveCacheEntryRcPtr
-    LoadArchive(const std::string & path)
+    ArchiveCacheEntryPtr
+    LoadArchive(const std::string &path)
     {
+	if (!UTisstring(path.c_str()) || UTaccess(path.c_str(), R_OK) != 0)
+	{
+	    return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
+	}
         ArchiveCache::iterator I = g_archiveCache->find(path);
         if (I != g_archiveCache->end())
         {
             return (*I).second;
         }
-        ArchiveCacheEntryRcPtr entry = ArchiveCacheEntryRcPtr(
+        ArchiveCacheEntryPtr entry = ArchiveCacheEntryPtr(
                 new ArchiveCacheEntry);
         try
         {
@@ -948,7 +954,7 @@ bool
 GABC_Util::walk(const std::string &filename, Walker &walker,
 			    const UT_StringArray &objects)
 {
-    ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+    ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
     WalkPushFile		walkfile(walker, filename);
     for (exint i = 0; i < objects.entries(); ++i)
     {
@@ -968,7 +974,7 @@ GABC_Util::walk(const std::string &filename, Walker &walker,
 bool
 GABC_Util::walk(const std::string &filename, GABC_Util::Walker &walker)
 {
-    ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+    ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
     WalkPushFile		walkfile(walker, filename);
     return cacheEntry->isValid() ? cacheEntry->walk(walker) : false;
 }
@@ -998,7 +1004,7 @@ IObject
 GABC_Util::findObject(const std::string &filename,
 	const std::string &objectpath)
 {
-    ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+    ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
     return cacheEntry->isValid() ? cacheEntry->getObject(objectpath)
 		: IObject();
 }
@@ -1015,7 +1021,7 @@ GABC_Util::getLocalTransform(const std::string &filename,
     M44d	lxform;
     try
     {
-	ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+	ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
 	if (cacheEntry->isValid())
 	{
 	    IObject	obj = cacheEntry->getObject(objectpath);
@@ -1047,7 +1053,7 @@ GABC_Util::getWorldTransform(const std::string &filename,
     M44d	wxform;
     try
     {
-	ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+	ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
 	if (cacheEntry->isValid())
 	{
 	    IObject	obj = cacheEntry->getObject(objectpath);
@@ -1081,7 +1087,7 @@ GABC_Util::getWorldTransform(const std::string &filename,
     {
 	try
 	{
-	    ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+	    ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
 	    UT_ASSERT(cacheEntry->getObject(obj.getFullName()).valid());
 	    success = cacheEntry->getWorldTransform(wxform, obj,
 				    sample_time, isConstant, inheritsXform);
@@ -1101,7 +1107,7 @@ GABC_Util::getObjectList(const std::string &filename)
 {
     try
     {
-	ArchiveCacheEntryRcPtr	cacheEntry = LoadArchive(filename);
+	ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
 	return cacheEntry->getObjectList();
     }
     catch (const std::exception &)
