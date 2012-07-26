@@ -12,9 +12,7 @@
 #include <PRM/PRM_SpareData.h>
 
 #include <UT/UT_Interrupt.h>
-
-// Included in SOP_AlembicIn.C, so not needed here
-//#include <UT/UT_DSOVersion.h>
+#include <UT/UT_DSOVersion.h>
 
 
 namespace

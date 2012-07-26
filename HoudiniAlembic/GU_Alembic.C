@@ -35,6 +35,7 @@
 //-*****************************************************************************
 
 #include <GABC/GABC_GUPrim.h>
+#include <UT/UT_DSOVersion.h>
 
 // Register the GU primitive
 void

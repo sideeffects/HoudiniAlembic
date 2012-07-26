@@ -43,6 +43,7 @@
 #include <GABC/GABC_Util.h>
 #include <Alembic/AbcGeom/All.h>
 #include <HOM/HOM_Module.h>
+#include <UT/UT_DSOVersion.h>
 
 namespace
 {
