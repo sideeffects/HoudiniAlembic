@@ -38,6 +38,9 @@ public:
     /// Report approximate memory usage.
     virtual int64	getMemoryUsage() const;
 
+    static bool		isInstalled()
+			    { return theDef != NULL; }
+
     /// Allows you to find out what this primitive type was named.
     static GA_PrimitiveTypeId	 theTypeId() { return theDef->getId(); }
 
@@ -46,7 +49,7 @@ public:
     static void		registerMyself(GA_PrimitiveFactory *factory);
 
     virtual const GA_PrimitiveDefinition	&getTypeDef() const
-    { return *theDef; }
+						    { return *theDef; }
 
     // Conversion Methods
 
