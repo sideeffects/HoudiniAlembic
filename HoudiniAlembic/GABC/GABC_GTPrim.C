@@ -27,6 +27,7 @@
 #include <GT/GT_DANumeric.h>
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_DAIndexedString.h>
+#include <GT/GT_PrimSubdivisionMesh.h>
 #include <GT/GT_PrimPolygonMesh.h>
 #include <GT/GT_PrimCurveMesh.h>
 #include <GT/GT_PrimPointMesh.h>
@@ -950,16 +951,14 @@ getNormalsParam(ISubDSchema &ss)
     return NULL;
 }
 
-template <typename ABC_T, typename SCHEMA_T>
 static GT_PrimitiveHandle
-buildMesh(const GABC_GEOPrim *abc,
+buildPolyMesh(const GABC_GEOPrim *abc,
 	    const Alembic::AbcGeom::IObject &object,
 	    ISampleSelector selector)
 {
-    ABC_T			 prim(object, kWrapExisting);
-    SCHEMA_T			&ss = prim.getSchema();
-    typename SCHEMA_T::Sample	 sample = ss.getValue(selector);
-
+    IPolyMesh			 prim(object, kWrapExisting);
+    IPolyMeshSchema		&ss = prim.getSchema();
+    IPolyMeshSchema::Sample	 sample = ss.getValue(selector);
     GT_DataArrayHandle		 counts;
     GT_DataArrayHandle		 indices;
     GT_PrimPolygonMesh		*pmesh;
@@ -982,14 +981,14 @@ buildMesh(const GABC_GEOPrim *abc,
 			point_scope, 2, ss.getArbGeomParams(),
 			&P,
 			&v,
-			getNormalsParam(ss),
+			&ss.getNormalsParam(),
 			&ss.getUVsParam());
 
     vertex = initializeAttributeList(abc, selector,
 			vertex_scope, 1, ss.getArbGeomParams(),
 			NULL,
 			&v,
-			getNormalsParam(ss),
+			&ss.getNormalsParam(),
 			&ss.getUVsParam());
     uniform = initializeAttributeList(abc, selector,
 			kUniformScope, ss.getArbGeomParams());
@@ -997,6 +996,56 @@ buildMesh(const GABC_GEOPrim *abc,
 			theConstantUnknownScope, 2, ss.getArbGeomParams());
 
     pmesh = new GT_PrimPolygonMesh(counts, indices,
+		    point, vertex, uniform, detail);
+
+    return GT_PrimitiveHandle(pmesh);
+}
+
+static GT_PrimitiveHandle
+buildSubDMesh(const GABC_GEOPrim *abc,
+	    const Alembic::AbcGeom::IObject &object,
+	    ISampleSelector selector)
+{
+    ISubD			 prim(object, kWrapExisting);
+    ISubDSchema			&ss = prim.getSchema();
+    ISubDSchema::Sample		 sample = ss.getValue(selector);
+    GT_DataArrayHandle		 counts;
+    GT_DataArrayHandle		 indices;
+    GT_PrimSubdivisionMesh	*pmesh;
+
+    counts = getDataArray<Int32ArraySamplePtr, int32, GT_STORE_INT32>
+			(sample.getFaceCounts(), 1);
+    indices = getDataArray<Int32ArraySamplePtr, int32, GT_STORE_INT32>
+			(sample.getFaceIndices(), 1);
+
+    GT_AttributeListHandle	 point;
+    GT_AttributeListHandle	 vertex;
+    GT_AttributeListHandle	 uniform;
+    GT_AttributeListHandle	 detail;
+    Abc::IP3fArrayProperty	 P = ss.getPositionsProperty();
+    Abc::IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+    GeometryScope	point_scope[2] = { kVaryingScope, kVertexScope };
+    GeometryScope	vertex_scope[1] = { kFacevaryingScope };
+
+    point = initializeAttributeList(abc, selector,
+			point_scope, 2, ss.getArbGeomParams(),
+			&P,
+			&v,
+			NULL,
+			&ss.getUVsParam());
+
+    vertex = initializeAttributeList(abc, selector,
+			vertex_scope, 1, ss.getArbGeomParams(),
+			NULL,
+			&v,
+			NULL,
+			&ss.getUVsParam());
+    uniform = initializeAttributeList(abc, selector,
+			kUniformScope, ss.getArbGeomParams());
+    detail = initializeAttributeList(abc, selector,
+			theConstantUnknownScope, 2, ss.getArbGeomParams());
+
+    pmesh = new GT_PrimSubdivisionMesh(counts, indices,
 		    point, vertex, uniform, detail);
 
     return GT_PrimitiveHandle(pmesh);
@@ -1112,6 +1161,12 @@ reuseMesh(const GABC_GEOPrim *abc,
     return srcprim;
 }
 
+void
+GABC_GEOPrim::clearGT()
+{
+    myGTPrimitive.reset(NULL);
+}
+
 GT_PrimitiveHandle
 GABC_GEOPrim::gtPrimitive() const
 {
@@ -1161,13 +1216,11 @@ GABC_GEOPrim::gtPrimitive() const
 	UT_ASSERT(myAnimation == GABC_Util::ANIMATION_TOPOLOGY || !myGTPrimitive);
 	if (ISubD::matches(myObject.getHeader()))
 	{
-	    result = buildMesh<ISubD, ISubDSchema>(this, myObject,
-				sampleSelector);
+	    result = buildSubDMesh(this, myObject, sampleSelector);
 	}
 	else if (IPolyMesh::matches(myObject.getHeader()))
 	{
-	    result = buildMesh<IPolyMesh, IPolyMeshSchema>(this, myObject,
-				sampleSelector);
+	    result = buildPolyMesh(this, myObject, sampleSelector);
 	}
 	else if (ICurves::matches(myObject.getHeader()))
 	{

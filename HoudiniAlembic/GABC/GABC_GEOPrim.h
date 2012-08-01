@@ -209,6 +209,7 @@ public:
     /// @}
 
     GT_PrimitiveHandle	 gtPrimitive() const;
+    void		 clearGT();
 
     /// @{
     /// Geo transform

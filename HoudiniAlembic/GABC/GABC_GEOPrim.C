@@ -599,7 +599,8 @@ namespace
 void
 GABC_GEOPrim::updateAnimation()
 {
-    UT_ASSERT_P(myObject.valid());
+    if (!myObject.valid())
+	return;
     // Set the topology based on a combination of conditions.
     // We initialize based on the shape topology, but if the shape topology is
     // constant, there are still various factors which can make the primitive
