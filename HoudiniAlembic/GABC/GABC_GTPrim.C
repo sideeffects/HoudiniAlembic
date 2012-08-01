@@ -21,6 +21,7 @@
 #include "GABC_GTArray.h"
 #include <Alembic/AbcGeom/All.h>
 #include <UT/UT_StackBuffer.h>
+#include <UT/UT_Lock.h>
 #include <GT/GT_Refine.h>
 #include <GT/GT_GEOPrimitive.h>
 #include <GT/GT_Util.h>
@@ -37,6 +38,11 @@
 #include <GT/GT_Transform.h>
 
 using namespace Alembic::AbcGeom;
+
+namespace
+{
+    static UT_Lock	theH5Lock;
+}
 
 void
 GABC_GTPrimCollect::registerPrimitive(const GA_PrimitiveTypeId &id)
@@ -1175,6 +1181,9 @@ GABC_GEOPrim::gtPrimitive() const
 
     GT_PrimitiveHandle	result;
     ISampleSelector	sampleSelector(myFrame);
+
+    // Lock for HDF5 access
+    UT_AutoLock	lock(theH5Lock);
 
     if ((myAnimation == GABC_Util::ANIMATION_CONSTANT ||
 	 myAnimation == GABC_Util::ANIMATION_TRANSFORM) && myGTPrimitive)
