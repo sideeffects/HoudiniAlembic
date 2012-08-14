@@ -39,7 +39,7 @@ namespace
     buildBundleMenu(void *, PRM_Name *menu, int max,
 		    const PRM_SpareData *spare, const PRM_Parm *)
     {
-	return OPgetDirector()->getBundles()->buildBundleMenu(
+	OPgetDirector()->getBundles()->buildBundleMenu(
 		    menu, max, spare ? spare->getValue("opfilter") : 0);
     }
 
@@ -68,7 +68,7 @@ namespace
     };
 
     static PRM_ChoiceList	theObjectsMenu(PRM_CHOICELIST_REPLACE,
-					::buildBundleMenu);
+					buildBundleMenu);
     static PRM_ChoiceList	thePartitionAttributeMenu(PRM_CHOICELIST_REPLACE,
 					thePartitionAttributeChoices);
 
