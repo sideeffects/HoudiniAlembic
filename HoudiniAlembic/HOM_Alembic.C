@@ -66,7 +66,6 @@ namespace
 	bool		 isConstant = true;
 	bool		 inheritsXform = true;
 	UT_Matrix4D	 xform;
-	bool		 found = false;
 
         if (!PY_PyArg_ParseTuple(args, "ssd", &filename, &objectPath,
                 &sampleTime))
