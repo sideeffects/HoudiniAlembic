@@ -7,13 +7,14 @@ def BuildHierarchyRoot(rootNode):
     
     import _alembic_hom_extensions as ABC
     
-    tree = ABC.alembicGetSceneHierarchy(
-            rootNode.evalParm('fileName'), "")
+    buildSubnet = rootNode.evalParm('buildSubnet')
+
+    tree = ABC.alembicGetSceneHierarchy(rootNode.evalParm('fileName'), "")
     
     pathList = [x for x in rootNode.evalParm('objectPath').strip('/').split('/') if x]
     
     for entry in tree[2]:
-        WalkHierarchy(rootNode, rootNode, '', entry, pathList)
+        WalkHierarchy(rootNode, rootNode, '', entry, pathList, buildSubnet)
 
 _primitiveTypes = frozenset((
     'polymesh',
@@ -27,38 +28,37 @@ _sanitizeTable = None
 
 def _sanitizeName(name):
     def valid(i):
-	ch = chr(i)
-	if ch.isalnum():
-	    return ch
-	return '_'
+        ch = chr(i)
+        if ch.isalnum():
+            return ch
+        return '_'
     global _sanitizeTable
     if not _sanitizeTable:
-	letters = ''.join([string.letters, string.digits, '_'])
-	# Full alphabet
-	alpha = ''.join(map(chr, range(256)))
-	xlate = ''.join(map(valid, range(256)))
-	_sanitizeTable = string.maketrans(alpha, xlate)
+        letters = ''.join([string.letters, string.digits, '_'])
+        # Full alphabet
+        alpha = ''.join(map(chr, range(256)))
+        xlate = ''.join(map(valid, range(256)))
+        _sanitizeTable = string.maketrans(alpha, xlate)
     name = string.translate(name, _sanitizeTable)
     if name[0].isdigit():
-	name = '_' + name
+        name = '_' + name
     return name
 
 def _setNodeName(node, name):
     try:
-	node.setName(name, True)
+        node.setName(name, True)
     except:
-	node.setName(_sanitizeName(name), True)
-	
+        node.setName(_sanitizeName(name), True)
+        
 
 def ExpressionToParm(srcParm, dstParm, isString=False):
     relPath = dstParm.node().relativePathTo(srcParm.node())
     dstParm.setExpression('ch%s("%s/%s")' % (
             bool(isString)*'s', relPath, srcParm.name()),
-	    hou.exprLanguage.Hscript)
+            hou.exprLanguage.Hscript)
 
-def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList):
+def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList, buildSubnet):
     name, typeName, children = childEntry
-    
     
     if pathList:
         if pathList[0] != name:
@@ -68,9 +68,17 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList):
     currentPath = parentPath + '/' + name
     if typeName in _primitiveTypes:
         currentNode = parentNode.createNode('geo')
-	_setNodeName(currentNode, name)
         for child in currentNode.children():
             child.destroy()
+        if not buildSubnet:
+            # Wire the geometry into the first subnetIndirectInput
+            currentNode.setInput(0, parentNode.indirectInputs()[0])
+        if typeName == 'subdmesh':
+            for parmname in ('vm_rendersubd', 'ri_rendersubd'):
+                subdParm = currentNode.parm(parmname)
+                if subdParm:
+                    subdParm.set(1)
+        _setNodeName(currentNode, name)
         sopNode = currentNode.createNode('alembic')
         
         relPath = sopNode.relativePathTo(rootNode)
@@ -90,7 +98,12 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList):
         
         
     elif typeName == 'xform' or typeName == 'cxform':
-        currentNode = parentNode.createNode('alembicxform')
+        if buildSubnet:
+            currentNode = parentNode.createNode('alembicxform')
+        else:
+            currentNode = rootNode.createNode('alembicxform')
+            if currentNode.parent() == parentNode.parent():
+                currentNode.setInput(0, parentNode)
         _setNodeName(currentNode, name)
         
         ExpressionToParm(rootNode.parm('fileName'), currentNode.parm('fileName'),
@@ -101,12 +114,13 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList):
 
 
         currentNode.parm('objectPath').set(currentPath)
-        
-        
+
         for entry in children:
-            WalkHierarchy(rootNode, currentNode, currentPath, entry, pathList)
+            WalkHierarchy(rootNode, currentNode, currentPath, entry, pathList, buildSubnet)
     elif typeName == 'camera':
         currentNode = parentNode.createNode('cam')
+        if not buildSubnet:
+            currentNode.setInput(0, parentNode.indirectInputs()[0])
         _setNodeName(currentNode, name)
         currentNode.addSpareParmTuple(rootNode.parm('fileName').parmTemplate(),
                 ('Alembic',), True)

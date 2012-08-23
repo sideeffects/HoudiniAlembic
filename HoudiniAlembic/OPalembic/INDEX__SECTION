@@ -5,7 +5,7 @@ Icon:         SOP_alembic
 Table:        Object
 License:      
 Extra:        
-Inputs:       0 to 0
+Inputs:       0 to 1
 Subnet:       false
 Python:       true
 Empty:        false
@@ -18,7 +18,7 @@ Icon:         SOP_alembic
 Table:        Object
 License:      
 Extra:        
-Inputs:       0 to 0
+Inputs:       0 to 1
 Subnet:       false
 Python:       true
 Empty:        false
