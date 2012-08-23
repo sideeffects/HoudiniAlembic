@@ -9,12 +9,15 @@ def BuildHierarchyRoot(rootNode):
     
     buildSubnet = rootNode.evalParm('buildSubnet')
 
+    shopnet = rootNode.createNode('shopnet')
+    abcProc = shopnet.createNode('vm_geo_alembic')
+
     tree = ABC.alembicGetSceneHierarchy(rootNode.evalParm('fileName'), "")
     
     pathList = [x for x in rootNode.evalParm('objectPath').strip('/').split('/') if x]
     
     for entry in tree[2]:
-        WalkHierarchy(rootNode, rootNode, '', entry, pathList, buildSubnet)
+        WalkHierarchy(rootNode, rootNode, '', entry, pathList, buildSubnet, abcProc)
 
 _primitiveTypes = frozenset((
     'polymesh',
@@ -57,7 +60,7 @@ def ExpressionToParm(srcParm, dstParm, isString=False):
             bool(isString)*'s', relPath, srcParm.name()),
             hou.exprLanguage.Hscript)
 
-def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList, buildSubnet):
+def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList, buildSubnet, abcProc):
     name, typeName, children = childEntry
     
     if pathList:
@@ -79,6 +82,12 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList, buildS
                 if subdParm:
                     subdParm.set(1)
         _setNodeName(currentNode, name)
+
+        proceduralParm = currentNode.parm('shop_geometrypath')
+        if proceduralParm:
+            relPath = currentNode.relativePathTo(abcProc)
+            proceduralParm.set(relPath)
+
         sopNode = currentNode.createNode('alembic')
         
         relPath = sopNode.relativePathTo(rootNode)
@@ -116,7 +125,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList, buildS
         currentNode.parm('objectPath').set(currentPath)
 
         for entry in children:
-            WalkHierarchy(rootNode, currentNode, currentPath, entry, pathList, buildSubnet)
+            WalkHierarchy(rootNode, currentNode, currentPath, entry, pathList, buildSubnet, abcProc)
     elif typeName == 'camera':
         currentNode = parentNode.createNode('cam')
         if not buildSubnet:
