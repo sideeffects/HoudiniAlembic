@@ -176,7 +176,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     UT_String	 objects;
     fpreal	 tdelta = (end - start);
     fpreal	 tstep;
-    OP_Node	*rootnode;
+    OP_Node	*rootnode = NULL;
 
     FILENAME(filename, start);
     ROOT(root, start);
@@ -195,7 +195,8 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 	abcError("Can't find root node");
 
     UT_WorkBuffer	rpath;
-    rootnode->getFullPath(rpath);
+    if (rootnode)
+	rootnode->getFullPath(rpath);
 
     // Check for evaluation errors
     if (error() >= UT_ERROR_ABORT)
