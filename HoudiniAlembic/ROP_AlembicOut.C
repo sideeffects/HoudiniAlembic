@@ -194,10 +194,6 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     else if (!(rootnode = findNode(root)))
 	abcError("Can't find root node");
 
-    UT_WorkBuffer	rpath;
-    if (rootnode)
-	rootnode->getFullPath(rpath);
-
     // Check for evaluation errors
     if (error() >= UT_ERROR_ABORT)
 	return 0;
