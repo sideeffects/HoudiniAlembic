@@ -66,7 +66,7 @@ public:
     /// Enable motion blur
     void		setMotionBlur(bool f)	{ myEnableMotionBlur = f; }
     void		setShutterParms(fpreal shutterOpen,
-					fpreal shutterClose, fpreal samples);
+					fpreal shutterClose, int samples);
 
     /// Write out a sample
     bool		 writeSample(ROP_AbcError &err, fpreal time_sample);

@@ -365,7 +365,7 @@ writeFirstFrame(ROP_AbcError &err,
 
 
 void ROP_AbcTree::setShutterParms(fpreal shutterOpen,
-	    fpreal shutterClose, fpreal samples)
+	    fpreal shutterClose, int samples)
 {
 	myShutterOpen = shutterOpen;
 	myShutterClose = shutterClose;
