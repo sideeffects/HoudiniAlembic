@@ -17,8 +17,7 @@
 
 #include "GABC_GEOPrim.h"
 #include "GABC_Util.h"
-#include <GA/GA_IntrinsicDef.h>
-#include <GA/GA_IntrinsicEval.h>
+#include <GA/GA_IntrinsicMacros.h>
 #include <GA/GA_PrimitiveJSON.h>
 #include <GT/GT_Transform.h>
 #include <GEO/GEO_Detail.h>
@@ -857,137 +856,74 @@ enum
     geo_INTRINSIC_ABC_FRAME,	// Time
     geo_INTRINSIC_ABC_ANIMATION,	// Animation type
     geo_INTRINSIC_ABC_TRANSFORM,	// Transform
+
+    geo_NUM_INTRINISCS
 };
 
-static GA_IntrinsicDef	theABCIntrinsics;
-
-GA_IntrinsicManager::Registrar
-GABC_GEOPrim::registerIntrinsics(GA_PrimitiveDefinition &defn)
+namespace
 {
-    // Register base class intrinsics
-    GA_IntrinsicManager::Registrar r = GEO_Primitive::registerIntrinsics(defn);
-
-    if (r.start(theABCIntrinsics))
+    static const char *
+    intrinsicTypeName(const GABC_GEOPrim *p)
     {
-	r.addAttribute(GA_STORECLASS_STRING, "abctypename",
-		geo_INTRINSIC_ABC_TYPE, true);
-	r.addAttribute(GA_STORECLASS_STRING, "abcfilename",
-		geo_INTRINSIC_ABC_FILE, true);
-	r.addAttribute(GA_STORECLASS_STRING, "abcobjectpath",
-		geo_INTRINSIC_ABC_PATH, true);
-	r.addAttribute(GA_STORECLASS_FLOAT, "abcframe",
-		geo_INTRINSIC_ABC_FRAME, true);
-	r.addAttribute(GA_STORECLASS_STRING, "abcanimation",
-		geo_INTRINSIC_ABC_ANIMATION, true);
-	r.addAttribute(GA_STORECLASS_STRING, "abcworldtransform",
-		geo_INTRINSIC_ABC_TRANSFORM, true);
+	GABC_Util::NodeType	type = GABC_Util::getNodeType(p->getObject());
+	return GABC_Util::nodeType(type);
     }
-    return r;
+    static const char *
+    intrinsicFilename(const GABC_GEOPrim *p)
+    {
+	return p->getFilename().c_str();
+    }
+    static const char *
+    intrinsicObjectPath(const GABC_GEOPrim *p)
+    {
+	return p->getObjectPath().c_str();
+    }
+    static const char *
+    intrinsicAnimation(const GABC_GEOPrim *p)
+    {
+	switch (p->animation())
+	{
+	    case GABC_Util::ANIMATION_CONSTANT:
+		return "constant";
+	    case GABC_Util::ANIMATION_TRANSFORM:
+		return "transform";
+	    case GABC_Util::ANIMATION_ATTRIBUTE:
+		return "attribute";
+	    case GABC_Util::ANIMATION_TOPOLOGY:
+		return "topology";
+	    default:
+		break;
+	}
+	return "<unknown>";
+    }
+    static int
+    intrinsicWorldTransform(const GABC_GEOPrim *p, fpreal64 *v, GA_Size size)
+    {
+	size = SYSmin(size, 16);
+	UT_Matrix4D	xform;
+	p->getTransform(xform);
+	for (int i = 0; i < size; ++i)
+	    v[i] = xform.data()[i];
+	return size;
+    }
 }
 
-int
-GABC_GEOPrim::localIntrinsicTupleSize(const GA_IntrinsicEval &eval) const
-{
-    switch (eval.getUserId(theABCIntrinsics))
-    {
-	case geo_INTRINSIC_ABC_TYPE:
-	case geo_INTRINSIC_ABC_FILE:
-	case geo_INTRINSIC_ABC_PATH:
-	case geo_INTRINSIC_ABC_FRAME:
-	case geo_INTRINSIC_ABC_ANIMATION:
-	    return 1;
-	case geo_INTRINSIC_ABC_TRANSFORM:
-	    return 16;
-    }
-    return GEO_Primitive::localIntrinsicTupleSize(eval);
-}
+GA_START_INTRINSIC_DEF(GABC_GEOPrim, geo_NUM_INTRINISCS)
 
-int
-GABC_GEOPrim::localGetIntrinsicF(const GA_IntrinsicEval &eval,
-	fpreal *val, GA_Size sz) const
-{
-    switch (eval.getUserId(theABCIntrinsics))
-    {
-	case geo_INTRINSIC_ABC_FRAME:
-	    val[0] = myFrame;
-	    return 1;
+    GA_INTRINSIC_S(GABC_GEOPrim, geo_INTRINSIC_ABC_TYPE,
+	    "abctypename", intrinsicTypeName)
+    GA_INTRINSIC_S(GABC_GEOPrim, geo_INTRINSIC_ABC_FILE,
+	    "abcfilename", intrinsicFilename)
+    GA_INTRINSIC_S(GABC_GEOPrim, geo_INTRINSIC_ABC_PATH,
+	    "abcobjectpath", intrinsicObjectPath)
+    GA_INTRINSIC_METHOD_F(GABC_GEOPrim, geo_INTRINSIC_ABC_FRAME,
+	    "abcframe", getFrame)
+    GA_INTRINSIC_S(GABC_GEOPrim, geo_INTRINSIC_ABC_ANIMATION,
+	    "abcanimation", intrinsicAnimation)
+    GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_TRANSFORM,
+	    "abcworldtransform", 16, intrinsicWorldTransform)
 
-	case geo_INTRINSIC_ABC_TRANSFORM:
-	    if (sz >= 16)
-	    {
-		UT_Matrix4D	xform;
-		getTransform(xform);
-		for (int i = 0; i < 16; ++i)
-		    val[i] = xform.data()[i];
-		return 16;
-	    }
-	    break;
-    }
-    return GEO_Primitive::localGetIntrinsicF(eval, val, sz);
-}
-
-int
-GABC_GEOPrim::localGetIntrinsicS(const GA_IntrinsicEval &eval,
-	UT_String &value) const
-{
-    switch (eval.getUserId(theABCIntrinsics))
-    {
-	case geo_INTRINSIC_ABC_TYPE:
-	    {
-		GABC_Util::NodeType	type = GABC_Util::getNodeType(myObject);
-		value = GABC_Util::nodeType(type);
-	    }
-	    return 1;
-	case geo_INTRINSIC_ABC_FILE:
-	    value.harden(myFilename.c_str());
-	    return 1;
-	case geo_INTRINSIC_ABC_PATH:
-	    value.harden(myObjectPath.c_str());
-	    return 1;
-	case geo_INTRINSIC_ABC_ANIMATION:
-	    switch (myAnimation)
-	    {
-		case GABC_Util::ANIMATION_CONSTANT:
-		    value = "constant";
-		    break;
-		case GABC_Util::ANIMATION_TRANSFORM:
-		    value = "transform";
-		    break;
-		case GABC_Util::ANIMATION_ATTRIBUTE:
-		    value = "attribute";
-		    break;
-		case GABC_Util::ANIMATION_TOPOLOGY:
-		    value = "topology";
-		    break;
-		default:
-		    value = "<unknown>";
-		    break;
-	    }
-	    return 1;
-    }
-    return GEO_Primitive::localGetIntrinsicS(eval, value);
-}
-
-int
-GABC_GEOPrim::localGetIntrinsicSA(const GA_IntrinsicEval &eval,
-	UT_StringArray &strings) const
-{
-    UT_String	single;
-    switch (eval.getUserId(theABCIntrinsics))
-    {
-	case geo_INTRINSIC_ABC_TYPE:
-	case geo_INTRINSIC_ABC_FILE:
-	case geo_INTRINSIC_ABC_PATH:
-	case geo_INTRINSIC_ABC_ANIMATION:
-	    if (localGetIntrinsicS(eval, single) == 1)
-	    {
-		strings.append(single);
-		return 1;
-	    }
-	    break;
-    }
-    return GEO_Primitive::localGetIntrinsicSA(eval, strings);
-}
+GA_END_INTRINSIC_DEF(GABC_GEOPrim, GEO_Primitive)
 
 void
 GABC_GEOPrim::setUseTransform(bool v)

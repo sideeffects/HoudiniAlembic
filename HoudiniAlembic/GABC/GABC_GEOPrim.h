@@ -226,18 +226,7 @@ public:
     /// @}
 
 protected:
-    /// All subclasses should call this method to register the intrinsics.
-    /// @see GA_IntrinsicManager
-    static GA_IntrinsicManager::Registrar
-			registerIntrinsics(GA_PrimitiveDefinition &defn);
-    virtual int		localIntrinsicTupleSize(
-				const GA_IntrinsicEval &eval) const;
-    virtual int		localGetIntrinsicS(const GA_IntrinsicEval &eval,
-				UT_String &value) const;
-    virtual int		localGetIntrinsicSA(const GA_IntrinsicEval &eval,
-				UT_StringArray &value) const;
-    virtual int		localGetIntrinsicF(const GA_IntrinsicEval &eval,
-				fpreal *value, GA_Size size) const;
+    GA_DECLARE_INTRINSICS();
 
 private:
     bool	getABCTransform(UT_Matrix4D &xform) const;
