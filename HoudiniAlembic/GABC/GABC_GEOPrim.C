@@ -896,7 +896,7 @@ namespace
 	}
 	return "<unknown>";
     }
-    static int
+    static GA_Size
     intrinsicWorldTransform(const GABC_GEOPrim *p, fpreal64 *v, GA_Size size)
     {
 	size = SYSmin(size, 16);
