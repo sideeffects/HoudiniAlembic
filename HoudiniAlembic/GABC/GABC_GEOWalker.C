@@ -242,9 +242,11 @@ namespace {
 		    bool extend_array)
     {
 	GA_RWHandleT<GA_T>	 h(attrib.getAttribute());
+	int			 tsize = SYSmin(extent, attrib.getTupleSize());
 	const GA_AIFTuple	*tuple = attrib.getAIFTuple();
 	const ABC_T		*data = (const ABC_T *)array->getData();
-	int			 tsize = SYSmin(extent, attrib.getTupleSize());
+	if (!data)
+	    return;
 	UT_ASSERT(h.isValid());
 	for (exint i = start; i < end; ++i)
 	{
