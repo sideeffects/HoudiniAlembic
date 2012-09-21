@@ -326,9 +326,9 @@ ROP_AbcGeometry::makeProperties(ROP_AbcError &err,
     {
 	SkipList	skips("P", "id", "width", "v", NULL);
 	cp = myPoints->getSchema().getArbGeomParams();
-	makeCompoundProperties(err, myProperties[VERTEX_PROPERTIES],
-			prim->getVertexAttributes(),
-			cp, Alembic::AbcGeom::kVertexScope, ts, skips);
+	makeCompoundProperties(err, myProperties[POINT_PROPERTIES],
+			prim->getPointAttributes(),
+			cp, Alembic::AbcGeom::kVaryingScope, ts, skips);
 	makeCompoundProperties(err, myProperties[DETAIL_PROPERTIES],
 			prim->getDetailAttributes(),
 			cp, Alembic::AbcGeom::kConstantScope, ts, skips);
