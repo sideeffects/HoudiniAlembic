@@ -748,10 +748,10 @@ ROP_AbcGeometry::writePointMesh(ROP_AbcError &err,
 		const GT_PrimitiveHandle &prim)
 {
     const GT_PrimPointMesh		*mesh = static_cast<const GT_PrimPointMesh *>(prim.get());
-    const GT_AttributeListHandle	&vtx = mesh->getVertexAttributes();
+    const GT_AttributeListHandle	&pts = mesh->getPointAttributes();
     const GT_AttributeListHandle	&detail = mesh->getDetailAttributes();
 
-    if (!vtx || !vtx->get("P"))
+    if (!pts || !pts->get("P"))
     {
 	return err.error("%s missing curve mesh 'P' attribute",
 		(const char *)myName);
@@ -769,37 +769,37 @@ ROP_AbcGeometry::writePointMesh(ROP_AbcError &err,
     fillAttribute<UT_Vector3, fpreal32,
 		Alembic::AbcGeom::OP3fGeomParam::Sample,
 		Alembic::AbcGeom::P3fArraySample,
-		Alembic::AbcGeom::V3f>(abcP, P, "P", 3, vtx);
+		Alembic::AbcGeom::V3f>(abcP, P, "P", 3, pts);
     fillAttribute<UT_Vector3, fpreal32,
 		Alembic::AbcGeom::OV3fGeomParam::Sample,
 		Alembic::AbcGeom::V3fArraySample,
-		Alembic::AbcGeom::V3f>(abcV, v, "v", 3, vtx);
+		Alembic::AbcGeom::V3f>(abcV, v, "v", 3, pts);
     fillAttribute<fpreal32, fpreal32,
 		Alembic::AbcGeom::OFloatGeomParam::Sample,
 		Alembic::AbcGeom::FloatArraySample,
 		fpreal32>(abcWidths, widths, "width", 1,
-				vtx, GT_AttributeListHandle(),
+				pts, GT_AttributeListHandle(),
 				GT_AttributeListHandle(), detail);
-    if (vtx->get("id"))
+    if (pts->get("id"))
     {
 	fillAttribute<int64, int64,
 		    Alembic::AbcGeom::OUInt64GeomParam::Sample,
 		    Alembic::AbcGeom::UInt64ArraySample,
-		    Alembic::AbcGeom::uint64_t>(abcID, id, "id", 1, vtx);
+		    Alembic::AbcGeom::uint64_t>(abcID, id, "id", 1, pts);
     }
-    else if (vtx->get("__vertex_id"))
+    else if (pts->get("__vertex_id"))
     {
 	fillAttribute<int64, int64,
 		    Alembic::AbcGeom::OUInt64GeomParam::Sample,
 		    Alembic::AbcGeom::UInt64ArraySample,
-		    Alembic::AbcGeom::uint64_t>(abcID, id, "__vertex_id", 1, vtx);
+		    Alembic::AbcGeom::uint64_t>(abcID, id, "__vertex_id", 1, pts);
     }
-    else if (vtx->get("__point_id"))
+    else if (pts->get("__point_id"))
     {
 	fillAttribute<int64, int64,
 		    Alembic::AbcGeom::OUInt64GeomParam::Sample,
 		    Alembic::AbcGeom::UInt64ArraySample,
-		    Alembic::AbcGeom::uint64_t>(abcID, id, "__point_id", 1, vtx);
+		    Alembic::AbcGeom::uint64_t>(abcID, id, "__point_id", 1, pts);
     }
     else
     {
