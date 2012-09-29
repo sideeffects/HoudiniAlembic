@@ -105,25 +105,27 @@ ROP_AbcTree::open(ROP_AbcError &err, OP_Node *root, const char *filename,
     // We want to match frame 1 (not the ROP's time increment).
     fpreal spf = CHgetManager()->getSecsPerSample();
     fpreal startSec = tstart+spf;
+    if (mySamples < 2)
+	myEnableMotionBlur = false;
     if (!myEnableMotionBlur)
     {
         myTimeRange.reset(new Alembic::Abc::TimeSampling(tstep, startSec));
     }
     else if (mySamples > 1 && myShutterOpen < myShutterClose)
     {
-        float offset = (myShutterClose - myShutterOpen) / (mySamples-1);
-        float curVal = myShutterOpen;
+        fpreal offset = (myShutterClose - myShutterOpen) / mySamples;
+        fpreal curVal = myShutterOpen;
         // if motion blur is enabled, check if it is uniform sampling
         if (myShutterOpen < 1e-4 && fabs(myShutterClose-1) < 1e-4)  // uniform
         {
-            myTimeRange.reset(new Alembic::Abc::TimeSampling(tstep*(mySamples-1), startSec));
-            for (int i = 0; i < mySamples-1; ++i, curVal += offset)
+            myTimeRange.reset(new Alembic::Abc::TimeSampling(tstep/mySamples, startSec));
+            for (int i = 0; i < mySamples; ++i, curVal += offset)
                 myOffsetFrames.push_back(curVal*spf);
         }
         else
         {
             std::vector< chrono_t > sampleTimes;
-            for (int i = 0; i < mySamples-1; ++i, curVal += offset)
+            for (int i = 0; i < mySamples; ++i, curVal += offset)
             {
                 myOffsetFrames.push_back(curVal*spf);
                 sampleTimes.push_back(startSec+myOffsetFrames.back());
