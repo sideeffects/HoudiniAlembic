@@ -53,11 +53,12 @@ GABC_GUPrim::build(GU_Detail *gdp,
 		fpreal frame,
 		bool use_transform)
 {
-    GABC_GUPrim	*abc;
+    GABC_GUPrim		*abc;
+    UT_BoundingBox	 box;
 
     abc = (GABC_GUPrim *)gdp->appendPrimitive(GABC_GUPrim::theTypeId());
-
     abc->init(filename, object, frame, use_transform);
+    abc->getBBox(&box);		// Look up box while prim is active
 
     return abc; 
 }

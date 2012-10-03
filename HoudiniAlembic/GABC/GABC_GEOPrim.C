@@ -981,7 +981,9 @@ GABC_GEOPrim::setFrame(fpreal f)
 {
     myFrame = f;
     if (myAnimation != GABC_Util::ANIMATION_CONSTANT)
+    {
 	myBox.makeInvalid();
+    }
 }
 
 bool
