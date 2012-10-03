@@ -212,6 +212,52 @@
 	}
     }
 
+    group {
+	name	abcLoadParameters
+	label	"Alembic Loading Parameters"
+
+	parm {
+	    name	"buildHierarchy"
+	    label	"Build or Update Hierarchy"
+	    type	button
+	    default	{ "1" }
+	    range	{ 0 1 }
+	    export	none
+	    parmtag	{ "script_callback_language" "python" }
+	    parmtag	{ "script_callback" "kwargs['node'].hdaModule().BuildHierarchyRoot(kwargs['node'])" }
+	    parmtag	{ "export_disable" "1" }
+	}
+	parm {
+	    name	"buildSubnet"
+	    label	"Build Hierarchy Using Subnetworks"
+	    type	toggle
+	    default	{ 1 }
+	    export	none
+	    parmtag	{ "export_disable" "1" }
+	    help	"If turned off, object inheritance will be used instead of subnetworks.  This can result in better performance in some cases, though it may result in very large networks for large scenes."
+	}
+	parm {
+	    name	"channelRef"
+	    label	"Build Hierarchy With Channel References"
+	    type	toggle
+	    default	{ 0 }
+	    export	none
+	    parmtag	{ "export_disable" "1" }
+	    help	"If enabled, child objects will have channel references to the main archive."
+	}
+	parm {
+	    name	"pushChannels"
+	    label	"Push Parameters to Children"
+	    type	button
+	    default	{ "1" }
+	    export	none
+	    parmtag	{ "script_callback_language" "python" }
+	    parmtag { "script_callback" "kwargs['node'].hdaModule().PushParametersToChildren(kwargs['node'])" }
+	    parmtag	{ "export_disable" "1" }
+	    disablewhen	"{ channelRef == on }"
+	}
+    }
+
     parm {
 	name	"fileName"
 	label	"File Name"
@@ -250,6 +296,13 @@
 	range	{ 0 10 }
 	export	none
     }
+    parm {
+	name	"abcprim"
+	label	"Create Alembic Primitives"
+	type	toggle
+	default	{ 1  }
+	export	none
+    }
     multiparm {
 	name	"remapAttributes"
 	label	"Remap Attributes"
@@ -270,26 +323,5 @@
 	    range	{ 0 1 }
 	    export	none
 	}
-    }
-
-    parm {
-	name	"buildHierarchy"
-	label	"Build or Update Hierarchy"
-	type	button
-	default	{ "1" }
-	range	{ 0 1 }
-	export	none
-	parmtag	{ "script_callback_language" "python" }
-	parmtag	{ "script_callback" "kwargs['node'].hdaModule().BuildHierarchyRoot(kwargs['node'])" }
-	parmtag	{ "export_disable" "1" }
-    }
-    parm {
-	name	"buildSubnet"
-	label	"Build Hierarchy Using Subnetworks"
-	type	toggle
-	default	{ 1 }
-	export	none
-	parmtag	{ "export_disable" "1" }
-	help	"If turned off, object inheritance will be used instead of subnetworks.  This can result in better performance in some cases, though it may result in very large networks for large scenes."
     }
 }

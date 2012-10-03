@@ -248,4 +248,12 @@
 	range	{ 0 10 }
 	export	none
     }
+    parm {
+	name	"abcConstant"
+	label	"Constant Alembic Transform"
+	type	toggle
+	default	{ 0 }
+	export	none
+	invisible
+    }
 }

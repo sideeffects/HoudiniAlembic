@@ -1,4 +1,9 @@
 import string
+import time
+try:
+    from hou import ui
+except:
+    ui = None
 
 def BuildHierarchyRoot(rootNode):
     #For now delete the existing children.
@@ -6,18 +11,37 @@ def BuildHierarchyRoot(rootNode):
         child.destroy()
     
     import _alembic_hom_extensions as ABC
-    
-    buildSubnet = rootNode.evalParm('buildSubnet')
+
+    fileName = rootNode.evalParm('fileName')
+    if not fileName:
+        if ui:
+            ui.displayMessage(title='No Filename',
+                text='Please enter an Alembic file to load.',
+                severity=hou.severityType.Warning)
+        else:
+            print 'No filename entered for Alembic scene.'
+        return
 
     shopnet = rootNode.createNode('shopnet')
     abcProc = shopnet.createNode('vm_geo_alembic')
 
-    tree = ABC.alembicGetSceneHierarchy(rootNode.evalParm('fileName'), "")
-    
+    buildSubnet = rootNode.evalParm('buildSubnet')
+
+    tree = ABC.alembicGetSceneHierarchy(fileName, "")
+    channelRefs = rootNode.evalParm('channelRef')
+
     pathList = [x for x in rootNode.evalParm('objectPath').strip('/').split('/') if x]
     
     for entry in tree[2]:
-        WalkHierarchy(rootNode, rootNode, '', entry, pathList, buildSubnet, abcProc)
+        WalkHierarchy(rootNode, rootNode,
+                        '',
+                        entry,
+                        pathList,
+                        buildSubnet,
+                        abcProc,
+                        channelRefs)
+    if not channelRefs:
+        PushParametersToChildren(rootNode)
 
 _primitiveTypes = frozenset((
     'polymesh',
@@ -60,23 +84,33 @@ def ExpressionToParm(srcParm, dstParm, isString=False):
             bool(isString)*'s', relPath, srcParm.name()),
             hou.exprLanguage.Hscript)
 
-def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList, buildSubnet, abcProc):
+def _setupAbcGeo(geo, issubd):
+    # We've just created an empty geometry node, we need to add the
+    # properties we want.
+    # Add mantra default properties
+    #hou.hscript('opproperty -f -F Render %s mantra,prman* *rendersubd*,shop_geometrypath' % geo.path())
+    parms = 'shop_geometrypath'
+    if issubd:
+        parms += ',*rendersubd*'
+    hou.hscript('opproperty -f -F Render %s mantra,prman* %s' % (geo.path(), parms))
+
+def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
+                pathList, buildSubnet, abcProc, channelRefs):
     name, typeName, children = childEntry
-    
     if pathList:
         if pathList[0] != name:
             return
         pathList = pathList[1:]
-    
+
     currentPath = parentPath + '/' + name
     if typeName in _primitiveTypes:
-        currentNode = parentNode.createNode('geo')
-        for child in currentNode.children():
-            child.destroy()
+        currentNode = parentNode.createNode('geo', run_init_scripts=False)
+        subd = (typeName == 'subdmesh')
+        _setupAbcGeo(currentNode, subd)
         if not buildSubnet:
             # Wire the geometry into the first subnetIndirectInput
             currentNode.setInput(0, parentNode.indirectInputs()[0])
-        if typeName == 'subdmesh':
+        if subd:
             for parmname in ('vm_rendersubd', 'ri_rendersubd'):
                 subdParm = currentNode.parm(parmname)
                 if subdParm:
@@ -94,18 +128,19 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList, buildS
         hou.hscript("opmultiparm %s 'abcName#' '%s/abcName#' 'hName#' '%s/hName#'" % (
                 sopNode.path(), relPath, relPath))
         
-        ExpressionToParm(rootNode.parm('remapAttributes'), sopNode.parm('remapAttributes'),
+        if channelRefs:
+            ExpressionToParm(rootNode.parm('remapAttributes'),
+                sopNode.parm('remapAttributes'),
                 isString=True)
-
-        ExpressionToParm(rootNode.parm('fileName'), sopNode.parm('fileName'),
+            ExpressionToParm(rootNode.parm('fileName'),
+                sopNode.parm('fileName'),
                 isString=True)
-        ExpressionToParm(rootNode.parm('frame'), sopNode.parm('frame'))
-        ExpressionToParm(rootNode.parm('fps'), sopNode.parm('fps'))
+            ExpressionToParm(rootNode.parm('frame'), sopNode.parm('frame'))
+            ExpressionToParm(rootNode.parm('fps'), sopNode.parm('fps'))
+            ExpressionToParm(rootNode.parm('abcprim'), sopNode.parm('abcprim'))
 
         sopNode.parm('objectPath').set(currentPath)
         sopNode.parm('includeXform').set(0)
-        
-        
     elif typeName == 'xform' or typeName == 'cxform':
         if buildSubnet:
             currentNode = parentNode.createNode('alembicxform')
@@ -115,17 +150,23 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList, buildS
                 currentNode.setInput(0, parentNode)
         _setNodeName(currentNode, name)
         
-        ExpressionToParm(rootNode.parm('fileName'), currentNode.parm('fileName'),
-                isString=True)
-        if typeName != 'cxform':
-            ExpressionToParm(rootNode.parm('frame'), currentNode.parm('frame'))
-            ExpressionToParm(rootNode.parm('fps'), currentNode.parm('fps'))
-
+        if channelRefs:
+            ExpressionToParm(rootNode.parm('fileName'),
+                    currentNode.parm('fileName'),
+                    isString=True)
+            if typeName != 'cxform':
+                ExpressionToParm(rootNode.parm('frame'),
+                        currentNode.parm('frame'))
+                ExpressionToParm(rootNode.parm('fps'),
+                        currentNode.parm('fps'))
 
         currentNode.parm('objectPath').set(currentPath)
+        if typeName == 'cxform':
+            currentNode.parm('abcConstant').set(1)
 
         for entry in children:
-            WalkHierarchy(rootNode, currentNode, currentPath, entry, pathList, buildSubnet, abcProc)
+            WalkHierarchy(rootNode, currentNode, currentPath,
+                        entry, pathList, buildSubnet, abcProc, channelRefs)
     elif typeName == 'camera':
         currentNode = parentNode.createNode('cam')
         if not buildSubnet:
@@ -138,10 +179,12 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList, buildS
         currentNode.addSpareParmTuple(rootNode.parm('fps').parmTemplate(),
                 ('Alembic',), True)
         
-        ExpressionToParm(rootNode.parm('fileName'), currentNode.parm('fileName'),
-                isString=True)
-        ExpressionToParm(rootNode.parm('frame'), currentNode.parm('frame'))
-        ExpressionToParm(rootNode.parm('fps'), currentNode.parm('fps'))
+        if channelRefs:
+            ExpressionToParm(rootNode.parm('fileName'),
+                    currentNode.parm('fileName'),
+                    isString=True)
+            ExpressionToParm(rootNode.parm('frame'), currentNode.parm('frame'))
+            ExpressionToParm(rootNode.parm('fps'), currentNode.parm('fps'))
         
         for parmName in (
                 'focal',
@@ -160,6 +203,47 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry, pathList, buildS
     
     else:
         return
+
+def PushParametersToChildren(rootNode):
+    now = time.time()
+    WalkAndPush(rootNode, rootNode)
+
+def _pushStringParm(name, fnode, tnode):
+    tparm = tnode.parm(name)
+    if tparm:
+        fparm = fnode.parm(name)
+        tparm.set(fparm.unexpandedString())
+
+def _pushScalarParm(name, fnode, tnode):
+    tparm = tnode.parm(name)
+    if tparm:
+        fparm = fnode.parm(name)
+        try:
+            expr = fparm.expression()
+            tparm.setExpression(expr)
+        except:
+            tparm.set(fparm.eval())
+
+def _pushRemapAttributesParm(fnode, tnode):
+    tparm = tnode.parm('remapAttributes')
+    if tparm:
+        fparm = fnode.parm('remapAttributes')
+        nparms = fparm.eval()
+        tparm.set(nparms)
+        for i in range(nparms):
+            _pushStringParm('abcName%d' % (i+1), fnode, tnode)
+            _pushStringParm('hName%d' % (i+1), fnode, tnode)
+
+def WalkAndPush(rootNode, parentNode):
+    for kid in parentNode.children():
+        _pushStringParm('fileName', rootNode, kid)
+        cxform = kid.parm('abcConstant')
+        if not cxform or not cxform.eval():
+            _pushScalarParm('frame', rootNode, kid)
+            _pushScalarParm('fps', rootNode, kid)
+            _pushScalarParm('abcprim', rootNode, kid)
+            _pushRemapAttributesParm(rootNode, kid)
+        WalkAndPush(rootNode, kid)
 
 def GetObjectMenu():
    return ['b', 'b', 'c', 'c']
