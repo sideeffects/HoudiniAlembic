@@ -141,6 +141,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
 
         sopNode.parm('objectPath').set(currentPath)
         sopNode.parm('includeXform').set(0)
+        sopNode.parm('groupnames').set('none')  # Don't build groups
     elif typeName == 'xform' or typeName == 'cxform':
         if buildSubnet:
             currentNode = parentNode.createNode('alembicxform')
