@@ -57,6 +57,49 @@ public:
     virtual int64	getMemoryUsage() const
 			    { return sizeof(POD_T)*mySize*myTupleSize; }
 
+    virtual const uint8		*get(GT_Offset off, uint8 *buf, int sz) const
+				{
+				    off = off * myTupleSize;
+				    for (int i = 0; i < sz; ++i)
+					buf[i] = myData[off+i];
+				    return buf;
+				}
+    virtual const int32		*get(GT_Offset off, int32 *buf, int sz) const
+				{
+				    off = off * myTupleSize;
+				    for (int i = 0; i < sz; ++i)
+					buf[i] = myData[off+i];
+				    return buf;
+				}
+    virtual const int64		*get(GT_Offset off, int64 *buf, int sz) const
+				{
+				    off = off * myTupleSize;
+				    for (int i = 0; i < sz; ++i)
+					buf[i] = myData[off+i];
+				    return buf;
+				}
+    virtual const fpreal16	*get(GT_Offset off, fpreal16 *buf, int sz) const
+				{
+				    off = off * myTupleSize;
+				    for (int i = 0; i < sz; ++i)
+					buf[i] = myData[off+i];
+				    return buf;
+				}
+    virtual const fpreal64	*get(GT_Offset off, fpreal64 *buf, int sz) const
+				{
+				    off = off * myTupleSize;
+				    for (int i = 0; i < sz; ++i)
+					buf[i] = myData[off+i];
+				    return buf;
+				}
+    virtual const fpreal32	*get(GT_Offset off, fpreal32 *buf, int sz) const
+				{
+				    off = off * myTupleSize;
+				    for (int i = 0; i < sz; ++i)
+					buf[i] = myData[off+i];
+				    return buf;
+				}
+
     virtual uint8	getU8(GT_Offset offset, int index=0) const
 			{
 			    offset = offset * myTupleSize + index;
