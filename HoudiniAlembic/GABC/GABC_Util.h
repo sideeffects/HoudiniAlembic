@@ -49,6 +49,8 @@ public:
 	GABC_CURVES,
 	GABC_POINTS,
 	GABC_NUPATCH,
+	GABC_LIGHT,
+	GABC_MATERIAL,
     };
 
     enum AnimationType
@@ -80,6 +82,26 @@ public:
 						bool include_transform);
 
     /// Class used in traversal of Alembic trees
+    ///
+    /// For standard walking of the tree, you'd likely have a process() method
+    /// like this: @code
+    ///	   bool process(const IObject &node)
+    ///		{
+    ///		    doSomething(node);
+    ///		    return true;	// Process other nodes
+    ///		}
+    /// @endcode
+    /// However, if you have to pass information to the child nodes, you might
+    /// want to do something like: @code
+    ///	    bool process(const IObject &node)
+    ///		{
+    ///		    doSomething(node);	// Process this node
+    ///		    pushState();	// Set information for kids
+    ///		    walkChildren(node);
+    ///		    popState();		// Restore parent's state
+    ///		    return false;	// Don't let parent walk kids
+    ///		}
+    /// @endcode
     class GABC_API Walker
     {
     public:
@@ -130,6 +152,7 @@ public:
     /// Find a given IObject in an Alembic file.
     static IObject	findObject(const std::string &filename,
 				const std::string &objectpath);
+
 
     /// Walk the tree in an alembic file.  Returns false if traversal was
     /// interrupted, otherwise returns true.

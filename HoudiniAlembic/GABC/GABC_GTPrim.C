@@ -957,6 +957,31 @@ getNormalsParam(ISubDSchema &ss)
     return NULL;
 }
 
+template <typename PRIM_T, typename SCHEMA_T>
+static GT_PrimitiveHandle
+buildPointMesh(const Alembic::AbcGeom::IObject &object, ISampleSelector iss)
+{
+    PRIM_T			 prim(object, kWrapExisting);
+    SCHEMA_T			&ss = prim.getSchema();
+    Abc::IP3fArrayProperty	 abcP = ss.getPositionsProperty();
+    GT_DataArrayHandle		 P = convertArray(abcP.getValue(iss));
+    GT_AttributeMapHandle	 pointMap(new GT_AttributeMap());
+    GT_AttributeMapHandle	 uniformMap(new GT_AttributeMap());
+    GT_DAIndexedString		*nameArray = new GT_DAIndexedString(1);
+
+    int	Pidx = pointMap->add("P", true);
+    int	nameIdx = uniformMap->add("name", true);
+
+    GT_AttributeListHandle	points(new GT_AttributeList(pointMap));
+    GT_AttributeListHandle	uniform(new GT_AttributeList(uniformMap));
+
+    points->set(Pidx, P);
+
+    nameArray->setString(0, 0, object.getFullName().c_str());
+    uniform->set(nameIdx, GT_DataArrayHandle(nameArray));
+    return GT_PrimitiveHandle(new GT_PrimPointMesh(points, uniform));
+}
+
 static GT_PrimitiveHandle
 buildPolyMesh(const GABC_GEOPrim *abc,
 	    const Alembic::AbcGeom::IObject &object,
@@ -1171,6 +1196,39 @@ void
 GABC_GEOPrim::clearGT()
 {
     myGTPrimitive.reset(NULL);
+}
+
+GT_PrimitiveHandle
+GABC_GEOPrim::gtPointCloud() const
+{
+    if (!myObject.valid())
+	return GT_PrimitiveHandle();
+
+    GT_PrimitiveHandle	result;
+    ISampleSelector	iss(myFrame);
+
+    UT_AutoLock	lock(theH5Lock);
+    switch (GABC_Util::getNodeType(myObject))
+    {
+	case GABC_Util::GABC_POLYMESH:
+	    result = buildPointMesh<IPolyMesh, IPolyMeshSchema>(myObject, iss);
+	    break;
+	case GABC_Util::GABC_SUBD:
+	    result = buildPointMesh<ISubD, ISubDSchema>(myObject, iss);
+	    break;
+	case GABC_Util::GABC_CURVES:
+	    result = buildPointMesh<ICurves, ICurvesSchema>(myObject, iss);
+	    break;
+	case GABC_Util::GABC_POINTS:
+	    result = buildPointMesh<IPoints, IPointsSchema>(myObject, iss);
+	    break;
+	case GABC_Util::GABC_NUPATCH:
+	    result = buildPointMesh<INuPatch, INuPatchSchema>(myObject, iss);
+	    break;
+	default:
+	    break;
+    }
+    return result;
 }
 
 GT_PrimitiveHandle

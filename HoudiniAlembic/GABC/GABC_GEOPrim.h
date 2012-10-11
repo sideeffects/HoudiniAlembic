@@ -208,7 +208,10 @@ public:
     void		 setUseTransform(bool v);
     /// @}
 
+    /// Return the GT representation of the primitive
     GT_PrimitiveHandle	 gtPrimitive() const;
+    /// Return the point cloud for the primitive.
+    GT_PrimitiveHandle	 gtPointCloud() const;
     void		 clearGT();
 
     /// @{
@@ -224,6 +227,11 @@ public:
     const GEO_ABCNameMapPtr	&attributeNameMap() const
 				    { return myAttributeNameMap; }
     /// @}
+
+    static bool		getAlembicBounds(UT_BoundingBox &box,
+				const IObject &obj,
+				fpreal sample_time,
+				bool &isConstant);
 
 protected:
     GA_DECLARE_INTRINSICS();

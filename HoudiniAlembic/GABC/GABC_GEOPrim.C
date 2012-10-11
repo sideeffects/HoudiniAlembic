@@ -469,6 +469,7 @@ namespace
     typedef Alembic::AbcGeom::ICompoundProperty	ICompoundProperty;
     typedef Alembic::AbcGeom::IXform		IXform;
     typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
+    typedef Alembic::AbcGeom::XformSample	XformSample;
     typedef Alembic::AbcGeom::ISubD		ISubD;
     typedef Alembic::AbcGeom::ISubDSchema	ISubDSchema;
     typedef Alembic::AbcGeom::ICurves		ICurves;
@@ -492,7 +493,6 @@ namespace
     abcBounds(const IObject &obj, UT_BoundingBox &box,
 		const ISampleSelector &iss)
     {
-	UT_AutoLock			 lock(theH5Lock);
 	ABC_T				 prim(obj, Alembic::Abc::kWrapExisting);
 	SCHEMA_T			&ss = prim.getSchema();
 	typename SCHEMA_T::Sample	 sample = ss.getValue(iss);
@@ -685,6 +685,43 @@ GABC_GEOPrim::isConstant() const
 }
 #endif
 
+bool
+GABC_GEOPrim::getAlembicBounds(UT_BoundingBox &box, const IObject &obj,
+	fpreal sample_time, bool &isConstant)
+{
+    ISampleSelector	sample(sample_time);
+    UT_AutoLock		lock(theH5Lock);
+
+    switch (GABC_Util::getNodeType(obj))
+    {
+	case GABC_Util::GABC_POLYMESH:
+	    abcBounds<IPolyMesh, IPolyMeshSchema>(obj, box, sample);
+	    break;
+	case GABC_Util::GABC_SUBD:
+	    abcBounds<ISubD, ISubDSchema>(obj, box, sample);
+	    break;
+	case GABC_Util::GABC_CURVES:
+	    abcBounds<ICurves, ICurvesSchema>(obj, box, sample);
+	    break;
+	case GABC_Util::GABC_POINTS:
+	    abcBounds<IPoints, IPointsSchema>(obj, box, sample);
+	    break;
+	case GABC_Util::GABC_NUPATCH:
+	    abcBounds<INuPatch, INuPatchSchema>(obj, box, sample);
+	    break;
+	case GABC_Util::GABC_XFORM:
+	    if (GABC_Util::isMayaLocator(obj))
+		box.initBounds(0, 0, 0);	// Locator is just a point
+	    else
+		return false;
+	    break;
+	default:
+	    return false;	// Unsupported object type
+    }
+    isConstant = GABC_Util::getAnimationType(std::string(), obj, false) == GABC_Util::ANIMATION_CONSTANT;
+    return true;
+}
+
 int
 GABC_GEOPrim::getBBox(UT_BoundingBox *bbox) const
 {
@@ -694,32 +731,10 @@ GABC_GEOPrim::getBBox(UT_BoundingBox *bbox) const
 
     if (!myBox.isValid())
     {
-	ISampleSelector	sample(myFrame);
-
-	switch (GABC_Util::getNodeType(myObject))
-	{
-	    case GABC_Util::GABC_POLYMESH:
-		abcBounds<IPolyMesh, IPolyMeshSchema>(myObject, *bbox, sample);
-		break;
-	    case GABC_Util::GABC_SUBD:
-		abcBounds<ISubD, ISubDSchema>(myObject, *bbox, sample);
-		break;
-	    case GABC_Util::GABC_CURVES:
-		abcBounds<ICurves, ICurvesSchema>(myObject, *bbox, sample);
-		break;
-	    case GABC_Util::GABC_POINTS:
-		abcBounds<IPoints, IPointsSchema>(myObject, *bbox, sample);
-		break;
-	    case GABC_Util::GABC_NUPATCH:
-		abcBounds<INuPatch, INuPatchSchema>(myObject, *bbox, sample);
-		break;
-	    case GABC_Util::GABC_XFORM:
-		bbox->initBounds(0, 0, 0);	// Locator is just a point
-		break;
-	    default:
-		return 0;	// Unsupported object type
-	}
-	myBox = *bbox;
+	bool	isConstant;
+	if (!getAlembicBounds(*bbox, myObject, myFrame, isConstant))
+	    return 0;
+	myBox = *bbox;	// Cache for future use
     }
     else
     {

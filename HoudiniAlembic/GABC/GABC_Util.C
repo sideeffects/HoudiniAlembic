@@ -95,15 +95,15 @@ namespace
 	{
 	}
 
-	const M44d	&getLocal() const	{ return myLocal; }
-	const M44d	&getWorld() const	{ return myWorld; }
+	const M44d		&getLocal() const	{ return myLocal; }
+	const M44d		&getWorld() const	{ return myWorld; }
 	bool		 isConstant() const	{ return myConstant; }
 	bool		 inheritsXform() const	{ return myInheritsXform; }
     private:
-	M44d	myLocal;
-	M44d	myWorld;
-	bool	myConstant;
-	bool	myInheritsXform;
+	M44d		myLocal;
+	M44d		myWorld;
+	bool		myConstant;
+	bool		myInheritsXform;
     };
 
     class ArchiveTransformItem : public UT_CappedItem
@@ -471,7 +471,7 @@ namespace
 		    {
 			// Get our local transform
 			M44d	localXform;
-			IObject	dad = const_cast<IObject &>(obj).getParent();
+			IObject dad = const_cast<IObject &>(obj).getParent();
 
 			getLocalTransform(localXform, obj, now,
 				isConstant, inheritsXform);
@@ -545,12 +545,12 @@ namespace
 	    }
 
 	    virtual bool	process(const IObject &obj)
-				{
-				    myObjects.push_back(obj.getFullName());
-				    return true;
-				}
+	    {
+		myObjects.push_back(obj.getFullName());
+		return true;
+	    }
 	private:
-	    PathList	&myObjects;
+	    PathList				&myObjects;
 	};
 
 	const PathList	&getObjectList()
@@ -578,12 +578,12 @@ namespace
 
     private:
 	IObject		root()	{ return myArchive.getTop(); }
-	IArchive	myArchive;
-	std::string	error;
-	PathList	myObjectList;
-	AbcTransformMap myStaticXforms;
-	UT_CappedCache	myCache;
-	UT_CappedCache	myDynamicXforms;
+	IArchive				myArchive;
+	std::string				error;
+	PathList				myObjectList;
+	AbcTransformMap				myStaticXforms;
+	UT_CappedCache				myCache;
+	UT_CappedCache				myDynamicXforms;
     };
 
     typedef UT_SharedPtr<ArchiveCacheEntry>		ArchiveCacheEntryPtr;
@@ -1008,6 +1008,14 @@ GABC_Util::findObject(const std::string &filename,
     return cacheEntry->isValid() ? cacheEntry->getObject(objectpath)
 		: IObject();
 }
+
+
+
+
+
+
+
+
 
 bool
 GABC_Util::getLocalTransform(const std::string &filename,
