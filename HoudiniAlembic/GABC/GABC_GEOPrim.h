@@ -153,6 +153,13 @@ public:
 			 }
     /// @}
 
+    /// This method is implemented to assist with rendering.  To get accurate
+    /// bounding boxes for rendering, the "width" of points and "curve" objects
+    /// needs to be taken into account.
+    ///
+    /// Returns false if the bounds are invalid.
+    bool	getRenderingBounds(UT_BoundingBox &box) const;
+
     /// @{
     /// Though not strictly required (i.e. not pure virtual), these methods
     /// should be implemented for proper behaviour.

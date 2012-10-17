@@ -480,6 +480,7 @@ namespace
     typedef Alembic::AbcGeom::IPolyMeshSchema	IPolyMeshSchema;
     typedef Alembic::AbcGeom::IPoints		IPoints;
     typedef Alembic::AbcGeom::IPointsSchema	IPointsSchema;
+    typedef Alembic::AbcGeom::IFloatGeomParam	IFloatGeomParam;
 
     static void
     assignBox(UT_BoundingBox &utbox, const Box3d &abcbox)
@@ -744,6 +745,57 @@ GABC_GEOPrim::getBBox(UT_BoundingBox *bbox) const
     getTransform(xform);
     bbox->transform(xform);
     return 1;
+}
+
+static fpreal
+getMaxWidth(IFloatGeomParam param, fpreal frame)
+{
+    if (!param.valid())
+	return 0;
+
+    ISampleSelector			iss(frame);
+    IFloatGeomParam::sample_type	psample;
+
+    param.getExpanded(psample, iss);
+    Alembic::Abc::FloatArraySamplePtr	vals = psample.getVals();
+    exint				len = vals->size();
+    float				maxwidth = 0;
+
+    const float	*widths = (const float *)vals->get();
+    for (exint i = 0; i < len; ++i)
+    {
+	maxwidth = SYSmax(maxwidth, widths[i]);
+    }
+    return maxwidth;
+}
+
+bool
+GABC_GEOPrim::getRenderingBounds(UT_BoundingBox &box) const
+{
+    if (!getBBox(&box))
+	return false;
+    switch (GABC_Util::getNodeType(myObject))
+    {
+	case GABC_Util::GABC_POINTS:
+	{
+	    UT_AutoLock		 lock(theH5Lock);
+	    IPoints		 points(myObject, Alembic::Abc::kWrapExisting);
+	    IPointsSchema	&ss = points.getSchema();
+	    box.enlargeBounds(0, getMaxWidth(ss.getWidthsParam(), myFrame));
+	    break;
+	}
+	case GABC_Util::GABC_CURVES:
+	{
+	    UT_AutoLock		 lock(theH5Lock);
+	    ICurves		 curves(myObject, Alembic::Abc::kWrapExisting);
+	    ICurvesSchema	&ss = curves.getSchema();
+	    box.enlargeBounds(0, getMaxWidth(ss.getWidthsParam(), myFrame));
+	    break;
+	}
+	default:
+	    break;
+    }
+    return true;
 }
 
 #if 0

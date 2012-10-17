@@ -165,7 +165,7 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
     UT_String	objectpath;
     UT_String	objectpattern;
 
-    myNonAlembic = false;
+    myNonAlembic = true;
     if (import("useobjectgeometry", &ival, 1))
     {
 	useobject = (ival != 0);
@@ -180,7 +180,10 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 	    useobject = true;
     }
     if (!filename.isstring() && !useobject)
+    {
+	VRAYwarning("No geometry specified for Alembic procedural");
 	return 0;
+    }
     if (filename.isstring())
     {
 	fpreal	frame;
@@ -214,18 +217,87 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
     return myDetail || myConstDetails.entries();
 }
 
+static fpreal
+findMaxAttributeValue(const GA_ROAttributeRef &attrib,
+			const GA_Range &range)
+{
+    GA_ROHandleF	h(attrib);
+    fpreal		v = 0;
+    if (h.isValid())
+    {
+	for (GA_Iterator it(range); !it.atEnd(); ++it)
+	    v = SYSmax(v, h(*it));
+    }
+    return v;
+}
+
+static void
+getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic)
+{
+    // When computing bounding boxes of Alembic primitives, we need to enlarge
+    // the bounds of curve/point meshes by the width attribute for proper
+    // rendering bounds.
+    if (!gdp.getNumPrimitives())
+    {
+	// We may be rendering points
+	GA_Range	pts(gdp.getPointRange());
+	box.initBounds();
+	gdp.enlargeBoundingBox(box, pts);
+	// If there's a width/pscale attribute, we need to find the maximum
+	// value
+	fpreal			width = 0;
+	GA_ROAttributeRef	a;
+	a = gdp.findFloatTuple(GA_ATTRIB_POINT, "width");
+	width = SYSmax(width, findMaxAttributeValue(a, pts));
+	a = gdp.findFloatTuple(GA_ATTRIB_POINT, "pscale");
+	width = SYSmax(width, findMaxAttributeValue(a, pts));
+	box.enlargeBounds(0, width);
+    }
+    else
+    {
+	const GA_PrimitiveTypeId	abctype = GABC_GUPrim::theTypeId();
+	bool				dogeo = false;
+
+	box.initBounds();
+	for (GA_Iterator it(gdp.getPrimitiveRange()); !it.atEnd(); ++it)
+	{
+	    const GEO_Primitive	*prim = gdp.getGEOPrimitive(*it);
+	    if (prim->getTypeId() != abctype)
+	    {
+		dogeo = true;
+		continue;
+	    }
+	    const GABC_GEOPrim	*abcprim;
+	    UT_BoundingBox	 primbox;
+	    abcprim = UTverify_cast<const GABC_GEOPrim *>(prim);
+	    abcprim->getRenderingBounds(primbox);
+	    box.enlargeBounds(primbox);
+	}
+	if (dogeo && nonalembic)
+	{
+	    // There were non-alembic primitives, so we need to compute their
+	    // bounds.
+	    UT_BoundingBox	gbox;
+	    gdp.getBBox(&gbox);
+	    box.enlargeBounds(box);
+	}
+    }
+}
+
 void
 VRAY_ProcAlembic::getBoundingBox(UT_BoundingBox &box)
 {
     if (myDetail)
-	myDetail->getBBox(&box);
+    {
+	getBoxForRendering(*myDetail, box, myNonAlembic);
+    }
     else
     {
 	box.initBounds();
 	for (int i = 0; i < myConstDetails.entries(); ++i)
 	{
 	    UT_BoundingBox	tbox;
-	    myConstDetails(i)->getBBox(&tbox);
+	    getBoxForRendering(*myConstDetails(i), tbox, myNonAlembic);
 	    box.enlargeBounds(tbox);
 	}
     }
@@ -244,29 +316,36 @@ VRAY_ProcAlembic::render()
     else
 	gdp = myDetail;
 
-    for (GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
+    if (!gdp->getNumPrimitives())
     {
-	const GEO_Primitive	*prim = gdp->getGEOPrimitive(*it);
-	if (prim->getTypeId() == abctype)
+	addgeo = myNonAlembic;	// Add any points
+    }
+    else
+    {
+	for (GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
 	{
-	    GT_PrimitiveHandle	 gt;
-	    const GABC_GEOPrim	*abcprim;
-	    abcprim = UTverify_cast<const GABC_GEOPrim *>(prim);
-	    openProceduralObject();
-		addProcedural(new vray_ProcAlembicPrim(abcprim));
-	    closeObject();
-	    UT_INC_COUNTER(thePrimCount);
-	}
-	else
-	{
-	    if (myNonAlembic)
-		addgeo = true;
-	    if (!warned)
+	    const GEO_Primitive	*prim = gdp->getGEOPrimitive(*it);
+	    if (prim->getTypeId() == abctype)
 	    {
-		void		*handle = queryObject(NULL);
-		const char	*name = queryObjectName(handle);
-		VRAYwarning("Object %s has non-alembic primitives", name);
-		warned = true;
+		GT_PrimitiveHandle	 gt;
+		const GABC_GEOPrim	*abcprim;
+		abcprim = UTverify_cast<const GABC_GEOPrim *>(prim);
+		openProceduralObject();
+		    addProcedural(new vray_ProcAlembicPrim(abcprim));
+		closeObject();
+		UT_INC_COUNTER(thePrimCount);
+	    }
+	    else
+	    {
+		if (myNonAlembic)
+		    addgeo = true;
+		if (!warned)
+		{
+		    void		*handle = queryObject(NULL);
+		    const char	*name = queryObjectName(handle);
+		    VRAYwarning("Object %s has non-alembic primitives", name);
+		    warned = true;
+		}
 	    }
 	}
     }
