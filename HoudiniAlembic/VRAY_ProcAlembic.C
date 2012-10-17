@@ -64,7 +64,7 @@ namespace
 	virtual int	 initialize(const UT_BoundingBox *)
 				    { return myPrim != NULL; }
 	virtual void	 getBoundingBox(UT_BoundingBox &box)
-				{ myPrim->getBBox(&box); }
+				{ myPrim->getRenderingBounds(box); }
 	virtual void	 render()
 	{
 	    GT_PrimitiveHandle	gt = myPrim->gtPrimitive();
