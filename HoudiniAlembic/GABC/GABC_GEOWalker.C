@@ -647,13 +647,13 @@ namespace {
     {
 	switch (GABC_Util::getNodeType(obj))
 	{
-	    case GABC_Util::GABC_POLYMESH:
-	    case GABC_Util::GABC_SUBD:
-	    case GABC_Util::GABC_CURVES:
-	    case GABC_Util::GABC_POINTS:
-	    case GABC_Util::GABC_NUPATCH:
+	    case GABC_POLYMESH:
+	    case GABC_SUBD:
+	    case GABC_CURVES:
+	    case GABC_POINTS:
+	    case GABC_NUPATCH:
 		break;
-	    case GABC_Util::GABC_XFORM:
+	    case GABC_XFORM:
 		// The only primitives built from xforms are maya locators
 		UT_ASSERT(GABC_Util::isMayaLocator(obj));
 		break;
@@ -673,12 +673,12 @@ namespace {
 
     }
 
-    GABC_Util::AnimationType
+    GABC_AnimationType
     getAnimationType(GABC_GEOWalker &walk, const IObject &obj)
     {
-	GABC_Util::AnimationType	atype;
+	GABC_AnimationType	atype;
 	atype = GABC_Util::getAnimationType(walk.filename(), obj, false);
-	if (atype == GABC_Util::ANIMATION_TOPOLOGY)
+	if (atype == GABC_ANIMATION_TOPOLOGY)
 	    walk.setNonConstantTopology();
 	return atype;
     }
@@ -699,8 +699,8 @@ namespace {
 
 	//fprintf(stderr, "SubD: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
 
-	GABC_Util::AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GABC_Util::ANIMATION_CONSTANT)
+	GABC_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GABC_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -751,8 +751,8 @@ namespace {
 
 	//fprintf(stderr, "PolyMesh %s: %d %d %d\n", obj.getFullName().c_str(), int(npoint), int(nvertex), int(nprim));
 
-	GABC_Util::AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GABC_Util::ANIMATION_CONSTANT)
+	GABC_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GABC_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -816,8 +816,8 @@ namespace {
 	}
 #endif
 
-	GABC_Util::AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GABC_Util::ANIMATION_CONSTANT)
+	GABC_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GABC_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -888,8 +888,8 @@ namespace {
 		loc.isConstant() ? Alembic::AbcGeom::kConstantTopology
 				: Alembic::AbcGeom::kHomogenousTopology);
 #endif
-	GABC_Util::AnimationType	atype = getAnimationType(walk, xform);
-	if (atype != GABC_Util::ANIMATION_CONSTANT)
+	GABC_AnimationType	atype = getAnimationType(walk, xform);
+	if (atype != GABC_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -953,8 +953,8 @@ namespace {
 		ps.isConstant() ? Alembic::AbcGeom::kConstantTopology
 				: Alembic::AbcGeom::kHomogenousTopology);
 #endif
-	GABC_Util::AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GABC_Util::ANIMATION_CONSTANT)
+	GABC_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GABC_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -1015,8 +1015,8 @@ namespace {
 
 	//fprintf(stderr, "NuPatch: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
 
-	GABC_Util::AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GABC_Util::ANIMATION_CONSTANT)
+	GABC_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GABC_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -1192,19 +1192,19 @@ GABC_GEOWalker::process(const IObject &obj)
 	{
 	    switch (GABC_Util::getNodeType(obj))
 	    {
-		case GABC_Util::GABC_POLYMESH:
+		case GABC_POLYMESH:
 		    makePolyMesh(*this, obj);
 		    break;
-		case GABC_Util::GABC_SUBD:
+		case GABC_SUBD:
 		    makeSubD(*this, obj);
 		    break;
-		case GABC_Util::GABC_CURVES:
+		case GABC_CURVES:
 		    makeCurves(*this, obj);
 		    break;
-		case GABC_Util::GABC_POINTS:
+		case GABC_POINTS:
 		    makePoints(*this, obj);
 		    break;
-		case GABC_Util::GABC_NUPATCH:
+		case GABC_NUPATCH:
 		    makeNuPatch(*this, obj);
 		    break;
 		default:

@@ -161,7 +161,7 @@ namespace
 	    const char		*otype = "<unknown>";
 	    switch (GABC_Util::getNodeType(obj))
 	    {
-		case GABC_Util::GABC_XFORM:
+		case GABC_XFORM:
 		    {
 			IXform	xform(obj, Alembic::Abc::kWrapExisting);
 			if (xform.getSchema().isConstant())
@@ -170,25 +170,25 @@ namespace
 			    otype = "xform";
 		    }
 		    break;
-		case GABC_Util::GABC_POLYMESH:
+		case GABC_POLYMESH:
 		    otype = "polymesh";
 		    break;
-		case GABC_Util::GABC_SUBD:
+		case GABC_SUBD:
 		    otype = "subdmesh";
 		    break;
-		case GABC_Util::GABC_CAMERA:
+		case GABC_CAMERA:
 		    otype = "camera";
 		    break;
-		case GABC_Util::GABC_FACESET:
+		case GABC_FACESET:
 		    otype = "faceset";
 		    break;
-		case GABC_Util::GABC_CURVES:
+		case GABC_CURVES:
 		    otype = "curves";
 		    break;
-		case GABC_Util::GABC_POINTS:
+		case GABC_POINTS:
 		    otype = "points";
 		    break;
-		case GABC_Util::GABC_NUPATCH:
+		case GABC_NUPATCH:
 		    otype = "nupatch";
 		    break;
 		default:

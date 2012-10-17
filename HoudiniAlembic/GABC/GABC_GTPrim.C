@@ -1210,19 +1210,19 @@ GABC_GEOPrim::gtPointCloud() const
     UT_AutoLock	lock(theH5Lock);
     switch (GABC_Util::getNodeType(myObject))
     {
-	case GABC_Util::GABC_POLYMESH:
+	case GABC_POLYMESH:
 	    result = buildPointMesh<IPolyMesh, IPolyMeshSchema>(myObject, iss);
 	    break;
-	case GABC_Util::GABC_SUBD:
+	case GABC_SUBD:
 	    result = buildPointMesh<ISubD, ISubDSchema>(myObject, iss);
 	    break;
-	case GABC_Util::GABC_CURVES:
+	case GABC_CURVES:
 	    result = buildPointMesh<ICurves, ICurvesSchema>(myObject, iss);
 	    break;
-	case GABC_Util::GABC_POINTS:
+	case GABC_POINTS:
 	    result = buildPointMesh<IPoints, IPointsSchema>(myObject, iss);
 	    break;
-	case GABC_Util::GABC_NUPATCH:
+	case GABC_NUPATCH:
 	    result = buildPointMesh<INuPatch, INuPatchSchema>(myObject, iss);
 	    break;
 	default:
@@ -1243,12 +1243,12 @@ GABC_GEOPrim::gtPrimitive() const
     // Lock for HDF5 access
     UT_AutoLock	lock(theH5Lock);
 
-    if ((myAnimation == GABC_Util::ANIMATION_CONSTANT ||
-	 myAnimation == GABC_Util::ANIMATION_TRANSFORM) && myGTPrimitive)
+    if ((myAnimation == GABC_ANIMATION_CONSTANT ||
+	 myAnimation == GABC_ANIMATION_TRANSFORM) && myGTPrimitive)
     {
 	result = myGTPrimitive;
     }
-    else if (myAnimation == GABC_Util::ANIMATION_ATTRIBUTE && myGTPrimitive)
+    else if (myAnimation == GABC_ANIMATION_ATTRIBUTE && myGTPrimitive)
     {
 	// Update attributes
 	if (ISubD::matches(myObject.getHeader()))
@@ -1280,7 +1280,7 @@ GABC_GEOPrim::gtPrimitive() const
     }
     else
     {
-	UT_ASSERT(myAnimation == GABC_Util::ANIMATION_TOPOLOGY || !myGTPrimitive);
+	UT_ASSERT(myAnimation == GABC_ANIMATION_TOPOLOGY || !myGTPrimitive);
 	if (ISubD::matches(myObject.getHeader()))
 	{
 	    result = buildSubDMesh(this, myObject, sampleSelector);

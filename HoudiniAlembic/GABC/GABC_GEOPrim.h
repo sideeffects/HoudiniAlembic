@@ -191,10 +191,10 @@ public:
     const std::string	&getFilename() const	{ return myFilename; }
     const std::string	&getObjectPath() const	{ return myObjectPath; }
     const IObject	&getObject() const	{ return myObject; }
-    GABC_Util::AnimationType	 animation() const	{ return myAnimation; }
+    GABC_AnimationType	 animation() const	{ return myAnimation; }
     bool		 isConstant() const
 			 {
-			     return myAnimation==GABC_Util::ANIMATION_CONSTANT;
+			     return myAnimation == GABC_ANIMATION_CONSTANT;
 			 }
     fpreal		 getFrame() const	{ return myFrame; }
 
@@ -260,7 +260,7 @@ private:
     mutable UT_BoundingBox	myBox;
     mutable GT_TransformHandle	myGTTransform;
     mutable GT_PrimitiveHandle	myGTPrimitive;
-    mutable GABC_Util::AnimationType	myAnimation;
+    mutable GABC_AnimationType	myAnimation;
     bool			myUseTransform;
 };
 

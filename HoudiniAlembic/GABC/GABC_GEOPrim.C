@@ -124,7 +124,7 @@ GABC_GEOPrim::GABC_GEOPrim(GEO_Detail *d, GA_Offset offset)
     , myObjectPath()
     , myObject()
     , myFrame(0)
-    , myAnimation(GABC_Util::ANIMATION_TOPOLOGY)
+    , myAnimation(GABC_ANIMATION_TOPOLOGY)
     , myUseTransform(true)
     , myGTPrimitive()
 {
@@ -145,7 +145,7 @@ GABC_GEOPrim::copyMemberDataFrom(const GABC_GEOPrim &src)
 
     // Data which shouldn't be copied
     myBox.makeInvalid();
-    myAnimation = GABC_Util::ANIMATION_TOPOLOGY;
+    myAnimation = GABC_ANIMATION_TOPOLOGY;
     myGTPrimitive = GT_PrimitiveHandle();
 
     if (!myUseTransform)
@@ -607,84 +607,7 @@ GABC_GEOPrim::updateAnimation()
     // non-constant (i.e. Homogeneous).
     myAnimation = GABC_Util::getAnimationType(myFilename,
 			myObject, myUseTransform);
-#if 0
-    switch (GABC_Util::getNodeType(myObject))
-    {
-	case GABC_Util::GABC_POLYMESH:
-	    myAnimation = getAnimation<IPolyMesh, IPolyMeshSchema>(myObject);
-	    break;
-	case GABC_Util::GABC_SUBD:
-	    myAnimation = getAnimation<ISubD, ISubDSchema>(myObject);
-	    break;
-	case GABC_Util::GABC_CURVES:
-	    myAnimation = getAnimation<ICurves, ICurvesSchema>(myObject);
-	    // There's a bug in Alembic 1.0.5 detecting changing topology on
-	    // curves.
-	    if (myAnimation != AnimationTopology
-		    && abcCurvesChangingTopology(myObject))
-	    {
-		myAnimation = AnimationTopology;
-	    }
-	    break;
-	case GABC_Util::GABC_POINTS:
-	    myAnimation = getAnimation<IPoints, IPointsSchema>(myObject);
-	    break;
-	case GABC_Util::GABC_NUPATCH:
-	    myAnimation = getAnimation<INuPatch, INuPatchSchema>(myObject);
-	    break;
-	case GABC_Util::GABC_XFORM:
-	    if (GABC_Util::isMayaLocator(myObject))
-		myAnimation = getLocatorAnimation(myObject);
-	    else
-		myAnimation = getAnimation<IXform, IXformSchema>(myObject);
-	    break;
-	default:
-	    myAnimation = AnimationTopology;
-	    return;
-    }
-    if (myAnimation == AnimationConstant && myUseTransform)
-    {
-	UT_Matrix4D	xform;
-	bool		is_const;
-	IObject		 parent = myObject.getParent();
-	// Check to see if transform is non-constant
-	if (GABC_Util::getWorldTransform(myFilename, parent.getFullName(),
-			myFrame, xform, is_const))
-	{
-	    if (!is_const)
-		myAnimation = AnimationTransform;
-	}
-    }
-#endif
 }
-
-#if 0
-bool
-GABC_GEOPrim::isConstant() const
-{
-    switch (GABC_Util::getNodeType(myObject))
-    {
-	case GABC_Util::GABC_POLYMESH:
-	    return abcIsConst<IPolyMesh, IPolyMeshSchema>(myObject);
-	case GABC_Util::GABC_SUBD:
-	    return abcIsConst<ISubD, ISubDSchema>(myObject);
-	case GABC_Util::GABC_CURVES:
-	    return abcIsConst<ICurves, ICurvesSchema>(myObject);
-	case GABC_Util::GABC_POINTS:
-	    return abcIsConst<IPoints, IPointsSchema>(myObject);
-	case GABC_Util::GABC_NUPATCH:
-	    return abcIsConst<INuPatch, INuPatchSchema>(myObject);
-	case GABC_Util::GABC_XFORM:
-	    if (GABC_Util::isMayaLocator(myObject))
-		return myTopology == Alembic::AbcGeom::kConstantTopology;
-	    return abcIsConst<IXform, IXformSchema>(myObject);
-	default:
-	    break;	// Unsupported object type
-    }
-
-    return false;
-}
-#endif
 
 bool
 GABC_GEOPrim::getAlembicBounds(UT_BoundingBox &box, const IObject &obj,
@@ -695,31 +618,30 @@ GABC_GEOPrim::getAlembicBounds(UT_BoundingBox &box, const IObject &obj,
 
     switch (GABC_Util::getNodeType(obj))
     {
-	case GABC_Util::GABC_POLYMESH:
+	case GABC_POLYMESH:
 	    abcBounds<IPolyMesh, IPolyMeshSchema>(obj, box, sample);
 	    break;
-	case GABC_Util::GABC_SUBD:
+	case GABC_SUBD:
 	    abcBounds<ISubD, ISubDSchema>(obj, box, sample);
 	    break;
-	case GABC_Util::GABC_CURVES:
+	case GABC_CURVES:
 	    abcBounds<ICurves, ICurvesSchema>(obj, box, sample);
 	    break;
-	case GABC_Util::GABC_POINTS:
+	case GABC_POINTS:
 	    abcBounds<IPoints, IPointsSchema>(obj, box, sample);
 	    break;
-	case GABC_Util::GABC_NUPATCH:
+	case GABC_NUPATCH:
 	    abcBounds<INuPatch, INuPatchSchema>(obj, box, sample);
 	    break;
-	case GABC_Util::GABC_XFORM:
-	    if (GABC_Util::isMayaLocator(obj))
-		box.initBounds(0, 0, 0);	// Locator is just a point
-	    else
-		return false;
-	    break;
+	case GABC_MAYA_LOCATOR:
+	    // TODO: Get the locator position for the bounding box
+	case GABC_XFORM:
+	    // Nobody currently supports child bounds
+	    return false;
 	default:
 	    return false;	// Unsupported object type
     }
-    isConstant = GABC_Util::getAnimationType(std::string(), obj, false) == GABC_Util::ANIMATION_CONSTANT;
+    isConstant = GABC_Util::getAnimationType(std::string(), obj, false) == GABC_ANIMATION_CONSTANT;
     return true;
 }
 
@@ -776,7 +698,7 @@ GABC_GEOPrim::getRenderingBounds(UT_BoundingBox &box) const
 	return false;
     switch (GABC_Util::getNodeType(myObject))
     {
-	case GABC_Util::GABC_POINTS:
+	case GABC_POINTS:
 	{
 	    UT_AutoLock		 lock(theH5Lock);
 	    IPoints		 points(myObject, Alembic::Abc::kWrapExisting);
@@ -784,7 +706,7 @@ GABC_GEOPrim::getRenderingBounds(UT_BoundingBox &box) const
 	    box.enlargeBounds(0, getMaxWidth(ss.getWidthsParam(), myFrame));
 	    break;
 	}
-	case GABC_Util::GABC_CURVES:
+	case GABC_CURVES:
 	{
 	    UT_AutoLock		 lock(theH5Lock);
 	    ICurves		 curves(myObject, Alembic::Abc::kWrapExisting);
@@ -932,8 +854,8 @@ namespace
     static const char *
     intrinsicTypeName(const GABC_GEOPrim *p)
     {
-	GABC_Util::NodeType	type = GABC_Util::getNodeType(p->getObject());
-	return GABC_Util::nodeType(type);
+	GABC_NodeType	type = GABC_Util::getNodeType(p->getObject());
+	return GABCnodeType(type);
     }
     static const char *
     intrinsicFilename(const GABC_GEOPrim *p)
@@ -950,13 +872,13 @@ namespace
     {
 	switch (p->animation())
 	{
-	    case GABC_Util::ANIMATION_CONSTANT:
+	    case GABC_ANIMATION_CONSTANT:
 		return "constant";
-	    case GABC_Util::ANIMATION_TRANSFORM:
+	    case GABC_ANIMATION_TRANSFORM:
 		return "transform";
-	    case GABC_Util::ANIMATION_ATTRIBUTE:
+	    case GABC_ANIMATION_ATTRIBUTE:
 		return "attribute";
-	    case GABC_Util::ANIMATION_TOPOLOGY:
+	    case GABC_ANIMATION_TOPOLOGY:
 		return "topology";
 	    default:
 		break;
@@ -1047,7 +969,7 @@ void
 GABC_GEOPrim::setFrame(fpreal f)
 {
     myFrame = f;
-    if (myAnimation != GABC_Util::ANIMATION_CONSTANT)
+    if (myAnimation != GABC_ANIMATION_CONSTANT)
     {
 	myBox.makeInvalid();
     }

@@ -55,18 +55,6 @@ namespace
     typedef Alembic::AbcGeom::XformSample	XformSample;
     typedef GABC_Util::PathList			PathList;
 
-    static UT_FSATable	theNodeTypeTable(
-	GABC_Util::GABC_XFORM,		"Xform",
-	GABC_Util::GABC_POLYMESH,	"PolyMesh",
-	GABC_Util::GABC_SUBD,		"SubD",
-	GABC_Util::GABC_CAMERA,		"Camera",
-	GABC_Util::GABC_FACESET,	"FaceSet",
-	GABC_Util::GABC_CURVES,		"Curves",
-	GABC_Util::GABC_POINTS,		"Points",
-	GABC_Util::GABC_NUPATCH,	"NuPatch",
-	-1, NULL
-    );
-
     // Stores world (cumulative) transforms for objects in the cache.  These
     // are stored at sample times but not at intermediate time samples.
     class LocalWorldXform
@@ -681,25 +669,14 @@ GABC_Util::Walker::walkChildren(const IObject &node)
     return true;
 }
 
-const char *
-GABC_Util::nodeType(NodeType token)
-{
-    const char	*name = theNodeTypeTable.getToken(token);
-    return name ? name : "<unknown>";
-}
-
-GABC_Util::NodeType
-GABC_Util::nodeType(const char *name)
-{
-    return static_cast<GABC_Util::NodeType>(theNodeTypeTable.findSymbol(name));
-}
-
-GABC_Util::NodeType
+GABC_NodeType
 GABC_Util::getNodeType(const IObject &obj)
 {
     const ObjectHeader	&ohead = obj.getHeader();
     if (IXform::matches(ohead))
-	return GABC_XFORM;
+    {
+	return isMayaLocator(obj) ? GABC_MAYA_LOCATOR : GABC_XFORM;
+    }
     if (IPolyMesh::matches(ohead))
 	return GABC_POLYMESH;
     if (ISubD::matches(ohead))
@@ -747,64 +724,64 @@ abcArbsAreAnimated(ICompoundProperty arb)
 }
 
 template <typename ABC_T, typename SCHEMA_T>
-static GABC_Util::AnimationType
+static GABC_AnimationType
 getAnimation(const IObject &obj)
 {
-    ABC_T				 prim(obj, Alembic::Abc::kWrapExisting);
-    SCHEMA_T			&schema = prim.getSchema();
-    GABC_Util::AnimationType	 atype;
+    ABC_T		 prim(obj, Alembic::Abc::kWrapExisting);
+    SCHEMA_T		&schema = prim.getSchema();
+    GABC_AnimationType	 atype;
     
     switch (schema.getTopologyVariance())
     {
 	case Alembic::AbcGeom::kConstantTopology:
-	    atype = GABC_Util::ANIMATION_CONSTANT;
+	    atype = GABC_ANIMATION_CONSTANT;
 	    if (abcArbsAreAnimated(schema.getArbGeomParams()))
-		atype = GABC_Util::ANIMATION_ATTRIBUTE;
+		atype = GABC_ANIMATION_ATTRIBUTE;
 	    break;
 	case Alembic::AbcGeom::kHomogenousTopology:
-	    atype = GABC_Util::ANIMATION_ATTRIBUTE;
+	    atype = GABC_ANIMATION_ATTRIBUTE;
 	    break;
 	case Alembic::AbcGeom::kHeterogenousTopology:
-	    atype = GABC_Util::ANIMATION_TOPOLOGY;
+	    atype = GABC_ANIMATION_TOPOLOGY;
 	    break;
     }
     return atype;
 }
 
 template <>
-GABC_Util::AnimationType
+GABC_AnimationType
 getAnimation<IPoints, IPointsSchema>(const IObject &obj)
 {
     IPoints			 prim(obj, Alembic::Abc::kWrapExisting);
     IPointsSchema		&schema = prim.getSchema();
     if (!schema.isConstant())
-	return GABC_Util::ANIMATION_TOPOLOGY;
+	return GABC_ANIMATION_TOPOLOGY;
     if (abcArbsAreAnimated(schema.getArbGeomParams()))
-	return GABC_Util::ANIMATION_ATTRIBUTE;
-    return GABC_Util::ANIMATION_CONSTANT;
+	return GABC_ANIMATION_ATTRIBUTE;
+    return GABC_ANIMATION_CONSTANT;
 }
 
 template <>
-GABC_Util::AnimationType
+GABC_AnimationType
 getAnimation<IXform, IXformSchema>(const IObject &obj)
 {
     IXform			 prim(obj, Alembic::Abc::kWrapExisting);
     IXformSchema		&schema = prim.getSchema();
     if (!schema.isConstant())
-	return GABC_Util::ANIMATION_TOPOLOGY;
+	return GABC_ANIMATION_TOPOLOGY;
     if (abcArbsAreAnimated(schema.getArbGeomParams()))
-	return GABC_Util::ANIMATION_ATTRIBUTE;
-    return GABC_Util::ANIMATION_CONSTANT;
+	return GABC_ANIMATION_ATTRIBUTE;
+    return GABC_ANIMATION_CONSTANT;
 }
 
 
-static GABC_Util::AnimationType
+static GABC_AnimationType
 getLocatorAnimation(const IObject &obj)
 {
     IXform				prim(obj, Alembic::Abc::kWrapExisting);
     Alembic::Abc::IScalarProperty	loc(prim.getProperties(), "locator");
-    return loc.isConstant() ? GABC_Util::ANIMATION_CONSTANT
-			    : GABC_Util::ANIMATION_ATTRIBUTE;
+    return loc.isConstant() ? GABC_ANIMATION_CONSTANT
+			    : GABC_ANIMATION_ATTRIBUTE;
 }
 
 static bool
@@ -886,11 +863,11 @@ GABC_Util::isConstant(Alembic::AbcGeom::ICompoundProperty arb, int idx)
     return false;
 }
 
-GABC_Util::AnimationType
+GABC_AnimationType
 GABC_Util::getAnimationType(const std::string &filename, const IObject &node,
 	bool include_transform)
 {
-    AnimationType	atype = ANIMATION_CONSTANT;
+    GABC_AnimationType	atype = GABC_ANIMATION_CONSTANT;
     UT_ASSERT_P(node.valid());
     // Set the topology based on a combination of conditions.
     // We initialize based on the shape topology, but if the shape topology is
@@ -898,39 +875,39 @@ GABC_Util::getAnimationType(const std::string &filename, const IObject &node,
     // non-constant (i.e. Homogeneous).
     switch (GABC_Util::getNodeType(node))
     {
-	case GABC_Util::GABC_POLYMESH:
+	case GABC_POLYMESH:
 	    atype = getAnimation<IPolyMesh, IPolyMeshSchema>(node);
 	    break;
-	case GABC_Util::GABC_SUBD:
+	case GABC_SUBD:
 	    atype = getAnimation<ISubD, ISubDSchema>(node);
 	    break;
-	case GABC_Util::GABC_CURVES:
+	case GABC_CURVES:
 	    atype = getAnimation<ICurves, ICurvesSchema>(node);
 	    // There's a bug in Alembic 1.0.5 detecting changing topology on
 	    // curves.
-	    if (atype != ANIMATION_TOPOLOGY
+	    if (atype != GABC_ANIMATION_TOPOLOGY
 		    && abcCurvesChangingTopology(node))
 	    {
-		atype = ANIMATION_TOPOLOGY;
+		atype = GABC_ANIMATION_TOPOLOGY;
 	    }
 	    break;
-	case GABC_Util::GABC_POINTS:
+	case GABC_POINTS:
 	    atype = getAnimation<IPoints, IPointsSchema>(node);
 	    break;
-	case GABC_Util::GABC_NUPATCH:
+	case GABC_NUPATCH:
 	    atype = getAnimation<INuPatch, INuPatchSchema>(node);
 	    break;
-	case GABC_Util::GABC_XFORM:
+	case GABC_XFORM:
 	    if (GABC_Util::isMayaLocator(node))
 		atype = getLocatorAnimation(node);
 	    else
 		atype = getAnimation<IXform, IXformSchema>(node);
 	    break;
 	default:
-	    atype = ANIMATION_TOPOLOGY;
+	    atype = GABC_ANIMATION_TOPOLOGY;
 	    break;
     }
-    if (atype == ANIMATION_CONSTANT && include_transform)
+    if (atype == GABC_ANIMATION_CONSTANT && include_transform)
     {
 	UT_Matrix4D	xform;
 	bool		is_const;
@@ -943,7 +920,7 @@ GABC_Util::getAnimationType(const std::string &filename, const IObject &node,
 			    0, xform, is_const, inheritsXform))
 	    {
 		if (!is_const)
-		    atype = ANIMATION_TRANSFORM;
+		    atype = GABC_ANIMATION_TRANSFORM;
 	    }
 	}
     }
@@ -1008,13 +985,6 @@ GABC_Util::findObject(const std::string &filename,
     return cacheEntry->isValid() ? cacheEntry->getObject(objectpath)
 		: IObject();
 }
-
-
-
-
-
-
-
 
 
 bool

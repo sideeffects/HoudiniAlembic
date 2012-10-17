@@ -20,6 +20,7 @@
 
 #include "GABC_API.h"
 #include "GABC_Include.h"
+#include "GABC_Types.h"
 
 // Houdini includes
 #include <SYS/SYS_Types.h>
@@ -37,38 +38,10 @@ public:
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef std::vector<std::string>		PathList;
 
-    /// A simple enum for the different Alembic node types supported
-    enum NodeType
-    {
-	GABC_UNKNOWN=-1,
-	GABC_XFORM,
-	GABC_POLYMESH,
-	GABC_SUBD,
-	GABC_CAMERA,
-	GABC_FACESET,
-	GABC_CURVES,
-	GABC_POINTS,
-	GABC_NUPATCH,
-	GABC_LIGHT,
-	GABC_MATERIAL,
-    };
-
-    enum AnimationType
-    {
-	ANIMATION_CONSTANT,	// Constant animation
-	ANIMATION_TRANSFORM,	// Transform is animated
-	ANIMATION_ATTRIBUTE,	// Attribute or transform are animated
-	ANIMATION_TOPOLOGY,	// Topology is dynamic
-    };
-
     /// Determine the node type given an input object.  If GABC_UNKNOWN is
     /// returned, you can still check the ObjectHeader to see if it matches
     /// other object types.
-    static NodeType	getNodeType(const IObject &obj);
-
-    /// Get name associated with the enum
-    static const char	*nodeType(NodeType token);
-    static NodeType	 nodeType(const char *name);
+    static GABC_NodeType	getNodeType(const IObject &obj);
 
     /// Classify a transform node
     static bool		isMayaLocator(const IObject &obj);
@@ -77,7 +50,7 @@ public:
     static bool		isConstant(ICompoundProperty arb, int property_index);
 
     /// Get the animation type of a given node
-    static AnimationType	getAnimationType(const std::string &filename,
+    static GABC_AnimationType	getAnimationType(const std::string &filename,
 						const IObject &node,
 						bool include_transform);
 
