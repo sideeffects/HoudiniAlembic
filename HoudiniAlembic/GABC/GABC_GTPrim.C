@@ -94,96 +94,13 @@ GABC_GTPrimCollect::endCollecting(const GT_GEODetailListHandle &,
 
 // Implementation of GT primitives for ABC
 
-// ABC_T := A shared pointer to a TypedArraySample
-template <typename ABC_T, typename POD_T, GT_Storage STORE_T>
-static GT_DataArrayHandle
-getDataArray(const ABC_T &array, int tuple_size, GT_Type type=GT_TYPE_NONE)
-{
-    if (!array)
-	return GT_DataArrayHandle();
-
-    GABC_GTNumericArray<ABC_T, POD_T>	*data;
-    data = new GABC_GTNumericArray<ABC_T, POD_T>(array);
-    return GT_DataArrayHandle(data);
-}
-
-template <typename ABC_T>
-static GT_DataArrayHandle
-getStringArray(const ABC_T &, int, GT_Type type=GT_TYPE_NONE)
-{
-    return GT_DataArrayHandle();
-}
-
-template <>
-GT_DataArrayHandle
-getStringArray<StringArraySamplePtr>(const StringArraySamplePtr &array,
-		int tuple_size, GT_Type type)
-{
-    if (!array)
-	return GT_DataArrayHandle();
-    GT_DAIndexedString	*data = new GT_DAIndexedString(array->size(), tuple_size);
-    const std::string	*src = (const std::string *)array->getData();
-
-    // Copy strings over to 
-    for (exint i = 0; i < array->size(); ++i)
-    {
-	for (int j = 0; j < tuple_size; ++j, ++src)
-	    data->setString(i, j, src->c_str());
-    }
-    return GT_DataArrayHandle(data);
-}
-
-template <typename T>
-static GT_DataArrayHandle
-convertArray(const T &array)
-{
-    GT_Storage	store = GABC_GTUtil::getGTStorage(array->getDataType());
-    int		tsize = GABC_GTUtil::getGTTupleSize(array->getDataType());
-
-    // We're passed a boost shared pointer to the underlying array.
-    // We can get the underlying array type with
-    //    boost::shared_ptr::element_type
-    // From the array type, we can get the traits type using
-    //	  Abc::TypedArraySample::traits_type
-    // This has a static method to get the interpretation of the array
-    const char	*interp = T::element_type::traits_type::interpretation();
-    // We can use the interpretation to get the type information
-    GT_Type	tinfo = GABC_GTUtil::getGTTypeInfo(interp, tsize);
-
-    switch (store)
-    {
-	case GT_STORE_UINT8:
-	    return getDataArray<T, uint8, GT_STORE_UINT8>(array, tsize, tinfo);
-	case GT_STORE_INT32:
-	    return getDataArray<T, int32, GT_STORE_INT32>(array, tsize, tinfo);
-	case GT_STORE_INT64:
-	    return getDataArray<T, int64, GT_STORE_INT64>(array, tsize, tinfo);
-	case GT_STORE_REAL16:
-	    return getDataArray<T, fpreal16, GT_STORE_REAL16>(
-				array, tsize, tinfo);
-	case GT_STORE_REAL32:
-	    return getDataArray<T, fpreal32, GT_STORE_REAL32>(
-				array, tsize, tinfo);
-	case GT_STORE_REAL64:
-	    return getDataArray<T, fpreal64, GT_STORE_REAL64>(
-				array, tsize, tinfo);
-	case GT_STORE_STRING:
-	    return getStringArray(array, tsize, tinfo);
-	default:
-	    UT_ASSERT(0);
-	    break;
-    }
-
-    return GT_DataArrayHandle();
-}
-
 template <typename T>
 static GT_DataArrayHandle
 convertGeomParam(T &param, ISampleSelector &sample)
 {
     typename T::sample_type	psample;
     param.getExpanded(psample, sample);
-    return convertArray(psample.getVals());
+    return GABC_GTArrayExtract::get(psample.getVals());
 }
 
 template <typename T>
@@ -346,7 +263,7 @@ fillHoudiniAttributes(GT_AttributeList &alist,
 #define SET_ARRAY(VAR, NAME)	\
     if (VAR && *VAR) { \
 	setAttributeData(alist, NAME, \
-		convertArray(VAR->getValue(sample)), filled); \
+		GABC_GTArrayExtract::get(VAR->getValue(sample)), filled); \
     }
 #define SET_GEOM_PARAM(VAR, NAME)	\
     if (VAR && VAR->valid() && matchScope(VAR->getScope(), scope, scope_size)){\
@@ -438,7 +355,7 @@ initializeHoudiniAttributes(const GABC_GEOPrim *prim, GT_AttributeMap *map,
 #define REPLACE_ARRAY(VAR, NAME)	\
     if (VAR && *VAR) { \
 	UT_VERIFY(replaceDataArray(src, NAME, \
-		    convertArray(VAR->getValue(sample)))); \
+		    GABC_GTArrayExtract::get(VAR->getValue(sample)))); \
     }
 #define REPLACE_GEOM_PARAM(VAR, NAME)	\
     if (VAR && VAR->valid() && matchScope(VAR->getScope(), scope, scope_size)){\
@@ -646,10 +563,8 @@ buildNuPatch(const GABC_GEOPrim *abc,
     GT_DataArrayHandle	 vknots;
     GT_PrimNuPatch	*patch;
 
-    uknots = getDataArray<FloatArraySamplePtr, float, GT_STORE_REAL32>
-			(sample.getUKnot(), 1);
-    vknots = getDataArray<FloatArraySamplePtr, float, GT_STORE_REAL32>
-			(sample.getVKnot(), 1);
+    uknots = GABC_GTArrayExtract::get(sample.getUKnot());
+    vknots = GABC_GTArrayExtract::get(sample.getVKnot());
 
     Abc::IP3fArrayProperty	 P = ss.getPositionsProperty();
     Abc::IV3fArrayProperty	 v = ss.getVelocitiesProperty();
@@ -684,24 +599,15 @@ buildNuPatch(const GABC_GEOPrim *abc,
 	GT_DataArrayHandle	curveMin;
 	GT_DataArrayHandle	curveMax;
 	GT_DataArrayHandle	curveU, curveV, curveW, curveUVW;
-	loopCount = getDataArray<Int32ArraySamplePtr, int32, GT_STORE_INT32>
-			(sample.getTrimNumCurves(), 1);
-	curveCount = getDataArray<Int32ArraySamplePtr, int32, GT_STORE_INT32>
-			(sample.getTrimNumVertices(), 1);
-	curveOrders = getDataArray<Int32ArraySamplePtr, int32, GT_STORE_INT32>
-			(sample.getTrimOrders(), 1);
-	curveKnots = getDataArray<FloatArraySamplePtr, fpreal32,GT_STORE_REAL32>
-			(sample.getTrimKnots(), 1);
-	curveMin = getDataArray<FloatArraySamplePtr, fpreal32, GT_STORE_REAL32>
-			(sample.getTrimMins(), 1);
-	curveMax = getDataArray<FloatArraySamplePtr, fpreal32, GT_STORE_REAL32>
-			(sample.getTrimMaxes(), 1);
-	curveU = getDataArray<FloatArraySamplePtr, fpreal32, GT_STORE_REAL32>
-			(sample.getTrimU(), 1);
-	curveV = getDataArray<FloatArraySamplePtr, fpreal32, GT_STORE_REAL32>
-			(sample.getTrimV(), 1);
-	curveW = getDataArray<FloatArraySamplePtr, fpreal32, GT_STORE_INT32>
-			(sample.getTrimW(), 1);
+	loopCount = GABC_GTArrayExtract::get(sample.getTrimNumCurves());
+	curveCount = GABC_GTArrayExtract::get(sample.getTrimNumVertices());
+	curveOrders = GABC_GTArrayExtract::get(sample.getTrimOrders());
+	curveKnots = GABC_GTArrayExtract::get(sample.getTrimKnots());
+	curveMin = GABC_GTArrayExtract::get(sample.getTrimMins());
+	curveMax = GABC_GTArrayExtract::get(sample.getTrimMaxes());
+	curveU = GABC_GTArrayExtract::get(sample.getTrimU());
+	curveV = GABC_GTArrayExtract::get(sample.getTrimV());
+	curveW = GABC_GTArrayExtract::get(sample.getTrimW());
 	curveUVW = joinVector3Array(curveU, curveV, curveW);
 
 	GT_TrimNuCurves	*trims = new GT_TrimNuCurves(loopCount, curveCount,
@@ -740,8 +646,7 @@ buildCurves(const GABC_GEOPrim *abc,
     GT_DataArrayHandle	 counts;
     GT_PrimCurveMesh	*cmesh;
 
-    counts = getDataArray<Int32ArraySamplePtr, int32, GT_STORE_INT32>
-			(sample.getCurvesNumVertices(), 1);
+    counts = GABC_GTArrayExtract::get(sample.getCurvesNumVertices());
 
     GT_AttributeListHandle	vertex;
     GT_AttributeListHandle	uniform;
@@ -964,7 +869,7 @@ buildPointMesh(const Alembic::AbcGeom::IObject &object, ISampleSelector iss)
     PRIM_T			 prim(object, kWrapExisting);
     SCHEMA_T			&ss = prim.getSchema();
     Abc::IP3fArrayProperty	 abcP = ss.getPositionsProperty();
-    GT_DataArrayHandle		 P = convertArray(abcP.getValue(iss));
+    GT_DataArrayHandle		 P = GABC_GTArrayExtract::get(abcP.getValue(iss));
     GT_AttributeMapHandle	 pointMap(new GT_AttributeMap());
     GT_AttributeMapHandle	 uniformMap(new GT_AttributeMap());
     GT_DAIndexedString		*nameArray = new GT_DAIndexedString(1);
@@ -994,10 +899,8 @@ buildPolyMesh(const GABC_GEOPrim *abc,
     GT_DataArrayHandle		 indices;
     GT_PrimPolygonMesh		*pmesh;
 
-    counts = getDataArray<Int32ArraySamplePtr, int32, GT_STORE_INT32>
-			(sample.getFaceCounts(), 1);
-    indices = getDataArray<Int32ArraySamplePtr, int32, GT_STORE_INT32>
-			(sample.getFaceIndices(), 1);
+    counts = GABC_GTArrayExtract::get(sample.getFaceCounts());
+    indices = GABC_GTArrayExtract::get(sample.getFaceIndices());
 
     GT_AttributeListHandle	 point;
     GT_AttributeListHandle	 vertex;
@@ -1044,10 +947,8 @@ buildSubDMesh(const GABC_GEOPrim *abc,
     GT_DataArrayHandle		 indices;
     GT_PrimSubdivisionMesh	*pmesh;
 
-    counts = getDataArray<Int32ArraySamplePtr, int32, GT_STORE_INT32>
-			(sample.getFaceCounts(), 1);
-    indices = getDataArray<Int32ArraySamplePtr, int32, GT_STORE_INT32>
-			(sample.getFaceIndices(), 1);
+    counts = GABC_GTArrayExtract::get(sample.getFaceCounts());
+    indices = GABC_GTArrayExtract::get(sample.getFaceIndices());
 
     GT_AttributeListHandle	 point;
     GT_AttributeListHandle	 vertex;

@@ -22,7 +22,120 @@
 #include <GT/GT_DataArray.h>
 #include "GABC_GTUtil.h"
 
+/// GABC_GTArrayExtract takes a typed Alembic array and creates a GT data array.
+class GABC_GTArrayExtract
+{
+public:
+    // Types missing in TypedArraySample.h
+    typedef Alembic::Abc::TypedArraySample<Alembic::Abc::Box2sTPTraits> Box2sArraySample;
+    typedef boost::shared_ptr<Box2sArraySample>	  Box2sArraySamplePtr;
+    typedef Alembic::Abc::TypedArraySample<Alembic::Abc::Box2iTPTraits> Box2iArraySample;
+    typedef boost::shared_ptr<Box2iArraySample>	  Box2iArraySamplePtr;
+    typedef Alembic::Abc::TypedArraySample<Alembic::Abc::Box2fTPTraits> Box2fArraySample;
+    typedef boost::shared_ptr<Box2fArraySample>	  Box2fArraySamplePtr;
+    typedef Alembic::Abc::TypedArraySample<Alembic::Abc::Box2dTPTraits> Box2dArraySample;
+    typedef boost::shared_ptr<Box2dArraySample>	  Box2dArraySamplePtr;
+
+    static GT_DataArrayHandle get(const Alembic::Abc::BoolArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::UcharArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::CharArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::UInt16ArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::Int16ArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::UInt32ArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::Int32ArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::UInt64ArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::Int64ArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::HalfArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::FloatArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::DoubleArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::StringArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::WstringArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::V2sArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::V2iArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::V2fArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::V2dArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::V3sArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::V3iArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::V3fArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::V3dArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::P2sArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::P2iArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::P2fArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::P2dArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::P3sArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::P3iArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::P3fArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::P3dArraySamplePtr &);
+    static GT_DataArrayHandle get(const               Box2sArraySamplePtr &);
+    static GT_DataArrayHandle get(const               Box2iArraySamplePtr &);
+    static GT_DataArrayHandle get(const               Box2fArraySamplePtr &);
+    static GT_DataArrayHandle get(const               Box2dArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::Box3sArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::Box3iArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::Box3fArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::Box3dArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::M33fArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::M33dArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::M44fArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::M44dArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::QuatfArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::QuatdArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::C3hArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::C3fArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::C3cArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::C4hArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::C4fArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::C4cArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::N2fArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::N2dArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::N3fArraySamplePtr &);
+    static GT_DataArrayHandle get(const Alembic::Abc::N3dArraySamplePtr &);
+};
+
+
 /// Takes a TypedArraySamplePtr (i.e. V3fArraySamplePtr)
+/// There are existing specializations for
+///	- BoolArraySamplePtr
+///	- UcharArraySamplePtr
+///	- CharArraySamplePtr
+///	- UInt32ArraySamplePtr
+///	- Int32ArraySamplePtr
+///	- UInt64ArraySamplePtr
+///	- Int64ArraySamplePtr
+///	- HalfArraySamplePtr
+///	- FloatArraySamplePtr
+///	- DoubleArraySamplePtr
+///	- V2iArraySamplePtr
+///	- V2fArraySamplePtr
+///	- V2dArraySamplePtr
+///	- V3iArraySamplePtr
+///	- V3fArraySamplePtr
+///	- V3dArraySamplePtr
+///	- P2iArraySamplePtr
+///	- P2fArraySamplePtr
+///	- P2dArraySamplePtr
+///	- P3iArraySamplePtr
+///	- P3fArraySamplePtr
+///	- P3dArraySamplePtr
+///	- Box3iArraySamplePtr
+///	- Box3fArraySamplePtr
+///	- Box3dArraySamplePtr
+///	- M33fArraySamplePtr
+///	- M33dArraySamplePtr
+///	- M44fArraySamplePtr
+///	- M44dArraySamplePtr
+///	- QuatfArraySamplePtr
+///	- QuatdArraySamplePtr
+///	- C3hArraySamplePtr
+///	- C3fArraySamplePtr
+///	- C3cArraySamplePtr
+///	- C4hArraySamplePtr
+///	- C4fArraySamplePtr
+///	- C4cArraySamplePtr
+///	- N2fArraySamplePtr
+///	- N2dArraySamplePtr
+///	- N3fArraySamplePtr
+///	- N3dArraySamplePtr
 template <typename T, typename POD_T>
 class GABC_API GABC_GTNumericArray : public GT_DataArray
 {
