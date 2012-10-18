@@ -674,9 +674,7 @@ GABC_Util::getNodeType(const IObject &obj)
 {
     const ObjectHeader	&ohead = obj.getHeader();
     if (IXform::matches(ohead))
-    {
-	return isMayaLocator(obj) ? GABC_MAYA_LOCATOR : GABC_XFORM;
-    }
+	return GABC_XFORM;
     if (IPolyMesh::matches(ohead))
 	return GABC_POLYMESH;
     if (ISubD::matches(ohead))

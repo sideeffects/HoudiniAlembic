@@ -29,7 +29,6 @@ namespace
 	GABC_CURVES,		"Curves",
 	GABC_POINTS,		"Points",
 	GABC_NUPATCH,		"NuPatch",
-	GABC_MAYA_LOCATOR,	"MayaLocator",
 	GABC_LIGHT,		"Light",
 	GABC_MATERIAL,		"Material",
 	-1, NULL

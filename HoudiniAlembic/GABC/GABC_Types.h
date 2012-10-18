@@ -31,7 +31,6 @@ enum GABC_NodeType
     GABC_CURVES,
     GABC_POINTS,
     GABC_NUPATCH,
-    GABC_MAYA_LOCATOR,	// Transform masquerading as a Maya Locator
     GABC_LIGHT,		// Added in Alembic1.1
     GABC_MATERIAL,	// Added in Alembic1.1
 };

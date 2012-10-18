@@ -633,9 +633,8 @@ GABC_GEOPrim::getAlembicBounds(UT_BoundingBox &box, const IObject &obj,
 	case GABC_NUPATCH:
 	    abcBounds<INuPatch, INuPatchSchema>(obj, box, sample);
 	    break;
-	case GABC_MAYA_LOCATOR:
-	    // TODO: Get the locator position for the bounding box
 	case GABC_XFORM:
+	    // TODO: If locator, get the position for the bounding box
 	    // Nobody currently supports child bounds
 	    return false;
 	default:
