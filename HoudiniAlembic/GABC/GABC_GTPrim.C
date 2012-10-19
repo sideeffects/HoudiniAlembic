@@ -583,15 +583,6 @@ buildNuPatch(const GABC_GEOPrim *abc,
 
     if (ss.hasTrimCurve())
     {
-#if 0
-	if (!ss.trimCurveTopologyIsConstant())
-	{
-	    if (!ss.trimCurveTopologyIsHomogenous())
-		topology = kHeterogenousTopology;
-	    else if (topology != kHeterogenousTopology)
-		topology = kHomogenousTopology;
-	}
-#endif
 	GT_DataArrayHandle	loopCount;
 	GT_DataArrayHandle	curveCount;
 	GT_DataArrayHandle	curveOrders;
@@ -632,16 +623,6 @@ buildCurves(const GABC_GEOPrim *abc,
     ICurves			 curves(object, kWrapExisting);
     ICurvesSchema		&ss = curves.getSchema();
     ICurvesSchema::Sample	 sample = ss.getValue(selector);
-
-#if 0
-    topology = ss.getTopologyVariance();
-
-    // Work around bug in Alembic 1.0.5 that doesn't properly detect
-    // heterogenous topology.
-    if (topology == kHomogenousTopology &&
-	    !ss.getNumVerticesProperty().isConstant())
-	topology = kHeterogenousTopology;
-#endif
 
     GT_DataArrayHandle	 counts;
     GT_PrimCurveMesh	*cmesh;

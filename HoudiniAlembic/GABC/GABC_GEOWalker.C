@@ -79,18 +79,6 @@ namespace {
 	GABC_GEOWalker::TransformState	 myPop;
     };
 
-#if 0
-    void
-    updateTopology(GABC_GEOWalker &walk,
-		    Alembic::AbcGeom::MeshTopologyVariance top)
-    {
-	if (top == Alembic::AbcGeom::kHeterogenousTopology)
-	{
-	    walk.setNonConstantTopology();
-	}
-    }
-#endif
-
     static GA_AttributeOwner
     getGAOwner(Alembic::AbcGeom::GeometryScope scope)
     {
@@ -382,16 +370,6 @@ namespace {
 	    }
 	}
     }
-
-#if 0
-    template <typename T>
-    static void
-    setArrayAttribute(GABC_GEOWalker &walk,
-		    const char *name, GA_AttributeOwner owner,
-		    const T &array, exint alen)
-    {
-    }
-#endif
 
     /// Template argument @T is expected to be a
     ///  ITypedGeomParam<TRAITS>
@@ -802,20 +780,6 @@ namespace {
 	exint			nvertex = npoint;
 	exint			nprim = nvtx->size();
 
-#if 0
-	//fprintf(stderr, "Curves: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
-
-	// Due to a bug in Alembic 1.0.5, the topology variance for curves
-	// isn't correctly returned by the schema.  We have to do additional
-	// checks.
-	Alembic::AbcGeom::MeshTopologyVariance	top = cs.getTopologyVariance();
-	if (top == Alembic::AbcGeom::kHomogenousTopology &&
-		!cs.getNumVerticesProperty().isConstant())
-	{
-	    top = Alembic::AbcGeom::kHeterogenousTopology;
-	}
-#endif
-
 	GABC_AnimationType	atype = getAnimationType(walk, obj);
 	if (atype != GABC_ANIMATION_CONSTANT)
 	{
@@ -881,13 +845,6 @@ namespace {
 	const int			nvertex = 1;
 	const int			nprim = 1;
 
-#if 0
-	// IXform doesn't have getTopologyVariance()
-	//updateTopology(walk, loc.getTopologyVariance());
-	updateTopology(walk,
-		loc.isConstant() ? Alembic::AbcGeom::kConstantTopology
-				: Alembic::AbcGeom::kHomogenousTopology);
-#endif
 	GABC_AnimationType	atype = getAnimationType(walk, xform);
 	if (atype != GABC_ANIMATION_CONSTANT)
 	{
@@ -946,13 +903,6 @@ namespace {
 
 	//fprintf(stderr, "Points: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
 
-#if 0
-	// IPoints doesn't have getTopologyVariance()
-	//updateTopology(walk, ps.getTopologyVariance());
-	updateTopology(walk,
-		ps.isConstant() ? Alembic::AbcGeom::kConstantTopology
-				: Alembic::AbcGeom::kHomogenousTopology);
-#endif
 	GABC_AnimationType	atype = getAnimationType(walk, obj);
 	if (atype != GABC_ANIMATION_CONSTANT)
 	{

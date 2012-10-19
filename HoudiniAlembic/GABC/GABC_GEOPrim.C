@@ -499,101 +499,6 @@ namespace
 	typename SCHEMA_T::Sample	 sample = ss.getValue(iss);
 	assignBox(box, sample.getSelfBounds());
     }
-
-#if 0
-    template <typename ABC_T, typename SCHEMA_T>
-    static bool
-    abcIsConst(const IObject &obj)
-    {
-	ABC_T	prim(obj, Alembic::Abc::kWrapExisting);
-	return prim.getSchema().isConstant();
-    }
-
-    static bool
-    abcArbsAreAnimated(ICompoundProperty arb)
-    {
-	exint	narb = arb ? arb.getNumProperties() : 0;
-	for (exint i = 0; i < narb; ++i)
-	{
-	    if (!GABC_Util::isConstant(arb, i))
-		return true;
-	}
-	return false;
-    }
-
-    template <typename ABC_T, typename SCHEMA_T>
-    static GABC_GEOPrim::AnimationType
-    getAnimation(const IObject &obj)
-    {
-	ABC_T				 prim(obj, Alembic::Abc::kWrapExisting);
-	SCHEMA_T			&schema = prim.getSchema();
-	GABC_GEOPrim::AnimationType	 atype;
-	
-	switch (schema.getTopologyVariance())
-	{
-	    case Alembic::AbcGeom::kConstantTopology:
-		atype = GABC_GEOPrim::AnimationConstant;
-		if (abcArbsAreAnimated(schema.getArbGeomParams()))
-		    atype = GABC_GEOPrim::AnimationAttribute;
-		break;
-	    case Alembic::AbcGeom::kHomogenousTopology:
-		atype = GABC_GEOPrim::AnimationAttribute;
-		break;
-	    case Alembic::AbcGeom::kHeterogenousTopology:
-		atype = GABC_GEOPrim::AnimationTopology;
-		break;
-	}
-	return atype;
-    }
-
-    template <>
-    GABC_GEOPrim::AnimationType
-    getAnimation<IPoints, IPointsSchema>(const IObject &obj)
-    {
-	IPoints			 prim(obj, Alembic::Abc::kWrapExisting);
-	IPointsSchema		&schema = prim.getSchema();
-	if (!schema.isConstant())
-	    return GABC_GEOPrim::AnimationTopology;
-	if (abcArbsAreAnimated(schema.getArbGeomParams()))
-	    return GABC_GEOPrim::AnimationAttribute;
-	return GABC_GEOPrim::AnimationConstant;
-    }
-
-    template <>
-    GABC_GEOPrim::AnimationType
-    getAnimation<IXform, IXformSchema>(const IObject &obj)
-    {
-	IXform			 prim(obj, Alembic::Abc::kWrapExisting);
-	IXformSchema		&schema = prim.getSchema();
-	if (!schema.isConstant())
-	    return GABC_GEOPrim::AnimationTopology;
-	if (abcArbsAreAnimated(schema.getArbGeomParams()))
-	    return GABC_GEOPrim::AnimationAttribute;
-	return GABC_GEOPrim::AnimationConstant;
-    }
-
-
-    static GABC_GEOPrim::AnimationType
-    getLocatorAnimation(const IObject &obj)
-    {
-	IXform				prim(obj, Alembic::Abc::kWrapExisting);
-	Alembic::Abc::IScalarProperty	loc(prim.getProperties(), "locator");
-	return loc.isConstant() ? GABC_GEOPrim::AnimationConstant
-				: GABC_GEOPrim::AnimationAttribute;
-    }
-
-    static bool
-    abcCurvesChangingTopology(const IObject &obj)
-    {
-	// There's a bug in Alembic 1.0.5 which doesn't properly detect
-	// heterogenous topology.
-	ICurves		 curves(obj, Alembic::Abc::kWrapExisting);
-	ICurvesSchema	&schema = curves.getSchema();
-	if (!schema.getNumVerticesProperty().isConstant())
-	    return true;
-	return false;
-    }
-#endif
 }
 
 void
@@ -718,17 +623,6 @@ GABC_GEOPrim::getRenderingBounds(UT_BoundingBox &box) const
     }
     return true;
 }
-
-#if 0
-static void
-dump(const GT_TransformHandle &x, const char *msg)
-{
-    UT_WorkBuffer	tmp;
-    UT_AutoJSONWriter	w(tmp);
-    x->save(w);
-    fprintf(stderr, "%s: %s\n", msg, tmp.buffer());
-}
-#endif
 
 void
 GABC_GEOPrim::setGeoTransform(const GT_TransformHandle &x)

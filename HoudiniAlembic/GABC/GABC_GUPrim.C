@@ -82,10 +82,6 @@ GABC_GUPrim::registerMyself(GA_PrimitiveFactory *factory)
     if (theDef)
 	return;
 
-#if 0
-    fprintf(stderr, "sizeof(GABC_GUPrim)=%d\n", (int)sizeof(GABC_GUPrim));
-#endif
-
     theDef = factory->registerDefinition("AlembicRef", 
 			gu_newPrimABC,
 			GA_FAMILY_NONE);
@@ -236,14 +232,3 @@ GABC_GUPrim::intersectRay(const UT_Vector3 &org, const UT_Vector3 &dir,
     }
     return result;
 }
-
-#if 0
-// This is the usual DSO hook.
-extern "C" {
-void
-newGeometryPrim(GA_PrimitiveFactory *factory)
-{
-    GABC_GUPrim::registerMyself(factory);
-}
-}
-#endif
