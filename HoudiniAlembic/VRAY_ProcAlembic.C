@@ -51,9 +51,9 @@ namespace
     class vray_ProcAlembicPrim : public VRAY_Procedural
     {
     public:
-	vray_ProcAlembicPrim(const GABC_GEOPrim *prim)
+	vray_ProcAlembicPrim(const UT_Array<const GABC_GEOPrim *> &list)
+	    : myList(list)
 	{
-	    myPrim = const_cast<GABC_GEOPrim *>(prim);
 	}
 	virtual ~vray_ProcAlembicPrim()
 	{
@@ -62,25 +62,40 @@ namespace
 	virtual const char	*getClassName()
 				    { return "vray_ProcAlembicPrim"; }
 	virtual int	 initialize(const UT_BoundingBox *)
-				    { return myPrim != NULL; }
+				    { return myList.entries() > 0; }
 	virtual void	 getBoundingBox(UT_BoundingBox &box)
-				{ myPrim->getRenderingBounds(box); }
+			 {
+			     box.initBounds();
+			     for (exint i = 0; i < myList.entries(); ++i)
+			     {
+				 UT_BoundingBox	tbox;
+				 myList(i)->getRenderingBounds(tbox);
+				 box.enlargeBounds(tbox);
+			     }
+			 }
 	virtual void	 render()
 	{
-	    GT_PrimitiveHandle	gt = myPrim->gtPrimitive();
+	    exint		nsegs = myList.entries();
+	    UT_Array<GT_PrimitiveHandle>	gtlist(nsegs, nsegs);
+	    for (exint i = 0; i < nsegs; ++i)
+		gtlist(i) = myList(i)->gtPrimitive();
 	    openProceduralObject();
-		addProcedural(new VRAY_ProcGT(gt));
+		addProcedural(new VRAY_ProcGT(gtlist));
 	    closeObject();
-	    myPrim->clearGT();
+	    for (exint i = 0; i < nsegs; ++i)
+	    {
+		const_cast<GABC_GEOPrim *>(myList(i))->clearGT();
+	    }
 	}
     private:
-	GABC_GEOPrim	*myPrim;
+	UT_Array<const GABC_GEOPrim *>	myList;
     };
 };
 
 VRAY_ProcAlembic::VRAY_ProcAlembic()
     : myDetail(NULL)
     , myConstDetails()
+    , myNonAlembic(true)
 {
 }
 
@@ -202,16 +217,39 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
     }
     else
     {
-	void	*handle = queryObject(NULL);	// Get handle to this object
+	void	*handle = queryObject(NULL); // Get handle to this object
 	int	 nsamples = queryGeometrySamples(handle);
+	int	 velblur;
+	GA_Size	 nprims;
+
+	if (import("object:velocityblur", &velblur, 1))
+	{
+	    // If we have velocity blur, we force the number of samples to 1
+	    if (velblur)
+		nsamples = 1;
+	}
 
 	import("nonalembic", &ival, 1);
 	myNonAlembic = (ival != 0);
 
-	for (int i = 0; i < nsamples; ++i)
+	myConstDetails.append(const_cast<GU_Detail *>(queryGeometry(handle,0)));
+	referenceGeometry(myConstDetails(0));
+	nprims = myConstDetails(0)->getNumPrimitives();
+
+	for (int i = 1; i < nsamples; ++i)
 	{
-	    myConstDetails.append(const_cast<GU_Detail *>(queryGeometry(handle, i)));
-	    referenceGeometry(myConstDetails(i));
+	    const GU_Detail	*g = queryGeometry(handle, i);
+	    if (!g || g->getNumPrimitives() != nprims)
+	    {
+		VRAYerror("Mis-matched Alembic primitive counts "
+			"(%" SYS_PRId64 " vs %" SYS_PRId64 ")",
+			g->getNumPrimitives(), nprims);
+	    }
+	    else
+	    {
+		myConstDetails.append(const_cast<GU_Detail *>(g));
+		referenceGeometry(myConstDetails(i));
+	    }
 	}
     }
     return myDetail || myConstDetails.entries();
@@ -310,11 +348,16 @@ VRAY_ProcAlembic::render()
     const GA_PrimitiveTypeId	 abctype = GABC_GUPrim::theTypeId();
     bool			 warned = false;
     bool			 addgeo = false;
+    int				 nsegments;
 
-    if (myConstDetails.entries())
+    nsegments = myConstDetails.entries();
+    if (nsegments)
 	gdp = myConstDetails(0);
     else
+    {
+	nsegments = 1;
 	gdp = myDetail;
+    }
 
     if (!gdp->getNumPrimitives())
     {
@@ -322,16 +365,22 @@ VRAY_ProcAlembic::render()
     }
     else
     {
+	UT_Array<const GABC_GEOPrim *>	abclist(nsegments, nsegments);
+
 	for (GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
 	{
 	    const GEO_Primitive	*prim = gdp->getGEOPrimitive(*it);
 	    if (prim->getTypeId() == abctype)
 	    {
-		GT_PrimitiveHandle	 gt;
-		const GABC_GEOPrim	*abcprim;
-		abcprim = UTverify_cast<const GABC_GEOPrim *>(prim);
+		abclist(0) = UTverify_cast<const GABC_GEOPrim *>(prim);
+		for (int i = 1; i < nsegments; ++i)
+		{
+		    const GEO_Primitive	*seg;
+		    seg = myConstDetails(i)->primitives()(prim->getNum());
+		    abclist(i) = UTverify_cast<const GABC_GEOPrim *>(seg);
+		}
 		openProceduralObject();
-		    addProcedural(new vray_ProcAlembicPrim(abcprim));
+		    addProcedural(new vray_ProcAlembicPrim(abclist));
 		closeObject();
 		UT_INC_COUNTER(thePrimCount);
 	    }
