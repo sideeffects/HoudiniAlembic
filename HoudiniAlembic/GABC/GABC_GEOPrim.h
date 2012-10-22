@@ -159,6 +159,10 @@ public:
     ///
     /// Returns false if the bounds are invalid.
     bool	getRenderingBounds(UT_BoundingBox &box) const;
+    /// This method is implemented to assist with rendering.  When rendering
+    /// velocity based motion blur, the renderer needs to know the bounds on
+    /// the velocity to accurately compute a bounding box.
+    void	getVelocityRange(UT_Vector3 &vmin, UT_Vector3 &vmax) const;
 
     /// @{
     /// Though not strictly required (i.e. not pure virtual), these methods

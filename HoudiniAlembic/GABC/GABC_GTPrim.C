@@ -1074,6 +1074,70 @@ reuseMesh(const GABC_GEOPrim *abc,
     return srcprim;
 }
 
+
+template <typename PRIM_T, typename SCHEMA_T>
+static GT_DataArrayHandle
+getPrimVelocity(const IObject &obj, fpreal frame)
+{
+    PRIM_T			prim(obj, kWrapExisting);
+    SCHEMA_T			&ss = prim.getSchema();
+    Abc::IV3fArrayProperty	v = ss.getVelocitiesProperty();
+    ISampleSelector		iss(frame);
+
+    if (!v.valid())
+	return GT_DataArrayHandle();
+    return GABC_GTArrayExtract::get(v.getValue(iss));
+}
+
+void
+GABC_GEOPrim::getVelocityRange(UT_Vector3 &vmin, UT_Vector3 &vmax) const
+{
+    vmin = 0;
+    vmax = 0;
+    if (!myObject.valid())
+	return;
+    GT_DataArrayHandle	v;
+    theH5Lock.lock();
+    switch (GABC_Util::getNodeType(myObject))
+    {
+	case GABC_POLYMESH:
+	    v = getPrimVelocity<IPolyMesh, IPolyMeshSchema>(myObject, myFrame);
+	    break;
+	case GABC_SUBD:
+	    v = getPrimVelocity<ISubD, ISubDSchema>(myObject, myFrame);
+	    break;
+	case GABC_CURVES:
+	    v = getPrimVelocity<ICurves, ICurvesSchema>(myObject, myFrame);
+	    break;
+	case GABC_POINTS:
+	    v = getPrimVelocity<IPoints, IPointsSchema>(myObject, myFrame);
+	    break;
+	case GABC_NUPATCH:
+	    v = getPrimVelocity<INuPatch, INuPatchSchema>(myObject, myFrame);
+	    break;
+	default:
+	    break;
+    }
+    theH5Lock.unlock();
+    if (!v)
+	return;
+
+    fpreal	fmin[3], fmax[3];
+    for (int i = 0; i < 3; ++i)
+    {
+	if (i >= v->getTupleSize())
+	{
+	    fmin[i] = fmax[i] = 0;
+	}
+	else
+	{
+	    v->getRange(fmin[i], fmax[i], i);
+	}
+    }
+    vmin.assign(fmin[0], fmin[1], fmin[2]);
+    vmax.assign(fmax[0], fmax[1], fmax[2]);
+}
+
 void
 GABC_GEOPrim::clearGT()
 {
