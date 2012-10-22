@@ -39,6 +39,7 @@
 #include <GABC/GABC_GEOWalker.h>
 #include <GABC/GABC_GUPrim.h>
 #include <UT/UT_WorkArgs.h>
+#include <UT/UT_EnvControl.h>
 #include "VRAY_ProcGT.h"
 #include "VRAY_IO.h"
 
@@ -48,11 +49,40 @@ UT_COUNTER(thePrimCount, "Alembic Primitives");
 
 namespace
 {
+    static void
+    enlargeVelocityBox(UT_BoundingBox &box,
+	    const UT_Vector3 &vmin, const UT_Vector3 &vmax,
+	    fpreal preblur, fpreal postblur)
+    {
+	for (int i = 0; i < 3; ++i)
+	{
+	    // Each point is in the range:
+	    //	(P - preblur*v, P + postblur*v)
+	    // Thus, the minimum values of the bounding box are enlarged by
+	    // the maximum amount specified by:
+	    //	  vmin < 0 ?  vmin*postblur
+	    //	  vmax > 0 ? -vmax*preblur
+	    // The maximum values are enlarged by
+	    //	  vmin < 0 ? -vmin*preblur
+	    //	  vmax > 0 ?  vmax*postblur
+	    fpreal	dmin = 0, dmax = 0;
+	    dmin = SYSmin(dmin,  vmin(i)*postblur);
+	    dmin = SYSmin(dmin, -vmax(i)*preblur);
+	    dmax = SYSmax(dmax, -vmin(i)*preblur);
+	    dmax = SYSmax(dmax,  vmax(i)*postblur);
+	    box(i, 0) += dmin;
+	    box(i, 1) += dmax;
+	}
+    }
+
     class vray_ProcAlembicPrim : public VRAY_Procedural
     {
     public:
-	vray_ProcAlembicPrim(const UT_Array<const GABC_GEOPrim *> &list)
+	vray_ProcAlembicPrim(const UT_Array<const GABC_GEOPrim *> &list,
+		fpreal preblur, fpreal postblur)
 	    : myList(list)
+	    , myPreBlur(preblur)
+	    , myPostBlur(postblur)
 	{
 	}
 	virtual ~vray_ProcAlembicPrim()
@@ -70,6 +100,13 @@ namespace
 			     {
 				 UT_BoundingBox	tbox;
 				 myList(i)->getRenderingBounds(tbox);
+				 if (myPreBlur != 0 || myPostBlur != 0)
+				 {
+				     UT_Vector3	vmin, vmax;
+				     myList(i)->getVelocityRange(vmin, vmax);
+				     enlargeVelocityBox(tbox, vmin, vmax,
+					     myPreBlur, myPostBlur);
+				 }
 				 box.enlargeBounds(tbox);
 			     }
 			 }
@@ -89,12 +126,15 @@ namespace
 	}
     private:
 	UT_Array<const GABC_GEOPrim *>	myList;
+	fpreal				myPreBlur, myPostBlur;
     };
 };
 
 VRAY_ProcAlembic::VRAY_ProcAlembic()
     : myDetail(NULL)
     , myConstDetails()
+    , myPreBlur(0)
+    , myPostBlur(0)
     , myNonAlembic(true)
 {
 }
@@ -226,7 +266,22 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 	{
 	    // If we have velocity blur, we force the number of samples to 1
 	    if (velblur)
+	    {
+		fpreal	shutter[2];
+		fpreal	fps;
+		if (!import("global:fps", &fps, 1))
+		{
+		    fps = UT_EnvControl::getInt(ENV_HOUDINI_FPS);
+		}
+		if (!import("camera:shutter", shutter, 2))
+		{
+		    shutter[0] = 0;
+		    shutter[1] = 1;
+		}
+		myPreBlur = -shutter[0]/fps;
+		myPostBlur = shutter[1]/fps;
 		nsamples = 1;
+	    }
 	}
 
 	import("nonalembic", &ival, 1);
@@ -256,8 +311,7 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 }
 
 static fpreal
-findMaxAttributeValue(const GA_ROAttributeRef &attrib,
-			const GA_Range &range)
+findMaxAttributeValue(const GA_ROAttributeRef &attrib, const GA_Range &range)
 {
     GA_ROHandleF	h(attrib);
     fpreal		v = 0;
@@ -270,7 +324,29 @@ findMaxAttributeValue(const GA_ROAttributeRef &attrib,
 }
 
 static void
-getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic)
+findAttributeRange(const GA_ROAttributeRef &attrib, const GA_Range &range,
+	UT_Vector3 &min, UT_Vector3 &max)
+{
+    GA_ROHandleV3	h(attrib);
+    min = 0;
+    max = 0;
+    if (h.isValid())
+    {
+	for (GA_Iterator it(range); !it.atEnd(); ++it)
+	{
+	    UT_Vector3	v = h(*it);
+	    for (int i = 0; i < 3; ++i)
+	    {
+		min(i) = SYSmin(min(i), v(i));
+		max(i) = SYSmin(max(i), v(i));
+	    }
+	}
+    }
+}
+
+static void
+getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic,
+	fpreal preblur, fpreal postblur)
 {
     // When computing bounding boxes of Alembic primitives, we need to enlarge
     // the bounds of curve/point meshes by the width attribute for proper
@@ -290,6 +366,14 @@ getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic)
 	a = gdp.findFloatTuple(GA_ATTRIB_POINT, "pscale");
 	width = SYSmax(width, findMaxAttributeValue(a, pts));
 	box.enlargeBounds(0, width);
+
+	if (preblur != 0|| postblur != 0)
+	{
+	    UT_Vector3	vmin, vmax;
+	    GA_ROAttributeRef	v = gdp.findFloatTuple(GA_ATTRIB_POINT, "v", 3);
+	    findAttributeRange(v, pts, vmin, vmax);
+	    enlargeVelocityBox(box, vmin, vmax, preblur, postblur);
+	}
     }
     else
     {
@@ -309,6 +393,12 @@ getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic)
 	    UT_BoundingBox	 primbox;
 	    abcprim = UTverify_cast<const GABC_GEOPrim *>(prim);
 	    abcprim->getRenderingBounds(primbox);
+	    if (preblur != 0|| postblur != 0)
+	    {
+		UT_Vector3	vmin, vmax;
+		abcprim->getVelocityRange(vmin, vmax);
+		enlargeVelocityBox(primbox, vmin, vmax, preblur, postblur);
+	    }
 	    box.enlargeBounds(primbox);
 	}
 	if (dogeo && nonalembic)
@@ -317,7 +407,15 @@ getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic)
 	    // bounds.
 	    UT_BoundingBox	gbox;
 	    gdp.getBBox(&gbox);
-	    box.enlargeBounds(box);
+	    if (preblur != 0|| postblur != 0)
+	    {
+		UT_Vector3		vmin, vmax;
+		GA_ROAttributeRef	v = gdp.findFloatTuple(
+						    GA_ATTRIB_POINT, "v", 3);
+		findAttributeRange(v, gdp.getPointRange(), vmin, vmax);
+		enlargeVelocityBox(gbox, vmin, vmax, preblur, postblur);
+	    }
+	    box.enlargeBounds(gbox);
 	}
     }
 }
@@ -327,7 +425,7 @@ VRAY_ProcAlembic::getBoundingBox(UT_BoundingBox &box)
 {
     if (myDetail)
     {
-	getBoxForRendering(*myDetail, box, myNonAlembic);
+	getBoxForRendering(*myDetail, box, myNonAlembic, myPreBlur, myPostBlur);
     }
     else
     {
@@ -335,7 +433,8 @@ VRAY_ProcAlembic::getBoundingBox(UT_BoundingBox &box)
 	for (int i = 0; i < myConstDetails.entries(); ++i)
 	{
 	    UT_BoundingBox	tbox;
-	    getBoxForRendering(*myConstDetails(i), tbox, myNonAlembic);
+	    getBoxForRendering(*myConstDetails(i), tbox,
+		    myNonAlembic, myPreBlur, myPostBlur);
 	    box.enlargeBounds(tbox);
 	}
     }
@@ -380,7 +479,7 @@ VRAY_ProcAlembic::render()
 		    abclist(i) = UTverify_cast<const GABC_GEOPrim *>(seg);
 		}
 		openProceduralObject();
-		    addProcedural(new vray_ProcAlembicPrim(abclist));
+		    addProcedural(new vray_ProcAlembicPrim(abclist, myPreBlur, myPostBlur));
 		closeObject();
 		UT_INC_COUNTER(thePrimCount);
 	    }

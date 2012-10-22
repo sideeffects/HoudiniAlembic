@@ -60,6 +60,7 @@ public:
 private:
     GU_Detail			*myDetail;
     UT_Array<GU_Detail *>	 myConstDetails;
+    fpreal			 myPreBlur, myPostBlur;
     bool			 myNonAlembic;
 };
 
