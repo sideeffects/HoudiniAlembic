@@ -286,9 +286,9 @@ public:
     };
 
     const GABC_GEOPrim	*abc(const GA_Primitive *p) const
-			    { return static_cast<const GABC_GEOPrim *>(p); }
+			    { return UTverify_cast<const GABC_GEOPrim *>(p); }
     GABC_GEOPrim		*abc(GA_Primitive *p) const
-			    { return static_cast<GABC_GEOPrim *>(p); }
+			    { return UTverify_cast<GABC_GEOPrim *>(p); }
 
     virtual int		getEntries() const	{ return geo_ENTRIES; }
     virtual const char	*getKeyword(int i) const
@@ -692,7 +692,7 @@ GABC_GEOPrim::copyPrimitive(const GEO_Primitive *psrc, GEO_Point **)
     if (psrc == this)
 	return;
 
-    const GABC_GEOPrim	 *src = static_cast<const GABC_GEOPrim *>(psrc);
+    const GABC_GEOPrim	 *src = UTverify_cast<const GABC_GEOPrim *>(psrc);
 
     copyMemberDataFrom(*src);
 }
@@ -710,7 +710,7 @@ GABC_GEOPrim::copy(int preserve_shared_pts) const
 
     if (clone)
     {
-	GABC_GEOPrim	*abc = static_cast<GABC_GEOPrim *>(clone);
+	GABC_GEOPrim	*abc = UTverify_cast<GABC_GEOPrim *>(clone);
 	abc->copyMemberDataFrom(*this);
     }
     return clone;
@@ -720,7 +720,7 @@ void
 GABC_GEOPrim::copyUnwiredForMerge(const GA_Primitive *psrc, const GA_MergeMap &)
 {
     UT_ASSERT( psrc != this );
-    const GABC_GEOPrim	*src = static_cast<const GABC_GEOPrim *>(psrc);
+    const GABC_GEOPrim	*src = UTverify_cast<const GABC_GEOPrim *>(psrc);
 
     copyMemberDataFrom(*src);
 }

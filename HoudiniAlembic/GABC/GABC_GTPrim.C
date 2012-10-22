@@ -1272,14 +1272,27 @@ GABC_GEOPrim::gtPrimitive() const
     // Enable this to turn on pre-convexing for faster viewport rendering
     if (result && myAnimation != GABC_ANIMATION_TOPOLOGY)
     {
-	if (result &&
-		(result->getPrimitiveType() == GT_PRIM_POLYGON_MESH ||
-		 result->getPrimitiveType() == GT_PRIM_SUBDIVISION_MESH))
+	if (result)
 	{
-	    const GT_PrimPolygonMesh	*pmesh;
-	    pmesh = static_cast<const GT_PrimPolygonMesh *>(result.get());
-	    myGTPrimitive = pmesh->convex(3);
-	    result = myGTPrimitive;
+	    switch (result->getPrimitiveType())
+	    {
+		case GT_PRIM_POLYGON_MESH:
+		{
+		    const GT_PrimPolygonMesh	*pmesh;
+		    pmesh = UTverify_cast<const GT_PrimPolygonMesh *>(result.get());
+		    myGTPrimitive = pmesh->convex(3);
+		    result = myGTPrimitive;
+		}
+		break;
+		case GT_PRIM_SUBDIVISION_MESH:
+		{
+		    const GT_PrimSubdivisionMesh	*pmesh;
+		    pmesh = UTverify_cast<const GT_PrimSubdivisionMesh *>(result.get());
+		    myGTPrimitive = pmesh->convex(3);
+		    result = myGTPrimitive;
+		}
+		break;
+	    }
 	}
     }
 #endif

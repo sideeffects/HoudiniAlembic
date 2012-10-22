@@ -72,7 +72,7 @@ GABC_GUPrim::~GABC_GUPrim()
 static GA_Primitive *
 gu_newPrimABC(GA_Detail &detail, GA_Offset offset)
 {
-    return new GABC_GUPrim(static_cast<GU_Detail *>(&detail), offset);
+    return new GABC_GUPrim(UTverify_cast<GU_Detail *>(&detail), offset);
 }
 
 void
