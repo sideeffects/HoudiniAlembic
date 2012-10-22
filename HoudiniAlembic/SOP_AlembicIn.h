@@ -89,6 +89,7 @@ private:
 	bool				myIncludeXform;
 	bool				myBuildLocator;
 	GABC_GEOWalker::GroupMode	myGroupMode;
+	GABC_GEOWalker::AFilter		myAnimationFilter;
 	UT_String			myPathAttribute;
 	UT_String			myFilenameAttribute;
 	GEO_ABCNameMapPtr		myNameMapPtr;

@@ -53,6 +53,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myIncludeXform(true)
     , myBuildLocator(false)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
+    , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
     , myPathAttribute()
     , myFilenameAttribute()
     , myNameMapPtr()
@@ -67,6 +68,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myIncludeXform(true)
     , myBuildLocator(false)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
+    , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
     , myPathAttribute()
     , myFilenameAttribute()
     , myNameMapPtr()
@@ -83,6 +85,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myIncludeXform = src.myIncludeXform;
     myBuildLocator = src.myBuildLocator;
     myGroupMode = src.myGroupMode;
+    myAnimationFilter = src.myAnimationFilter;
     myNameMapPtr = src.myNameMapPtr;
     myObjectPath.harden(src.myObjectPath);
     myObjectPattern.harden(src.myObjectPattern);
@@ -102,6 +105,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
     if (myFilename != src.myFilename)
 	return true;
     if (myGroupMode != src.myGroupMode)
+	return true;
+    if (myAnimationFilter != src.myAnimationFilter)
 	return true;
     if (myObjectPath != src.myObjectPath ||
 	    src.myObjectPattern != src.myObjectPattern)
@@ -153,6 +158,7 @@ static PRM_Name prm_fpsName("fps", "Frames Per Second");
 static PRM_Name prm_objectPathName("objectPath", "Object Path");
 static PRM_Name prm_includeXformName("includeXform", "Include Xform");
 static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
+static PRM_Name prm_animationfilter("animationfilter", "Animating Objects");
 static PRM_Name prm_addfile("addfile", "Add Filename Attribute");
 static PRM_Name prm_fileattrib("fileattrib", "Filename Attribute");
 static PRM_Name prm_addpath("addpath", "Add Path Attribute");
@@ -180,6 +186,15 @@ static PRM_Name groupNameOptions[] = {
 };
 static PRM_Default prm_groupnamesDefault(1, "shape");
 static PRM_ChoiceList menu_groupnames(PRM_CHOICELIST_SINGLE, groupNameOptions);
+
+static PRM_Name animationFilterOptions[] = {
+    PRM_Name("all",		"Include All Primitives"),
+    PRM_Name("static",		"Only Static Primitives"),
+    PRM_Name("animating",	"Only Animating Primitives"),
+    PRM_Name( 0 )
+};
+static PRM_Default prm_animationfilterDefault(1, "all");
+static PRM_ChoiceList menu_animationfilter(PRM_CHOICELIST_SINGLE, animationFilterOptions);
 
 static PRM_Name prm_loadLocatorName("loadLocator", "Load Maya Locator");
 static PRM_Name prm_objecPatternName("objectPattern", "Object Pattern");
@@ -226,6 +241,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_TOGGLE, 1, &prm_loadLocatorName, &prm_loadLocatorDefault),
     PRM_Template(PRM_ORD, 1, &prm_groupnames, &prm_groupnamesDefault,
 	    &menu_groupnames),
+    PRM_Template(PRM_ORD, 1, &prm_animationfilter, &prm_animationfilterDefault,
+	    &menu_animationfilter),
     PRM_Template(PRM_TOGGLE, 1, &prm_addpath, PRMzeroDefaults),
     PRM_Template(PRM_STRING, 1, &prm_pathattrib, &prm_pathattribDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_addfile, PRMzeroDefaults),
@@ -309,6 +326,15 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     else
 	parms.myGroupMode = GABC_GEOWalker::ABC_GROUP_SHAPE_NODE;
 
+    evalString(sval, "animationfilter", 0, now);
+    if (sval == "all")
+	parms.myAnimationFilter = GABC_GEOWalker::ABC_AFILTER_ALL;
+    else if (sval == "static")
+	parms.myAnimationFilter = GABC_GEOWalker::ABC_AFILTER_STATIC;
+    else
+	parms.myAnimationFilter = GABC_GEOWalker::ABC_AFILTER_ANIMATING;
+
+
     int	nmapSize = evalInt("remapAttributes", 0, now);
     parms.myNameMapPtr = new GEO_ABCNameMap();
     for (int i = 1; i <= nmapSize; ++i)
@@ -353,7 +379,17 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	walk.setAttributePattern((GA_AttributeOwner)i,
 		parms.myAttributePatterns[i]);
     }
-    walk.setFrame(evalFloat("frame", 0, now), evalFloat("fps", 0, now));
+    if (parms.myAnimationFilter == GABC_GEOWalker::ABC_AFILTER_STATIC)
+    {
+	// When we only load static geometry, we don't need to evaluate the
+	// frame number.  And thus, we aren't marked as time-dependent on the
+	// first cook.
+	walk.setFrame(1, 24);
+    }
+    else
+    {
+	walk.setFrame(evalFloat("frame", 0, now), evalFloat("fps", 0, now));
+    }
     walk.setIncludeXform(parms.myIncludeXform);
     walk.setBuildLocator(parms.myBuildLocator);
     walk.setBuildAbcPrim(parms.myBuildAbcPrim);
@@ -376,6 +412,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	}
     }
     walk.setGroupMode(parms.myGroupMode);
+    walk.setAnimationFilter(parms.myAnimationFilter);
 
     bool	needwalk = true;
     if (!myTopologyConstant)

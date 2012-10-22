@@ -43,6 +43,14 @@ public:
 	ABC_GROUP_XFORM_NODE,	// Name geometry group based on transform node
     };
 
+    /// Animating object filter
+    enum AFilter
+    {
+	ABC_AFILTER_STATIC	= 0x01,		// Only static geometry
+	ABC_AFILTER_ANIMATING	= 0x02,		// Only animating
+	ABC_AFILTER_ALL		= (ABC_AFILTER_STATIC|ABC_AFILTER_ANIMATING),
+    };
+
     GABC_GEOWalker(GU_Detail &gdp);
     virtual ~GABC_GEOWalker();
 
@@ -120,6 +128,7 @@ public:
     void	setBuildAbcPrim(bool v)		{ myBuildAbcPrim = v; }
     void	setPathAttributeChanged(bool v)	{ myPathAttributeChanged = v; }
     void	setGroupMode(GroupMode m)	{ myGroupMode = m; }
+    void	setAnimationFilter(AFilter m)	{ myAnimationFilter = m; }
     /// @}
 
     /// @{
@@ -180,6 +189,7 @@ public:
 
 protected:
     bool		matchObjectName(const IObject &obj) const;
+    bool		matchAnimationFilter(const IObject &obj) const;
 
 private:
     GU_Detail		&myDetail;
@@ -193,6 +203,7 @@ private:
 
     fpreal	myTime;			// Alembic evaluation time
     GroupMode	myGroupMode;		// How to construct group names
+    AFilter	myAnimationFilter;	// Animating object filter
     bool	myIncludeXform;		// Transform geometry
     bool	myBuildLocator;		// Whether to build Maya locators
     bool	myPathAttributeChanged;	// Whether path attrib name changed

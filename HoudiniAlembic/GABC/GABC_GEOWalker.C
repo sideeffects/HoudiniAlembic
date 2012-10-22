@@ -1022,6 +1022,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
     , myVertexCount(0)
     , myPrimitiveCount(0)
     , myGroupMode(ABC_GROUP_SHAPE_NODE)
+    , myAnimationFilter(ABC_AFILTER_ALL)
     , myIncludeXform(true)
     , myReusePrimitives(false)
     , myBuildLocator(true)
@@ -1115,7 +1116,7 @@ GABC_GEOWalker::process(const IObject &obj)
 	IXform	xform(obj, Alembic::Abc::kWrapExisting);
 	if (buildLocator() && GABC_Util::isMayaLocator(xform))
 	{
-	    if (matchObjectName(obj))
+	    if (matchObjectName(obj) && matchAnimationFilter(obj))
 	    {
 		if (buildAbcPrim())
 		    makeAbcPrim(*this, obj, ohead);
@@ -1134,7 +1135,7 @@ GABC_GEOWalker::process(const IObject &obj)
 	return true;
     }
 
-    if (matchObjectName(obj))
+    if (matchObjectName(obj) && matchAnimationFilter(obj))
     {
 	if (buildAbcPrim())
 	    makeAbcPrim(*this, obj, ohead);
@@ -1184,6 +1185,33 @@ GABC_GEOWalker::matchObjectName(const IObject &obj) const
 {
     UT_String	path(obj.getFullName());
     return path.multiMatch(objectPattern());
+}
+
+bool
+GABC_GEOWalker::matchAnimationFilter(const IObject &obj) const
+{
+    if (myAnimationFilter == ABC_AFILTER_ALL)
+    {
+	return true;
+    }
+
+    bool	animating = !transformConstant();
+    if (!animating)
+    {
+	// If none of the transforms in are animating, maybe the object itself
+	// is animating.
+	animating = GABC_Util::getAnimationType(filename(), obj, false);
+    }
+    switch (myAnimationFilter)
+    {
+	case ABC_AFILTER_STATIC:
+	    return !animating;
+	case ABC_AFILTER_ANIMATING:
+	    return animating;
+	case ABC_AFILTER_ALL:
+	    UT_ASSERT(0 && "Impossible code!");
+    }
+    return true;
 }
 
 bool
