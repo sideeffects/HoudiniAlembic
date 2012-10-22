@@ -575,7 +575,7 @@ namespace
     };
 
     typedef UT_SharedPtr<ArchiveCacheEntry>		ArchiveCacheEntryPtr;
-    typedef std::map<std::string, ArchiveCacheEntryPtr> ArchiveCache;
+    typedef UT_Map<std::string, ArchiveCacheEntryPtr>	ArchiveCache;
 
     //-*************************************************************************
 
