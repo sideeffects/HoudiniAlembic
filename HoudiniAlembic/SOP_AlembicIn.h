@@ -82,6 +82,7 @@ private:
 	Parms	&operator=(const Parms &src);
 
 	bool				myBuildAbcPrim;
+	bool				myBuildAbcXform;
 	std::string			myFilename;
 	UT_String			myObjectPath;
 	UT_String			myObjectPattern;

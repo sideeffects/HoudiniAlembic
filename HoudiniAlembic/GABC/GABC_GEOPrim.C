@@ -540,8 +540,8 @@ GABC_GEOPrim::getAlembicBounds(UT_BoundingBox &box, const IObject &obj,
 	    break;
 	case GABC_XFORM:
 	    // TODO: If locator, get the position for the bounding box
-	    // Nobody currently supports child bounds
-	    return false;
+	    box.initBounds(0, 0, 0);
+	    break;
 	default:
 	    return false;	// Unsupported object type
     }
@@ -750,7 +750,7 @@ namespace
     static const char *
     intrinsicTypeName(const GABC_GEOPrim *p)
     {
-	return GABCnodeType(p->nodeType());
+	return GABCnodeType(p->abcNodeType());
     }
     static const char *
     intrinsicFilename(const GABC_GEOPrim *p)
@@ -939,7 +939,7 @@ GABC_GEOPrim::getABCWorldTransform(UT_Matrix4D &xform) const
     bool		 is_const = false;
     bool		 inheritsXform;
     IObject		 obj = myObject;
-    if (nodeType() != GABC_XFORM)
+    if (abcNodeType() != GABC_XFORM)
 	obj = obj.getParent();
     if (GABC_Util::getWorldTransform(myFilename, obj.getFullName(),
 			myFrame, xform, is_const, inheritsXform))
@@ -962,7 +962,7 @@ GABC_GEOPrim::getABCLocalTransform(UT_Matrix4D &xform) const
     bool		 is_const = false;
     bool		 inheritsXform;
     IObject		 obj = myObject;
-    if (nodeType() != GABC_XFORM)
+    if (abcNodeType() != GABC_XFORM)
 	obj = obj.getParent();
     if (GABC_Util::getLocalTransform(myFilename, obj.getFullName(),
 			myFrame, xform, is_const, inheritsXform))

@@ -78,6 +78,7 @@ public:
     bool	reusePrimitives() const	{ return myReusePrimitives; }
     bool	buildLocator() const	{ return myBuildLocator; }
     bool	buildAbcPrim() const	{ return myBuildAbcPrim; }
+    bool	buildAbcXform() const	{ return myBuildAbcXform; }
     bool	pathAttributeChanged() const { return myPathAttributeChanged; }
     /// @}
 
@@ -126,6 +127,7 @@ public:
     void	setReusePrimitives(bool v);
     void	setBuildLocator(bool v)		{ myBuildLocator = v; }
     void	setBuildAbcPrim(bool v)		{ myBuildAbcPrim = v; }
+    void	setBuildAbcXform(bool v)	{ myBuildAbcXform = v; }
     void	setPathAttributeChanged(bool v)	{ myPathAttributeChanged = v; }
     void	setGroupMode(GroupMode m)	{ myGroupMode = m; }
     void	setAnimationFilter(AFilter m)	{ myAnimationFilter = m; }
@@ -208,6 +210,7 @@ private:
     bool	myBuildLocator;		// Whether to build Maya locators
     bool	myPathAttributeChanged;	// Whether path attrib name changed
     bool	myBuildAbcPrim;		// Build Alembic primitives
+    bool	myBuildAbcXform;	// Build primitives for transforms
 
     exint	myPointCount;		// Points added
     exint	myVertexCount;		// Vertices added

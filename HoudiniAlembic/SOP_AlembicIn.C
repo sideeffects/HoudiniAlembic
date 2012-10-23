@@ -47,6 +47,7 @@
 
 SOP_AlembicIn2::Parms::Parms()
     : myBuildAbcPrim(true)
+    , myBuildAbcXform(false)
     , myFilename()
     , myObjectPath()
     , myObjectPattern()
@@ -62,6 +63,7 @@ SOP_AlembicIn2::Parms::Parms()
 
 SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     : myBuildAbcPrim(true)
+    , myBuildAbcXform(false)
     , myFilename()
     , myObjectPath()
     , myObjectPattern()
@@ -82,6 +84,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
 {
     myFilename = src.myFilename;
     myBuildAbcPrim = src.myBuildAbcPrim;
+    myBuildAbcXform = src.myBuildAbcXform;
     myIncludeXform = src.myIncludeXform;
     myBuildLocator = src.myBuildLocator;
     myGroupMode = src.myGroupMode;
@@ -101,6 +104,8 @@ bool
 SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 {
     if (myBuildAbcPrim != src.myBuildAbcPrim)
+	return true;
+    if (myBuildAbcXform != src.myBuildAbcXform)
 	return true;
     if (myFilename != src.myFilename)
 	return true;
@@ -166,6 +171,7 @@ static PRM_Name prm_pathattrib("pathattrib", "Path Attribute");
 static PRM_Name prm_remapAttribName("remapAttributes", "Remap Attributes");
 
 static PRM_Name prm_abcprimName("abcprim", "Create Alembic Primitives");
+static PRM_Name prm_abcxformName("abcxform", "Create Primitives For Transform Nodes");
 
 static PRM_Default prm_frameDefault(1, "$FF");
 static PRM_Default prm_objectPathDefault(0, "");
@@ -238,6 +244,7 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_DETAIL],
 		&prm_starDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_includeXformName, &prm_includeXformDefault),
+    PRM_Template(PRM_TOGGLE, 1, &prm_abcxformName, PRMzeroDefaults),
     PRM_Template(PRM_TOGGLE, 1, &prm_loadLocatorName, &prm_loadLocatorDefault),
     PRM_Template(PRM_ORD, 1, &prm_groupnames, &prm_groupnamesDefault,
 	    &menu_groupnames),
@@ -288,6 +295,7 @@ SOP_AlembicIn2::disableParms()
     unsigned	changed = 0;
     changed += enableParm("pathattrib", evalInt("addpath", 0, 0));
     changed += enableParm("fileattrib", evalInt("addfile", 0, 0));
+    changed += enableParm("abcxform", evalInt("abcprim", 0, 0));
 
     return changed;
 }
@@ -303,6 +311,8 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     parms.myFilename = (const char *)sval;
 
     parms.myBuildAbcPrim = evalInt("abcprim", 0, now) != 0;
+    parms.myBuildAbcXform = parms.myBuildAbcPrim
+				&& (evalInt("abcxform", 0, now) != 0);
     parms.myBuildLocator = evalInt("loadLocator", 0, now) != 0;
 
     evalString(parms.myObjectPath, "objectPath", 0, now);
@@ -393,6 +403,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     walk.setIncludeXform(parms.myIncludeXform);
     walk.setBuildLocator(parms.myBuildLocator);
     walk.setBuildAbcPrim(parms.myBuildAbcPrim);
+    walk.setBuildAbcXform(parms.myBuildAbcXform);
     walk.setNameMapPtr(parms.myNameMapPtr);
     if (myLastParms.myPathAttribute != parms.myPathAttribute)
     {

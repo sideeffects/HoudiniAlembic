@@ -630,10 +630,7 @@ namespace {
 	    case GABC_CURVES:
 	    case GABC_POINTS:
 	    case GABC_NUPATCH:
-		break;
 	    case GABC_XFORM:
-		// The only primitives built from xforms are maya locators
-		UT_ASSERT(GABC_Util::isMayaLocator(obj));
 		break;
 	    default:
 		return;	// Invalid primitive type
@@ -1027,6 +1024,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
     , myReusePrimitives(false)
     , myBuildLocator(true)
     , myBuildAbcPrim(false)
+    , myBuildAbcXform(false)
     , myPathAttributeChanged(true)
     , myIsConstant(true)
     , myTopologyConstant(true)
@@ -1128,6 +1126,8 @@ GABC_GEOWalker::process(const IObject &obj)
 	else if (includeXform())
 	{
 	    PushTransform	push(*this, xform);
+	    if (buildAbcPrim() && buildAbcXform())
+		makeAbcPrim(*this, obj, ohead);
 	    walkChildren(obj);
 	    return false;	// Since we walked manually, return false
 	}

@@ -195,7 +195,7 @@ public:
     const std::string	&getFilename() const	{ return myFilename; }
     const std::string	&getObjectPath() const	{ return myObjectPath; }
     const IObject	&getObject() const	{ return myObject; }
-    GABC_NodeType	 nodeType() const
+    GABC_NodeType	 abcNodeType() const
 			    { return GABC_Util::getNodeType(myObject); }
     GABC_AnimationType	 animation() const	{ return myAnimation; }
     bool		 isConstant() const

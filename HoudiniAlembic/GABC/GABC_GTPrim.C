@@ -22,12 +22,14 @@
 #include <Alembic/AbcGeom/All.h>
 #include <UT/UT_StackBuffer.h>
 #include <UT/UT_Lock.h>
+#include <UT/UT_DoubleLock.h>
 #include <GT/GT_Refine.h>
 #include <GT/GT_GEOPrimitive.h>
 #include <GT/GT_Util.h>
 #include <GT/GT_DANumeric.h>
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_DAIndexedString.h>
+#include <GT/GT_PrimitiveBuilder.h>
 #include <GT/GT_PrimSubdivisionMesh.h>
 #include <GT/GT_PrimPolygonMesh.h>
 #include <GT/GT_PrimCurveMesh.h>
@@ -41,7 +43,39 @@ using namespace Alembic::AbcGeom;
 
 namespace
 {
-    static UT_Lock	theH5Lock;
+    static UT_Lock			theH5Lock;
+    static GT_DataArrayHandle		theXformCounts;
+    static GT_AttributeListHandle	theXformVertex;
+    static GT_AttributeListHandle	theXformUniform;
+
+    static GT_PrimitiveHandle
+    getTransformReticle()
+    {
+	UT_DoubleLock<GT_AttributeListHandle>	lock(theH5Lock, theXformVertex);
+
+	if (!lock.getValue())
+	{
+	    GT_Real32Array	*P = new GT_Real32Array(6, 3, GT_TYPE_POINT);
+	    GT_Real32Array	*Cd = new GT_Real32Array(3, 3, GT_TYPE_COLOR);
+	    memset(P->data(), 0, sizeof(fpreal32)*18);
+	    memset(Cd->data(), 0, sizeof(fpreal32)*9);
+	    P->data()[3] = 1;
+	    P->data()[10] = 1;
+	    P->data()[17] = 1;
+	    Cd->data()[0] = 1;
+	    Cd->data()[4] = 1;
+	    Cd->data()[8] = 1;
+
+	    theXformCounts.reset(new GT_IntConstant(3, 2));
+	    theXformUniform = GT_AttributeList::createAttributeList("Cd", Cd, NULL);
+	    lock.setValue(GT_AttributeList::createAttributeList("P", P, NULL));
+	}
+	GT_Primitive	*p = new GT_PrimCurveMesh(GT_BASIS_LINEAR,
+				theXformCounts, lock.getValue(),
+				theXformUniform, GT_AttributeListHandle(),
+				false);
+	return GT_PrimitiveHandle(p);
+    }
 }
 
 void
@@ -704,6 +738,16 @@ initializeM44d(Imath::M44d &d, const UT_Matrix4D &s)
 }
 
 static GT_PrimitiveHandle
+reuseTransform(const GABC_GEOPrim *abc,
+	    const GT_PrimitiveHandle &srcprim,
+	    const Alembic::AbcGeom::IObject &object,
+	    ISampleSelector selector)
+{
+    return srcprim;
+}
+
+
+static GT_PrimitiveHandle
 reuseLocator(const GABC_GEOPrim *abc,
 	    const GT_PrimitiveHandle &srcprim,
 	    const Alembic::AbcGeom::IObject &object,
@@ -764,6 +808,14 @@ reuseLocator(const GABC_GEOPrim *abc,
     UT_VERIFY(replaceDataArray(detail, "parentScale", parentScale));
 
     return srcprim;
+}
+
+static GT_PrimitiveHandle
+buildTransform(const GABC_GEOPrim *abc,
+	    const Alembic::AbcGeom::IObject &object,
+	    ISampleSelector selector)
+{
+    return getTransformReticle();
 }
 
 static GT_PrimitiveHandle
@@ -1197,63 +1249,73 @@ GABC_GEOPrim::gtPrimitive() const
     else if (myAnimation == GABC_ANIMATION_ATTRIBUTE && myGTPrimitive)
     {
 	// Update attributes
-	if (ISubD::matches(myObject.getHeader()))
+	switch (abcNodeType())
 	{
-	    result = reuseMesh<ISubD, ISubDSchema>(this, myGTPrimitive,
+	    case GABC_SUBD:
+		result = reuseMesh<ISubD, ISubDSchema>(this, myGTPrimitive,
 			myObject, sampleSelector);
-	}
-	else if (IPolyMesh::matches(myObject.getHeader()))
-	{
-	    result = reuseMesh<IPolyMesh, IPolyMeshSchema>(this, myGTPrimitive,
+		break;
+	    case GABC_POLYMESH:
+		result = reuseMesh<IPolyMesh, IPolyMeshSchema>(this,
+			myGTPrimitive, myObject, sampleSelector);
+		break;
+	    case GABC_CURVES:
+		result = reuseCurves(this, myGTPrimitive,
 			myObject, sampleSelector);
-	}
-	else if (ICurves::matches(myObject.getHeader()))
-	{
-	    result = reuseCurves(this, myGTPrimitive, myObject, sampleSelector);
-	}
-	else if (IPoints::matches(myObject.getHeader()))
-	{
-	    result = reusePoints(this, myGTPrimitive, myObject, sampleSelector);
-	}
-	else if (INuPatch::matches(myObject.getHeader()))
-	{
-	    result = reuseNuPatch(this, myGTPrimitive, myObject, sampleSelector);
-	}
-	else if (GABC_Util::isMayaLocator(myObject))
-	{
-	    result = reuseLocator(this, myGTPrimitive, myObject, sampleSelector);
+		break;
+	    case GABC_POINTS:
+		result = reusePoints(this, myGTPrimitive,
+			myObject, sampleSelector);
+		break;
+	    case GABC_NUPATCH:
+		result = reuseNuPatch(this, myGTPrimitive,
+			myObject, sampleSelector);
+		break;
+	    case GABC_XFORM:
+		if (GABC_Util::isMayaLocator(myObject))
+		{
+		    result = reuseLocator(this, myGTPrimitive, myObject,
+			    sampleSelector);
+		}
+		else
+		{
+		    result = reuseTransform(this, myGTPrimitive, myObject,
+			    sampleSelector);
+		}
+		break;
+	    default:
+		break;
 	}
     }
     else
     {
 	UT_ASSERT(myAnimation == GABC_ANIMATION_TOPOLOGY || !myGTPrimitive);
-	if (ISubD::matches(myObject.getHeader()))
+	switch (abcNodeType())
 	{
-	    result = buildSubDMesh(this, myObject, sampleSelector);
-	}
-	else if (IPolyMesh::matches(myObject.getHeader()))
-	{
-	    result = buildPolyMesh(this, myObject, sampleSelector);
-	}
-	else if (ICurves::matches(myObject.getHeader()))
-	{
-	    result = buildCurves(this, myObject, sampleSelector);
-	}
-	else if (IPoints::matches(myObject.getHeader()))
-	{
-	    result = buildPoints(this, myObject, sampleSelector);
-	}
-	else if (INuPatch::matches(myObject.getHeader()))
-	{
-	    result = buildNuPatch(this, myObject, sampleSelector);
-	}
-	else if (GABC_Util::isMayaLocator(myObject))
-	{
-	    result = buildLocator(this, myObject, sampleSelector);
-	}
-	else
-	{
-	    fprintf(stderr, "Unsupported primitive: %s\n", myObject.getName().c_str());
+	    case GABC_SUBD:
+		result = buildSubDMesh(this, myObject, sampleSelector);
+		break;
+	    case GABC_POLYMESH:
+		result = buildPolyMesh(this, myObject, sampleSelector);
+		break;
+	    case GABC_CURVES:
+		result = buildCurves(this, myObject, sampleSelector);
+		break;
+	    case GABC_POINTS:
+		result = buildPoints(this, myObject, sampleSelector);
+		break;
+	    case GABC_NUPATCH:
+		result = buildNuPatch(this, myObject, sampleSelector);
+		break;
+	    case GABC_XFORM:
+		if (GABC_Util::isMayaLocator(myObject))
+		    result = buildLocator(this, myObject, sampleSelector);
+		else
+		    result = buildTransform(this, myObject, sampleSelector);
+		break;
+	    default:
+		fprintf(stderr, "Unsupported primitive: %s\n",
+			myObject.getName().c_str());
 	}
     }
     // Transform the result
