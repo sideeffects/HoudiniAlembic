@@ -672,6 +672,8 @@ GABC_Util::Walker::walkChildren(const IObject &node)
 GABC_NodeType
 GABC_Util::getNodeType(const IObject &obj)
 {
+    if (!obj)
+	return GABC_UNKNOWN;
     const ObjectHeader	&ohead = obj.getHeader();
     if (IXform::matches(ohead))
 	return GABC_XFORM;

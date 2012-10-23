@@ -195,6 +195,8 @@ public:
     const std::string	&getFilename() const	{ return myFilename; }
     const std::string	&getObjectPath() const	{ return myObjectPath; }
     const IObject	&getObject() const	{ return myObject; }
+    GABC_NodeType	 nodeType() const
+			    { return GABC_Util::getNodeType(myObject); }
     GABC_AnimationType	 animation() const	{ return myAnimation; }
     bool		 isConstant() const
 			 {
@@ -213,7 +215,14 @@ public:
     void		 setFilename(const std::string &filename);
     void		 setObjectPath(const std::string &path);
     void		 setFrame(fpreal f);
+    /// Returns the Alembic world-space transform combined with the Houdini
+    /// geometry transform
     bool		 getTransform(UT_Matrix4D &xform) const;
+    /// Returns the Alembic world-space transform
+    bool		 getABCWorldTransform(UT_Matrix4D &xform) const;
+    /// Returns the Alembic local-space transform
+    bool		 getABCLocalTransform(UT_Matrix4D &xform) const;
+    /// Returns the Houdini geometry transform
     bool		 useTransform() const
 			    { return myUseTransform; }
     void		 setUseTransform(bool v);
@@ -248,7 +257,6 @@ protected:
     GA_DECLARE_INTRINSICS();
 
 private:
-    bool	getABCTransform(UT_Matrix4D &xform) const;
     void	resolveObject();
     void	updateAnimation();
 

@@ -737,7 +737,10 @@ enum
     geo_INTRINSIC_ABC_PATH,	// Object path
     geo_INTRINSIC_ABC_FRAME,	// Time
     geo_INTRINSIC_ABC_ANIMATION,	// Animation type
-    geo_INTRINSIC_ABC_TRANSFORM,	// Transform
+    geo_INTRINSIC_ABC_LOCALXFORM,	// Alembic file local transform
+    geo_INTRINSIC_ABC_WORLDXFORM,	// Alembic file world transform
+    geo_INTRINSIC_ABC_GEOXFORM,		// Geometry transform
+    geo_INTRINSIC_ABC_TRANSFORM,	// Combined transform
 
     geo_NUM_INTRINISCS
 };
@@ -747,8 +750,7 @@ namespace
     static const char *
     intrinsicTypeName(const GABC_GEOPrim *p)
     {
-	GABC_NodeType	type = GABC_Util::getNodeType(p->getObject());
-	return GABCnodeType(type);
+	return GABCnodeType(p->nodeType());
     }
     static const char *
     intrinsicFilename(const GABC_GEOPrim *p)
@@ -763,23 +765,41 @@ namespace
     static const char *
     intrinsicAnimation(const GABC_GEOPrim *p)
     {
-	switch (p->animation())
-	{
-	    case GABC_ANIMATION_CONSTANT:
-		return "constant";
-	    case GABC_ANIMATION_TRANSFORM:
-		return "transform";
-	    case GABC_ANIMATION_ATTRIBUTE:
-		return "attribute";
-	    case GABC_ANIMATION_TOPOLOGY:
-		return "topology";
-	    default:
-		break;
-	}
-	return "<unknown>";
+	return GABCanimationType(p->animation());
+    }
+    static GA_Size
+    intrinsicGeoTransform(const GABC_GEOPrim *p, fpreal64 *v, GA_Size size)
+    {
+	size = SYSmin(size, 16);
+	UT_Matrix4D	xform;
+	const GT_TransformHandle	gx = p->geoTransform();
+	gx->getMatrix(xform, 0);
+	for (int i = 0; i < size; ++i)
+	    v[i] = xform.data()[i];
+	return size;
+    }
+    static GA_Size
+    intrinsicLocalTransform(const GABC_GEOPrim *p, fpreal64 *v, GA_Size size)
+    {
+	size = SYSmin(size, 16);
+	UT_Matrix4D	xform;
+	p->getABCLocalTransform(xform);
+	for (int i = 0; i < size; ++i)
+	    v[i] = xform.data()[i];
+	return size;
     }
     static GA_Size
     intrinsicWorldTransform(const GABC_GEOPrim *p, fpreal64 *v, GA_Size size)
+    {
+	size = SYSmin(size, 16);
+	UT_Matrix4D	xform;
+	p->getABCWorldTransform(xform);
+	for (int i = 0; i < size; ++i)
+	    v[i] = xform.data()[i];
+	return size;
+    }
+    static GA_Size
+    intrinsicTransform(const GABC_GEOPrim *p, fpreal64 *v, GA_Size size)
     {
 	size = SYSmin(size, 16);
 	UT_Matrix4D	xform;
@@ -787,6 +807,18 @@ namespace
 	for (int i = 0; i < size; ++i)
 	    v[i] = xform.data()[i];
 	return size;
+    }
+    static GA_Size
+    intrinsicSetGeoTransform(GABC_GEOPrim *p, const fpreal64 *v, GA_Size size)
+    {
+	if (size < 16)
+	    return 0;
+	UT_Matrix4D	m(v[0], v[1], v[2], v[3],
+			  v[4], v[5], v[6], v[7],
+			  v[8], v[9], v[10], v[11],
+			  v[12], v[13], v[14], v[15]);
+	p->setGeoTransform(GT_TransformHandle(new GT_Transform(&m, 1)));
+	return 16;
     }
 }
 
@@ -802,8 +834,17 @@ GA_START_INTRINSIC_DEF(GABC_GEOPrim, geo_NUM_INTRINISCS)
 	    "abcframe", getFrame)
     GA_INTRINSIC_S(GABC_GEOPrim, geo_INTRINSIC_ABC_ANIMATION,
 	    "abcanimation", intrinsicAnimation)
-    GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_TRANSFORM,
+    GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_LOCALXFORM,
+	    "abclocaltransform", 16, intrinsicLocalTransform)
+    GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_WORLDXFORM,
 	    "abcworldtransform", 16, intrinsicWorldTransform)
+    GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_GEOXFORM,
+	    "abcgeotransform", 16, intrinsicGeoTransform)
+    GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_TRANSFORM,
+	    "transform", 16, intrinsicTransform)
+
+    GA_INTRINSIC_SET_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_GEOXFORM,
+		    intrinsicSetGeoTransform);
 
 GA_END_INTRINSIC_DEF(GABC_GEOPrim, GEO_Primitive)
 
@@ -871,7 +912,7 @@ GABC_GEOPrim::setFrame(fpreal f)
 bool
 GABC_GEOPrim::getTransform(UT_Matrix4D &xform) const
 {
-    if (!getABCTransform(xform))
+    if (!getABCWorldTransform(xform))
 	return false;
     if (!myGeoTransform->isIdentity())
     {
@@ -884,28 +925,51 @@ GABC_GEOPrim::getTransform(UT_Matrix4D &xform) const
 
 
 bool
-GABC_GEOPrim::getABCTransform(UT_Matrix4D &xform) const
+GABC_GEOPrim::getABCWorldTransform(UT_Matrix4D &xform) const
 {
     if (myGTTransform)
     {
 	myGTTransform->getMatrix(xform, 0);
 	return true;
     }
-    //fprintf(stderr, "%p Non const: %s (%p)\n", this, myObjectPath.c_str(), myGTTransform.get());
     if (!myObject.valid())
 	return false;
 
     UT_AutoLock		 lock(theH5Lock);
     bool		 is_const = false;
     bool		 inheritsXform;
-    IObject		 parent = const_cast<IObject &>(myObject).getParent();
-    if (GABC_Util::getWorldTransform(myFilename, parent.getFullName(),
+    IObject		 obj = myObject;
+    if (nodeType() != GABC_XFORM)
+	obj = obj.getParent();
+    if (GABC_Util::getWorldTransform(myFilename, obj.getFullName(),
 			myFrame, xform, is_const, inheritsXform))
     {
 	if (is_const)
 	    myGTTransform = GT_TransformHandle(new GT_Transform(&xform, 1));
 	return true;
     }
+    xform.identity();
+    return false;
+}
+
+bool
+GABC_GEOPrim::getABCLocalTransform(UT_Matrix4D &xform) const
+{
+    if (!myObject.valid())
+	return false;
+
+    UT_AutoLock		 lock(theH5Lock);
+    bool		 is_const = false;
+    bool		 inheritsXform;
+    IObject		 obj = myObject;
+    if (nodeType() != GABC_XFORM)
+	obj = obj.getParent();
+    if (GABC_Util::getLocalTransform(myFilename, obj.getFullName(),
+			myFrame, xform, is_const, inheritsXform))
+    {
+	return true;
+    }
+    xform.identity();
     return false;
 }
 

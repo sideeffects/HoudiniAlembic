@@ -123,7 +123,7 @@ GABC_GUPrim::doConvert(const GU_ConvertParms &parms) const
 
     UT_PtrArray<GU_Detail *>	details;
     GT_RefineParms		rparms;
-    //rparms.setConvertParticlePrim(true);
+
     GT_Util::makeGEO(details, prim, &rparms);
     if (!details.entries())
 	return false;
