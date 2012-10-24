@@ -142,10 +142,10 @@ GABC_GEOPrim::copyMemberDataFrom(const GABC_GEOPrim &src)
     myGeoTransform = src.myGeoTransform;
     myAttributeNameMap = src.myAttributeNameMap;
     myUseTransform = src.myUseTransform;
+    myAnimation = src.myAnimation;
 
     // Data which shouldn't be copied
     myBox.makeInvalid();
-    myAnimation = GABC_ANIMATION_TOPOLOGY;
     myGTPrimitive = GT_PrimitiveHandle();
 
     if (!myUseTransform)
