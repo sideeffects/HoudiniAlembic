@@ -101,16 +101,7 @@ private:
     Parms	myLastParms;
     bool	myTopologyConstant;
     bool	myEntireSceneIsConstant;
-
-#if 0
-    UT_String	myFileObjectCache;
-    UT_String	myLastPathAttribute;
-    UT_String	myLastObjectPattern;
-    UT_String	myLastAttributePatterns[GA_ATTRIB_OWNER_N];
-    size_t	myConstantPointCount;		// Point count for constant topology
-    size_t	myConstantPrimitiveCount;	// Primitive count for constant topology
-#endif
-    int		myConstantUniqueId;	// Detail unique id for constant topology
+    int		myConstantUniqueId;	// Detail id for constant topology
 };
 
 #endif
