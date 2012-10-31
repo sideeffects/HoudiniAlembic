@@ -107,9 +107,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
         currentNode = parentNode.createNode('geo', run_init_scripts=False)
         subd = (typeName == 'subdmesh')
         _setupAbcGeo(currentNode, subd)
-        if not buildSubnet:
-            # Wire the geometry into the first subnetIndirectInput
-            currentNode.setInput(0, parentNode.indirectInputs()[0])
+        currentNode.setInput(0, parentNode.indirectInputs()[0])
         if subd:
             for parmname in ('vm_rendersubd', 'ri_rendersubd'):
                 subdParm = currentNode.parm(parmname)
@@ -145,10 +143,13 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
     elif typeName == 'xform' or typeName == 'cxform':
         if buildSubnet:
             currentNode = parentNode.createNode('alembicxform')
+            currentNode.setInput(0, parentNode.indirectInputs()[0])
         else:
             currentNode = rootNode.createNode('alembicxform')
             if currentNode.parent() == parentNode.parent():
                 currentNode.setInput(0, parentNode)
+            else:
+                currentNode.setInput(0, parentNode.indirectInputs()[0])
         _setNodeName(currentNode, name)
         
         if channelRefs:
@@ -170,8 +171,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
                         entry, pathList, buildSubnet, abcProc, channelRefs)
     elif typeName == 'camera':
         currentNode = parentNode.createNode('cam')
-        if not buildSubnet:
-            currentNode.setInput(0, parentNode.indirectInputs()[0])
+        currentNode.setInput(0, parentNode.indirectInputs()[0])
         _setNodeName(currentNode, name)
         currentNode.addSpareParmTuple(rootNode.parm('fileName').parmTemplate(),
                 ('Alembic',), True)
