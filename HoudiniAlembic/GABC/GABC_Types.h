@@ -33,6 +33,8 @@ enum GABC_NodeType
     GABC_NUPATCH,
     GABC_LIGHT,		// Added in Alembic1.1
     GABC_MATERIAL,	// Added in Alembic1.1
+
+    GABC_NUM_NODE_TYPES	// Sentinal
 };
 
 enum GABC_AnimationType
