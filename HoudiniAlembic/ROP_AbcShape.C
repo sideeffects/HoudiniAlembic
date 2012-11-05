@@ -211,6 +211,15 @@ ROP_AbcShape::writeSample(ROP_AbcError &err, ROP_AbcContext &context)
     GU_DetailHandle	 gdh = mySop->getCookedGeoHandle(context.context());
     GU_DetailHandleAutoReadLock	 gdl(gdh);
     const GU_Detail		*gdp = gdl.getGdp();
+
+    if (!gdp)
+    {
+	UT_WorkBuffer	fullpath;
+	mySop->getFullPath(fullpath);
+	err.error("Error cooking %s at time %g",
+		fullpath.buffer(), context.time());
+	return false;
+    }
     UT_Array<GT_PrimitiveHandle>	prims;
 
     partitionGeometry(prims, gdp, context.partitionAttribute());
