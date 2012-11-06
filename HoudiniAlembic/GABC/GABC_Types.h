@@ -19,6 +19,7 @@
 #define __GABC_Types__
 
 #include "GABC_API.h"
+#include <UT/UT_IntrusivePtr.h>
 
 enum GABC_NodeType
 {
@@ -45,6 +46,9 @@ enum GABC_AnimationType
     GABC_ANIMATION_ATTRIBUTE,	// Attribute or transform are animated
     GABC_ANIMATION_TOPOLOGY,	// Topology is animated (changes)
 };
+
+class GEO_ABCNameMap;
+typedef UT_IntrusivePtr<GEO_ABCNameMap>   GEO_ABCNameMapPtr;
 
 GABC_API extern const char	*GABCnodeType(GABC_NodeType type);
 GABC_API extern GABC_NodeType	 GABCnodeType(const char *type);

@@ -20,6 +20,7 @@
 
 #include "GABC_API.h"
 #include "GABC_Util.h"
+#include "GABC_ABCNameMap.h"
 #include <Alembic/AbcGeom/Foundation.h>		// For topology enum
 
 #include <GT/GT_Handles.h>
@@ -29,72 +30,7 @@
 #include <GA/GA_Defines.h>
 #include <UT/UT_Array.h>
 
-
 class GEO_Detail;
-class GEO_ABCNameMap;
-
-typedef UT_IntrusivePtr<GEO_ABCNameMap>   GEO_ABCNameMapPtr;
-
-/// Map to translate from Alembic attribute names to Houdini names
-class GABC_API GEO_ABCNameMap
-{
-public:
-    typedef UT_SymbolMap<UT_String>	MapType;
-
-     GEO_ABCNameMap();
-    ~GEO_ABCNameMap();
-
-    /// Number of entries in the map
-    exint	entries() const	{ return myMap.entries(); }
-
-    /// Compare equality
-    bool	isEqual(const GEO_ABCNameMap &src) const;
-
-    /// @{
-    /// Equality operator
-    bool	operator==(const GEO_ABCNameMap &src) const
-		    { return isEqual(src); }
-    bool	operator!=(const GEO_ABCNameMap &src) const
-		    { return !isEqual(src); }
-    /// @}
-
-    /// Get the name mapping.  If the name isn't mapped, the original name
-    /// will be returned.
-    /// If the attribute should be skipped, a NULL pointer will be returned.
-    const char	*getName(const char *name) const;
-    const char	*getName(const std::string &name) const
-			{ return getName(name.c_str()); }
-
-    /// Add a translation from the abcName to the houdini attribute name
-    void		 addMap(const char *abcName, const char *houdiniName);
-
-    /// Avoid adding an attribute of the given name.  This is done by 
-    void		 skip(const char *abcName)
-			    { addMap(abcName, NULL); }
-
-    /// @{
-    /// JSON I/O
-    bool	save(UT_JSONWriter &w) const;
-    static bool	load(GEO_ABCNameMapPtr &map, UT_JSONParser &p);
-    /// @}
-
-    /// @{
-    /// Reference counting
-    void	incref()	{ myRefCount.add(1); }
-    void	decref()
-		{
-		    if (!myRefCount.add(-1))
-			delete this;
-		}
-    /// @}
-
-private:
-    MapType		myMap;
-    SYS_AtomicInt32	myRefCount;
-};
-
-static inline void intrusive_ptr_add_ref(GEO_ABCNameMap *m) { m->incref(); }
-static inline void intrusive_ptr_release(GEO_ABCNameMap *m) { m->decref(); }
 
 class GABC_API GABC_GEOPrim : public GEO_Primitive
 {

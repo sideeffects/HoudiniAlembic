@@ -18,6 +18,7 @@
 #include "GABC_GTPrim.h"
 #include "GABC_GEOPrim.h"
 #include "GABC_Util.h"
+#include "GABC_ABCNameMap.h"
 #include "GABC_GTArray.h"
 #include <Alembic/AbcGeom/All.h>
 #include <UT/UT_StackBuffer.h>

@@ -17,6 +17,7 @@
 
 #include "GABC_GEOPrim.h"
 #include "GABC_Util.h"
+#include "GABC_ABCNameMap.h"
 #include <GA/GA_IntrinsicMacros.h>
 #include <GA/GA_PrimitiveJSON.h>
 #include <GT/GT_Transform.h>
@@ -28,94 +29,16 @@
 
 #include <Alembic/AbcGeom/All.h>
 
-static UT_Lock	theH5Lock;
-
-GEO_ABCNameMap::GEO_ABCNameMap()
-    : myMap()
-    , myRefCount(0)
+namespace
 {
-}
+    static UT_Lock	theH5Lock;
 
-GEO_ABCNameMap::~GEO_ABCNameMap()
-{
-}
-
-bool
-GEO_ABCNameMap::isEqual(const GEO_ABCNameMap &src) const
-{
-    if (myMap.entries() != src.myMap.entries())
-	return false;
-    for (MapType::iterator it = myMap.begin(); !it.atEnd(); ++it)
+    static bool
+    saveEmptyNameMap(UT_JSONWriter &w)
     {
-	UT_String	item;
-	if (!src.myMap.findSymbol(it.name(), &item))
-	    return false;
-	if (item != it.thing())
-	    return false;
+	bool	ok = w.jsonBeginMap();
+	return ok && w.jsonEndMap();
     }
-    return true;
-}
-
-const char *
-GEO_ABCNameMap::getName(const char *name) const
-{
-    UT_String	entry;
-    if (myMap.findSymbol(name, &entry))
-    {
-	return (const char *)entry;
-    }
-    return name;
-}
-
-void
-GEO_ABCNameMap::addMap(const char *abcName, const char *houdiniName)
-{
-    UT_String	&entry = myMap[abcName];
-    if (UTisstring(houdiniName))
-	entry.harden(houdiniName);	// Replace existing entry
-    else
-	entry = NULL;
-}
-
-static bool
-saveEmptyNameMap(UT_JSONWriter &w)
-{
-    bool	ok = w.jsonBeginMap();
-    return ok && w.jsonEndMap();
-}
-
-bool
-GEO_ABCNameMap::save(UT_JSONWriter &w) const
-{
-    bool	ok = true;
-    ok = w.jsonBeginMap();
-    for (MapType::iterator it = myMap.begin(); ok && !it.atEnd(); ++it)
-    {
-	const UT_String &str = it.thing();
-	const char	*value = str.isstring() ? (const char *)str : "";
-	ok = ok && w.jsonKeyToken(it.name());
-	ok = ok && w.jsonStringToken(value);
-    }
-    return ok && w.jsonEndMap();
-}
-
-bool
-GEO_ABCNameMap::load(GEO_ABCNameMapPtr &result, UT_JSONParser &p)
-{
-    GEO_ABCNameMap	*map = new GEO_ABCNameMap();
-    bool		 ok = true;
-    UT_WorkBuffer	 key, value;
-    for (UT_JSONParser::iterator it = p.beginMap(); ok && !it.atEnd(); ++it)
-    {
-	ok = ok && it.getKey(key);
-	ok = ok && p.parseString(value);
-	map->addMap(key.buffer(), value.buffer());
-    }
-    if (!ok || map->entries() == 0)
-	delete map;
-    else
-	result = map;
-    return ok;
 }
 
 GABC_GEOPrim::GABC_GEOPrim(GEO_Detail *d, GA_Offset offset)
