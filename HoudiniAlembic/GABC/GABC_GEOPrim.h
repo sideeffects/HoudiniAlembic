@@ -20,7 +20,7 @@
 
 #include "GABC_API.h"
 #include "GABC_Util.h"
-#include "GABC_ABCNameMap.h"
+#include "GABC_NameMap.h"
 #include <Alembic/AbcGeom/Foundation.h>		// For topology enum
 
 #include <GT/GT_Handles.h>
@@ -179,8 +179,8 @@ public:
 
     /// @{
     /// Attribute name mappings
-    void			setAttributeNameMap(const GEO_ABCNameMapPtr &m);
-    const GEO_ABCNameMapPtr	&attributeNameMap() const
+    void			setAttributeNameMap(const GABC_NameMapPtr &m);
+    const GABC_NameMapPtr	&attributeNameMap() const
 				    { return myAttributeNameMap; }
     /// @}
 
@@ -203,7 +203,7 @@ private:
     IObject		myObject;
     fpreal		myFrame;
     GT_TransformHandle	myGeoTransform;
-    GEO_ABCNameMapPtr	myAttributeNameMap;
+    GABC_NameMapPtr	myAttributeNameMap;
 
     mutable UT_BoundingBox	myBox;
     mutable GT_TransformHandle	myGTTransform;

@@ -70,7 +70,7 @@ public:
 				    { return myObjectPattern; }
     const UT_String		*attributePatterns() const
 				    { return myAttributePatterns; }
-    const GEO_ABCNameMapPtr	&nameMapPtr() const
+    const GABC_NameMapPtr	&nameMapPtr() const
 				    { return myNameMapPtr; }
 
     fpreal	time() const		{ return myTime; }
@@ -118,7 +118,7 @@ public:
 		    { setAttributePattern(GA_ATTRIB_PRIMITIVE, s); }
     void	setDetailPattern(const char *s)
 		    { setAttributePattern(GA_ATTRIB_DETAIL, s); }
-    void	setNameMapPtr(const GEO_ABCNameMapPtr &ptr)
+    void	setNameMapPtr(const GABC_NameMapPtr &ptr)
 		    { myNameMapPtr = ptr; }
     void	setPathAttribute(const GA_RWAttributeRef &a);
     void	setTime(fpreal t)		{ myTime = t; }
@@ -197,7 +197,7 @@ private:
     GU_Detail		&myDetail;
     UT_String		 myObjectPattern;
     UT_String		 myAttributePatterns[GA_ATTRIB_OWNER_N];
-    GEO_ABCNameMapPtr	 myNameMapPtr;	// Attribute map for ABC primitives
+    GABC_NameMapPtr	 myNameMapPtr;	// Attribute map for ABC primitives
     GA_RWHandleS	 myPathAttribute;
     UT_Interrupt	*myBoss;
     int			 myBossId;

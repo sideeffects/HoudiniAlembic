@@ -16,7 +16,7 @@
  */
 
 #include "GABC_GEOWalker.h"
-#include "GABC_ABCNameMap.h"
+#include "GABC_NameMap.h"
 #include "GABC_GUPrim.h"
 #include <UT/UT_Interrupt.h>
 #include <Alembic/AbcGeom/All.h>

@@ -18,7 +18,7 @@
 #include "GABC_GTPrim.h"
 #include "GABC_GEOPrim.h"
 #include "GABC_Util.h"
-#include "GABC_ABCNameMap.h"
+#include "GABC_NameMap.h"
 #include "GABC_GTArray.h"
 #include <Alembic/AbcGeom/All.h>
 #include <UT/UT_StackBuffer.h>
@@ -325,7 +325,7 @@ fillAttributeList(GT_AttributeList &alist,
 
     UT_StackBuffer<bool>	filled(alist.entries());
     memset(filled, 0, sizeof(bool)*alist.entries());
-    const GEO_ABCNameMapPtr	&namemap = prim->attributeNameMap();
+    const GABC_NameMapPtr	&namemap = prim->attributeNameMap();
     SET_ARRAY(P, "P")
     SET_ARRAY(v, "v")
     SET_ARRAY(ids, "id")
@@ -415,7 +415,7 @@ reuseAttributeList(const GABC_GEOPrim *prim,
     if (!src || !src->entries())
 	return src;
 
-    const GEO_ABCNameMapPtr	&namemap = prim->attributeNameMap();
+    const GABC_NameMapPtr	&namemap = prim->attributeNameMap();
     REPLACE_ARRAY(P, "P")
     REPLACE_ARRAY(v, "v")
     REPLACE_ARRAY(ids, "id")
@@ -479,7 +479,7 @@ initializeAttributeList(const GABC_GEOPrim *prim,
 	IFloatGeomParam *widths = NULL)
 {
     GT_AttributeMap		*map = new GT_AttributeMap();
-    const GEO_ABCNameMapPtr	&namemap = prim->attributeNameMap();
+    const GABC_NameMapPtr	&namemap = prim->attributeNameMap();
 
     if (P && *P)
 	map->add("P", true);

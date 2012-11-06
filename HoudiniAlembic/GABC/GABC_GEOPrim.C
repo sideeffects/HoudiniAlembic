@@ -17,7 +17,7 @@
 
 #include "GABC_GEOPrim.h"
 #include "GABC_Util.h"
-#include "GABC_ABCNameMap.h"
+#include "GABC_NameMap.h"
 #include <GA/GA_IntrinsicMacros.h>
 #include <GA/GA_PrimitiveJSON.h>
 #include <GT/GT_Transform.h>
@@ -292,7 +292,7 @@ public:
 		    fpreal64		fval;
 		    bool		bval;
 		    GT_TransformHandle	xform;
-		    GEO_ABCNameMapPtr	amap;
+		    GABC_NameMapPtr	amap;
 		    switch (i)
 		    {
 			case geo_FILENAME:
@@ -321,7 +321,7 @@ public:
 			    abc(pr)->setUseTransform(bval);
 			    return true;
 			case geo_ATTRIBUTEMAP:
-			    if (!GEO_ABCNameMap::load(amap, p))
+			    if (!GABC_NameMap::load(amap, p))
 				return false;
 			    abc(pr)->setAttributeNameMap(amap);
 			    return true;
@@ -563,7 +563,7 @@ GABC_GEOPrim::setGeoTransform(const GT_TransformHandle &x)
 }
 
 void
-GABC_GEOPrim::setAttributeNameMap(const GEO_ABCNameMapPtr &m)
+GABC_GEOPrim::setAttributeNameMap(const GABC_NameMapPtr &m)
 {
     myAttributeNameMap = m;
     myGTPrimitive = GT_PrimitiveHandle();	// Rebuild primitive

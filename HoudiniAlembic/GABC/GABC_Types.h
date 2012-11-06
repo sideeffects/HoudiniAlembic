@@ -47,8 +47,8 @@ enum GABC_AnimationType
     GABC_ANIMATION_TOPOLOGY,	// Topology is animated (changes)
 };
 
-class GEO_ABCNameMap;
-typedef UT_IntrusivePtr<GEO_ABCNameMap>   GEO_ABCNameMapPtr;
+class GABC_NameMap;
+typedef UT_IntrusivePtr<GABC_NameMap>   GABC_NameMapPtr;
 
 GABC_API extern const char	*GABCnodeType(GABC_NodeType type);
 GABC_API extern GABC_NodeType	 GABCnodeType(const char *type);

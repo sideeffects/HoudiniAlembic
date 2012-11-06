@@ -10,13 +10,13 @@
  *	Canada   M5V 3E7
  *	416-504-9876
  *
- * NAME:	GABC_ABCNameMap.h ( GEO Library, C++)
+ * NAME:	GABC_NameMap.h ( GEO Library, C++)
  *
  * COMMENTS:	This is the base class for all triangle mesh types.
  */
 
-#ifndef __GABC_ABCNameMap__
-#define __GABC_ABCNameMap__
+#ifndef __GABC_NameMap__
+#define __GABC_NameMap__
 
 #include "GABC_API.h"
 #include "GABC_Types.h"
@@ -27,25 +27,25 @@ class UT_JSONWriter;
 class UT_JSONParser;
 
 /// Map to translate from Alembic attribute names to Houdini names
-class GABC_API GEO_ABCNameMap
+class GABC_API GABC_NameMap
 {
 public:
     typedef UT_SymbolMap<UT_String>	MapType;
 
-     GEO_ABCNameMap();
-    ~GEO_ABCNameMap();
+     GABC_NameMap();
+    ~GABC_NameMap();
 
     /// Number of entries in the map
     exint	entries() const	{ return myMap.entries(); }
 
     /// Compare equality
-    bool	isEqual(const GEO_ABCNameMap &src) const;
+    bool	isEqual(const GABC_NameMap &src) const;
 
     /// @{
     /// Equality operator
-    bool	operator==(const GEO_ABCNameMap &src) const
+    bool	operator==(const GABC_NameMap &src) const
 		    { return isEqual(src); }
-    bool	operator!=(const GEO_ABCNameMap &src) const
+    bool	operator!=(const GABC_NameMap &src) const
 		    { return !isEqual(src); }
     /// @}
 
@@ -66,7 +66,7 @@ public:
     /// @{
     /// JSON I/O
     bool	save(UT_JSONWriter &w) const;
-    static bool	load(GEO_ABCNameMapPtr &map, UT_JSONParser &p);
+    static bool	load(GABC_NameMapPtr &map, UT_JSONParser &p);
     /// @}
 
     /// @{
@@ -84,7 +84,7 @@ private:
     SYS_AtomicInt32	myRefCount;
 };
 
-static inline void intrusive_ptr_add_ref(GEO_ABCNameMap *m) { m->incref(); }
-static inline void intrusive_ptr_release(GEO_ABCNameMap *m) { m->decref(); }
+static inline void intrusive_ptr_add_ref(GABC_NameMap *m) { m->incref(); }
+static inline void intrusive_ptr_release(GABC_NameMap *m) { m->decref(); }
 
 #endif

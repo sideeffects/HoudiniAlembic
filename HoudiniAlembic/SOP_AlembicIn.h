@@ -93,7 +93,7 @@ private:
 	GABC_GEOWalker::AFilter		myAnimationFilter;
 	UT_String			myPathAttribute;
 	UT_String			myFilenameAttribute;
-	GEO_ABCNameMapPtr		myNameMapPtr;
+	GABC_NameMapPtr			myNameMapPtr;
     };
 
     void	evaluateParms(Parms &parms, OP_Context &context);

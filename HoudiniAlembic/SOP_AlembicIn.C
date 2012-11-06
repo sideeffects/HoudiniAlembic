@@ -346,7 +346,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 
 
     int	nmapSize = evalInt("remapAttributes", 0, now);
-    parms.myNameMapPtr = new GEO_ABCNameMap();
+    parms.myNameMapPtr = new GABC_NameMap();
     for (int i = 1; i <= nmapSize; ++i)
     {
 	UT_String	abcName, hName;

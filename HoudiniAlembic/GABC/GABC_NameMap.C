@@ -15,24 +15,24 @@
  * COMMENTS:	Class for Alembic primitives.
  */
 
-#include "GABC_ABCNameMap.h"
+#include "GABC_NameMap.h"
 #include "GABC_Util.h"
 #include <UT/UT_Lock.h>
 #include <UT/UT_JSONParser.h>
 #include <UT/UT_JSONWriter.h>
 
-GEO_ABCNameMap::GEO_ABCNameMap()
+GABC_NameMap::GABC_NameMap()
     : myMap()
     , myRefCount(0)
 {
 }
 
-GEO_ABCNameMap::~GEO_ABCNameMap()
+GABC_NameMap::~GABC_NameMap()
 {
 }
 
 bool
-GEO_ABCNameMap::isEqual(const GEO_ABCNameMap &src) const
+GABC_NameMap::isEqual(const GABC_NameMap &src) const
 {
     if (myMap.entries() != src.myMap.entries())
 	return false;
@@ -48,7 +48,7 @@ GEO_ABCNameMap::isEqual(const GEO_ABCNameMap &src) const
 }
 
 const char *
-GEO_ABCNameMap::getName(const char *name) const
+GABC_NameMap::getName(const char *name) const
 {
     UT_String	entry;
     if (myMap.findSymbol(name, &entry))
@@ -59,7 +59,7 @@ GEO_ABCNameMap::getName(const char *name) const
 }
 
 void
-GEO_ABCNameMap::addMap(const char *abcName, const char *houdiniName)
+GABC_NameMap::addMap(const char *abcName, const char *houdiniName)
 {
     UT_String	&entry = myMap[abcName];
     if (UTisstring(houdiniName))
@@ -69,7 +69,7 @@ GEO_ABCNameMap::addMap(const char *abcName, const char *houdiniName)
 }
 
 bool
-GEO_ABCNameMap::save(UT_JSONWriter &w) const
+GABC_NameMap::save(UT_JSONWriter &w) const
 {
     bool	ok = true;
     ok = w.jsonBeginMap();
@@ -84,9 +84,9 @@ GEO_ABCNameMap::save(UT_JSONWriter &w) const
 }
 
 bool
-GEO_ABCNameMap::load(GEO_ABCNameMapPtr &result, UT_JSONParser &p)
+GABC_NameMap::load(GABC_NameMapPtr &result, UT_JSONParser &p)
 {
-    GEO_ABCNameMap	*map = new GEO_ABCNameMap();
+    GABC_NameMap	*map = new GABC_NameMap();
     bool		 ok = true;
     UT_WorkBuffer	 key, value;
     for (UT_JSONParser::iterator it = p.beginMap(); ok && !it.atEnd(); ++it)
