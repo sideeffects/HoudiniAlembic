@@ -419,7 +419,7 @@ namespace {
 	exint		 startpoint = walk.pointCount();
 	for (exint i = 0; i < npoint; ++i)
 	{
-	    UT_VERIFY(gdp.appendPointOffset() == startpoint+i);
+	    UT_VERIFY(gdp.appendPointOffset() == GA_Offset(startpoint+i));
 	}
 	return startpoint;
     }
@@ -498,7 +498,7 @@ namespace {
 	    exint	nvtx = (*counts)[i];
 	    GU_PrimPoly	*face = GU_PrimPoly::build(&gdp, nvtx,
 					GU_POLY_CLOSED, 0);
-	    UT_ASSERT(face->getMapOffset() == i+walk.primitiveCount());
+	    UT_ASSERT(face->getMapOffset() == GA_Offset(i+walk.primitiveCount()));
 	    for (exint v = 0; v < nvtx; ++v)
 	    {
 		exint	pt = (*indices)[voff+v];
