@@ -124,29 +124,29 @@ GABC_GEOPrim::computeNormal() const
 }
 
 fpreal
-GABC_GEOPrim::calcVolume(const UT_Vector3 &) const
+GABC_GEOPrim::calcVolume(const UT_Vector3 &Pref) const
 {
-    UT_BoundingBox	box;
-    if (getBBox(&box))
-	return box.volume();
+    const GT_PrimitiveHandle	gt = gtPrimitive();
+    if (gt)
+	return gt->computeVolume(Pref);
     return 0;
 }
 
 fpreal
 GABC_GEOPrim::calcArea() const
 {
-    UT_BoundingBox	box;
-    if (getBBox(&box))
-	return box.area();
+    const GT_PrimitiveHandle	gt = gtPrimitive();
+    if (gt)
+	return gt->computeSurfaceArea();
     return 0;
 }
 
 fpreal
 GABC_GEOPrim::calcPerimeter() const
 {
-    UT_BoundingBox	box;
-    if (getBBox(&box))
-	return box.area();
+    const GT_PrimitiveHandle	gt = gtPrimitive();
+    if (gt)
+	return gt->computePerimeter();
     return 0;
 }
 
