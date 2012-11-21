@@ -24,6 +24,7 @@
 #include <UT/UT_FSA.h>
 #include <UT/UT_SharedPtr.h>
 #include <UT/UT_SysClone.h>
+#include <UT/UT_SymbolTable.h>
 #include <boost/tokenizer.hpp>
 
 namespace
@@ -136,7 +137,6 @@ namespace
 	std::string		 myFilename;
     };
 
-    #include <UT/UT_SymbolTable.h>
     typedef UT_SymbolMap<LocalWorldXform>	AbcTransformMap;
 
     void DecomposeXForm(
