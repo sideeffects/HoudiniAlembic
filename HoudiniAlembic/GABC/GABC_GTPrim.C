@@ -1014,6 +1014,40 @@ buildSubDMesh(const GABC_GEOPrim *abc,
     pmesh = new GT_PrimSubdivisionMesh(counts, indices,
 		    point, vertex, uniform, detail);
 
+    Alembic::Abc::Int32ArraySamplePtr	creaseIndices = sample.getCreaseIndices();
+    Alembic::Abc::FloatArraySamplePtr	creaseSharpness = sample.getCreaseSharpnesses();
+    Alembic::Abc::Int32ArraySamplePtr	cornerIndices = sample.getCornerIndices();
+    Alembic::Abc::FloatArraySamplePtr	cornerSharpness = sample.getCornerSharpnesses();
+    Alembic::Abc::Int32ArraySamplePtr	holeIndices = sample.getHoles();
+    if (creaseIndices && creaseIndices->valid() &&
+	    creaseSharpness && creaseSharpness->valid())
+    {
+	GT_Int32Array	*indices = new GT_Int32Array(creaseIndices->get(),
+					creaseIndices->size(), 1);
+	GT_Real32Array	*sharpness = new GT_Real32Array(creaseSharpness->get(),
+					creaseSharpness->size(), 1);
+	UT_ASSERT(indices->entries() == sharpness->entries()*2);
+	pmesh->appendIntTag("crease", GT_DataArrayHandle(indices));
+	pmesh->appendRealTag("crease", GT_DataArrayHandle(sharpness));
+    }
+    if (cornerIndices && cornerIndices->valid() &&
+	    cornerSharpness && cornerSharpness->valid())
+    {
+	GT_Int32Array	*indices = new GT_Int32Array(cornerIndices->get(),
+					cornerIndices->size(), 1);
+	GT_Real32Array	*sharpness = new GT_Real32Array(cornerSharpness->get(),
+					cornerSharpness->size(), 1);
+	UT_ASSERT(indices->entries() == sharpness->entries());
+	pmesh->appendIntTag("corner", GT_DataArrayHandle(indices));
+	pmesh->appendRealTag("corner", GT_DataArrayHandle(sharpness));
+    }
+    if (holeIndices && holeIndices->valid())
+    {
+	GT_Int32Array	*indices = new GT_Int32Array(holeIndices->get(),
+					holeIndices->size(), 1);
+	pmesh->appendIntTag("hole", GT_DataArrayHandle(indices));
+    }
+
     return GT_PrimitiveHandle(pmesh);
 }
 
