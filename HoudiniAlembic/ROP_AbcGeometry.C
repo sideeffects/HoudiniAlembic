@@ -17,12 +17,15 @@
 
 #include "ROP_AbcGeometry.h"
 #include <GT/GT_PrimPolygonMesh.h>
+#include <GT/GT_PrimSubdivisionMesh.h>
 #include <GT/GT_PrimPolygon.h>
 #include <GT/GT_PrimCurveMesh.h>
 #include <GT/GT_PrimCurve.h>
 #include <GT/GT_PrimPointMesh.h>
 #include <GT/GT_PrimNuPatch.h>
 #include <GT/GT_TrimNuCurves.h>
+#include <GT/GT_DANumeric.h>
+#include <GT/GT_DAConstantValue.h>
 #include <GT/GT_GEOPrimTPSurf.h>
 #include <UT/UT_Vector2.h>
 #include <UT/UT_VectorTypes.h>
@@ -34,6 +37,38 @@
 
 namespace
 {
+    typedef Alembic::Abc::Int32ArraySample	Int32ArraySample;
+    typedef Alembic::Abc::FloatArraySample	FloatArraySample;
+    typedef Alembic::Abc::V2fArraySample	V2fArraySample;
+    typedef Alembic::Abc::V3fArraySample	V3fArraySample;
+    typedef Alembic::Abc::P3fArraySample	P3fArraySample;
+
+    Int32ArraySample
+    constInt32Array(GT_Size entries, int32 value, GT_DataArrayHandle &storage)
+    {
+	GT_Int32Array	*result = new GT_Int32Array(entries, 1);
+	for (GT_Size i = 0; i < entries; ++i)
+	    result->data()[i] = value;
+	storage.reset(result);
+	return Int32ArraySample(result->data(), result->entries());
+    }
+
+    static Int32ArraySample
+    subdInt32Array(const GT_PrimSubdivisionMesh::Tag &tag,
+	    GT_DataArrayHandle &storage, int index=0)
+    {
+	const GT_DataArrayHandle	&data = tag.intArray(index);
+	return Int32ArraySample(data->getI32Array(storage), data->entries());
+    }
+
+    static FloatArraySample
+    subdReal32Array(const GT_PrimSubdivisionMesh::Tag &tag,
+	    GT_DataArrayHandle &storage, int index=0)
+    {
+	const GT_DataArrayHandle	&data = tag.realArray(index);
+	return FloatArraySample(data->getF32Array(storage), data->entries());
+    }
+
     class SkipList
     {
     public:
@@ -193,6 +228,9 @@ ROP_AbcGeometry::ROP_AbcGeometry(ROP_AbcError &err,
 		: GT_PRIM_UNDEFINED;
     switch (myPrimitiveType)
     {
+	case GT_PRIM_SUBDIVISION_MESH:
+	    mySubD = new Alembic::AbcGeom::OSubD(*parent, name, ts);
+	    break;
 	case GT_PRIM_POLYGON:
 	case GT_PRIM_POLYGON_MESH:
 	    if (isSubD(sop, ts->getSampleTime(0)))
@@ -209,7 +247,7 @@ ROP_AbcGeometry::ROP_AbcGeometry(ROP_AbcError &err,
 	case GT_PRIM_POINT_MESH:
         // could be particles or locator
 	    {
-		const GT_PrimPointMesh *mesh = static_cast<const GT_PrimPointMesh *>(prim.get());
+		const GT_PrimPointMesh *mesh = UTverify_cast<const GT_PrimPointMesh *>(prim.get());
 		const GT_AttributeListHandle &detail = mesh->getDetailAttributes();
 		if (detail && detail->hasName("localPosition"))
 		{
@@ -510,7 +548,7 @@ bool
 ROP_AbcGeometry::writeSubdMesh(ROP_AbcError &err,
 	    const GT_PrimitiveHandle &prim)
 {
-    const GT_PrimPolygonMesh		*mesh = static_cast<const GT_PrimPolygonMesh *>(prim.get());
+    const GT_PrimPolygonMesh		*mesh = UTverify_cast<const GT_PrimPolygonMesh *>(prim.get());
     const GT_AttributeListHandle	&pt = mesh->getPointAttributes();
     const GT_AttributeListHandle	&vtx = mesh->getVertexAttributes();
     if (!pt || !pt->get("P"))
@@ -533,30 +571,72 @@ ROP_AbcGeometry::writeSubdMesh(ROP_AbcError &err,
 
     fillAttribute<UT_Vector3, fpreal32,
 		Alembic::AbcGeom::OP3fGeomParam::Sample,
-		Alembic::AbcGeom::P3fArraySample,
+		P3fArraySample,
 		Alembic::AbcGeom::V3f>(abcP, P, "P", 3,
 				pt, GT_AttributeListHandle());
     fillAttribute<UT_Vector2, fpreal32,
 		Alembic::AbcGeom::OV2fGeomParam::Sample,
-		Alembic::AbcGeom::V2fArraySample,
+		V2fArraySample,
 		Alembic::AbcGeom::V2f>(abcUV, uv, "uv", 2, pt, vtx);
     fillAttribute<UT_Vector3, fpreal32,
 		Alembic::AbcGeom::OV3fGeomParam::Sample,
-		Alembic::AbcGeom::V3fArraySample,
+		V3fArraySample,
 		Alembic::AbcGeom::V3f>(abcVel, vel, "v", 3,
 				pt, mesh->getVertexAttributes());
 
+    // Subdivision tags ------------------------------------
+    // GT_DataArrays store the data for the array samples.  Must be declared
+    // outside the conditions so their storage remains in scope.
+    GT_DataArrayHandle	creaseIndices;
+    GT_DataArrayHandle	creaseLengths;
+    GT_DataArrayHandle	creaseSharpness;
+    GT_DataArrayHandle	cornerIndices;
+    GT_DataArrayHandle	cornerSharpness;
+    GT_DataArrayHandle	holeIndices;
+    // Alembic typed array samples are used to pass the data to the subd sample
+    Int32ArraySample	abcCreaseIndices;
+    Int32ArraySample	abcCreaseLengths;
+    FloatArraySample	abcCreaseSharpness;
+    Int32ArraySample	abcCornerIndices;
+    FloatArraySample	abcCornerSharpness;
+    Int32ArraySample	abcHoleIndices;
 
+    if (prim->getPrimitiveType() == GT_PRIM_SUBDIVISION_MESH)
+    {
+	// Here, we have a subdivision mesh, so we can extract the tag
+	// information.
+	const GT_PrimSubdivisionMesh		*subd;
+	const GT_PrimSubdivisionMesh::Tag	*tag;
+
+	subd = UTverify_cast<const GT_PrimSubdivisionMesh *>(prim.get());
+	tag = subd->findTag("crease");
+	if (tag && tag->intCount() == 1 && tag->realCount() == 1)
+	{
+	    abcCreaseIndices = subdInt32Array(*tag, creaseIndices);
+	    abcCreaseSharpness = subdReal32Array(*tag, creaseSharpness);
+	    abcCreaseLengths = constInt32Array(tag->realArray()->entries(), 2,
+					creaseLengths);
+	}
+	tag = subd->findTag("corner");
+	if (tag && tag->intCount() == 1 && tag->realCount() == 1)
+	{
+	    abcCornerIndices = subdInt32Array(*tag, cornerIndices);
+	    abcCornerSharpness = subdReal32Array(*tag, cornerSharpness);
+	}
+	tag = subd->findTag("hole");
+	if (tag && tag->intCount() == 1)
+	    abcHoleIndices = subdInt32Array(*tag, holeIndices);
+    }
     Alembic::AbcGeom::OSubDSchema::Sample	sample(
 	    abcP.getVals(),
-	    Alembic::AbcGeom::Int32ArraySample(vertices.array(), vertices.entries()),
-	    Alembic::AbcGeom::Int32ArraySample(counts.array(), counts.entries()),
-	    Alembic::AbcGeom::Int32ArraySample(),	// Crease indices
-	    Alembic::AbcGeom::Int32ArraySample(),	// Crease lengths
-	    Alembic::AbcGeom::FloatArraySample(),	// Crease sharpnesses
-	    Alembic::AbcGeom::Int32ArraySample(),	// Corner indices
-	    Alembic::AbcGeom::FloatArraySample(),	// Corner sharpnesses
-	    Alembic::AbcGeom::Int32ArraySample());	// Holes
+	    Int32ArraySample(vertices.array(), vertices.entries()),
+	    Int32ArraySample(counts.array(), counts.entries()),
+	    abcCreaseIndices,	// Crease indices
+	    abcCreaseLengths,	// Crease lengths
+	    abcCreaseSharpness,	// Crease sharpnesses
+	    abcCornerIndices,	// Corner indices
+	    abcCornerSharpness,	// Corner sharpnesses
+	    abcHoleIndices);	// Holes
 
     if (vel.entries())
 	sample.setVelocities(abcVel.getVals());
@@ -580,7 +660,7 @@ ROP_AbcGeometry::writePolygonMesh(ROP_AbcError &err,
 	UT_ASSERT(mySubD);
 	return writeSubdMesh(err, prim);
     }
-    const GT_PrimPolygonMesh		*mesh = static_cast<const GT_PrimPolygonMesh *>(prim.get());
+    const GT_PrimPolygonMesh		*mesh = UTverify_cast<const GT_PrimPolygonMesh *>(prim.get());
     const GT_AttributeListHandle	&pt = mesh->getPointAttributes();
     const GT_AttributeListHandle	&vtx = mesh->getVertexAttributes();
     if (!pt || !pt->get("P"))
@@ -642,7 +722,7 @@ bool
 ROP_AbcGeometry::writeLocator(ROP_AbcError &err,
 		const GT_PrimitiveHandle &prim)
 {
-    const GT_PrimPointMesh *mesh = static_cast<const GT_PrimPointMesh *>(prim.get());
+    const GT_PrimPointMesh *mesh = UTverify_cast<const GT_PrimPointMesh *>(prim.get());
     const GT_AttributeListHandle &detail = mesh->getDetailAttributes();
 
     double val[6] = {0};
@@ -747,7 +827,7 @@ bool
 ROP_AbcGeometry::writePointMesh(ROP_AbcError &err,
 		const GT_PrimitiveHandle &prim)
 {
-    const GT_PrimPointMesh		*mesh = static_cast<const GT_PrimPointMesh *>(prim.get());
+    const GT_PrimPointMesh		*mesh = UTverify_cast<const GT_PrimPointMesh *>(prim.get());
     const GT_AttributeListHandle	&pts = mesh->getPointAttributes();
     const GT_AttributeListHandle	&detail = mesh->getDetailAttributes();
 
@@ -776,7 +856,7 @@ ROP_AbcGeometry::writePointMesh(ROP_AbcError &err,
 		Alembic::AbcGeom::V3f>(abcV, v, "v", 3, pts);
     fillAttribute<fpreal32, fpreal32,
 		Alembic::AbcGeom::OFloatGeomParam::Sample,
-		Alembic::AbcGeom::FloatArraySample,
+		FloatArraySample,
 		fpreal32>(abcWidths, widths, "width", 1,
 				pts, GT_AttributeListHandle(),
 				GT_AttributeListHandle(), detail);
@@ -827,7 +907,7 @@ bool
 ROP_AbcGeometry::writeCurveMesh(ROP_AbcError &err,
 		const GT_PrimitiveHandle &prim)
 {
-    const GT_PrimCurveMesh		*mesh = static_cast<const GT_PrimCurveMesh *>(prim.get());
+    const GT_PrimCurveMesh		*mesh = UTverify_cast<const GT_PrimCurveMesh *>(prim.get());
     const GT_AttributeListHandle	&vtx = mesh->getVertexAttributes();
     const GT_AttributeListHandle	&uniform = mesh->getUniformAttributes();
     const GT_AttributeListHandle	&detail = mesh->getDetailAttributes();
@@ -916,17 +996,12 @@ bool
 ROP_AbcGeometry::writeNuPatch(ROP_AbcError &err,
 	    const GT_PrimitiveHandle &prim)
 {
-    if (!myNuPatch)
-    {
-	UT_ASSERT(mySubD);
-	return writeSubdMesh(err, prim);
-    }
     GT_PrimitiveHandle		 tmp_nupatch;
     if (prim->getPrimitiveType() == GT_GEO_PRIMTPSURF)
     {
 	// Need to convert to a GT_PrimNuPatch primitive
 	const GT_GEOPrimTPSurf	*geopatch;
-	geopatch = static_cast<const GT_GEOPrimTPSurf *>(prim.get());
+	geopatch = UTverify_cast<const GT_GEOPrimTPSurf *>(prim.get());
 	tmp_nupatch = geopatch->buildNuPatch();
     }
     else
@@ -938,7 +1013,7 @@ ROP_AbcGeometry::writeNuPatch(ROP_AbcError &err,
 	return err.error("%s needs a NuPatch", (const char *)myName);
 
     const GT_PrimNuPatch		*nupatch;
-    nupatch = static_cast<const GT_PrimNuPatch *>(tmp_nupatch.get());
+    nupatch = UTverify_cast<const GT_PrimNuPatch *>(tmp_nupatch.get());
 
     const GT_AttributeListHandle	&pt = nupatch->getVertexAttributes();
     if (!pt || !pt->get("P"))
@@ -1040,7 +1115,7 @@ curveMeshFromCurve(const GT_PrimitiveHandle &src)
 {
     UT_ASSERT(src->getPrimitiveType() == GT_PRIM_CURVE);
     const GT_PrimCurve	*curve;
-    curve = static_cast<const GT_PrimCurve *>(src.get());
+    curve = UTverify_cast<const GT_PrimCurve *>(src.get());
     return GT_PrimitiveHandle( new GT_PrimCurveMesh(*curve) );
 }
 
@@ -1049,7 +1124,7 @@ polygonMeshFromPolygon(const GT_PrimitiveHandle &src)
 {
     UT_ASSERT(src->getPrimitiveType() == GT_PRIM_POLYGON);
     const GT_PrimPolygon	*poly;
-    poly = static_cast<const GT_PrimPolygon *>(src.get());
+    poly = UTverify_cast<const GT_PrimPolygon *>(src.get());
     return GT_PrimitiveHandle( new GT_PrimPolygonMesh(*poly) );
 }
 
@@ -1071,6 +1146,8 @@ ROP_AbcGeometry::writeSample(ROP_AbcError &err, const GT_PrimitiveHandle &prim)
 
     switch (myPrimitiveType)
     {
+	case GT_PRIM_SUBDIVISION_MESH:
+	    return writeSubdMesh(err, prim);
 	case GT_PRIM_POLYGON_MESH:
 	    return writePolygonMesh(err, prim);
 	case GT_PRIM_CURVE_MESH:

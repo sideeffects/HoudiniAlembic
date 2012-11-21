@@ -70,6 +70,7 @@ namespace
 	{
 	    case GT_PRIM_POINT_MESH:
 	    case GT_PRIM_POLYGON_MESH:
+	    case GT_PRIM_SUBDIVISION_MESH:
 	    case GT_PRIM_CURVE_MESH:
 	    case GT_PRIM_CURVE:
 	    case GT_PRIM_POLYGON:
