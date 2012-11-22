@@ -318,7 +318,8 @@ fillAttributeList(GT_AttributeList &alist,
 	const IN3fGeomParam *N = NULL,
 	const IV2fGeomParam *uvs = NULL,
 	const Abc::IUInt64ArrayProperty *ids = NULL,
-	const IFloatGeomParam *widths = NULL)
+	const IFloatGeomParam *widths = NULL,
+	const Abc::IFloatArrayProperty *Pw = NULL)
 {
     if (!alist.entries())
 	return;
@@ -327,6 +328,7 @@ fillAttributeList(GT_AttributeList &alist,
     memset(filled, 0, sizeof(bool)*alist.entries());
     const GABC_NameMapPtr	&namemap = prim->attributeNameMap();
     SET_ARRAY(P, "P")
+    SET_ARRAY(Pw, "Pw")
     SET_ARRAY(v, "v")
     SET_ARRAY(ids, "id")
     SET_GEOM_PARAM(N, "N")
@@ -410,13 +412,15 @@ reuseAttributeList(const GABC_GEOPrim *prim,
 	const IN3fGeomParam *N = NULL,
 	const IV2fGeomParam *uvs = NULL,
 	const Abc::IUInt64ArrayProperty *ids = NULL,
-	const IFloatGeomParam *widths = NULL)
+	const IFloatGeomParam *widths = NULL,
+	const Abc::IFloatArrayProperty *Pw = NULL)
 {
     if (!src || !src->entries())
 	return src;
 
     const GABC_NameMapPtr	&namemap = prim->attributeNameMap();
     REPLACE_ARRAY(P, "P")
+    REPLACE_ARRAY(Pw, "Pw")
     REPLACE_ARRAY(v, "v")
     REPLACE_ARRAY(ids, "id")
     REPLACE_GEOM_PARAM(N, "N")
@@ -459,9 +463,13 @@ reuseAttributeList(const GABC_GEOPrim *prim,
 	const Abc::IP3fArrayProperty *P = NULL,
 	const Abc::IV3fArrayProperty *v = NULL,
 	const IN3fGeomParam *N = NULL,
-	const IV2fGeomParam *uvs = NULL)
+	const IV2fGeomParam *uvs = NULL,
+	const Abc::IUInt64ArrayProperty *ids = NULL,
+	const IFloatGeomParam *widths = NULL,
+	const Abc::IFloatArrayProperty *Pw = NULL)
 {
-    return reuseAttributeList(prim, sample, src, &scope, 1, arb, P, v, N, uvs);
+    return reuseAttributeList(prim, sample, src, &scope, 1, arb,
+	    P, v, N, uvs, ids, widths, Pw);
 }
 
 
@@ -476,13 +484,16 @@ initializeAttributeList(const GABC_GEOPrim *prim,
 	const IN3fGeomParam *N = NULL,
 	const IV2fGeomParam *uvs = NULL,
 	const Abc::IUInt64ArrayProperty *ids = NULL,
-	const IFloatGeomParam *widths = NULL)
+	const IFloatGeomParam *widths = NULL,
+	const Abc::IFloatArrayProperty *Pw = NULL)
 {
     GT_AttributeMap		*map = new GT_AttributeMap();
     const GABC_NameMapPtr	&namemap = prim->attributeNameMap();
 
     if (P && *P)
 	map->add("P", true);
+    if (Pw && *Pw)
+	map->add("Pw", true);
     if (v && *v)
 	map->add("v", true);
     if (ids && *ids)
@@ -540,7 +551,7 @@ initializeAttributeList(const GABC_GEOPrim *prim,
     if (alist)
     {
 	fillAttributeList(*alist, prim, sample, scope, scope_size,
-		arb, P, v, N, uvs, ids, widths);
+		arb, P, v, N, uvs, ids, widths, Pw);
     }
 
     return GT_AttributeListHandle(alist);
@@ -602,6 +613,7 @@ buildNuPatch(const GABC_GEOPrim *abc,
     vknots = GABC_GTArrayExtract::get(sample.getVKnot());
 
     Abc::IP3fArrayProperty	 P = ss.getPositionsProperty();
+    Abc::IFloatArrayProperty	 Pw = ss.getPositionWeightsProperty();
     Abc::IV3fArrayProperty	 v = ss.getVelocitiesProperty();
     const IN3fGeomParam		&N = ss.getNormalsParam();
     const IV2fGeomParam		&uvs = ss.getUVsParam();
@@ -612,7 +624,7 @@ buildNuPatch(const GABC_GEOPrim *abc,
 
     vertex = initializeAttributeList(abc, selector,
 		    vertex_scope, 3, ss.getArbGeomParams(),
-		    &P, &v, &N, &uvs);
+		    &P, &v, &N, &uvs, NULL, NULL, &Pw);
     detail = initializeAttributeList(abc, selector,
 		    detail_scope, 3, ss.getArbGeomParams());
 

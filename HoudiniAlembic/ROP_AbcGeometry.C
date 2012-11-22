@@ -404,7 +404,7 @@ ROP_AbcGeometry::makeProperties(ROP_AbcError &err,
     }
     else if (myNuPatch)
     {
-	SkipList	skips("P", "v", "uv", "N", NULL);
+	SkipList	skips("P", "Pw", "v", "uv", "N", NULL);
 	cp = myNuPatch->getSchema().getArbGeomParams();
 	makeCompoundProperties(err, myProperties[VERTEX_PROPERTIES],
 			prim->getVertexAttributes(),
@@ -1025,12 +1025,19 @@ ROP_AbcGeometry::writeNuPatch(ROP_AbcError &err,
     UT_FloatArray				uknots;
     UT_FloatArray				vknots;
     UT_Vector3Array				P;
+    UT_FloatArray				Pw;
+    GT_DataArrayHandle				gtPw;
     UT_Vector3Array				vel;
     UT_Vector2Array				uv;
     Alembic::AbcGeom::OP3fGeomParam::Sample	abcP;
     Alembic::AbcGeom::OV2fGeomParam::Sample	abcUV;
     Alembic::AbcGeom::OV3fGeomParam::Sample	abcVel;
 
+    gtPw = pt->get("Pw");
+    if (gtPw)
+    {
+	fillArray<fpreal32, fpreal32>(Pw, gtPw, 1);
+    }
     fillArray<fpreal32, fpreal32>(uknots, nupatch->getUKnots(), 1);
     fillArray<fpreal32, fpreal32>(vknots, nupatch->getVKnots(), 1);
 
@@ -1054,14 +1061,15 @@ ROP_AbcGeometry::writeNuPatch(ROP_AbcError &err,
 	    nupatch->getNv(),
 	    nupatch->getUOrder(),
 	    nupatch->getVOrder(),
-	    Alembic::AbcGeom::FloatArraySample(uknots.array(), uknots.entries()),
-	    Alembic::AbcGeom::FloatArraySample(vknots.array(), vknots.entries())
+	    Alembic::Abc::FloatArraySample(uknots.array(), uknots.entries()),
+	    Alembic::Abc::FloatArraySample(vknots.array(), vknots.entries()),
+	    Alembic::AbcGeom::ON3fGeomParam::Sample(),
+	    abcUV,
+	    Alembic::Abc::FloatArraySample(Pw.array(), Pw.entries())
     );
 
     if (vel.entries())
 	sample.setVelocities(abcVel.getVals());
-    if (uv.entries())
-	sample.setUVs(abcUV);
 
     // The data for the trim curves must be persistent until the sample is
     // written, so it must be declared outside the check for trimmed curves.
