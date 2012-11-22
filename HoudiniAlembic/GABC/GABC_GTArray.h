@@ -28,13 +28,13 @@ class GABC_GTArrayExtract
 public:
     // Types missing in TypedArraySample.h
     typedef Alembic::Abc::TypedArraySample<Alembic::Abc::Box2sTPTraits> Box2sArraySample;
-    typedef boost::shared_ptr<Box2sArraySample>	  Box2sArraySamplePtr;
+    typedef Alembic::Util::shared_ptr<Box2sArraySample>	  Box2sArraySamplePtr;
     typedef Alembic::Abc::TypedArraySample<Alembic::Abc::Box2iTPTraits> Box2iArraySample;
-    typedef boost::shared_ptr<Box2iArraySample>	  Box2iArraySamplePtr;
+    typedef Alembic::Util::shared_ptr<Box2iArraySample>	  Box2iArraySamplePtr;
     typedef Alembic::Abc::TypedArraySample<Alembic::Abc::Box2fTPTraits> Box2fArraySample;
-    typedef boost::shared_ptr<Box2fArraySample>	  Box2fArraySamplePtr;
+    typedef Alembic::Util::shared_ptr<Box2fArraySample>	  Box2fArraySamplePtr;
     typedef Alembic::Abc::TypedArraySample<Alembic::Abc::Box2dTPTraits> Box2dArraySample;
-    typedef boost::shared_ptr<Box2dArraySample>	  Box2dArraySamplePtr;
+    typedef Alembic::Util::shared_ptr<Box2dArraySample>	  Box2dArraySamplePtr;
 
     static GT_DataArrayHandle get(const Alembic::Abc::BoolArraySamplePtr &);
     static GT_DataArrayHandle get(const Alembic::Abc::UcharArraySamplePtr &);

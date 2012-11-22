@@ -131,7 +131,7 @@ GABC_GTPrimCollect::endCollecting(const GT_GEODetailListHandle &,
 
 template <typename T>
 static GT_DataArrayHandle
-convertGeomParam(T &param, ISampleSelector &sample)
+convertGeomParam(const T &param, const ISampleSelector &sample)
 {
     typename T::sample_type	psample;
     param.getExpanded(psample, sample);
@@ -142,7 +142,7 @@ template <typename T>
 static GT_DataArrayHandle
 convertArbitraryPropertyT(ICompoundProperty parent,
 		const PropertyHeader &propHeader,
-		ISampleSelector &sample)
+		const ISampleSelector &sample)
 {
     T	param(parent, propHeader.getName());
     return convertGeomParam(param, sample);
@@ -155,7 +155,7 @@ convertArbitraryPropertyT(ICompoundProperty parent,
 static GT_DataArrayHandle
 convertArbitraryProperty(ICompoundProperty parent,
 		const PropertyHeader &propHeader,
-		ISampleSelector &sample)
+		const ISampleSelector &sample)
 {
     // Yuck.
     MATCH_CONVERT_PROPERTY(IBoolGeomParam);
@@ -309,16 +309,16 @@ fillHoudiniAttributes(GT_AttributeList &alist,
 static void
 fillAttributeList(GT_AttributeList &alist,
 	const GABC_GEOPrim *prim,
-	ISampleSelector &sample,
+	const ISampleSelector &sample,
 	const GeometryScope *scope,
 	int scope_size,
 	ICompoundProperty arb,
-	Abc::IP3fArrayProperty *P = NULL,
-	Abc::IV3fArrayProperty *v = NULL,
-	IN3fGeomParam *N = NULL,
-	IV2fGeomParam *uvs = NULL,
-	Abc::IUInt64ArrayProperty *ids = NULL,
-	IFloatGeomParam *widths = NULL)
+	const Abc::IP3fArrayProperty *P = NULL,
+	const Abc::IV3fArrayProperty *v = NULL,
+	const IN3fGeomParam *N = NULL,
+	const IV2fGeomParam *uvs = NULL,
+	const Abc::IUInt64ArrayProperty *ids = NULL,
+	const IFloatGeomParam *widths = NULL)
 {
     if (!alist.entries())
 	return;
@@ -400,17 +400,17 @@ initializeHoudiniAttributes(const GABC_GEOPrim *prim, GT_AttributeMap *map,
 
 static GT_AttributeListHandle
 reuseAttributeList(const GABC_GEOPrim *prim,
-	ISampleSelector &sample,
+	const ISampleSelector &sample,
 	const GT_AttributeListHandle &src,
 	const GeometryScope *scope,
 	int scope_size,
 	ICompoundProperty arb,
-	Abc::IP3fArrayProperty *P = NULL,
-	Abc::IV3fArrayProperty *v = NULL,
-	IN3fGeomParam *N = NULL,
-	IV2fGeomParam *uvs = NULL,
-	Abc::IUInt64ArrayProperty *ids = NULL,
-	IFloatGeomParam *widths = NULL)
+	const Abc::IP3fArrayProperty *P = NULL,
+	const Abc::IV3fArrayProperty *v = NULL,
+	const IN3fGeomParam *N = NULL,
+	const IV2fGeomParam *uvs = NULL,
+	const Abc::IUInt64ArrayProperty *ids = NULL,
+	const IFloatGeomParam *widths = NULL)
 {
     if (!src || !src->entries())
 	return src;
@@ -452,14 +452,14 @@ reuseAttributeList(const GABC_GEOPrim *prim,
 
 static GT_AttributeListHandle
 reuseAttributeList(const GABC_GEOPrim *prim,
-	ISampleSelector &sample,
+	const ISampleSelector &sample,
 	const GT_AttributeListHandle &src,
 	const GeometryScope scope,
 	ICompoundProperty arb,
-	Abc::IP3fArrayProperty *P = NULL,
-	Abc::IV3fArrayProperty *v = NULL,
-	IN3fGeomParam *N = NULL,
-	IV2fGeomParam *uvs = NULL)
+	const Abc::IP3fArrayProperty *P = NULL,
+	const Abc::IV3fArrayProperty *v = NULL,
+	const IN3fGeomParam *N = NULL,
+	const IV2fGeomParam *uvs = NULL)
 {
     return reuseAttributeList(prim, sample, src, &scope, 1, arb, P, v, N, uvs);
 }
@@ -467,16 +467,16 @@ reuseAttributeList(const GABC_GEOPrim *prim,
 
 static GT_AttributeListHandle
 initializeAttributeList(const GABC_GEOPrim *prim,
-	ISampleSelector &sample,
+	const ISampleSelector &sample,
 	const GeometryScope *scope,
 	int scope_size,
 	ICompoundProperty arb,
-	Abc::IP3fArrayProperty *P = NULL,
-	Abc::IV3fArrayProperty *v = NULL,
-	IN3fGeomParam *N = NULL,
-	IV2fGeomParam *uvs = NULL,
-	Abc::IUInt64ArrayProperty *ids = NULL,
-	IFloatGeomParam *widths = NULL)
+	const Abc::IP3fArrayProperty *P = NULL,
+	const Abc::IV3fArrayProperty *v = NULL,
+	const IN3fGeomParam *N = NULL,
+	const IV2fGeomParam *uvs = NULL,
+	const Abc::IUInt64ArrayProperty *ids = NULL,
+	const IFloatGeomParam *widths = NULL)
 {
     GT_AttributeMap		*map = new GT_AttributeMap();
     const GABC_NameMapPtr	&namemap = prim->attributeNameMap();
@@ -551,10 +551,10 @@ initializeAttributeList(const GABC_GEOPrim *prim,
 	ISampleSelector &sample,
 	const GeometryScope scope,
 	ICompoundProperty arb,
-	Abc::IP3fArrayProperty *P = NULL,
-	Abc::IV3fArrayProperty *v = NULL,
-	IN3fGeomParam *N = NULL,
-	IV2fGeomParam *uvs = NULL)
+	const Abc::IP3fArrayProperty *P = NULL,
+	const Abc::IV3fArrayProperty *v = NULL,
+	const IN3fGeomParam *N = NULL,
+	const IV2fGeomParam *uvs = NULL)
 {
     return initializeAttributeList(prim, sample, &scope, 1, arb, P, v, N, uvs);
 }
@@ -603,6 +603,8 @@ buildNuPatch(const GABC_GEOPrim *abc,
 
     Abc::IP3fArrayProperty	 P = ss.getPositionsProperty();
     Abc::IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+    const IN3fGeomParam		&N = ss.getNormalsParam();
+    const IV2fGeomParam		&uvs = ss.getUVsParam();
     GT_AttributeListHandle	 vertex;
     GT_AttributeListHandle	 detail;
     GeometryScope	vertex_scope[3] = { kVertexScope, kVaryingScope, kFacevaryingScope };
@@ -610,7 +612,7 @@ buildNuPatch(const GABC_GEOPrim *abc,
 
     vertex = initializeAttributeList(abc, selector,
 		    vertex_scope, 3, ss.getArbGeomParams(),
-		    &P, &v, &ss.getNormalsParam(), &ss.getUVsParam());
+		    &P, &v, &N, &uvs);
     detail = initializeAttributeList(abc, selector,
 		    detail_scope, 3, ss.getArbGeomParams());
 
@@ -669,13 +671,14 @@ buildCurves(const GABC_GEOPrim *abc,
     GT_AttributeListHandle	detail;
     Abc::IP3fArrayProperty	P = ss.getPositionsProperty();
     Abc::IV3fArrayProperty	v = ss.getVelocitiesProperty();
-    IFloatGeomParam		&widths = ss.getWidthsParam();
+    const IN3fGeomParam		&N = ss.getNormalsParam();
+    const IV2fGeomParam		&uvs = ss.getUVsParam();
+    const IFloatGeomParam	&widths = ss.getWidthsParam();
     GeometryScope	 vertex_scope[3] = { kVertexScope, kVaryingScope, kFacevaryingScope };
 
     vertex = initializeAttributeList(abc, selector,
 			vertex_scope, 3, ss.getArbGeomParams(),
-			&P, &v, &ss.getNormalsParam(), &ss.getUVsParam(),
-			NULL, &widths);
+			&P, &v, &N, &uvs, NULL, &widths);
     uniform = initializeAttributeList(abc, selector,
 			kUniformScope, ss.getArbGeomParams());
     detail = initializeAttributeList(abc, selector,
@@ -885,15 +888,15 @@ buildLocator(const GABC_GEOPrim *abc,
     return GT_PrimitiveHandle(pmesh);
 }
 
-static IN3fGeomParam *
+static IN3fGeomParam
 getNormalsParam(IPolyMeshSchema &ss)
 {
-    return &ss.getNormalsParam();
+    return ss.getNormalsParam();
 }
-static IN3fGeomParam *
+static IN3fGeomParam
 getNormalsParam(ISubDSchema &ss)
 {
-    return NULL;
+    return IN3fGeomParam();
 }
 
 template <typename PRIM_T, typename SCHEMA_T>
@@ -942,22 +945,18 @@ buildPolyMesh(const GABC_GEOPrim *abc,
     GT_AttributeListHandle	 detail;
     Abc::IP3fArrayProperty	 P = ss.getPositionsProperty();
     Abc::IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+    const IN3fGeomParam		&N = ss.getNormalsParam();
+    const IV2fGeomParam		&uvs = ss.getUVsParam();
     GeometryScope	point_scope[2] = { kVaryingScope, kVertexScope };
     GeometryScope	vertex_scope[1] = { kFacevaryingScope };
 
     point = initializeAttributeList(abc, selector,
 			point_scope, 2, ss.getArbGeomParams(),
-			&P,
-			&v,
-			&ss.getNormalsParam(),
-			&ss.getUVsParam());
+			&P, &v, &N, &uvs);
 
     vertex = initializeAttributeList(abc, selector,
 			vertex_scope, 1, ss.getArbGeomParams(),
-			NULL,
-			NULL,
-			&ss.getNormalsParam(),
-			&ss.getUVsParam());
+			NULL, NULL, &N, &uvs);
     uniform = initializeAttributeList(abc, selector,
 			kUniformScope, ss.getArbGeomParams());
     detail = initializeAttributeList(abc, selector,
@@ -990,22 +989,17 @@ buildSubDMesh(const GABC_GEOPrim *abc,
     GT_AttributeListHandle	 detail;
     Abc::IP3fArrayProperty	 P = ss.getPositionsProperty();
     Abc::IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+    const IV2fGeomParam		&uvs = ss.getUVsParam();
     GeometryScope	point_scope[2] = { kVaryingScope, kVertexScope };
     GeometryScope	vertex_scope[1] = { kFacevaryingScope };
 
     point = initializeAttributeList(abc, selector,
 			point_scope, 2, ss.getArbGeomParams(),
-			&P,
-			&v,
-			NULL,
-			&ss.getUVsParam());
+			&P, &v, NULL, &uvs);
 
     vertex = initializeAttributeList(abc, selector,
 			vertex_scope, 1, ss.getArbGeomParams(),
-			NULL,
-			NULL,
-			NULL,
-			&ss.getUVsParam());
+			NULL, NULL, NULL, &uvs);
     uniform = initializeAttributeList(abc, selector,
 			kUniformScope, ss.getArbGeomParams());
     detail = initializeAttributeList(abc, selector,
@@ -1088,12 +1082,14 @@ reuseNuPatch(const GABC_GEOPrim *abc,
     // TODO: Deal with animated bases?
     Abc::IP3fArrayProperty	 P = ss.getPositionsProperty();
     Abc::IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+    const IN3fGeomParam		&N = ss.getNormalsParam();
+    const IV2fGeomParam		&uvs = ss.getUVsParam();
     GeometryScope	vertex_scope[3] = { kVertexScope, kVaryingScope, kFacevaryingScope };
     GeometryScope	detail_scope[3] = { kUniformScope, kConstantScope, kUnknownScope };
 
     reuseAttributeList(abc, selector, srcprim->getVertexAttributes(),
 		    vertex_scope, 3, ss.getArbGeomParams(),
-		    &P, &v, &ss.getNormalsParam(), &ss.getUVsParam());
+		    &P, &v, &N, &uvs);
     reuseAttributeList(abc, selector, srcprim->getDetailAttributes(),
 		    detail_scope, 3, ss.getArbGeomParams());
     return srcprim;
@@ -1103,20 +1099,21 @@ static GT_PrimitiveHandle
 reuseCurves(const GABC_GEOPrim *abc,
 	    const GT_PrimitiveHandle &srcprim,
 	    const Alembic::AbcGeom::IObject &object,
-	    ISampleSelector selector)
+	    const ISampleSelector &selector)
 {
     ICurves			 prim(object, kWrapExisting);
     ICurvesSchema		&ss = prim.getSchema();
     ICurvesSchema::Sample	 sample = ss.getValue(selector);
     Abc::IP3fArrayProperty	P = ss.getPositionsProperty();
     Abc::IV3fArrayProperty	v = ss.getVelocitiesProperty();
-    IFloatGeomParam		&widths = ss.getWidthsParam();
+    const IN3fGeomParam		&N = ss.getNormalsParam();
+    const IV2fGeomParam		&uvs = ss.getUVsParam();
+    const IFloatGeomParam	&widths = ss.getWidthsParam();
     GeometryScope	 vertex_scope[3] = { kVertexScope, kVaryingScope, kFacevaryingScope };
 
     reuseAttributeList(abc, selector, srcprim->getVertexAttributes(),
 			vertex_scope, 3, ss.getArbGeomParams(),
-			&P, &v, &ss.getNormalsParam(), &ss.getUVsParam(),
-			NULL, &widths);
+			&P, &v, &N, &uvs, NULL, &widths);
     reuseAttributeList(abc, selector, srcprim->getUniformAttributes(),
 			kUniformScope, ss.getArbGeomParams());
     reuseAttributeList(abc, selector, srcprim->getDetailAttributes(),
@@ -1138,21 +1135,17 @@ reuseMesh(const GABC_GEOPrim *abc,
 
     Abc::IP3fArrayProperty	 P = ss.getPositionsProperty();
     Abc::IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+    const IN3fGeomParam		&N = getNormalsParam(ss);
+    const IV2fGeomParam		&uvs = ss.getUVsParam();
     GeometryScope	point_scope[2] = { kVaryingScope, kVertexScope };
     GeometryScope	vertex_scope[1] = { kFacevaryingScope };
 
     reuseAttributeList(abc, selector, srcprim->getPointAttributes(),
 			point_scope, 2, ss.getArbGeomParams(),
-			&P,
-			&v,
-			getNormalsParam(ss),
-			&ss.getUVsParam());
+			&P, &v, &N, &uvs);
     reuseAttributeList(abc, selector, srcprim->getVertexAttributes(),
 			vertex_scope, 1, ss.getArbGeomParams(),
-			NULL,
-			&v,
-			getNormalsParam(ss),
-			&ss.getUVsParam());
+			NULL, &v, &N, &uvs);
     reuseAttributeList(abc, selector, srcprim->getUniformAttributes(),
 			kUniformScope, ss.getArbGeomParams());
     reuseAttributeList(abc, selector, srcprim->getDetailAttributes(),

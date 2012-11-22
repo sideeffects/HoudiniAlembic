@@ -377,7 +377,7 @@ namespace {
     template <typename T>
     static void
     setGeomAttribute(GABC_GEOWalker &walk, const char *name,
-			T &param, ISampleSelector &iss,
+			const T &param, ISampleSelector &iss,
 			exint npoint, exint nvertex, exint nprim)
     {
 	if (!param.valid())
