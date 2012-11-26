@@ -67,6 +67,8 @@ protected:
 
     virtual unsigned	disableParms();
     virtual OP_ERROR	cookMySop(OP_Context &context);
+    virtual void	syncNodeVersion(const char *old_version,
+				const char *new_version, bool *node_deleted);
 
 private:
     class Parms

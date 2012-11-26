@@ -493,6 +493,21 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 }
 
 //-*****************************************************************************
+void
+SOP_AlembicIn2::syncNodeVersion(const char *old_version,
+				const char *current_version,
+				bool *node_deleted)
+{
+    // Check to see if we're loading from before 12.5.0, if so, we don't want
+    // to create Alembic primitives.
+    if (UT_String::compareVersionString(old_version, "12.5.0") < 0)
+    {
+	setInt("abcprim", 0, 0, 0);
+    }
+    SOP_Node::syncNodeVersion(old_version, current_version, node_deleted);
+}
+
+//-*****************************************************************************
 
 void
 SOP_AlembicIn2::installSOP(OP_OperatorTable *table)
