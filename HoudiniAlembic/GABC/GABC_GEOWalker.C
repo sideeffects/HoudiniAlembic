@@ -1159,6 +1159,13 @@ GABC_GEOWalker::process(const IObject &obj)
 		case GABC_NUPATCH:
 		    makeNuPatch(*this, obj);
 		    break;
+
+		case GABC_CAMERA:	// Ignore these leaf nodes
+		case GABC_FACESET:
+		case GABC_LIGHT:
+		case GABC_MATERIAL:
+		    break;
+
 		default:
 		    {
 			IObject	parent = const_cast<IObject &>(obj).getParent();
