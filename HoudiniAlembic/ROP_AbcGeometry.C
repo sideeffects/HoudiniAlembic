@@ -176,7 +176,7 @@ namespace
     isToggleEnabled(OP_Node *node, const char *parameter, fpreal now)
     {
 	int	value;
-	if (node->evalParameterOrProperty("vm_rendersubd", 0, now, value))
+	if (node->evalParameterOrProperty(parameter, 0, now, value))
 	    return value != 0;
 	return false;
     }
@@ -387,7 +387,7 @@ ROP_AbcGeometry::makeProperties(ROP_AbcError &err,
     }
     else if (mySubD)
     {
-	SkipList	skips("P", "v", "uv", NULL);
+	SkipList	skips("P", "v", "uv", "creaseweight", NULL);
 	cp = mySubD->getSchema().getArbGeomParams();
 	makeCompoundProperties(err, myProperties[VERTEX_PROPERTIES],
 			prim->getVertexAttributes(),

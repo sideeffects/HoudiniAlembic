@@ -21,6 +21,7 @@
 #include "ROP_AbcContext.h"
 #include <SOP/SOP_Node.h>
 #include <GT/GT_Refine.h>
+#include <GT/GT_RefineParms.h>
 #include <GT/GT_GEODetail.h>
 
 ROP_AbcShape::ROP_AbcShape(SOP_Node *sop, Alembic::AbcGeom::OXform *parent)
@@ -86,19 +87,22 @@ namespace
     static void
     buildGeometry(UT_Array<GT_PrimitiveHandle> &primitives,
 		const GU_Detail *gdp,
+		const GT_RefineParms *rparms,
 		const GA_Range *range)
     {
         // Make a primitive for an entire detail
 	GT_PrimitiveHandle	detail = GT_GEODetail::makeDetail(gdp, range);
-	abc_Refiner		refine(primitives, NULL);
-        // Refining this primitive will iterate over the primitives in the detail.
+
+        // Refining this primitive will iterate over the primitives in the gdp.
+	abc_Refiner		refine(primitives, rparms);
 	if (detail)
-	    detail->refine(refine, NULL);
+	    detail->refine(refine, rparms);
     }
 
     static void
     partitionGeometry(UT_Array<GT_PrimitiveHandle> &primitives,
 		const GU_Detail *gdp,
+		const GT_RefineParms *rparms,
 		const char *partition,
 		std::vector< std::string > *oShapeNames=NULL)
     {
@@ -114,7 +118,7 @@ namespace
 	    stuple = sattrib.getAttribute()->getAIFSharedStringTuple();
 	if (!stuple)
 	{
-	    buildGeometry(primitives, gdp, NULL);
+	    buildGeometry(primitives, gdp, rparms, NULL);
 	    return;
 	}
 
@@ -144,16 +148,37 @@ namespace
         if (unpartitioned.entries())
         {
             GA_Range range(gdp->getPrimitiveMap(), unpartitioned);
-            buildGeometry(primitives, gdp, &range);
+            buildGeometry(primitives, gdp, rparms, &range);
         }
         for (exint i = 0; i < partitions.entries(); ++i)
         {
             if (partitions(i).entries())
             {
                 GA_Range range(gdp->getPrimitiveMap(), partitions(i));
-                buildGeometry(primitives, gdp, &range);
+                buildGeometry(primitives, gdp, rparms, &range);
             }
         }
+    }
+
+    static bool
+    isToggleEnabled(OP_Node *node, const char *name, fpreal now, fpreal def)
+    {
+	int	value;
+	if (node->evalParameterOrProperty(name, 0, now, value))
+	    return value != 0;
+	return def;
+    }
+
+    static void
+    initializeRefineParms(GT_RefineParms &rparms, const SOP_Node *sop,
+	    fpreal now)
+    {
+	OP_Network	*obj = sop->getCreator();
+	if (isToggleEnabled(obj, "vm_rendersubd", now, false) ||
+	    isToggleEnabled(obj, "ri_rendersubd", now, false))
+	{
+	    rparms.setPolysAsSubdivision(true);
+	}
     }
 }
 
@@ -173,8 +198,11 @@ ROP_AbcShape::create(ROP_AbcError &err, const char *basename,
     UT_WorkBuffer			 gname;
     const char				*name = basename;
     std::vector< std::string >		 names;
+    GT_RefineParms			 rparms;
 
-    partitionGeometry(prims, gdp, context.partitionAttribute(), &names);
+    initializeRefineParms(rparms, mySop, timeRange->getSampleTime(0));
+
+    partitionGeometry(prims, gdp, &rparms, context.partitionAttribute(), &names);
     myTimeDependent = mySop->isTimeDependent(context.context());
 
     if (names.size() == prims.entries())
@@ -222,8 +250,10 @@ ROP_AbcShape::writeSample(ROP_AbcError &err, ROP_AbcContext &context)
 	return false;
     }
     UT_Array<GT_PrimitiveHandle>	prims;
+    GT_RefineParms			rparms;
 
-    partitionGeometry(prims, gdp, context.partitionAttribute());
+    initializeRefineParms(rparms, mySop, context.time());
+    partitionGeometry(prims, gdp, &rparms, context.partitionAttribute());
     if (prims.entries() != myGeos.entries())
     {
 	UT_WorkBuffer	fullpath;
