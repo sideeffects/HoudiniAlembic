@@ -1,0 +1,1560 @@
+/*
+ * PROPRIETARY INFORMATION.  This software is proprietary to
+ * Side Effects Software Inc., and is not to be reproduced,
+ * transmitted, or disclosed in any way without written permission.
+ *
+ * Produced by:
+ *	Side Effects Software Inc
+ *	123 Front Street West, Suite 1401
+ *	Toronto, Ontario
+ *	Canada   M5J 2M2
+ *	416-504-9876
+ *
+ * NAME:	GABC_Object.h ( GABC Library, C++)
+ *
+ * COMMENTS:
+ */
+
+#include "GABC_IObject.h"
+#include "GABC_IArray.h"
+#include "GABC_IGTArray.h"
+#include "GABC_IArchive.h"
+#include "GABC_NameMap.h"
+#include "GABC_Util.h"
+#include "GABC_GTUtil.h"
+#include <GU/GU_Detail.h>
+#include <GT/GT_DANumeric.h>
+#include <GT/GT_DAConstantValue.h>
+#include <GT/GT_Util.h>
+#include <GT/GT_PrimPointMesh.h>
+#include <GT/GT_PrimCurveMesh.h>
+#include <GT/GT_PrimPolygonMesh.h>
+#include <GT/GT_PrimSubdivisionMesh.h>
+#include <GT/GT_PrimNuPatch.h>
+#include <GT/GT_TrimNuCurves.h>
+#include <Alembic/AbcGeom/All.h>
+#include <Alembic/AbcCoreHDF5/All.h>
+#include <UT/UT_StackBuffer.h>
+
+namespace
+{
+    typedef Alembic::Abc::index_t		index_t;
+    typedef Alembic::Abc::chrono_t		chrono_t;
+    typedef Alembic::Abc::DataType		DataType;
+    typedef Alembic::Abc::M44d			M44d;
+    typedef Alembic::Abc::V3d			V3d;
+    typedef Alembic::Abc::Quatd			Quatd;
+    typedef Alembic::Abc::IArchive		IArchive;
+    typedef Alembic::Abc::IObject		IObject;
+    typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
+    typedef Alembic::Abc::ISampleSelector	ISampleSelector;
+    typedef Alembic::Abc::ObjectHeader		ObjectHeader;
+    typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
+    typedef Alembic::Abc::PropertyHeader	PropertyHeader;
+    typedef Alembic::Abc::IP3fArrayProperty	IP3fArrayProperty;
+    typedef Alembic::Abc::IV3fArrayProperty	IV3fArrayProperty;
+    typedef Alembic::Abc::IUInt64ArrayProperty	IUInt64ArrayProperty;
+    typedef Alembic::Abc::IFloatArrayProperty	IFloatArrayProperty;
+    typedef Alembic::Abc::IArrayProperty	IArrayProperty;
+    typedef Alembic::Abc::IScalarProperty	IScalarProperty;
+    typedef Alembic::Abc::ArraySamplePtr	ArraySamplePtr;
+    typedef Alembic::Abc::Int32ArraySamplePtr	Int32ArraySamplePtr;
+    typedef Alembic::Abc::FloatArraySamplePtr	FloatArraySamplePtr;
+    typedef Alembic::Abc::WrapExistingFlag	WrapExistingFlag;
+    typedef Alembic::AbcGeom::IXform		IXform;
+    typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
+    typedef Alembic::AbcGeom::IPolyMesh		IPolyMesh;
+    typedef Alembic::AbcGeom::ISubD		ISubD;
+    typedef Alembic::AbcGeom::ICurves		ICurves;
+    typedef Alembic::AbcGeom::IPoints		IPoints;
+    typedef Alembic::AbcGeom::INuPatch		INuPatch;
+    typedef Alembic::AbcGeom::ILight		ILight;
+    typedef Alembic::AbcGeom::IFaceSet		IFaceSet;
+    typedef Alembic::AbcGeom::IPolyMeshSchema	IPolyMeshSchema;
+    typedef Alembic::AbcGeom::ISubDSchema	ISubDSchema;
+    typedef Alembic::AbcGeom::ICurvesSchema	ICurvesSchema;
+    typedef Alembic::AbcGeom::IPointsSchema	IPointsSchema;
+    typedef Alembic::AbcGeom::INuPatchSchema	INuPatchSchema;
+    typedef Alembic::AbcGeom::ILightSchema	ILightSchema;
+    typedef Alembic::AbcGeom::IFaceSetSchema	IFaceSetSchema;
+    typedef Alembic::AbcGeom::ICamera		ICamera;
+    typedef Alembic::AbcGeom::ICameraSchema	ICameraSchema;
+    typedef Alembic::AbcGeom::XformSample	XformSample;
+    typedef Alembic::AbcGeom::GeometryScope	GeometryScope;
+    typedef Alembic::AbcGeom::IN3fGeomParam	IN3fGeomParam;
+    typedef Alembic::AbcGeom::IV2fGeomParam	IV2fGeomParam;
+    typedef Alembic::AbcGeom::IFloatGeomParam	IFloatGeomParam;
+
+    const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
+    const GeometryScope	gabcVaryingScope = Alembic::AbcGeom::kVaryingScope;
+    const GeometryScope	gabcVertexScope = Alembic::AbcGeom::kVertexScope;
+    const GeometryScope	gabcFacevaryingScope = Alembic::AbcGeom::kFacevaryingScope;
+    const GeometryScope	gabcUniformScope = Alembic::AbcGeom::kUniformScope;
+    const GeometryScope	gabcConstantScope = Alembic::AbcGeom::kConstantScope;
+    const GeometryScope	gabcUnknownScope = Alembic::AbcGeom::kUnknownScope;
+    GeometryScope	theConstantUnknownScope[2] =
+					{ gabcConstantScope, gabcUnknownScope };
+
+    static GT_DataArrayHandle
+    arrayFromSample(GABC_IArchive &arch, const ArraySamplePtr &param,
+		GT_Type gttype=GT_TYPE_NONE)
+    {
+	if (!param)
+	    return GT_DataArrayHandle();
+	return GABCarray(GABC_IArray::getSample(arch, param, gttype));
+    }
+
+    /// Given an AbcGeom::ITypedGeomParam (i.e. IN3fGeomParam)
+    template <typename T>
+    static GT_DataArrayHandle
+    arrayFromGeomParam(GABC_IArchive &arch, const T &gparam, fpreal t,
+	    GT_Type tinfo)
+    {
+	if (!gparam || !gparam.valid())
+	    return GT_DataArrayHandle();
+
+	ISampleSelector		 iss(t);
+	typename T::sample_type	psample;
+
+	const_cast<T &>(gparam).getExpanded(psample, iss);
+	return GABCarray(GABC_IArray::getSample(arch, psample.getVals(), tinfo));
+    }
+
+    static bool
+    matchScope(GeometryScope needle, const GeometryScope *haystack, int size)
+    {
+	for (int i = 0; i < size; ++i)
+	    if (needle == haystack[i])
+		return true;
+	return false;
+    }
+
+    static GeometryScope
+    getArbitraryPropertyScope(const PropertyHeader &header)
+    {
+	return Alembic::AbcGeom::GetGeometryScope(header.getMetaData());
+    }
+
+    static void
+    setAttributeData(GT_AttributeList &alist,
+	    const char *name,
+	    const GT_DataArrayHandle &data,
+	    bool *filled)
+    {
+	int		idx = alist.getIndex(name);
+	if (idx >= 0 && data && !filled[idx])
+	{
+	    alist.set(idx, data, 0);
+	    filled[idx] = true;
+	}
+	else
+	{
+	    UT_ASSERT(idx < 0 || filled[idx]);
+	}
+    }
+
+    static const fpreal	timeBias = 0.0001;
+
+    static fpreal
+    getIndex(fpreal t,
+	    const TimeSamplingPtr &itime,
+	    exint nsamp,
+	    index_t &i0,
+	    index_t &i1)
+    {
+	nsamp  = SYSmax(nsamp, 1);
+	std::pair<index_t, chrono_t> t0 = itime->getFloorIndex(t, nsamp);
+	i0 = i1 = t0.first;
+	if (SYSisEqual(t, t0.second, timeBias))
+	    return 0;
+	std::pair<index_t, chrono_t> t1 = itime->getCeilIndex(t, nsamp);
+	i1 = t1.first;
+	if (i0 == i1)
+	    return 0;
+	fpreal	bias = (t - t0.second) / (t1.second - t0.second);
+	if (SYSisEqual(bias, 1, timeBias))
+	{
+	    i0 = i1;
+	    return 0;
+	}
+	return bias;
+    }
+
+    static GT_DataArrayHandle
+    getArraySample(GABC_IArchive &arch, const IArrayProperty &prop, index_t idx)
+    {
+	GABC_IArray	iarray = GABC_IArray::getSample(arch, prop, idx);
+	return GABCarray(iarray);
+    }
+
+    template <typename ABC_POD, typename GT_POD, GT_Storage GT_STORAGE>
+    static GT_DataArrayHandle
+    extractScalarProp(const IScalarProperty &prop, index_t idx)
+    {
+	const DataType	&dtype = prop.getDataType();
+	const char	*interp = prop.getMetaData().get("interpretation").c_str();
+	int		 tsize = dtype.getExtent();
+	GT_Type		 tinfo = GABC_GTUtil::getGTTypeInfo(interp, tsize);
+	UT_StackBuffer<ABC_POD>	src(tsize);
+	UT_StackBuffer<GT_POD>	dest(tsize);
+
+	prop.get(src, ISampleSelector(idx));
+	for (int i = 0; i < tsize; ++i)
+	    dest[i] = src[i];
+	return new GT_DAConstantValue<GT_POD, GT_STORAGE>(1, dest, tsize, tinfo);
+    }
+
+    static GT_DataArrayHandle
+    extractScalarString(const IScalarProperty &prop, index_t idx)
+    {
+	GT_DAIndexedString	*data = new GT_DAIndexedString(1);
+	std::string		 val;
+	prop.get(&val, ISampleSelector(idx));
+	data->setString(0, 0, val.c_str());
+	return data;
+    }
+
+    static GT_DataArrayHandle
+    getScalarSample(GABC_IArchive &arch,
+	    const IScalarProperty &prop, index_t idx)
+    {
+	switch (prop.getDataType().getPod())
+	{
+	    case Alembic::Abc::kBooleanPOD:
+		return extractScalarProp<bool, uint8, GT_STORE_UINT8>(prop, idx);
+	    case Alembic::Abc::kInt8POD:
+		return extractScalarProp<int8, int32, GT_STORE_INT32>(prop, idx);
+	    case Alembic::Abc::kUint8POD:
+		return extractScalarProp<uint8, uint8, GT_STORE_UINT8>(prop, idx);
+	    case Alembic::Abc::kUint16POD:
+		return extractScalarProp<uint16, int32, GT_STORE_INT32>(prop, idx);
+	    case Alembic::Abc::kInt16POD:
+		return extractScalarProp<int16, int32, GT_STORE_INT32>(prop, idx);
+	    case Alembic::Abc::kUint32POD:
+		return extractScalarProp<uint32, int64, GT_STORE_INT64>(prop, idx);
+	    case Alembic::Abc::kInt32POD:
+		return extractScalarProp<int32, int32, GT_STORE_INT32>(prop, idx);
+	    case Alembic::Abc::kInt64POD:
+		return extractScalarProp<int64, int64, GT_STORE_INT64>(prop, idx);
+	    case Alembic::Abc::kUint64POD:	// Store uint64 in int64 too
+		return extractScalarProp<uint64, int64, GT_STORE_INT64>(prop, idx);
+	    case Alembic::Abc::kFloat16POD:
+		return extractScalarProp<fpreal16, fpreal16, GT_STORE_REAL16>(prop, idx);
+	    case Alembic::Abc::kFloat32POD:
+		return extractScalarProp<fpreal32, fpreal32, GT_STORE_REAL32>(prop, idx);
+	    case Alembic::Abc::kFloat64POD:
+		return extractScalarProp<fpreal64, fpreal64, GT_STORE_REAL64>(prop, idx);
+	    case Alembic::Abc::kStringPOD:
+		return extractScalarString(prop, idx);
+
+	    case Alembic::Abc::kWstringPOD:
+	    case Alembic::Abc::kNumPlainOldDataTypes:
+	    case Alembic::Abc::kUnknownPOD:
+		break;
+	}
+	return GT_DataArrayHandle();
+    }
+
+    void decomposeXForm(
+            const M44d &m,
+            V3d &scale,
+            V3d &shear,
+            Quatd &q,
+            V3d &t
+    )
+    {
+        M44d mtmp(m);
+
+        // Extract Scale, Shear
+	Imath::extractAndRemoveScalingAndShear(mtmp, scale, shear);
+
+        // Extract translation
+        t.x = mtmp[3][0];
+        t.y = mtmp[3][1];
+        t.z = mtmp[3][2];
+
+        // Extract rotation
+        q = extractQuat(mtmp);
+    }
+
+    M44d recomposeXForm(
+            const V3d &scale,
+            const V3d &shear,
+            const Quatd &rotation,
+            const V3d &translation
+    )
+    {
+	M44d	scale_mtx, shear_mtx, rotation_mtx, translation_mtx;
+
+        scale_mtx.setScale(scale);
+        shear_mtx.setShear(shear);
+        rotation_mtx = rotation.toMatrix44();
+        translation_mtx.setTranslation(translation);
+
+        return scale_mtx * shear_mtx * rotation_mtx * translation_mtx;
+    }
+
+    static V3d
+    lerp(const Imath::V3d &a, const Imath::V3d &b, double bias)
+    {
+        return V3d(SYSlerp(a[0], b[0], bias), SYSlerp(a[1], b[1], bias),
+			SYSlerp(a[2], b[2], bias));
+    }
+
+    static M44d
+    blendMatrix(const M44d &m0, const M44d &m1, fpreal bias)
+    {
+	V3d	s0, s1;	// Scales
+	V3d	h0, h1;	// Shears
+	V3d	t0, t1;	// Translates
+	Quatd	q0, q1;	// Rotations
+
+	decomposeXForm(m0, s0, h0, q0, t0);
+	decomposeXForm(m1, s1, h1, q1, t1);
+	if ((q0 ^ q1) < 0)
+	    q1 = -q1;
+	return recomposeXForm(lerp(s0, s1, bias),
+			    lerp(h0, h1, bias),
+			    Imath::slerp(q0, q1, bias),
+			    lerp(t0, t1, bias));
+    }
+
+    template <typename T, GT_Storage T_STORAGE>
+    static GT_DataArrayHandle
+    blendArrays(const GT_DataArrayHandle &s0, const T *f0,
+		const GT_DataArrayHandle &s1, const T *f1,
+		fpreal bias)
+    {
+	GT_DANumeric<T, T_STORAGE>	*gtarray;
+	gtarray = new GT_DANumeric<T, T_STORAGE>(s0->entries(),
+				s0->getTupleSize(), s0->getTypeInfo());
+	T	*dest = gtarray->data();
+	GT_Size	 fullsize = s0->entries() * s0->getTupleSize();
+	for (exint i = 0; i < fullsize; ++i)
+	{
+	    dest[i] = SYSlerp(f0[i], f1[i], bias);
+	}
+	return GT_DataArrayHandle(gtarray);
+    }
+
+    static bool
+    areArraysDifferent(const GT_DataArrayHandle &s0,
+		const GT_DataArrayHandle &s1)
+    {
+	return s0->entries() != s1->entries()
+		|| s0->getTupleSize() != s1->getTupleSize()
+		|| s0->getStorage() != s1->getStorage();
+    }
+
+    static GT_DataArrayHandle
+    blendArrays(const GT_DataArrayHandle &s0, const GT_DataArrayHandle &s1,
+	    fpreal bias)
+    {
+	if (areArraysDifferent(s0, s1))
+	    return s0;
+	GT_DataArrayHandle	buf0, buf1;
+	switch (s0->getStorage())
+	{
+	    case GT_STORE_REAL16:
+		return blendArrays<fpreal16, GT_STORE_REAL16>(
+			s0, s0->getF16Array(buf0),
+			s1, s1->getF16Array(buf1), bias);
+	    case GT_STORE_REAL32:
+		return blendArrays<fpreal32, GT_STORE_REAL32>(
+			s0, s0->getF32Array(buf0),
+			s1, s1->getF32Array(buf1), bias);
+	    case GT_STORE_REAL64:
+		return blendArrays<fpreal64, GT_STORE_REAL64>(
+			s0, s0->getF64Array(buf0),
+			s1, s1->getF64Array(buf1), bias);
+	    default:
+		UT_ASSERT(0);
+	}
+	return s0;
+    }
+
+    static GT_DataArrayHandle
+    readArrayProperty(GABC_IArchive &arch, IArrayProperty &prop, fpreal t)
+    {
+	index_t i0, i1;
+	fpreal	bias = getIndex(t, prop.getTimeSampling(),
+				prop.getNumSamples(), i0, i1);
+	GT_DataArrayHandle	s0 = getArraySample(arch, prop, i0);
+	if (i0 == i1 || !GTisFloat(s0->getStorage()))
+	    return s0;
+	GT_DataArrayHandle	s1 = getArraySample(arch, prop, i1);
+	return blendArrays(s0, s1, bias);
+    }
+
+    static GT_DataArrayHandle
+    readScalarProperty(GABC_IArchive &arch,
+	    IScalarProperty &prop,
+	    fpreal t)
+    {
+	index_t i0, i1;
+	fpreal	bias = getIndex(t, prop.getTimeSampling(),
+				prop.getNumSamples(), i0, i1);
+	GT_DataArrayHandle	s0 = getScalarSample(arch, prop, i0);
+	if (i0 == i1 || !GTisFloat(s0->getStorage()))
+	    return s0;
+	GT_DataArrayHandle	s1 = getScalarSample(arch, prop, i1);
+	return blendArrays(s0, s1, bias);
+    }
+
+    static GT_DataArrayHandle
+    convertArbitraryProperty(GABC_IArchive &arch,
+		    ICompoundProperty parent,
+		    const PropertyHeader &header,
+		    fpreal t,
+		    GABC_AnimationType *atype=NULL)
+    {
+	if (header.isArray())
+	{
+	    IArrayProperty	prop(parent, header.getName());
+	    if (atype)
+	    {
+		*atype = prop.isConstant() ? GABC_ANIMATION_CONSTANT
+					: GABC_ANIMATION_ATTRIBUTE;
+	    }
+	    return readArrayProperty(arch, prop, t);
+	}
+	else if (header.isScalar())
+	{
+	    IScalarProperty	prop(parent, header.getName());
+	    if (atype)
+	    {
+		*atype = prop.isConstant() ? GABC_ANIMATION_CONSTANT
+					: GABC_ANIMATION_ATTRIBUTE;
+	    }
+	    return readScalarProperty(arch, prop, t);
+	}
+
+	return GT_DataArrayHandle();
+    }
+
+    template <typename PRIM_T, typename SCHEMA_T>
+    static GT_DataArrayHandle
+    gabcGetPosition(const GABC_IObject &obj, fpreal t)
+    {
+	PRIM_T			 prim(obj.object(), gabcWrapExisting);
+	SCHEMA_T		&ss = prim.getSchema();
+	IP3fArrayProperty	 P = ss.getPositionsProperty();
+	UT_ASSERT(P.valid());
+	return readArrayProperty(*obj.archive(), P, t);
+    }
+
+    template <typename PRIM_T, typename SCHEMA_T>
+    static GT_DataArrayHandle
+    gabcGetVelocity(const GABC_IObject &obj, fpreal t)
+    {
+	PRIM_T			 prim(obj.object(), gabcWrapExisting);
+	SCHEMA_T		&ss = prim.getSchema();
+	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+	if (!v.valid())
+	    return GT_DataArrayHandle();
+	return readArrayProperty(*obj.archive(), v, t);
+    }
+
+    static void
+    fillHoudiniAttributes(GT_AttributeList &alist,
+		    const GEO_Primitive &prim,
+		    GA_AttributeOwner owner,
+		    bool *filled)
+    {
+	const GA_Detail		&gdp = prim.getDetail();
+	const GA_AttributeDict	&dict = gdp.getAttributes().getDict(owner);
+	const GA_IndexMap		&indexmap = gdp.getIndexMap(owner);
+	GA_Offset			 offset;
+	if (owner == GA_ATTRIB_DETAIL)
+	    offset = GA_Offset(0);
+	else
+	    offset = prim.getMapOffset();
+	GA_Range	range(indexmap, offset, GA_Offset(offset+1));
+	for (GA_AttributeDict::iterator it = dict.begin(GA_SCOPE_PUBLIC);
+		!it.atEnd(); ++it)
+	{
+	    int			idx = alist.getIndex((*it)->getName());
+	    if (idx >= 0 && !filled[idx])
+	    {
+		GT_DataArrayHandle h = GT_Util::extractAttribute(*(*it), range);
+		alist.set(idx, h, 0);
+		filled[idx] = true;
+	    }
+	}
+    }
+
+    #define LOOKUP_TYPE(VAR) \
+	GABC_GTUtil::getGTTypeInfo(VAR::traits_type::interpretation(), \
+				VAR->getDataType().getExtent())
+
+    #define SET_ARRAY(VAR, NAME, TYPEINFO) \
+	if (VAR && *VAR) { \
+	    setAttributeData(alist, NAME, \
+		    arrayFromSample(arch, VAR->getValue(sample), TYPEINFO), filled); \
+    }
+    #define SET_GEOM_PARAM(VAR, NAME, TYPEINFO) \
+	if (VAR && VAR->valid() && matchScope(VAR->getScope(), \
+		    scope, scope_size)) { \
+	    setAttributeData(alist, NAME, \
+		    arrayFromGeomParam(arch, *VAR, t, TYPEINFO), filled); \
+	}
+
+    static void
+    fillAttributeList(GT_AttributeList &alist,
+	    const GABC_NameMapPtr &namemap,
+	    const GEO_Primitive *prim,
+	    const GABC_IObject &obj,
+	    fpreal t,
+	    const GeometryScope *scope,
+	    int scope_size,
+	    ICompoundProperty arb,
+	    const IP3fArrayProperty *P,
+	    const IV3fArrayProperty *v,
+	    const IN3fGeomParam *N,
+	    const IV2fGeomParam *uvs,
+	    const IUInt64ArrayProperty *ids,
+	    const IFloatGeomParam *widths,
+	    const IFloatArrayProperty *Pw)
+    {
+	UT_ASSERT(alist.entries());
+	if (!alist.entries())
+	    return;
+
+	GABC_IArchive	&arch = *obj.archive();
+	ISampleSelector	sample(t);
+
+	UT_StackBuffer<bool>	filled(alist.entries());
+	memset(filled, 0, sizeof(bool)*alist.entries());
+	SET_ARRAY(P, "P", GT_TYPE_POINT)
+	SET_ARRAY(v, "v", GT_TYPE_VECTOR)
+	SET_ARRAY(ids, "id", GT_TYPE_NONE)
+	SET_GEOM_PARAM(N, "N", GT_TYPE_NORMAL)
+	SET_GEOM_PARAM(uvs, "uv", GT_TYPE_NONE)
+	SET_GEOM_PARAM(widths, "width", GT_TYPE_NONE)
+	SET_ARRAY(Pw, "Pw", GT_TYPE_NONE)
+	if (prim && matchScope(gabcConstantScope, scope, scope_size))
+	{
+	    setAttributeData(alist, "__primitive_id",
+		    new GT_IntConstant(1, prim->getMapOffset()), filled);
+	}
+	if (arb)
+	{
+	    for (size_t i = 0; i < arb.getNumProperties(); ++i)
+	    {
+		const PropertyHeader	&header = arb.getPropertyHeader(i);
+		if (!matchScope(getArbitraryPropertyScope(header),
+			    scope, scope_size))
+		{
+		    continue;
+		}
+
+		const char	*name = header.getName().c_str();
+		if (namemap)
+		{
+		    name = namemap->getName(name);
+		    if (!name)
+			continue;
+		}
+		GT_Storage	store = GABC_GTUtil::getGTStorage(header.getDataType());
+		if (store == GT_STORE_INVALID)
+		    continue;
+		setAttributeData(alist, name,
+			convertArbitraryProperty(arch, arb, header, t), filled);
+	    }
+	}
+	// We need to fill Houdini attributes last.  Otherwise, when converting
+	// two primitives, the Houdini attributes override the first primitive
+	// converted.
+	if (prim && matchScope(gabcConstantScope, scope, scope_size))
+	{
+	    fillHoudiniAttributes(alist, *prim, GA_ATTRIB_PRIMITIVE, filled);
+	    fillHoudiniAttributes(alist, *prim, GA_ATTRIB_GLOBAL, filled);
+	}
+    }
+
+
+    template <typename T>
+    static void
+    addPropertyToMap(GT_AttributeMap &map, const char *name, const T *prop)
+    {
+	if (prop && *prop)
+	    map.add(name, true);
+    }
+    template <typename T>
+    static void
+    addGeomParamToMap(GT_AttributeMap &map, const char *name, T *param,
+	    const GeometryScope *scope, int scope_size, bool override=false)
+    {
+	if (param && param->valid()
+		&& matchScope(param->getScope(), scope, scope_size))
+	    map.add(name, override);
+    }
+
+    static void
+    initializeHoudiniAttributes(const GEO_Primitive &prim,
+	    GT_AttributeMap &map, GA_AttributeOwner owner)
+    {
+	const GA_Detail		&gdp = prim.getDetail();
+	const GA_AttributeDict	&dict = gdp.getAttributes().getDict(owner);
+	for (GA_AttributeDict::iterator it = dict.begin(GA_SCOPE_PUBLIC);
+		!it.atEnd(); ++it)
+	{
+	    const GA_Attribute	*attrib = it.attrib();
+	    if (attrib->getAIFTuple() || attrib->getAIFStringTuple())
+		map.add(attrib->getName(), false);
+	}
+    }
+
+    static GT_AttributeListHandle
+    initializeAttributeList(const GEO_Primitive *prim,
+			const GABC_IObject &obj,
+			const GABC_NameMapPtr &namemap,
+			fpreal t, 
+			const GeometryScope *scope,
+			int scope_size,
+			ICompoundProperty arb,
+			const IP3fArrayProperty *P = NULL,
+			const IV3fArrayProperty *v = NULL,
+			const IN3fGeomParam *N = NULL,
+			const IV2fGeomParam *uvs = NULL,
+			const IUInt64ArrayProperty *ids = NULL,
+			const IFloatGeomParam *widths = NULL,
+			const IFloatArrayProperty *Pw = NULL)
+    {
+	GT_AttributeMap	*map = new GT_AttributeMap();
+
+	addPropertyToMap(*map, "P", P);
+	addPropertyToMap(*map, "Pw", Pw);
+	addPropertyToMap(*map, "v", v);
+	addPropertyToMap(*map, "id", ids);
+	addGeomParamToMap(*map, "N", N, scope, scope_size);
+	addGeomParamToMap(*map, "uv", uvs, scope, scope_size);
+	addGeomParamToMap(*map, "width", widths, scope, scope_size);
+
+	if (prim && matchScope(gabcConstantScope, scope, scope_size))
+	    map->add("__primitive_id", true);
+	if (arb)
+	{
+	    for (exint i = 0; i < arb.getNumProperties(); ++i)
+	    {
+		const PropertyHeader	&header = arb.getPropertyHeader(i);
+		if (!matchScope(getArbitraryPropertyScope(header), scope, scope_size))
+		{
+		    continue;
+		}
+		const char	*name = header.getName().c_str();
+		if (namemap)
+		{
+		    name = namemap->getName(name);
+		    if (!name)
+			continue;
+		}
+		GT_Storage	store = GABC_GTUtil::getGTStorage(header.getDataType());
+		if (store == GT_STORE_INVALID)
+		    continue;
+		map->add(name, false);
+	    }
+	}
+
+	if (prim && matchScope(gabcConstantScope, scope, scope_size))
+	{
+	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_PRIMITIVE);
+	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_GLOBAL);
+	}
+
+	GT_AttributeList	*alist = NULL;
+	if (!map->entries())
+	    delete map;
+	else
+	{
+	    alist = new GT_AttributeList(GT_AttributeMapHandle(map));
+	    fillAttributeList(*alist, namemap, prim, obj, t, scope, scope_size,
+		    arb, P, v, N, uvs, ids, widths, Pw);
+	}
+
+	return GT_AttributeListHandle(alist);
+    }
+
+    static GT_AttributeListHandle
+    initializeAttributeList(const GEO_Primitive *prim,
+			const GABC_IObject &obj,
+			const GABC_NameMapPtr &namemap,
+			fpreal t, 
+			const GeometryScope scope,
+			ICompoundProperty arb,
+			const IP3fArrayProperty *P = NULL,
+			const IV3fArrayProperty *v = NULL,
+			const IN3fGeomParam *N = NULL,
+			const IV2fGeomParam *uvs = NULL,
+			const IUInt64ArrayProperty *ids = NULL,
+			const IFloatGeomParam *widths = NULL,
+			const IFloatArrayProperty *Pw = NULL)
+    {
+	return initializeAttributeList(prim, obj, namemap, t, &scope, 1,
+		arb, P, v, N, uvs, ids, widths, Pw);
+    }
+
+    template <typename T>
+    static bool
+    isEmpty(const T &ptr)
+    {
+	return !ptr || !ptr->valid() || ptr->size() == 0;
+    }
+
+    static GT_PrimitiveHandle
+    buildPointMesh(const GEO_Primitive *prim,
+		const GABC_IObject &obj,
+		fpreal t,
+		GABC_AnimationType &atype,
+		const GABC_NameMapPtr &namemap)
+    {
+	IPoints			 shape(obj.object(), gabcWrapExisting);
+	IPointsSchema		&ss = shape.getSchema();
+	IPointsSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
+
+	GT_AttributeListHandle	vertex;
+	GT_AttributeListHandle	detail;
+	IP3fArrayProperty	P = ss.getPositionsProperty();
+	IV3fArrayProperty	v = ss.getVelocitiesProperty();
+	IUInt64ArrayProperty	ids = ss.getIdsProperty();
+	IFloatGeomParam		widths = ss.getWidthsParam();
+	GeometryScope	vertex_scope[3] = { gabcVertexScope, gabcVaryingScope, gabcFacevaryingScope };
+	GeometryScope	detail_scope[3] = { gabcUniformScope, gabcConstantScope, gabcUnknownScope };
+
+	vertex = initializeAttributeList(prim, obj, namemap, t,
+			vertex_scope, 3, ss.getArbGeomParams(),
+			&P, &v, NULL, NULL, &ids, &widths);
+	detail = initializeAttributeList(prim, obj, namemap, t,
+			detail_scope, 3, ss.getArbGeomParams());
+
+	GT_Primitive	*gt = new GT_PrimPointMesh(vertex, detail);
+	return GT_PrimitiveHandle(gt);
+    }
+
+    static GT_PrimitiveHandle
+    buildSubDMesh(const GEO_Primitive *prim,
+			const GABC_IObject &obj,
+			fpreal t,
+			GABC_AnimationType &atype,
+			const GABC_NameMapPtr &namemap)
+    {
+	ISubD			 shape(obj.object(), gabcWrapExisting);
+	ISubDSchema		&ss = shape.getSchema();
+	ISubDSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
+	GT_DataArrayHandle	 counts;
+	GT_DataArrayHandle	 indices;
+
+	counts = arrayFromSample(*obj.archive(), sample.getFaceCounts());
+	indices = arrayFromSample(*obj.archive(), sample.getFaceIndices());
+
+	GT_AttributeListHandle	 point;
+	GT_AttributeListHandle	 vertex;
+	GT_AttributeListHandle	 uniform;
+	GT_AttributeListHandle	 detail;
+	IP3fArrayProperty	 P = ss.getPositionsProperty();
+	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+	const IV2fGeomParam	&uvs = ss.getUVsParam();
+	GeometryScope	point_scope[2] = { gabcVaryingScope, gabcVertexScope };
+
+	point = initializeAttributeList(prim, obj, namemap, t,
+				point_scope, 2,
+				ss.getArbGeomParams(),
+				&P,
+				&v,
+				NULL,
+				&uvs);
+	vertex = initializeAttributeList(prim, obj, namemap, t,
+				gabcFacevaryingScope,
+				ss.getArbGeomParams(),
+				NULL,
+				NULL,
+				NULL,
+				&uvs);
+	uniform = initializeAttributeList(prim, obj, namemap, t,
+				gabcUniformScope, ss.getArbGeomParams());
+	detail = initializeAttributeList(prim, obj, namemap, t,
+				theConstantUnknownScope, 2,
+				ss.getArbGeomParams());
+
+	GT_PrimSubdivisionMesh	*gt = new GT_PrimSubdivisionMesh(counts,
+					indices,
+					point,
+					vertex,
+					uniform,
+					detail);
+
+	/// Add tags
+	Int32ArraySamplePtr	creaseIndices = sample.getCreaseIndices();
+	FloatArraySamplePtr	creaseSharpness = sample.getCreaseSharpnesses();
+	Int32ArraySamplePtr	cornerIndices = sample.getCreaseIndices();
+	FloatArraySamplePtr	cornerSharpness = sample.getCreaseSharpnesses();
+	Int32ArraySamplePtr	holeIndices = sample.getHoles();
+	if (!isEmpty(creaseIndices) && !isEmpty(creaseSharpness))
+	{
+	    GT_Int32Array	*index = new GT_Int32Array(
+						creaseIndices->get(),
+						creaseIndices->size(), 1);
+	    GT_Real32Array	*weight = new GT_Real32Array(
+						creaseSharpness->get(),
+						creaseSharpness->size(), 1);
+	    UT_ASSERT(index->entries() == weight->entries()*2);
+	    gt->appendIntTag("crease", GT_DataArrayHandle(indices));
+	    gt->appendRealTag("crease", GT_DataArrayHandle(weight));
+	}
+	if (!isEmpty(cornerIndices) && !isEmpty(cornerSharpness))
+	{
+	    GT_Int32Array	*index = new GT_Int32Array(
+						cornerIndices->get(),
+						cornerIndices->size(), 1);
+	    GT_Real32Array	*weight = new GT_Real32Array(
+						cornerSharpness->get(),
+						cornerSharpness->size(), 1);
+	    UT_ASSERT(index->entries() == weight->entries());
+	    gt->appendIntTag("corner", GT_DataArrayHandle(indices));
+	    gt->appendRealTag("corner", GT_DataArrayHandle(weight));
+	}
+	if (!isEmpty(holeIndices))
+	{
+	    GT_Int32Array	*index = new GT_Int32Array(
+						holeIndices->get(),
+						holeIndices->size(), 1);
+	    gt->appendIntTag("hole", GT_DataArrayHandle(index));
+	}
+
+	return GT_PrimitiveHandle(gt);
+    }
+
+    static GT_PrimitiveHandle
+    buildPolyMesh(const GEO_Primitive *prim,
+			const GABC_IObject &obj,
+			fpreal t,
+			GABC_AnimationType &atype,
+			const GABC_NameMapPtr &namemap)
+    {
+	IPolyMesh		 shape(obj.object(), gabcWrapExisting);
+	IPolyMeshSchema		&ss = shape.getSchema();
+	IPolyMeshSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
+	GT_DataArrayHandle	 counts;
+	GT_DataArrayHandle	 indices;
+
+	counts = arrayFromSample(*obj.archive(), sample.getFaceCounts());
+	indices = arrayFromSample(*obj.archive(), sample.getFaceIndices());
+
+	GT_AttributeListHandle	 point;
+	GT_AttributeListHandle	 vertex;
+	GT_AttributeListHandle	 uniform;
+	GT_AttributeListHandle	 detail;
+	IP3fArrayProperty	 P = ss.getPositionsProperty();
+	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+	const IN3fGeomParam	&N = ss.getNormalsParam();
+	const IV2fGeomParam	&uvs = ss.getUVsParam();
+	GeometryScope	point_scope[2] = { gabcVaryingScope, gabcVertexScope };
+
+	point = initializeAttributeList(prim, obj, namemap, t,
+				point_scope, 2,
+				ss.getArbGeomParams(),
+				&P,
+				&v,
+				&N,
+				&uvs);
+	vertex = initializeAttributeList(prim, obj, namemap, t,
+				gabcFacevaryingScope,
+				ss.getArbGeomParams(),
+				NULL,
+				NULL,
+				&N,
+				&uvs);
+	uniform = initializeAttributeList(prim, obj, namemap, t,
+				gabcUniformScope, ss.getArbGeomParams());
+	detail = initializeAttributeList(prim, obj, namemap, t,
+				theConstantUnknownScope, 2,
+				ss.getArbGeomParams());
+
+	GT_Primitive	*gt = new GT_PrimPolygonMesh(counts,
+				indices,
+				point,
+				vertex,
+				uniform,
+				detail);
+
+	return GT_PrimitiveHandle(gt);
+    }
+
+    static GT_PrimitiveHandle
+    buildCurveMesh(const GEO_Primitive *prim,
+			const GABC_IObject &obj,
+			fpreal t,
+			GABC_AnimationType &atype,
+			const GABC_NameMapPtr &namemap)
+    {
+	ICurves			 shape(obj.object(), gabcWrapExisting);
+	ICurvesSchema		&ss = shape.getSchema();
+	ICurvesSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
+	GT_DataArrayHandle	 counts;
+
+	counts = arrayFromSample(*obj.archive(), sample.getCurvesNumVertices());
+
+	GT_AttributeListHandle	 vertex;
+	GT_AttributeListHandle	 uniform;
+	GT_AttributeListHandle	 detail;
+	IP3fArrayProperty	 P = ss.getPositionsProperty();
+	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+	const IN3fGeomParam	&N = ss.getNormalsParam();
+	const IV2fGeomParam	&uvs = ss.getUVsParam();
+	IFloatGeomParam		 widths = ss.getWidthsParam();
+	GeometryScope		 vertex_scope[3] = {
+					gabcVaryingScope,
+					gabcVertexScope,
+					gabcFacevaryingScope
+				 };
+
+	vertex = initializeAttributeList(prim, obj, namemap, t,
+				vertex_scope, 3,
+				ss.getArbGeomParams(),
+				NULL,
+				NULL,
+				&N,
+				&uvs,
+				NULL,
+				&widths);
+	uniform = initializeAttributeList(prim, obj, namemap, t,
+				gabcUniformScope, ss.getArbGeomParams());
+	detail = initializeAttributeList(prim, obj, namemap, t,
+				theConstantUnknownScope, 2,
+				ss.getArbGeomParams());
+
+	GT_Basis	basis = GT_BASIS_LINEAR;
+	bool		periodic = false;
+	switch (sample.getBasis())
+	{
+	    case Alembic::AbcGeom::kBezierBasis:
+		basis = GT_BASIS_BEZIER;
+		break;
+	    default:
+		basis = GT_BASIS_LINEAR;
+		break;
+	}
+	switch (sample.getWrap())
+	{
+	    case Alembic::AbcGeom::kPeriodic:
+		periodic = true;
+		break;
+	    default:
+		periodic = false;
+		break;
+	}
+
+	GT_Primitive	*gt = new GT_PrimCurveMesh(basis,
+				counts,
+				vertex,
+				uniform,
+				detail,
+				periodic);
+
+	return GT_PrimitiveHandle(gt);
+    }
+
+    static GT_DataArrayHandle
+    joinVector3Array(const GT_DataArrayHandle &x,
+		    const GT_DataArrayHandle &y,
+		    const GT_DataArrayHandle &z,
+		    GT_Type type = GT_TYPE_POINT)
+    {
+	exint	n = x->entries();
+	UT_ASSERT(n == y->entries() && n == z->entries());
+	GT_Real32Array	*xyz = new GT_Real32Array(n, 3, type);
+	fpreal32		*data = xyz->data();
+	for (exint i = 0; i < n; ++i, data += 3)
+	{
+	    data[0] = x->getF32(i);
+	    data[1] = y->getF32(i);
+	    data[2] = z->getF32(i);
+	}
+	return GT_DataArrayHandle(xyz);
+    }
+
+    static GT_PrimitiveHandle
+    buildNuPatch(const GEO_Primitive *prim,
+			const GABC_IObject &obj,
+			fpreal t,
+			GABC_AnimationType &atype,
+			const GABC_NameMapPtr &namemap)
+    {
+	INuPatch		 shape(obj.object(), gabcWrapExisting);
+	INuPatchSchema		&ss = shape.getSchema();
+	INuPatchSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
+	int			 uorder = sample.getUOrder();
+	int			 vorder = sample.getVOrder();
+	GT_DataArrayHandle	 uknots;
+	GT_DataArrayHandle	 vknots;
+
+	uknots = arrayFromSample(*obj.archive(), sample.getUKnot());
+	vknots = arrayFromSample(*obj.archive(), sample.getVKnot());
+
+	GT_AttributeListHandle	 vertex;
+	GT_AttributeListHandle	 uniform;
+	GT_AttributeListHandle	 detail;
+	IP3fArrayProperty	 P = ss.getPositionsProperty();
+	IFloatArrayProperty	 Pw = ss.getPositionWeightsProperty();
+	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+	const IN3fGeomParam	&N = ss.getNormalsParam();
+	const IV2fGeomParam	&uvs = ss.getUVsParam();
+	GeometryScope		 vertex_scope[3] = {
+					gabcVaryingScope,
+					gabcVertexScope,
+					gabcFacevaryingScope
+				 };
+	GeometryScope		 detail_scope[3] = {
+					gabcUniformScope,
+					gabcConstantScope,
+					gabcUnknownScope
+				 };
+
+	vertex = initializeAttributeList(prim, obj, namemap, t,
+				vertex_scope, 3,
+				ss.getArbGeomParams(),
+				NULL,
+				NULL,
+				&N,
+				&uvs,
+				NULL,
+				NULL,
+				&Pw);
+	detail = initializeAttributeList(prim, obj, namemap, t,
+				detail_scope, 3,
+				ss.getArbGeomParams());
+
+	GT_PrimNuPatch	*gt = new GT_PrimNuPatch(uorder, uknots,
+				    vorder, vknots, vertex, detail);
+
+	if (ss.hasTrimCurve())
+	{
+	    GT_DataArrayHandle	loopCount;
+	    GT_DataArrayHandle	curveCount;
+	    GT_DataArrayHandle	curveOrders;
+	    GT_DataArrayHandle	curveKnots;
+	    GT_DataArrayHandle	curveMin;
+	    GT_DataArrayHandle	curveMax;
+	    GT_DataArrayHandle	curveU, curveV, curveW, curveUVW;
+	    loopCount = arrayFromSample(*obj.archive(), sample.getTrimNumCurves());
+	    curveCount = arrayFromSample(*obj.archive(), sample.getTrimNumVertices());
+	    curveOrders = arrayFromSample(*obj.archive(), sample.getTrimOrders());
+	    curveKnots = arrayFromSample(*obj.archive(), sample.getTrimKnots());
+	    curveMin = arrayFromSample(*obj.archive(), sample.getTrimMins());
+	    curveMax = arrayFromSample(*obj.archive(), sample.getTrimMaxes());
+	    curveU = arrayFromSample(*obj.archive(), sample.getTrimU());
+	    curveV = arrayFromSample(*obj.archive(), sample.getTrimV());
+	    curveW = arrayFromSample(*obj.archive(), sample.getTrimW());
+	    curveUVW = joinVector3Array(curveU, curveV, curveW);
+
+	    GT_TrimNuCurves	*trims = new GT_TrimNuCurves(loopCount,
+				    curveCount, curveOrders,
+				    curveKnots, curveMin, curveMax, curveUVW);
+	    if (!trims->isValid())
+	    {
+		delete trims;
+		trims = NULL;
+	    }
+	    gt->adoptTrimCurves(trims);
+	}
+
+	return GT_PrimitiveHandle(gt);
+    }
+
+    template <typename T, typename SCHEMA_T>
+    static ICompoundProperty
+    geometryProperties(const GABC_IObject &obj)
+    {
+	T		 shape(obj.object(), gabcWrapExisting);
+	SCHEMA_T	&ss = shape.getSchema();
+	return ss.getArbGeomParams();
+    }
+
+    template <typename T, typename SCHEMA_T>
+    static ICompoundProperty
+    userProperties(const GABC_IObject &obj)
+    {
+	T		 shape(obj.object(), gabcWrapExisting);
+	SCHEMA_T	&ss = shape.getSchema();
+	return ss.getUserProperties();
+    }
+};
+
+GABC_IObject::GABC_IObject()
+    : GABC_IItem()
+    , myObjectPath()
+    , myObject()
+{
+}
+
+GABC_IObject::GABC_IObject(const GABC_IObject &obj)
+    : GABC_IItem(obj)
+    , myObjectPath(obj.myObjectPath)
+    , myObject(obj.myObject)
+{
+}
+
+GABC_IObject::GABC_IObject(const GABC_IArchivePtr &arch,
+		const std::string &objectpath)
+    : GABC_IItem(arch)
+    , myObjectPath(objectpath)
+    , myObject()
+{
+    if (archive())
+	archive()->resolveObject(*this);
+}
+
+GABC_IObject::GABC_IObject(GABC_IArchive &arch, const IObject &obj)
+    : GABC_IItem(&arch)
+    , myObjectPath(obj.getFullName())
+    , myObject(obj)
+{
+}
+
+GABC_IObject::GABC_IObject(const std::string &filename, const std::string &objectpath)
+    : GABC_IItem(NULL)
+    , myObjectPath(objectpath)
+    , myObject()
+{
+    if (open(filename))
+	archive()->resolveObject(*this);
+}
+
+void
+GABC_IObject::init()
+{
+}
+
+GABC_IObject::~GABC_IObject()
+{
+    GABC_AutoLock	lock(archive());
+    purge();
+    setArchive(NULL);
+}
+
+void
+GABC_IObject::purge()
+{
+    myObject = IObject();
+}
+
+GABC_IObject &
+GABC_IObject::operator=(const GABC_IObject &src)
+{
+    return *this;
+}
+
+exint
+GABC_IObject::getNumChildren() const
+{
+    if (myObject.valid())
+    {
+	GABC_AutoLock	lock(archive());
+	return myObject.getNumChildren();
+    }
+    return 0;
+}
+
+
+GABC_IObject
+GABC_IObject::getChild(exint index) const
+{
+    UT_ASSERT(myObject.valid());
+    if (myObject.valid())
+    {
+	GABC_AutoLock	lock(archive());
+	UT_ASSERT(archive());
+	return GABC_IObject(*archive(), myObject.getChild(index));
+    }
+    return GABC_IObject();
+}
+
+GABC_IObject
+GABC_IObject::getChild(const std::string &name) const
+{
+    if (myObject.valid())
+    {
+	GABC_AutoLock	lock(archive());
+	UT_ASSERT(archive());
+	return GABC_IObject(*archive(), myObject.getChild(name));
+    }
+    return GABC_IObject();
+}
+
+GABC_NodeType
+GABC_IObject::nodeType() const
+{
+    return GABC_Util::getNodeType(myObject);
+}
+
+GABC_AnimationType
+GABC_IObject::getAnimationType(bool include_transform) const
+{
+    if (!valid())
+	return GABC_ANIMATION_INVALID;
+    return GABC_Util::getAnimationType(archive()->filename(), myObject,
+			    include_transform);
+}
+
+bool
+GABC_IObject::getBoundingBox(UT_BoundingBox &box, fpreal t) const
+{
+    if (!valid())
+	return false;
+    GABC_AutoLock	lock(archive());
+    return false;
+}
+
+bool
+GABC_IObject::getRenderingBoundingBox(UT_BoundingBox &box, fpreal t) const
+{
+    return getBoundingBox(box, t);
+}
+
+GT_PrimitiveHandle
+GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
+	fpreal t, GABC_AnimationType &atype,
+	const GABC_NameMapPtr &namemap) const
+{
+    GABC_AutoLock	lock(archive());
+    GT_PrimitiveHandle	prim;
+    atype = GABC_ANIMATION_CONSTANT;
+    switch (nodeType())
+    {
+	case GABC_POLYMESH:
+	    prim = buildPolyMesh(gprim, *this, t, atype, namemap);
+	    break;
+	case GABC_SUBD:
+	    prim = buildSubDMesh(gprim, *this, t, atype, namemap);
+	    break;
+	case GABC_POINTS:
+	    prim = buildPointMesh(gprim, *this, t, atype, namemap);
+	    break;
+	case GABC_CURVES:
+	    prim = buildCurveMesh(gprim, *this, t, atype, namemap);
+	    break;
+	case GABC_NUPATCH:
+	    prim = buildNuPatch(gprim, *this, t, atype, namemap);
+	    break;
+	default:
+	    break;
+    }
+    return prim;
+}
+
+GT_PrimitiveHandle
+GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
+				const GEO_Primitive *prim,
+				fpreal new_time,
+				const GABC_NameMapPtr &namemap) const
+{
+    GABC_AutoLock	lock(archive());
+    return src;
+}
+
+
+GT_PrimitiveHandle
+GABC_IObject::getPointCloud(fpreal t, GABC_AnimationType &atype) const
+{
+    GT_DataArrayHandle	P = getPosition(t, atype);
+    if (P)
+    {
+	GT_AttributeMapHandle	pmap(new GT_AttributeMap());
+	pmap->add("P", true);
+
+	GT_AttributeListHandle	point(new GT_AttributeList(pmap));
+	GT_AttributeListHandle	uniform;
+	point->set(point->getIndex("P"), P);
+	return GT_PrimitiveHandle(new GT_PrimPointMesh(point, uniform));
+    }
+    return GT_PrimitiveHandle();
+}
+
+bool
+GABC_IObject::getLocalTransform(UT_Matrix4D &xform, fpreal t,
+				GABC_AnimationType &atype,
+				bool &inherits) const
+{
+    if (!valid())
+	return false;
+    atype = GABC_ANIMATION_CONSTANT;
+    inherits = true;
+    if (nodeType() == GABC_XFORM)
+    {
+	IXform		xform(myObject, gabcWrapExisting);
+	IXformSchema	ss = xform.getSchema();
+	GABC_AutoLock	lock(archive());
+	index_t		i0, i1;
+	XformSample	sample;
+	M44d		m0;
+	fpreal		bias = getIndex(t, ss.getTimeSampling(),
+					ss.getNumSamples(), i0, i1);
+
+	if (!ss.isConstant())
+	    atype = GABC_ANIMATION_TRANSFORM;
+	if (!ss.getInheritsXforms())
+	    inherits = false;
+
+	ss.get(sample, ISampleSelector(i0));
+	m0 = sample.getMatrix();
+	if (i0 != i1)
+	{
+	    M44d	m1;
+	    ss.get(sample, ISampleSelector(i1));
+	    m1 = sample.getMatrix();
+	    m0 = blendMatrix(m0, m1, bias);
+	}
+    }
+    else
+    {
+	xform.identity();
+    }
+    return true;
+}
+
+bool
+GABC_IObject::getWorldTransform(UT_Matrix4D &xform, fpreal t,
+					GABC_AnimationType &atype) const
+{
+    GABC_AutoLock	lock(archive());
+    return false;
+}
+
+GT_DataArrayHandle
+GABC_IObject::getPosition(fpreal t, GABC_AnimationType &atype) const
+{
+    if (valid())
+    {
+	GABC_AutoLock	lock(archive());
+	switch (nodeType())
+	{
+	    case GABC_POLYMESH:
+		return gabcGetPosition<IPolyMesh, IPolyMeshSchema>(*this, t);
+	    case GABC_SUBD:
+		return gabcGetPosition<ISubD, ISubDSchema>(*this, t);
+	    case GABC_CURVES:
+		return gabcGetPosition<ICurves, ICurvesSchema>(*this, t);
+	    case GABC_POINTS:
+		return gabcGetPosition<IPoints, IPointsSchema>(*this, t);
+	    case GABC_NUPATCH:
+		return gabcGetPosition<INuPatch, INuPatchSchema>(*this, t);
+	    default:
+		break;
+	}
+    }
+    return GT_DataArrayHandle();
+}
+
+GT_DataArrayHandle
+GABC_IObject::getVelocity(fpreal t, GABC_AnimationType &atype) const
+{
+    if (valid())
+    {
+	GABC_AutoLock	lock(archive());
+	switch (nodeType())
+	{
+	    case GABC_POLYMESH:
+		return gabcGetVelocity<IPolyMesh, IPolyMeshSchema>(*this, t);
+	    case GABC_SUBD:
+		return gabcGetVelocity<ISubD, ISubDSchema>(*this, t);
+	    case GABC_CURVES:
+		return gabcGetVelocity<ICurves, ICurvesSchema>(*this, t);
+	    case GABC_POINTS:
+		return gabcGetVelocity<IPoints, IPointsSchema>(*this, t);
+	    case GABC_NUPATCH:
+		return gabcGetVelocity<INuPatch, INuPatchSchema>(*this, t);
+	    default:
+		break;
+	}
+    }
+    return GT_DataArrayHandle();
+}
+
+ICompoundProperty
+GABC_IObject::getArbGeomParams() const
+{
+    if (valid())
+    {
+	switch (nodeType())
+	{
+	    case GABC_XFORM:
+		return geometryProperties<IXform, IXformSchema>(*this);
+		break;
+	    case GABC_POLYMESH:
+		return geometryProperties<IPolyMesh, IPolyMeshSchema>(*this);
+		break;
+	    case GABC_SUBD:
+		return geometryProperties<ISubD, ISubDSchema>(*this);
+		break;
+	    case GABC_CAMERA:
+		return geometryProperties<ICamera, ICameraSchema>(*this);
+		break;
+	    case GABC_FACESET:
+		return geometryProperties<IFaceSet, IFaceSetSchema>(*this);
+		break;
+	    case GABC_CURVES:
+		return geometryProperties<ICurves, ICurvesSchema>(*this);
+		break;
+	    case GABC_POINTS:
+		return geometryProperties<IPoints, IPointsSchema>(*this);
+		break;
+	    case GABC_NUPATCH:
+		return geometryProperties<INuPatch, INuPatchSchema>(*this);
+		break;
+	    case GABC_LIGHT:
+		return geometryProperties<ILight, ILightSchema>(*this);
+
+	    case GABC_MATERIAL:
+	    default:
+		break;
+	}
+    }
+    return ICompoundProperty();
+}
+
+ICompoundProperty
+GABC_IObject::getUserProperties() const
+{
+    if (valid())
+    {
+	switch (nodeType())
+	{
+	    case GABC_XFORM:
+		return userProperties<IXform, IXformSchema>(*this);
+		break;
+	    case GABC_POLYMESH:
+		return userProperties<IPolyMesh, IPolyMeshSchema>(*this);
+		break;
+	    case GABC_SUBD:
+		return userProperties<ISubD, ISubDSchema>(*this);
+		break;
+	    case GABC_CAMERA:
+		return userProperties<ICamera, ICameraSchema>(*this);
+		break;
+	    case GABC_FACESET:
+		return userProperties<IFaceSet, IFaceSetSchema>(*this);
+		break;
+	    case GABC_CURVES:
+		return userProperties<ICurves, ICurvesSchema>(*this);
+		break;
+	    case GABC_POINTS:
+		return userProperties<IPoints, IPointsSchema>(*this);
+		break;
+	    case GABC_NUPATCH:
+		return userProperties<INuPatch, INuPatchSchema>(*this);
+		break;
+	    case GABC_LIGHT:
+		return userProperties<ILight, ILightSchema>(*this);
+
+	    case GABC_MATERIAL:
+	    default:
+		break;
+	}
+    }
+    return ICompoundProperty();
+}
+
+exint
+GABC_IObject::getNumGeometryProperties() const
+{
+    GABC_AutoLock	lock(archive());
+    ICompoundProperty	arb = getArbGeomParams();
+    return arb ? arb.getNumProperties() : 0;
+}
+
+GT_DataArrayHandle
+GABC_IObject::getGeometryProperty(exint index, fpreal t,
+	std::string &name, GeometryScope &scope,
+	GABC_AnimationType &atype) const
+{
+    GABC_AutoLock	lock(archive());
+    GT_DataArrayHandle	data;
+    ICompoundProperty	arb = getArbGeomParams();
+    if (arb)
+    {
+	const PropertyHeader	&header = arb.getPropertyHeader(index);
+	name = header.getName();
+	data = convertArbitraryProperty(*archive(), arb, header, t, &atype);
+	scope = getArbitraryPropertyScope(header);
+    }
+    return data;
+}
+
+GT_DataArrayHandle
+GABC_IObject::getGeometryProperty(const std::string &name, fpreal t,
+	GeometryScope &scope, GABC_AnimationType &atype) const
+{
+    GABC_AutoLock	lock(archive());
+    GT_DataArrayHandle	data;
+    ICompoundProperty	arb = getArbGeomParams();
+    if (arb)
+    {
+	const PropertyHeader	*header = arb.getPropertyHeader(name);
+	if (header)
+	{
+	    data = convertArbitraryProperty(*archive(), arb, *header, t, &atype);
+	    scope = getArbitraryPropertyScope(*header);
+	}
+    }
+    return data;
+}
+
+exint
+GABC_IObject::getNumUserProperties() const
+{
+    GABC_AutoLock	lock(archive());
+    ICompoundProperty	arb = getUserProperties();
+    return arb ? arb.getNumProperties() : 0;
+}
+
+GT_DataArrayHandle
+GABC_IObject::getUserProperty(exint index, fpreal t,
+	std::string &name, GABC_AnimationType &atype) const
+{
+    GABC_AutoLock	lock(archive());
+    GT_DataArrayHandle	data;
+    ICompoundProperty	arb = getUserProperties();
+    if (arb)
+    {
+	const PropertyHeader	&header = arb.getPropertyHeader(index);
+	name = header.getName();
+	data = convertArbitraryProperty(*archive(), arb, header, t, &atype);
+    }
+    return data;
+}
+
+GT_DataArrayHandle
+GABC_IObject::getUserProperty(const std::string &name, fpreal t,
+	GABC_AnimationType &atype) const
+{
+    GABC_AutoLock	lock(archive());
+    GT_DataArrayHandle	data;
+    ICompoundProperty	arb = getUserProperties();
+    if (arb)
+    {
+	const PropertyHeader	*header = arb.getPropertyHeader(name);
+	if (header)
+	{
+	    data = convertArbitraryProperty(*archive(), arb, *header, t, &atype);
+	}
+    }
+    return data;
+}
+
+bool
+GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
+	bool &isConstant, bool &inheritsXform) const
+{
+    if (!valid())
+	return false;
+    GABC_AutoLock	lock(archive());
+    return GABC_Util::getWorldTransform(archive()->filename(),
+			myObject, t, xform, isConstant, inheritsXform);
+}
+
+bool
+GABC_IObject::localTransform(fpreal t, UT_Matrix4D &xform, bool &isConstant, bool &inheritsXform) const
+{
+    GABC_AutoLock	lock(archive());
+    return false;
+}

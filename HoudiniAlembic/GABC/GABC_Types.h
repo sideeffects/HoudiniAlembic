@@ -48,7 +48,9 @@ enum GABC_AnimationType
 };
 
 class GABC_NameMap;
-typedef UT_IntrusivePtr<GABC_NameMap>   GABC_NameMapPtr;
+class GABC_IArchive;
+typedef UT_IntrusivePtr<GABC_NameMap>	GABC_NameMapPtr;
+typedef UT_IntrusivePtr<GABC_IArchive>	GABC_IArchivePtr;
 
 GABC_API extern const char	*GABCnodeType(GABC_NodeType type);
 GABC_API extern GABC_NodeType	 GABCnodeType(const char *type);
