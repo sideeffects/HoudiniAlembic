@@ -77,6 +77,8 @@ GABC_IArray::getSample(GABC_IArchive &arch, const ArraySamplePtr &sample,
     if (!sample->valid())
 	return GABC_IArray();
 
+    UT_ASSERT(sample && sample->getData());
+
     const DataType	&dtype = sample->getDataType();
     GT_Size		 size = sample->size();
     GT_Size		 tsize = GABC_GTUtil::getGTTupleSize(dtype);
