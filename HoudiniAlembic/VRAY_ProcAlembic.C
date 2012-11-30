@@ -293,7 +293,7 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 
 	for (int i = 1; i < nsamples; ++i)
 	{
-	    const GU_Detail	*g = queryGeometry(handle, i);
+	    const GU_Detail *g = queryGeometry(handle, i);
 	    if (!g || g->getNumPrimitives() != nprims)
 	    {
 		VRAYerror("Mis-matched Alembic primitive counts "
@@ -354,7 +354,7 @@ getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic,
     if (!gdp.getNumPrimitives())
     {
 	// We may be rendering points
-	GA_Range	pts(gdp.getPointRange());
+	GA_Range pts(gdp.getPointRange());
 	box.initBounds();
 	gdp.enlargeBoundingBox(box, pts);
 	// If there's a width/pscale attribute, we need to find the maximum
@@ -447,9 +447,8 @@ VRAY_ProcAlembic::render()
     const GA_PrimitiveTypeId	 abctype = GABC_GUPrim::theTypeId();
     bool			 warned = false;
     bool			 addgeo = false;
-    int				 nsegments;
 
-    nsegments = myConstDetails.entries();
+    int nsegments = myConstDetails.entries();
     if (nsegments)
 	gdp = myConstDetails(0);
     else
