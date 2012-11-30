@@ -326,7 +326,7 @@ namespace
 	    q1 = -q1;
 	return recomposeXForm(lerp(s0, s1, bias),
 			    lerp(h0, h1, bias),
-			    Imath::slerp(q0, q1, bias),
+			    Imath::slerp(q0, q1, (double)bias),
 			    lerp(t0, t1, bias));
     }
 
