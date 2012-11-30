@@ -968,7 +968,7 @@ namespace
 						creaseSharpness->get(),
 						creaseSharpness->size(), 1);
 	    UT_ASSERT(index->entries() == weight->entries()*2);
-	    gt->appendIntTag("crease", GT_DataArrayHandle(indices));
+	    gt->appendIntTag("crease", GT_DataArrayHandle(index));
 	    gt->appendRealTag("crease", GT_DataArrayHandle(weight));
 	}
 	if (!isEmpty(cornerIndices) && !isEmpty(cornerSharpness))
@@ -980,7 +980,7 @@ namespace
 						cornerSharpness->get(),
 						cornerSharpness->size(), 1);
 	    UT_ASSERT(index->entries() == weight->entries());
-	    gt->appendIntTag("corner", GT_DataArrayHandle(indices));
+	    gt->appendIntTag("corner", GT_DataArrayHandle(index));
 	    gt->appendRealTag("corner", GT_DataArrayHandle(weight));
 	}
 	if (!isEmpty(holeIndices))
@@ -1082,8 +1082,8 @@ namespace
 	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
 				vertex_scope, 3,
 				ss.getArbGeomParams(),
-				NULL,
-				NULL,
+				&P,
+				&v,
 				&N,
 				&uvs,
 				NULL,
@@ -1184,8 +1184,8 @@ namespace
 	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
 				vertex_scope, 3,
 				ss.getArbGeomParams(),
-				NULL,
-				NULL,
+				&P,
+				&v,
 				&N,
 				&uvs,
 				NULL,
