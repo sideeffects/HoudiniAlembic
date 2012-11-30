@@ -1032,11 +1032,13 @@ ROP_AbcGeometry::writeNuPatch(ROP_AbcError &err,
     Alembic::AbcGeom::OP3fGeomParam::Sample	abcP;
     Alembic::AbcGeom::OV2fGeomParam::Sample	abcUV;
     Alembic::AbcGeom::OV3fGeomParam::Sample	abcVel;
+    Alembic::Abc::FloatArraySample		abcPw;
 
     gtPw = pt->get("Pw");
     if (gtPw)
     {
 	fillArray<fpreal32, fpreal32>(Pw, gtPw, 1);
+	abcPw = Alembic::Abc::FloatArraySample(Pw.array(), Pw.entries());
     }
     fillArray<fpreal32, fpreal32>(uknots, nupatch->getUKnots(), 1);
     fillArray<fpreal32, fpreal32>(vknots, nupatch->getVKnots(), 1);
@@ -1065,7 +1067,7 @@ ROP_AbcGeometry::writeNuPatch(ROP_AbcError &err,
 	    Alembic::Abc::FloatArraySample(vknots.array(), vknots.entries()),
 	    Alembic::AbcGeom::ON3fGeomParam::Sample(),
 	    abcUV,
-	    Alembic::Abc::FloatArraySample(Pw.array(), Pw.entries())
+	    abcPw
     );
 
     if (vel.entries())
