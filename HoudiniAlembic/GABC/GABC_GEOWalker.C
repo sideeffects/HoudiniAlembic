@@ -404,7 +404,7 @@ namespace {
 	    case GA_ATTRIB_DETAIL:
 		// TODO: We map detail attributes to primitive attributes, so
 		// we need to extend the array to fill all elements!
-		setAttribute(gdp, owner, name,
+		setAttribute(gdp, GA_ATTRIB_PRIMITIVE, name,
 			psample.getVals(), walk.primitiveCount(), nprim);
 		break;
 	    default:
