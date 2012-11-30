@@ -45,15 +45,11 @@ public:
     static GABC_IArchivePtr	open(const std::string &filename);
     /// @}
 
-    /// @{
-    /// Clear archives
-    static void			closeArchive(const std::string &filename);
-    static void			closeAll();
-    /// @}
-
-
     /// Test validity
     bool		valid() const		{ return myArchive.valid(); }
+
+    /// Check to see if the archive has been purged (invalid)
+    bool		purged() const		{ return myPurged; }
 
     /// Error (set on creation)
     const std::string	&error() const		{ return myError; }
@@ -101,6 +97,7 @@ private:
     std::string		 myError;
     IArchive		 myArchive;
     SetType		 myObjects;
+    bool		 myPurged;
 };
 
 static inline void intrusive_ptr_add_ref(GABC_IArchive *i) { i->incref(); }
