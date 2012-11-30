@@ -41,13 +41,6 @@ GABC_IItem::~GABC_IItem()
     setArchive(NULL);
 }
 
-bool
-GABC_IItem::open(const std::string &archive_path)
-{
-    setArchive(GABC_IArchive::open(archive_path));
-    return myArchive;
-}
-
 void
 GABC_IItem::setArchive(const GABC_IArchivePtr &arch)
 {

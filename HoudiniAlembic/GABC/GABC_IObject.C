@@ -33,6 +33,7 @@
 #include <GT/GT_PrimNuPatch.h>
 #include <GT/GT_TrimNuCurves.h>
 #include <Alembic/AbcGeom/All.h>
+#include <Alembic/AbcMaterial/All.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 #include <UT/UT_StackBuffer.h>
 
@@ -43,6 +44,7 @@ namespace
     typedef Alembic::Abc::DataType		DataType;
     typedef Alembic::Abc::M44d			M44d;
     typedef Alembic::Abc::V3d			V3d;
+    typedef Alembic::Abc::Box3d			Box3d;
     typedef Alembic::Abc::Quatd			Quatd;
     typedef Alembic::Abc::IArchive		IArchive;
     typedef Alembic::Abc::IObject		IObject;
@@ -84,6 +86,7 @@ namespace
     typedef Alembic::AbcGeom::IN3fGeomParam	IN3fGeomParam;
     typedef Alembic::AbcGeom::IV2fGeomParam	IV2fGeomParam;
     typedef Alembic::AbcGeom::IFloatGeomParam	IFloatGeomParam;
+    typedef Alembic::AbcMaterial::IMaterial	IMaterial;
 
     const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
     const GeometryScope	gabcVaryingScope = Alembic::AbcGeom::kVaryingScope;
@@ -315,7 +318,7 @@ namespace
 	    q1 = -q1;
 	return recomposeXForm(lerp(s0, s1, bias),
 			    lerp(h0, h1, bias),
-			    Imath::slerp(q0, q1, (double)bias),
+			    Imath::slerp(q0, q1, bias),
 			    lerp(t0, t1, bias));
     }
 
@@ -434,12 +437,14 @@ namespace
 
     template <typename PRIM_T, typename SCHEMA_T>
     static GT_DataArrayHandle
-    gabcGetPosition(const GABC_IObject &obj, fpreal t)
+    gabcGetPosition(const GABC_IObject &obj, fpreal t, GABC_AnimationType &atype)
     {
 	PRIM_T			 prim(obj.object(), gabcWrapExisting);
 	SCHEMA_T		&ss = prim.getSchema();
 	IP3fArrayProperty	 P = ss.getPositionsProperty();
 	UT_ASSERT(P.valid());
+	atype = P.isConstant() ? GABC_ANIMATION_CONSTANT
+				: GABC_ANIMATION_ATTRIBUTE;
 	return readArrayProperty(*obj.archive(), P, t);
     }
 
@@ -705,7 +710,6 @@ namespace
     buildPointMesh(const GEO_Primitive *prim,
 		const GABC_IObject &obj,
 		fpreal t,
-		GABC_AnimationType &atype,
 		const GABC_NameMapPtr &namemap)
     {
 	IPoints			 shape(obj.object(), gabcWrapExisting);
@@ -735,7 +739,6 @@ namespace
     buildSubDMesh(const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
-			GABC_AnimationType &atype,
 			const GABC_NameMapPtr &namemap)
     {
 	ISubD			 shape(obj.object(), gabcWrapExisting);
@@ -828,7 +831,6 @@ namespace
     buildPolyMesh(const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
-			GABC_AnimationType &atype,
 			const GABC_NameMapPtr &namemap)
     {
 	IPolyMesh		 shape(obj.object(), gabcWrapExisting);
@@ -884,7 +886,6 @@ namespace
     buildCurveMesh(const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
-			GABC_AnimationType &atype,
 			const GABC_NameMapPtr &namemap)
     {
 	ICurves			 shape(obj.object(), gabcWrapExisting);
@@ -977,7 +978,6 @@ namespace
     buildNuPatch(const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
-			GABC_AnimationType &atype,
 			const GABC_NameMapPtr &namemap)
     {
 	INuPatch		 shape(obj.object(), gabcWrapExisting);
@@ -1078,6 +1078,120 @@ namespace
 	SCHEMA_T	&ss = shape.getSchema();
 	return ss.getUserProperties();
     }
+
+    static fpreal
+    getMaxWidth(IFloatGeomParam param, fpreal frame)
+    {
+	if (!param.valid())
+	    return 0;
+
+	ISampleSelector			iss(frame);
+	IFloatGeomParam::sample_type	psample;
+
+	param.getExpanded(psample, iss);
+	Alembic::Abc::FloatArraySamplePtr	vals = psample.getVals();
+	exint				len = vals->size();
+	float				maxwidth = 0;
+
+	const float	*widths = (const float *)vals->get();
+	for (exint i = 0; i < len; ++i)
+	{
+	    maxwidth = SYSmax(maxwidth, widths[i]);
+	}
+	return maxwidth;
+    }
+
+    static void
+    assignBox(UT_BoundingBox &ut, const Box3d &abc)
+    {
+	ut.setBounds(abc.min[0], abc.min[1], abc.min[2],
+		abc.max[0], abc.max[1], abc.max[2]);
+    }
+
+    template <typename ABC_T, typename SCHEMA_T>
+    static bool
+    abcBounds(const IObject &obj, UT_BoundingBox &box, fpreal t)
+    {
+	ABC_T		 prim(obj, gabcWrapExisting);
+	const SCHEMA_T	&ss = prim.getSchema();
+	typename SCHEMA_T::Sample	s0 = ss.getValue(ISampleSelector(t));
+	assignBox(box, s0.getSelfBounds());
+	return box.isValid();
+    }
+
+    static bool
+    abcArbsAreAnimated(ICompoundProperty arb)
+    {
+	exint	narb = arb ? arb.getNumProperties() : 0;
+	for (exint i = 0; i < narb; ++i)
+	{
+	    const PropertyHeader	&head = arb.getPropertyHeader(i);
+	    IArrayProperty		 prop(arb, head.getName());
+	    if (!prop.isConstant())
+		return true;
+	}
+	return false;
+    }
+
+    template <typename ABC_T, typename SCHEMA_T>
+    static GABC_AnimationType
+    getAnimation(const GABC_IObject &obj)
+    {
+	ABC_T			 prim(obj.object(), gabcWrapExisting);
+	SCHEMA_T		&schema = prim.getSchema();
+	GABC_AnimationType	 atype;
+	
+	switch (schema.getTopologyVariance())
+	{
+	    case Alembic::AbcGeom::kConstantTopology:
+		atype = GABC_ANIMATION_CONSTANT;
+		if (abcArbsAreAnimated(schema.getArbGeomParams()))
+		    atype = GABC_ANIMATION_ATTRIBUTE;
+		else if (abcArbsAreAnimated(schema.getUserProperties()))
+		    atype = GABC_ANIMATION_ATTRIBUTE;
+		break;
+	    case Alembic::AbcGeom::kHomogenousTopology:
+		atype = GABC_ANIMATION_ATTRIBUTE;
+		break;
+	    case Alembic::AbcGeom::kHeterogenousTopology:
+		atype = GABC_ANIMATION_TOPOLOGY;
+		break;
+	}
+	return atype;
+    }
+
+    template <>
+    GABC_AnimationType
+    getAnimation<IXform, IXformSchema>(const GABC_IObject &obj)
+    {
+	IXform		 prim(obj.object(), gabcWrapExisting);
+	IXformSchema	&schema = prim.getSchema();
+	if (!schema.isConstant())
+	    return GABC_ANIMATION_TRANSFORM;
+	return GABC_ANIMATION_CONSTANT;
+    }
+
+    template <>
+    GABC_AnimationType
+    getAnimation<IPoints, IPointsSchema>(const GABC_IObject &obj)
+    {
+	IPoints		 prim(obj.object(), gabcWrapExisting);
+	IPointsSchema	&schema = prim.getSchema();
+	if (!schema.isConstant())
+	    return GABC_ANIMATION_TOPOLOGY;
+	if (abcArbsAreAnimated(schema.getArbGeomParams()))
+	    return GABC_ANIMATION_ATTRIBUTE;
+	return GABC_ANIMATION_CONSTANT;
+    }
+
+    static GABC_AnimationType
+    getLocatorAnimation(const GABC_IObject &obj)
+    {
+	IXform				prim(obj.object(), gabcWrapExisting);
+	Alembic::Abc::IScalarProperty	loc(prim.getProperties(), "locator");
+	return loc.isConstant() ? GABC_ANIMATION_CONSTANT
+				: GABC_ANIMATION_ATTRIBUTE;
+    }
 };
 
 GABC_IObject::GABC_IObject()
@@ -1104,20 +1218,11 @@ GABC_IObject::GABC_IObject(const GABC_IArchivePtr &arch,
 	archive()->resolveObject(*this);
 }
 
-GABC_IObject::GABC_IObject(GABC_IArchive &arch, const IObject &obj)
-    : GABC_IItem(&arch)
+GABC_IObject::GABC_IObject(const GABC_IArchivePtr &arch, const IObject &obj)
+    : GABC_IItem(arch)
     , myObjectPath(obj.getFullName())
     , myObject(obj)
 {
-}
-
-GABC_IObject::GABC_IObject(const std::string &filename, const std::string &objectpath)
-    : GABC_IItem(NULL)
-    , myObjectPath(objectpath)
-    , myObject()
-{
-    if (open(filename))
-	archive()->resolveObject(*this);
 }
 
 void
@@ -1141,6 +1246,10 @@ GABC_IObject::purge()
 GABC_IObject &
 GABC_IObject::operator=(const GABC_IObject &src)
 {
+    GABC_IItem::operator=(src);
+    myObjectPath = src.myObjectPath;
+    myObject = src.myObject;
+
     return *this;
 }
 
@@ -1164,7 +1273,7 @@ GABC_IObject::getChild(exint index) const
     {
 	GABC_AutoLock	lock(archive());
 	UT_ASSERT(archive());
-	return GABC_IObject(*archive(), myObject.getChild(index));
+	return GABC_IObject(archive(), myObject.getChild(index));
     }
     return GABC_IObject();
 }
@@ -1176,7 +1285,7 @@ GABC_IObject::getChild(const std::string &name) const
     {
 	GABC_AutoLock	lock(archive());
 	UT_ASSERT(archive());
-	return GABC_IObject(*archive(), myObject.getChild(name));
+	return GABC_IObject(archive(), myObject.getChild(name));
     }
     return GABC_IObject();
 }
@@ -1184,7 +1293,40 @@ GABC_IObject::getChild(const std::string &name) const
 GABC_NodeType
 GABC_IObject::nodeType() const
 {
-    return GABC_Util::getNodeType(myObject);
+    if (!myObject.valid())
+	return GABC_UNKNOWN;
+    const ObjectHeader	&ohead = myObject.getHeader();
+    if (IXform::matches(ohead))
+	return GABC_XFORM;
+    if (IPolyMesh::matches(ohead))
+	return GABC_POLYMESH;
+    if (ISubD::matches(ohead))
+	return GABC_SUBD;
+    if (ICamera::matches(ohead))
+	return GABC_CAMERA;
+    if (IFaceSet::matches(ohead))
+	return GABC_FACESET;
+    if (ICurves::matches(ohead))
+	return GABC_CURVES;
+    if (IPoints::matches(ohead))
+	return GABC_POINTS;
+    if (INuPatch::matches(ohead))
+	return GABC_NUPATCH;
+    if (ILight::matches(ohead))
+	return GABC_LIGHT;
+    if (IMaterial::matches(ohead))
+	return GABC_MATERIAL;
+    UT_ASSERT(!strcmp(myObject.getFullName().c_str(), "/"));
+    return GABC_UNKNOWN;
+}
+
+bool
+GABC_IObject::isMayaLocator() const
+{
+    if (!myObject.valid())
+	return false;
+    UT_ASSERT(IXform::matches(myObject.getHeader()));
+    return myObject.getProperties().getPropertyHeader("locator") != NULL;
 }
 
 GABC_AnimationType
@@ -1192,23 +1334,105 @@ GABC_IObject::getAnimationType(bool include_transform) const
 {
     if (!valid())
 	return GABC_ANIMATION_INVALID;
-    return GABC_Util::getAnimationType(archive()->filename(), myObject,
-			    include_transform);
+    GABC_AutoLock	lock(archive());
+
+    GABC_AnimationType	atype = GABC_ANIMATION_CONSTANT;
+    // Set the topology based on a combination of conditions.
+    // We initialize based on the shape topology, but if the shape topology is
+    // constant, there are still various factors which can make the primitive
+    // non-constant (i.e. Homogeneous).
+    switch (nodeType())
+    {
+	case GABC_POLYMESH:
+	    atype = getAnimation<IPolyMesh, IPolyMeshSchema>(*this);
+	    break;
+	case GABC_SUBD:
+	    atype = getAnimation<ISubD, ISubDSchema>(*this);
+	    break;
+	case GABC_CURVES:
+	    atype = getAnimation<ICurves, ICurvesSchema>(*this);
+	    break;
+	case GABC_POINTS:
+	    atype = getAnimation<IPoints, IPointsSchema>(*this);
+	    break;
+	case GABC_NUPATCH:
+	    atype = getAnimation<INuPatch, INuPatchSchema>(*this);
+	    break;
+	case GABC_XFORM:
+	    if (isMayaLocator())
+		atype = getLocatorAnimation(*this);
+	    else
+		atype = getAnimation<IXform, IXformSchema>(*this);
+	    break;
+	default:
+	    atype = GABC_ANIMATION_TOPOLOGY;
+	    break;
+    }
+    if (atype == GABC_ANIMATION_CONSTANT && include_transform)
+    {
+	GABC_IObject	parent = getParent();
+	if (parent.valid())
+	{
+	    // Check to see if transform is non-constant
+	    UT_Matrix4D	xform;
+	    getWorldTransform(xform, 0, atype);
+	}
+    }
+    return atype;
 }
 
 bool
-GABC_IObject::getBoundingBox(UT_BoundingBox &box, fpreal t) const
+GABC_IObject::getBoundingBox(UT_BoundingBox &box, fpreal t, bool &isconst) const
 {
     if (!valid())
 	return false;
     GABC_AutoLock	lock(archive());
+    switch (nodeType())
+    {
+	case GABC_POLYMESH:
+	    return abcBounds<IPolyMesh, IPolyMeshSchema>(object(), box, t);
+	case GABC_SUBD:
+	    return abcBounds<ISubD, ISubDSchema>(object(), box, t);
+	case GABC_CURVES:
+	    return abcBounds<ICurves, ICurvesSchema>(object(), box, t);
+	case GABC_POINTS:
+	    return abcBounds<IPoints, IPointsSchema>(object(), box, t);
+	case GABC_NUPATCH:
+	    return abcBounds<INuPatch, INuPatchSchema>(object(), box, t);
+	default:
+	    break;
+    }
     return false;
 }
 
 bool
 GABC_IObject::getRenderingBoundingBox(UT_BoundingBox &box, fpreal t) const
 {
-    return getBoundingBox(box, t);
+    bool	isconst;
+    if (!getBoundingBox(box, t, isconst))
+	return false;
+    switch (nodeType())
+    {
+	case GABC_POINTS:
+	    {
+		GABC_AutoLock	lock(archive());
+		IPoints		points(myObject, gabcWrapExisting);
+		IPointsSchema	&ss = points.getSchema();
+		box.enlargeBounds(0, getMaxWidth(ss.getWidthsParam(), t));
+	    }
+	    break;
+	case GABC_CURVES:
+	    {
+		GABC_AutoLock	lock(archive());
+		ICurves		curves(myObject, gabcWrapExisting);
+		ICurvesSchema	&ss = curves.getSchema();
+		box.enlargeBounds(0, getMaxWidth(ss.getWidthsParam(), t));
+	    }
+	    break;
+	default:
+	    break;
+    }
+    return true;
 }
 
 GT_PrimitiveHandle
@@ -1222,23 +1446,24 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
     switch (nodeType())
     {
 	case GABC_POLYMESH:
-	    prim = buildPolyMesh(gprim, *this, t, atype, namemap);
+	    prim = buildPolyMesh(gprim, *this, t, namemap);
 	    break;
 	case GABC_SUBD:
-	    prim = buildSubDMesh(gprim, *this, t, atype, namemap);
+	    prim = buildSubDMesh(gprim, *this, t, namemap);
 	    break;
 	case GABC_POINTS:
-	    prim = buildPointMesh(gprim, *this, t, atype, namemap);
+	    prim = buildPointMesh(gprim, *this, t, namemap);
 	    break;
 	case GABC_CURVES:
-	    prim = buildCurveMesh(gprim, *this, t, atype, namemap);
+	    prim = buildCurveMesh(gprim, *this, t, namemap);
 	    break;
 	case GABC_NUPATCH:
-	    prim = buildNuPatch(gprim, *this, t, atype, namemap);
+	    prim = buildNuPatch(gprim, *this, t, namemap);
 	    break;
 	default:
 	    break;
     }
+    atype = (prim) ? getAnimationType(false) : GABC_ANIMATION_CONSTANT;
     return prim;
 }
 
@@ -1248,13 +1473,18 @@ GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
 				fpreal new_time,
 				const GABC_NameMapPtr &namemap) const
 {
+    GABC_AnimationType	atype;
+    return getPrimitive(prim, new_time, atype, namemap);
+#if 0
     GABC_AutoLock	lock(archive());
     return src;
+#endif
 }
 
 
 GT_PrimitiveHandle
-GABC_IObject::getPointCloud(fpreal t, GABC_AnimationType &atype) const
+GABC_IObject::getPointCloud(fpreal t,
+	GABC_AnimationType &atype) const
 {
     GT_DataArrayHandle	P = getPosition(t, atype);
     if (P)
@@ -1265,7 +1495,8 @@ GABC_IObject::getPointCloud(fpreal t, GABC_AnimationType &atype) const
 	GT_AttributeListHandle	point(new GT_AttributeList(pmap));
 	GT_AttributeListHandle	uniform;
 	point->set(point->getIndex("P"), P);
-	return GT_PrimitiveHandle(new GT_PrimPointMesh(point, uniform));
+	GT_PrimPointMesh	*prim = new GT_PrimPointMesh(point, uniform);
+	return GT_PrimitiveHandle(prim);
     }
     return GT_PrimitiveHandle();
 }
@@ -1275,40 +1506,10 @@ GABC_IObject::getLocalTransform(UT_Matrix4D &xform, fpreal t,
 				GABC_AnimationType &atype,
 				bool &inherits) const
 {
-    if (!valid())
+    bool	isconst = true;
+    if (!localTransform(t, xform, isconst, inherits))
 	return false;
-    atype = GABC_ANIMATION_CONSTANT;
-    inherits = true;
-    if (nodeType() == GABC_XFORM)
-    {
-	IXform		xform(myObject, gabcWrapExisting);
-	IXformSchema	ss = xform.getSchema();
-	GABC_AutoLock	lock(archive());
-	index_t		i0, i1;
-	XformSample	sample;
-	M44d		m0;
-	fpreal		bias = getIndex(t, ss.getTimeSampling(),
-					ss.getNumSamples(), i0, i1);
-
-	if (!ss.isConstant())
-	    atype = GABC_ANIMATION_TRANSFORM;
-	if (!ss.getInheritsXforms())
-	    inherits = false;
-
-	ss.get(sample, ISampleSelector(i0));
-	m0 = sample.getMatrix();
-	if (i0 != i1)
-	{
-	    M44d	m1;
-	    ss.get(sample, ISampleSelector(i1));
-	    m1 = sample.getMatrix();
-	    m0 = blendMatrix(m0, m1, bias);
-	}
-    }
-    else
-    {
-	xform.identity();
-    }
+    atype = isconst ? GABC_ANIMATION_CONSTANT : GABC_ANIMATION_TRANSFORM;
     return true;
 }
 
@@ -1316,7 +1517,14 @@ bool
 GABC_IObject::getWorldTransform(UT_Matrix4D &xform, fpreal t,
 					GABC_AnimationType &atype) const
 {
-    GABC_AutoLock	lock(archive());
+    if (!valid())
+	return false;
+
+    bool	isconst, inherits;
+    if (!worldTransform(t, xform, isconst, inherits))
+	return false;
+    atype = isconst ? GABC_ANIMATION_CONSTANT : GABC_ANIMATION_TRANSFORM;
+
     return false;
 }
 
@@ -1329,19 +1537,20 @@ GABC_IObject::getPosition(fpreal t, GABC_AnimationType &atype) const
 	switch (nodeType())
 	{
 	    case GABC_POLYMESH:
-		return gabcGetPosition<IPolyMesh, IPolyMeshSchema>(*this, t);
+		return gabcGetPosition<IPolyMesh, IPolyMeshSchema>(*this, t, atype);
 	    case GABC_SUBD:
-		return gabcGetPosition<ISubD, ISubDSchema>(*this, t);
+		return gabcGetPosition<ISubD, ISubDSchema>(*this, t, atype);
 	    case GABC_CURVES:
-		return gabcGetPosition<ICurves, ICurvesSchema>(*this, t);
+		return gabcGetPosition<ICurves, ICurvesSchema>(*this, t, atype);
 	    case GABC_POINTS:
-		return gabcGetPosition<IPoints, IPointsSchema>(*this, t);
+		return gabcGetPosition<IPoints, IPointsSchema>(*this, t, atype);
 	    case GABC_NUPATCH:
-		return gabcGetPosition<INuPatch, INuPatchSchema>(*this, t);
+		return gabcGetPosition<INuPatch, INuPatchSchema>(*this, t, atype);
 	    default:
 		break;
 	}
     }
+    atype = GABC_ANIMATION_CONSTANT;
     return GT_DataArrayHandle();
 }
 
@@ -1548,13 +1757,52 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
     if (!valid())
 	return false;
     GABC_AutoLock	lock(archive());
+#if 0
     return GABC_Util::getWorldTransform(archive()->filename(),
-			myObject, t, xform, isConstant, inheritsXform);
+			*this, t, xform, isConstant, inheritsXform);
+#else
+    return GABC_Util::getWorldTransform(archive()->filename(),
+			object(), t, xform, isConstant, inheritsXform);
+#endif
 }
 
 bool
-GABC_IObject::localTransform(fpreal t, UT_Matrix4D &xform, bool &isConstant, bool &inheritsXform) const
+GABC_IObject::localTransform(fpreal t, UT_Matrix4D &xform,
+	bool &isConstant, bool &inheritsXform) const
 {
-    GABC_AutoLock	lock(archive());
-    return false;
+    if (!valid())
+	return false;
+    isConstant = true;
+    inheritsXform = true;
+    if (nodeType() == GABC_XFORM)
+    {
+	GABC_AutoLock	lock(archive());
+	IXform		xform(myObject, gabcWrapExisting);
+	IXformSchema	ss = xform.getSchema();
+	index_t		i0, i1;
+	XformSample	sample;
+	M44d		m0;
+	fpreal		bias = getIndex(t, ss.getTimeSampling(),
+					ss.getNumSamples(), i0, i1);
+
+	if (!ss.isConstant())
+	    isConstant = false;
+	if (!ss.getInheritsXforms())
+	    inheritsXform = false;
+
+	ss.get(sample, ISampleSelector(i0));
+	m0 = sample.getMatrix();
+	if (i0 != i1)
+	{
+	    M44d	m1;
+	    ss.get(sample, ISampleSelector(i1));
+	    m1 = sample.getMatrix();
+	    m0 = blendMatrix(m0, m1, bias);
+	}
+    }
+    else
+    {
+	xform.identity();
+    }
+    return true;
 }

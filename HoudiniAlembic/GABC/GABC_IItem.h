@@ -50,9 +50,6 @@ public:
     /// @warning The purge() method should not alter the base class archive.
     virtual void	purge() = 0;
 
-    /// Open the given archive
-    bool		 open(const std::string &archive_path);
-
     /// @{
     /// Access the archive
     const GABC_IArchivePtr	&archive() const { return myArchive; }

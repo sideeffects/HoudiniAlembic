@@ -97,13 +97,16 @@ private:
 };
 #endif
 
-UT_Lock	GABC_IArchive::theLock;
+UT_Lock	*GABC_IArchive::theLock = NULL;
 
 GABC_IArchivePtr
 GABC_IArchive::open(const std::string &path)
 {
-    UT_AutoLock	lock(theLock);
-    GABC_IObject::init();
+    if (!theLock)
+    {
+	theLock = new UT_Lock();
+	GABC_IObject::init();
+    }
 
     ArchiveCache		&cache = getCache();
     ArchiveCache::iterator	 it = cache.find(path);
@@ -124,7 +127,7 @@ GABC_IArchive::open(const std::string &path)
 void
 GABC_IArchive::closeArchive(const std::string &path)
 {
-    UT_AutoLock	lock(theLock);
+    UT_AutoLock	lock(*theLock);
 
     ArchiveCache		&cache = getCache();
     ArchiveCache::iterator	it = cache.find(path);
@@ -215,7 +218,7 @@ GABC_IArchive::getTop() const
     GABC_AutoLock	lock(*this);
     GABC_IArchive	*me = const_cast<GABC_IArchive *>(this);
     IObject	root = me->myArchive.getTop();
-    return GABC_IObject(*me, root);
+    return GABC_IObject(me, root);
 }
 
 void

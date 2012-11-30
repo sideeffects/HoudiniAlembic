@@ -41,13 +41,13 @@ class GABC_API GABC_IObject : public GABC_IItem
 {
 public:
     typedef Alembic::Abc::IObject		IObject;
+    typedef Alembic::Abc::ObjectHeader		ObjectHeader;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef Alembic::AbcGeom::GeometryScope	GeometryScope;
 
     GABC_IObject();
     GABC_IObject(const GABC_IObject &obj);
     GABC_IObject(const GABC_IArchivePtr &arch, const std::string &objectpath);
-    GABC_IObject(const std::string &filename, const std::string &objectpath);
     virtual ~GABC_IObject();
 
     /// Initialize (called by GABC_IArchive)
@@ -61,6 +61,21 @@ public:
     GABC_IObject	getChild(exint index) const;
     GABC_IObject	getChild(const std::string &name) const;
     /// @}
+
+    /// Get the parent
+    GABC_IObject	getParent() const
+			{
+			    if (!valid())
+				return GABC_IObject();
+			    return GABC_IObject(archive(),object().getParent());
+			}
+
+    /// Get my header
+    ObjectHeader	getHeader() const
+			    { return object().getHeader(); }
+    /// Get the child header
+    ObjectHeader	getChildHeader(exint i) const
+			    { return object().getChildHeader(i); }
 
     /// Get the name of the object
     std::string		getName() const	{ return myObject.getName(); }
@@ -82,12 +97,16 @@ public:
     /// Query the type of this node
     GABC_NodeType	nodeType() const;
 
+    /// Query whether the node is a Maya locator
+    bool		isMayaLocator() const;
+
     /// Get animation type for this node.
     /// @note This only checks animation types of intrinsic properties
     GABC_AnimationType	getAnimationType(bool include_transform) const;
 
     /// Get the bounding box.  Returns false if there are no bounds defined
-    bool		getBoundingBox(UT_BoundingBox &box, fpreal t) const;
+    bool		getBoundingBox(UT_BoundingBox &box, fpreal t,
+				bool &isConstant) const;
 
     /// Get the bounding box for rendering (includes the "width" attribute for
     /// curves and points).
@@ -187,7 +206,7 @@ public:
     /// @}
 
 private:
-    GABC_IObject(GABC_IArchive &arch, const IObject &obj);
+    GABC_IObject(const GABC_IArchivePtr &arch, const IObject &obj);
 
     void		 setObject(const IObject &o)	{ myObject = o; }
     ICompoundProperty	 getArbGeomParams() const;

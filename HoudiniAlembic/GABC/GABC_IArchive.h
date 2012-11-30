@@ -40,7 +40,8 @@ public:
     ~GABC_IArchive();
 
     /// @{
-    /// Open an archive
+    /// Open an archive.
+    /// @note This method is @b not thread-safe.  You must lock around it.
     static GABC_IArchivePtr	open(const std::string &filename);
     /// @}
 
@@ -61,7 +62,7 @@ public:
     const std::string	&filename() const	{ return myFilename; }
 
     /// Access to the file lock - required for HDF5
-    UT_Lock		&getLock() const	{ return theLock; }
+    UT_Lock		&getLock() const	{ return *theLock; }
 
     /// Get the root object
     GABC_IObject	getTop() const;
@@ -93,7 +94,7 @@ private:
 
     // At the current time, HDF5 requires a *global* lock across all files.
     // Wouldn't it be nice if it could have a per-file lock?
-    static UT_Lock	theLock;
+    static UT_Lock	*theLock;
 
     SYS_AtomicInt32	 myRefCount;
     std::string		 myFilename;
