@@ -73,7 +73,7 @@ public:
 				bool use_transform=true);
     static GABC_GUPrim	*build(GU_Detail *gdp,
 				const std::string &filename,
-				const Alembic::AbcGeom::IObject &object,
+				const GABC_IObject &object,
 				fpreal frame=0,
 				bool use_transform=true);
 

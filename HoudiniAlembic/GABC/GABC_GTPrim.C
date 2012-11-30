@@ -19,7 +19,6 @@
 #include "GABC_GEOPrim.h"
 #include "GABC_Util.h"
 #include "GABC_NameMap.h"
-#include "GABC_GTArray.h"
 #include <Alembic/AbcGeom/All.h>
 #include <UT/UT_StackBuffer.h>
 #include <UT/UT_Lock.h>
@@ -44,11 +43,12 @@ using namespace Alembic::AbcGeom;
 
 namespace
 {
-    static UT_Lock			theH5Lock;
     static GT_DataArrayHandle		theXformCounts;
     static GT_AttributeListHandle	theXformVertex;
     static GT_AttributeListHandle	theXformUniform;
 
+#if 0
+    static UT_Lock			theH5Lock;
     static GT_PrimitiveHandle
     getTransformReticle()
     {
@@ -77,6 +77,7 @@ namespace
 				false);
 	return GT_PrimitiveHandle(p);
     }
+#endif
 }
 
 void
@@ -127,6 +128,8 @@ GABC_GTPrimCollect::endCollecting(const GT_GEODetailListHandle &,
     return GT_PrimitiveHandle();
 }
 
+#if 0
+#include "GABC_GTArray.h"
 // Implementation of GT primitives for ABC
 
 template <typename T>
@@ -1402,3 +1405,4 @@ GABC_GEOPrim::gtPrimitive() const
 
     return result;
 }
+#endif

@@ -25,12 +25,27 @@
 #include <GA/GA_Handle.h>
 #include <GU/GU_Detail.h>
 
+/// @brief Walk an Alembic tree to create Houdini geometry
+///
+/// To convert an Alembic file to Houdini geometry, the code would look
+/// something like this: @code
+///	GU_Detail	gdp;
+///	GABC_GEOWalker	walker(gdp);
+///	
+///	walker.setFrame(frame, fps);	// Specify the time sample
+///	// Set any other parameters you might care about
+///	walker.setBuildAbcPrim(true);
+///	
+///	// Now, walker the Alembic file
+///	if (!GABC_Util::walker(filename, walker))
+///	    addError();
+/// @endcode
 class GABC_API GABC_GEOWalker : public GABC_Util::Walker
 {
 public:
     typedef Alembic::Abc::M44d			M44d;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
-    typedef Alembic::Abc::IObject		IObject;
+    typedef GABC_IObject			IObject;
 
     /// Test by loading "test.abc" in the current directory and saving
     /// "test.geo" as output.

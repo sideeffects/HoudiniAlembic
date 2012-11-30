@@ -18,7 +18,7 @@
 #include "GABC_IItem.h"
 #include "GABC_IArchive.h"
 
-#define SHOW_COUNTS
+//#define SHOW_COUNTS
 #include <UT/UT_ShowCounts.h>
 UT_COUNTER(theCount, "GABC_IItem")
 

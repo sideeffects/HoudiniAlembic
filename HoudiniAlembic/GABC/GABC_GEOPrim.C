@@ -39,6 +39,19 @@ namespace
 	bool	ok = w.jsonBeginMap();
 	return ok && w.jsonEndMap();
     }
+
+    bool
+    setPrimitiveWorldTransform(const GABC_IObject &obj, GT_Primitive *prim,
+		    fpreal t, GABC_AnimationType &atype)
+    {
+	UT_Matrix4D		xform;
+	GABC_AnimationType	xtype;
+	if (!obj.getWorldTransform(xform, t, xtype))
+	    return false;
+	prim->setPrimitiveTransform(
+		GT_TransformHandle(new GT_Transform(&xform, 1)));
+	return true;
+    }
 }
 
 GABC_GEOPrim::GABC_GEOPrim(GEO_Detail *d, GA_Offset offset)
@@ -387,7 +400,7 @@ GABC_GEOPrim::getJSON() const
 namespace
 {
     typedef Alembic::Abc::Box3d			Box3d;
-    typedef Alembic::Abc::IObject		IObject;
+    typedef GABC_IObject			IObject;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::AbcGeom::ICompoundProperty	ICompoundProperty;
     typedef Alembic::AbcGeom::IXform		IXform;
@@ -405,6 +418,7 @@ namespace
     typedef Alembic::AbcGeom::IPointsSchema	IPointsSchema;
     typedef Alembic::AbcGeom::IFloatGeomParam	IFloatGeomParam;
 
+#if 0
     static void
     assignBox(UT_BoundingBox &utbox, const Box3d &abcbox)
     {
@@ -422,6 +436,7 @@ namespace
 	typename SCHEMA_T::Sample	 sample = ss.getValue(iss);
 	assignBox(box, sample.getSelfBounds());
     }
+#endif
 }
 
 void
@@ -433,10 +448,10 @@ GABC_GEOPrim::updateAnimation()
     // We initialize based on the shape topology, but if the shape topology is
     // constant, there are still various factors which can make the primitive
     // non-constant (i.e. Homogeneous).
-    myAnimation = GABC_Util::getAnimationType(myFilename,
-			myObject, myUseTransform);
+    myAnimation = myObject.getAnimationType(myUseTransform);
 }
 
+#if 0
 bool
 GABC_GEOPrim::getAlembicBounds(UT_BoundingBox &box, const IObject &obj,
 	fpreal sample_time, bool &isConstant)
@@ -471,6 +486,7 @@ GABC_GEOPrim::getAlembicBounds(UT_BoundingBox &box, const IObject &obj,
     isConstant = GABC_Util::getAnimationType(std::string(), obj, false) == GABC_ANIMATION_CONSTANT;
     return true;
 }
+#endif
 
 int
 GABC_GEOPrim::getBBox(UT_BoundingBox *bbox) const
@@ -496,6 +512,7 @@ GABC_GEOPrim::getBBox(UT_BoundingBox *bbox) const
     return 1;
 }
 
+#if 0
 static fpreal
 getMaxWidth(IFloatGeomParam param, fpreal frame)
 {
@@ -517,10 +534,18 @@ getMaxWidth(IFloatGeomParam param, fpreal frame)
     }
     return maxwidth;
 }
+#endif
 
 bool
 GABC_GEOPrim::getRenderingBounds(UT_BoundingBox &box) const
 {
+    if (!myObject.getRenderingBoundingBox(box, myFrame))
+	return false;
+    UT_Matrix4D	xform;
+    getTransform(xform);
+    box.transform(xform);
+    return true;
+#if 0
     if (!getBBox(&box))
 	return false;
     switch (GABC_Util::getNodeType(myObject))
@@ -545,6 +570,104 @@ GABC_GEOPrim::getRenderingBounds(UT_BoundingBox &box) const
 	    break;
     }
     return true;
+#endif
+}
+
+void
+GABC_GEOPrim::getVelocityRange(UT_Vector3 &vmin, UT_Vector3 &vmax) const
+{
+    vmin = 0;
+    vmax = 0;
+    if (myObject.valid())
+	return;
+
+    GABC_AnimationType	atype;
+    GT_DataArrayHandle	v = myObject.getVelocity(myFrame, atype);
+    if (v)
+    {
+	for (int i = 0; i < 3; ++i)
+	{
+	    fpreal	fmin, fmax;
+	    if (i >= v->getTupleSize())
+	    {
+		fmin = fmax = 0;
+	    }
+	    else
+	    {
+		v->getRange(fmin, fmax, i);
+	    }
+	    vmin(i) = fmin;
+	    vmax(i) = fmax;
+	}
+    }
+}
+
+void
+GABC_GEOPrim::clearGT()
+{
+    myGTPrimitive.reset(NULL);
+}
+
+GT_PrimitiveHandle
+GABC_GEOPrim::gtPointCloud() const
+{
+    GABC_AnimationType	atype;
+    GT_PrimitiveHandle	result;
+
+    result = myObject.getPointCloud(myFrame, atype);
+
+    if (myUseTransform || !myGeoTransform->isIdentity())
+    {
+	UT_Matrix4D	xform;
+	if (getTransform(xform))
+	{
+	    result->setPrimitiveTransform(GT_TransformHandle(
+			new GT_Transform(&xform, 1)));
+	}
+    }
+    return result;
+}
+
+GT_PrimitiveHandle
+GABC_GEOPrim::gtPrimitive() const
+{
+    GT_PrimitiveHandle	result;
+    if (myGTPrimitive)	// Cached since geometry is static
+    {
+	switch (myAnimation)
+	{
+	    case GABC_ANIMATION_CONSTANT:
+		result = myGTPrimitive;
+		break;
+	    case GABC_ANIMATION_ATTRIBUTE:
+		result = myObject.updatePrimitive(myGTPrimitive, this,
+			myFrame, myAttributeNameMap);
+		break;
+	    default:
+		UT_ASSERT(0 && "Unexpected animation type");
+	}
+    }
+    else
+    {
+	result = myObject.getPrimitive(this, myFrame,
+			myAnimation, myAttributeNameMap);
+	if (myAnimation == GABC_ANIMATION_CONSTANT ||
+		myAnimation == GABC_ANIMATION_ATTRIBUTE)
+	{
+	    myGTPrimitive = result;	// Cache constant geometry
+	}
+    }
+
+    if (myUseTransform || !myGeoTransform->isIdentity())
+    {
+	UT_Matrix4D	xform;
+	if (getTransform(xform))
+	{
+	    result->setPrimitiveTransform(GT_TransformHandle(
+			new GT_Transform(&xform, 1)));
+	}
+    }
+    return result;
 }
 
 void
@@ -859,17 +982,14 @@ GABC_GEOPrim::getABCWorldTransform(UT_Matrix4D &xform) const
     if (!myObject.valid())
 	return false;
 
-    UT_AutoLock		 lock(theH5Lock);
     bool		 is_const = false;
     bool		 inheritsXform;
-    IObject		 obj = myObject;
-    if (abcNodeType() != GABC_XFORM)
-	obj = obj.getParent();
-    if (GABC_Util::getWorldTransform(myFilename, obj.getFullName(),
-			myFrame, xform, is_const, inheritsXform))
+    if (myObject.worldTransform(myFrame, xform, is_const, inheritsXform))
     {
 	if (is_const)
+	{
 	    myGTTransform = GT_TransformHandle(new GT_Transform(&xform, 1));
+	}
 	return true;
     }
     xform.identity();

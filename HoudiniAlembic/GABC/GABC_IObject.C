@@ -36,6 +36,7 @@
 #include <Alembic/AbcMaterial/All.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 #include <UT/UT_StackBuffer.h>
+#include <UT/UT_DoubleLock.h>
 
 namespace
 {
@@ -303,6 +304,17 @@ namespace
         translation_mtx.setTranslation(translation);
 
         return scale_mtx * shear_mtx * rotation_mtx * translation_mtx;
+    }
+
+    UT_Matrix4D
+    convertMatrix(const M44d &mat)
+    {
+	return UT_Matrix4D(mat.x);
+    }
+    M44d
+    convertMatrix(const UT_Matrix4D &mat)
+    {
+	return M44d((const double (*)[4])mat.data());
     }
 
     static V3d
@@ -1144,6 +1156,106 @@ namespace
 	return GT_DataArrayHandle(xyz);
     }
 
+    static GT_PrimitiveHandle
+    buildLocator(const GABC_IObject &obj, fpreal t)
+    {
+	IXform		xform(obj.object(), gabcWrapExisting);
+	IScalarProperty	loc(xform.getProperties(), "locator");
+	GABC_IObject	parent = obj.getParent();
+	UT_Matrix4D	utmat;
+	bool		isconst, inherits;
+
+	if (!parent.worldTransform(t, utmat, isconst, inherits))
+	{
+	    utmat.identity();
+	    isconst = true;
+	}
+	M44d		pmat = convertMatrix(utmat);
+	V3d		psval, phval, prval, pxval;
+	double		ldata[6];
+	loc.get(ldata, ISampleSelector(t));
+	if (!Imath::extractSHRT(pmat, psval, phval, prval, pxval))
+	{
+	    psval = V3d(1,1,1);
+	    prval = V3d(0,0,0);
+	    phval = V3d(0,0,0);
+	    pxval = V3d(0,0,0);
+	}
+
+	GT_AttributeMapHandle	pmap(new GT_AttributeMap());
+	GT_AttributeMapHandle	umap(new GT_AttributeMap());
+	GT_AttributeListHandle	point;
+	GT_AttributeListHandle	detail;
+
+	int	Pidx = pmap->add("P", true);
+	int	lPidx = umap->add("localPosition", true);
+	int	lSidx = umap->add("localScale", true);
+	int	pXidx = umap->add("parentTrans", true);
+	int	pRidx = umap->add("parentRot", true);
+	int	pSidx = umap->add("parentScale", true);
+#if 0
+	// TODO: This should be here!!!
+	int	pHidx = umap->add("parentShear", true);
+#endif
+
+	point = GT_AttributeListHandle(new GT_AttributeList(pmap));
+	detail = GT_AttributeListHandle(new GT_AttributeList(umap));
+	point->set( Pidx, new GT_RealConstant(1, ldata, 3), 0);
+	detail->set(lPidx, new GT_RealConstant(1, ldata, 3), 0);
+	detail->set(lSidx, new GT_RealConstant(1, ldata+3, 3), 0);
+	detail->set(pXidx, new GT_RealConstant(1, pxval.x, 3), 0);
+	detail->set(pRidx, new GT_RealConstant(1, prval.x, 3), 0);
+	detail->set(pSidx, new GT_RealConstant(1, psval.x, 3), 0);
+#if 0
+	// TODO: This should be here!!!
+	detail->set(pHidx, new GT_RealConstant(1, phval.x, 3), 0);
+#endif
+
+	return new GT_PrimPointMesh(point, detail);
+    }
+
+    static GT_PrimCurveMesh	*theReticle = NULL;	// Geometry for reticle
+    static GT_PrimitiveHandle	 theReticleCleanup;	// To free on close
+
+    static GT_PrimitiveHandle
+    buildTransform(const GABC_IObject &obj)
+    {
+	UT_ASSERT(obj.valid());
+	UT_Lock					&l = obj.archive()->getLock();
+	UT_DoubleLock<GT_PrimCurveMesh *>	 lock(l, theReticle);
+	if (!lock.getValue())
+	{
+	    GT_Real32Array	*P = new GT_Real32Array(6, 3, GT_TYPE_POINT);
+	    GT_Real32Array	*Cd = new GT_Real32Array(3, 3, GT_TYPE_COLOR);
+	    memset(P->data(), 0, sizeof(fpreal32)*18);
+	    memset(Cd->data(), 0, sizeof(fpreal32)*9);
+	    P->data()[3]  = 1;
+	    P->data()[10] = 1;
+	    P->data()[17] = 1;
+	    Cd->data()[0] = 1;
+	    Cd->data()[4] = 1;
+	    Cd->data()[8] = 1;
+
+	    GT_AttributeListHandle	vertex, uniform;
+	    GT_DataArrayHandle		counts(new GT_IntConstant(3, 2));
+	    vertex = GT_AttributeList::createAttributeList(
+			    "P", P,
+			    NULL);
+	    uniform = GT_AttributeList::createAttributeList(
+			    "Cd", Cd,
+			    NULL);
+	    GT_PrimCurveMesh	*mesh;
+	    mesh = new GT_PrimCurveMesh(GT_BASIS_LINEAR,
+		    counts, vertex, uniform, GT_AttributeListHandle(), false);
+	    theReticleCleanup.reset(mesh);
+	    lock.setValue(mesh);
+	}
+	// Since we'll be setting the transform on the reticle, we need a
+	// unique primitive.
+	return GT_PrimitiveHandle(new GT_PrimCurveMesh(*lock.getValue()));
+    }
+
+
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
     buildNuPatch(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
@@ -1631,6 +1743,11 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 	case GABC_NUPATCH:
 	    prim = buildNuPatch(CreateAttributeList(), gprim, *this, t, namemap);
 	    break;
+	case GABC_XFORM:
+	    if (isMayaLocator())
+		prim = buildLocator(*this, t);
+	    else
+		prim = buildTransform(*this);
 	default:
 	    break;
     }
@@ -1962,7 +2079,7 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
     }
     if (!obj.valid())
 	return false;
-#if 0
+#if 1
     if (ascended)
 	return GABC_Util::getWorldTransform(archive()->filename(),
 		GABC_IObject(archive(), obj), t, xform,
@@ -1976,7 +2093,7 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
 }
 
 bool
-GABC_IObject::localTransform(fpreal t, UT_Matrix4D &xform,
+GABC_IObject::localTransform(fpreal t, UT_Matrix4D &mat,
 	bool &isConstant, bool &inheritsXform) const
 {
     if (!valid())
@@ -2008,10 +2125,11 @@ GABC_IObject::localTransform(fpreal t, UT_Matrix4D &xform,
 	    m1 = sample.getMatrix();
 	    m0 = blendMatrix(m0, m1, bias);
 	}
+	mat = convertMatrix(m0);
     }
     else
     {
-	xform.identity();
+	mat.identity();
     }
     return true;
 }

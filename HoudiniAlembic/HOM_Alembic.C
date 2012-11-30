@@ -44,10 +44,12 @@
 #include <Alembic/AbcGeom/All.h>
 #include <HOM/HOM_Module.h>
 #include <UT/UT_DSOVersion.h>
+#include <UT/UT_StackBuffer.h>
+#include <GT/GT_DataArray.h>
 
 namespace
 {
-    typedef Alembic::Abc::IObject		IObject;
+    typedef GABC_IObject			IObject;
     typedef Alembic::Abc::V2d			V2d;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
@@ -139,6 +141,166 @@ namespace
 	return alembicGetXform(self, args, 3, false);
     }
 
+    static PY_PyObject *
+    extractTuple(const GT_DataArrayHandle &array, exint idx)
+    {
+	GT_Size		 tsize = array->getTupleSize();
+	PY_PyObject	*tuple = PY_PyTuple_New(tsize);
+	if (GTisFloat(array->getStorage()))
+	{
+	    UT_StackBuffer<fpreal>	buf(tsize);
+	    array->import(idx, buf, tsize);
+	    for (GT_Size i = 0; i < tsize; ++i)
+		PY_PyTuple_SetItem(tuple, i, PY_PyFloat_FromDouble(buf[i]));
+	}
+	else if (GTisInteger(array->getStorage()))
+	{
+	    UT_StackBuffer<int64>	buf(tsize);
+	    array->import(idx, buf, tsize);
+	    for (GT_Size i = 0; i < tsize; ++i)
+		PY_PyTuple_SetItem(tuple, i, PY_PyInt_FromLong(buf[i]));
+	}
+	else
+	{
+	    for (GT_Size i = 0; i < tsize; ++i)
+	    {
+		PY_PyTuple_SetItem(tuple, i,
+			PY_PyString_FromString(array->getS(idx, i)));
+	    }
+	}
+	return tuple;
+    }
+
+    static PY_PyObject *
+    dataFromArray(const GT_DataArrayHandle &array)
+    {
+	GT_Size		 size = array ? array->entries() : 0;
+	GT_Size		 tsize = array ? array->getTupleSize() : 0;
+	PY_PyObject	*list = PY_PyList_New(size);
+	if (size)
+	{
+	    if (tsize > 1)
+	    {
+		for (exint i = 0; i < size; ++i)
+		    PY_PyList_SetItem(list, i, extractTuple(array, i));
+	    }
+	    else if (GTisInteger(array->getStorage()))
+	    {
+		for (exint i = 0; i < size; ++i)
+		    PY_PyList_SetItem(list, i, PY_PyInt_FromLong(array->getI64(i)));
+	    }
+	    else if (GTisFloat(array->getStorage()))
+	    {
+		for (exint i = 0; i < size; ++i)
+		    PY_PyList_SetItem(list, i, PY_PyFloat_FromDouble(array->getF64(i)));
+	    }
+	    else
+	    {
+		for (exint i = 0; i < size; ++i)
+		    PY_PyList_SetItem(list, i, PY_PyString_FromString(array->getS(i)));
+	    }
+	}
+	return list;
+    }
+
+    static const char *
+    scopeName(Alembic::AbcGeom::GeometryScope scope)
+    {
+	switch (scope)
+	{
+	    case Alembic::AbcGeom::kConstantScope:
+		return "constant";
+	    case Alembic::AbcGeom::kUniformScope:
+		return "uniform";
+	    case Alembic::AbcGeom::kVaryingScope:
+		return "varying";
+	    case Alembic::AbcGeom::kVertexScope:
+		return "vertex";
+	    case Alembic::AbcGeom::kFacevaryingScope:
+		return "facevarying";
+	    default:
+		break;
+	}
+	return "unknown";
+    }
+
+    static const char	*Doc_ArbGeometry =
+	"(value, isConstant, scope) = alembicArbGeometry(abcPath, objectPath, name, sampleTime)\n"
+	"\n"
+	"Returns None or a tuple (value,isConstant,scope).  The tuple contains the"
+	"value for the attribute, it's scope ('varying', 'vertex', 'facevarying', 'uniform',"
+	"'constant' or 'unknown') and a boolean flag indicating whether the attribute"
+	"is constant over time or not.";
+
+    PY_PyObject *
+    Py_AlembicArbGeometry(PY_PyObject *self, PY_PyObject *args)
+    {
+	const char			*filename;
+	const char			*objectPath;
+	const char			*name;
+	double				 sampleTime;
+	Alembic::AbcGeom::GeometryScope	 scope;
+	GABC_AnimationType		 atype;
+	bool				 ok;
+	GT_DataArrayHandle		 data;
+
+        if (!PY_PyArg_ParseTuple(args, "sssd", &filename, &objectPath,
+                &name, &sampleTime))
+	{
+	    return NULL;
+	}
+
+	GABC_IObject	obj = GABC_Util::findObject(filename, objectPath);
+	ok = obj.valid();
+	if (!obj.valid())
+	{
+	    PY_Py_RETURN_NONE;
+	}
+	data = obj.getGeometryProperty(name, sampleTime, scope, atype);
+	PY_PyObject	*rcode = PY_PyTuple_New(3);
+	PY_PyTuple_SetItem(rcode, 0, dataFromArray(data));
+	PY_PyTuple_SetItem(rcode, 1, atype == GABC_ANIMATION_CONSTANT ? PY_Py_True() : PY_Py_False());
+	PY_PyTuple_SetItem(rcode, 2, PY_PyString_FromString(scopeName(scope)));
+	return rcode;
+    }
+
+    static const char	*Doc_UserProperty =
+	"(value, isConstant) = alembicUserProperty(abcPath, objectPath, name, sampleTime)\n"
+	"\n"
+	"Returns None or a tuple (value,scope,isConstant).  The tuple contains the"
+	"value for the attribute, it's scope ('varying', 'vertex', 'facevarying', 'uniform',"
+	"'constant' or 'unknown') and a boolean flag indicating whether the attribute"
+	"is constant over time or not.";
+
+    PY_PyObject *
+    Py_AlembicUserProperty(PY_PyObject *self, PY_PyObject *args)
+    {
+	const char			*filename;
+	const char			*objectPath;
+	const char			*name;
+	double				 sampleTime;
+	GABC_AnimationType		 atype;
+	bool				 ok;
+	GT_DataArrayHandle		 data;
+
+        if (!PY_PyArg_ParseTuple(args, "sssd", &filename, &objectPath,
+                &name, &sampleTime))
+	{
+	    return NULL;
+	}
+
+	GABC_IObject	obj = GABC_Util::findObject(filename, objectPath);
+	ok = obj.valid();
+	if (!obj.valid())
+	{
+	    PY_Py_RETURN_NONE;
+	}
+	data = obj.getUserProperty(name, sampleTime, atype);
+	PY_PyObject	*rcode = PY_PyTuple_New(3);
+	PY_PyTuple_SetItem(rcode, 0, dataFromArray(data));
+	PY_PyTuple_SetItem(rcode, 1, atype == GABC_ANIMATION_CONSTANT ? PY_Py_True() : PY_Py_False());
+	return rcode;
+    }
 
     class PyWalker : public GABC_Util::Walker
     {
@@ -159,11 +321,11 @@ namespace
 	PY_PyObject	*walkNode(const IObject &obj)
 	{
 	    const char		*otype = "<unknown>";
-	    switch (GABC_Util::getNodeType(obj))
+	    switch (obj.nodeType())
 	    {
 		case GABC_XFORM:
 		    {
-			IXform	xform(obj, Alembic::Abc::kWrapExisting);
+			IXform	xform(obj.object(), Alembic::Abc::kWrapExisting);
 			if (xform.getSchema().isConstant())
 			    otype = "cxform";
 			else
@@ -349,7 +511,7 @@ namespace
 
 	if (obj.valid() && ICamera::matches(obj.getHeader()))
 	{
-	    ICamera camera(obj, Alembic::Abc::kWrapExisting);
+	    ICamera camera(obj.object(), Alembic::Abc::kWrapExisting);
 	    isConstant = camera.getSchema().isConstant();
 	    CameraSample cameraSample = camera.getSchema().getValue(
 		    ISampleSelector(sampleTime));
@@ -456,6 +618,12 @@ HOMextendLibrary()
                 PY_METH_VARARGS(), Doc_AlembicGetObjectPathListForMenu },
         {"alembicGetCameraDict", Py_AlembicGetCameraDict,
                 PY_METH_VARARGS(), Doc_AlembicGetCameraDict },
+
+	{ "alembicArbGeometry", Py_AlembicArbGeometry,
+		PY_METH_VARARGS(), Doc_ArbGeometry },
+	{ "alembicUserProperty", Py_AlembicUserProperty,
+		PY_METH_VARARGS(), Doc_UserProperty },
+
         { NULL, NULL, 0, NULL }
     };
     PY_Py_InitModule("_alembic_hom_extensions", alembic_hom_extension_methods);

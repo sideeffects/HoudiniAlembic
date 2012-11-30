@@ -26,18 +26,20 @@
 #include <UT/UT_SysClone.h>
 #include <UT/UT_SymbolTable.h>
 #include <boost/tokenizer.hpp>
+#include "GABC_IArchive.h"
 
 namespace
 {
     typedef Alembic::Abc::M44d			M44d;
     typedef Alembic::Abc::index_t		index_t;
     typedef Alembic::Abc::chrono_t		chrono_t;
-    typedef Alembic::Abc::IArchive		IArchive;
-    typedef Alembic::Abc::IObject		IObject;
+    typedef GABC_IArchivePtr			IArchive;
+    typedef GABC_IObject			IObject;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
     typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
+    typedef Alembic::Abc::WrapExistingFlag	WrapExistingFlag;
     typedef Alembic::AbcGeom::IXform		IXform;
     typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
     typedef Alembic::AbcGeom::IPolyMesh		IPolyMesh;
@@ -55,6 +57,8 @@ namespace
     typedef Alembic::AbcGeom::ICamera		ICamera;
     typedef Alembic::AbcGeom::XformSample	XformSample;
     typedef GABC_Util::PathList			PathList;
+
+    const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
     // Stores world (cumulative) transforms for objects in the cache.  These
     // are stored at sample times but not at intermediate time samples.
@@ -212,7 +216,7 @@ namespace
     abcLocalTransform(M44d &localXform, IObject obj, fpreal sampleTime,
 	    bool &isConstant, bool &inheritsXform)
     {
-	IXform		xformObject(obj, Alembic::Abc::kWrapExisting);
+	IXform		xformObject(obj.object(), gabcWrapExisting);
 	TimeSamplingPtr timeSampling =xformObject.getSchema().getTimeSampling();
 	size_t		numSamples = xformObject.getSchema().getNumSamples();
 
@@ -342,6 +346,8 @@ namespace
 
         ~ArchiveCacheEntry()
         {
+	    if (myArchive)
+		myArchive->purgeObjects();
         }
 
 	bool	walk(GABC_Util::Walker &walker)
@@ -358,16 +364,16 @@ namespace
 	    UT_WorkBuffer	fullpath;
 	    for (size_t i = 0; i < root.getNumChildren(); ++i)
 	    {
-		const ObjectHeader	&ohead = root.getChildHeader(i);
-		if (IXform::matches(ohead))
+		GABC_IObject	kid = root.getChild(i);
+		if (kid.nodeType() == GABC_XFORM)
 		{
-		    IXform		xform(root, ohead.getName());
+		    IXform		xform(kid.object(), gabcWrapExisting);
 		    IXformSchema	&xs = xform.getSchema();
 		    M44d		world;
 		    world = parent;
 		    if (xs.isConstant())
 		    {
-			fullpath.sprintf("%s/%s", path, ohead.getName().c_str());
+			fullpath.sprintf("%s/%s", path, kid.getName().c_str());
 			XformSample	xsample = xs.getValue(ISampleSelector(0.0));
 			bool	inherits = xs.getInheritsXforms();
 			M44d	localXform = xsample.getMatrix();
@@ -377,7 +383,7 @@ namespace
 			    world = localXform;
 			myStaticXforms[fullpath.buffer()] =
 			    LocalWorldXform(localXform, world, true, inherits);
-			buildTransformCache(xform, fullpath.buffer(), world);
+			buildTransformCache(kid, fullpath.buffer(), world);
 		    }
 		}
 	    }
@@ -430,6 +436,8 @@ namespace
 		    }
 		    else
 		    {
+			isConstant = true;
+			inheritsXform = true;
 			x.makeIdentity();
 		    }
 		}
@@ -459,7 +467,7 @@ namespace
 		    {
 			// Get our local transform
 			M44d	localXform;
-			IObject dad = const_cast<IObject &>(obj).getParent();
+			IObject dad = obj.getParent();
 
 			getLocalTransform(localXform, obj, now,
 				isConstant, inheritsXform);
@@ -543,7 +551,7 @@ namespace
 
 	const PathList	&getObjectList()
 			{
-			    if (myArchive.valid() && !myObjectList.size())
+			    if (isValid() && !myObjectList.size())
 			    {
 				PathListWalker	func(myObjectList);
 				walk(func);
@@ -560,12 +568,12 @@ namespace
 			    return true;
 			}
 
-	bool	isValid() const		{ return myArchive.valid(); }
+	bool	isValid() const		{ return myArchive && myArchive->valid(); }
 	void	setArchive(const IArchive &a)	{ myArchive = a; }
 	void	setError(const std::string &e)	{ error = e; }
 
     private:
-	IObject		root()	{ return myArchive.getTop(); }
+	IObject		root()	{ return myArchive->getTop(); }
 	IArchive				myArchive;
 	std::string				error;
 	PathList				myObjectList;
@@ -600,16 +608,7 @@ namespace
         }
         ArchiveCacheEntryPtr entry = ArchiveCacheEntryPtr(
                 new ArchiveCacheEntry);
-        try
-        {
-            entry->setArchive(
-		    IArchive(::Alembic::AbcCoreHDF5::ReadArchive(), path)
-		);
-        }
-        catch (const std::exception & e)
-        {
-            entry->setError(e.what());
-        }
+	entry->setArchive(GABC_IArchive::open(path));
         while (g_archiveCache->size() >= g_maxCache)
         {
             long d = static_cast<long>(std::floor(
@@ -669,37 +668,12 @@ GABC_Util::Walker::walkChildren(const IObject &node)
     return true;
 }
 
-GABC_NodeType
-GABC_Util::getNodeType(const IObject &obj)
-{
-    if (!obj)
-	return GABC_UNKNOWN;
-    const ObjectHeader	&ohead = obj.getHeader();
-    if (IXform::matches(ohead))
-	return GABC_XFORM;
-    if (IPolyMesh::matches(ohead))
-	return GABC_POLYMESH;
-    if (ISubD::matches(ohead))
-	return GABC_SUBD;
-    if (ICamera::matches(ohead))
-	return GABC_CAMERA;
-    if (IFaceSet::matches(ohead))
-	return GABC_FACESET;
-    if (ICurves::matches(ohead))
-	return GABC_CURVES;
-    if (IPoints::matches(ohead))
-	return GABC_POINTS;
-    if (INuPatch::matches(ohead))
-	return GABC_NUPATCH;
-    return GABC_UNKNOWN;
-}
-
+#if 0
 bool
 GABC_Util::isMayaLocator(const IObject &obj)
 {
     UT_ASSERT(IXform::matches(obj.getHeader()));
-    IObject	*xform = const_cast<IObject *>(&obj);
-    return xform->getProperties().getPropertyHeader("locator") != NULL;
+    return obj.object().getProperties().getPropertyHeader("locator") != NULL;
 }
 
 template <typename T>
@@ -727,7 +701,7 @@ template <typename ABC_T, typename SCHEMA_T>
 static GABC_AnimationType
 getAnimation(const IObject &obj)
 {
-    ABC_T		 prim(obj, Alembic::Abc::kWrapExisting);
+    ABC_T		 prim(obj.object(), gabcWrapExisting);
     SCHEMA_T		&schema = prim.getSchema();
     GABC_AnimationType	 atype;
     
@@ -752,8 +726,8 @@ template <>
 GABC_AnimationType
 getAnimation<IPoints, IPointsSchema>(const IObject &obj)
 {
-    IPoints			 prim(obj, Alembic::Abc::kWrapExisting);
-    IPointsSchema		&schema = prim.getSchema();
+    IPoints		 prim(obj.object(), gabcWrapExisting);
+    IPointsSchema	&schema = prim.getSchema();
     if (!schema.isConstant())
 	return GABC_ANIMATION_TOPOLOGY;
     if (abcArbsAreAnimated(schema.getArbGeomParams()))
@@ -765,8 +739,8 @@ template <>
 GABC_AnimationType
 getAnimation<IXform, IXformSchema>(const IObject &obj)
 {
-    IXform			 prim(obj, Alembic::Abc::kWrapExisting);
-    IXformSchema		&schema = prim.getSchema();
+    IXform		 prim(obj.object(), gabcWrapExisting);
+    IXformSchema	&schema = prim.getSchema();
     if (!schema.isConstant())
 	return GABC_ANIMATION_TOPOLOGY;
     if (abcArbsAreAnimated(schema.getArbGeomParams()))
@@ -778,7 +752,7 @@ getAnimation<IXform, IXformSchema>(const IObject &obj)
 static GABC_AnimationType
 getLocatorAnimation(const IObject &obj)
 {
-    IXform				prim(obj, Alembic::Abc::kWrapExisting);
+    IXform				prim(obj.object(), gabcWrapExisting);
     Alembic::Abc::IScalarProperty	loc(prim.getProperties(), "locator");
     return loc.isConstant() ? GABC_ANIMATION_CONSTANT
 			    : GABC_ANIMATION_ATTRIBUTE;
@@ -789,7 +763,7 @@ abcCurvesChangingTopology(const IObject &obj)
 {
     // There's a bug in Alembic 1.0.5 which doesn't properly detect
     // heterogenous topology.
-    ICurves		 curves(obj, Alembic::Abc::kWrapExisting);
+    ICurves		 curves(obj.object(), gabcWrapExisting);
     ICurvesSchema	&schema = curves.getSchema();
     if (!schema.getNumVerticesProperty().isConstant())
 	return true;
@@ -926,6 +900,7 @@ GABC_Util::getAnimationType(const std::string &filename, const IObject &node,
     }
     return atype;
 }
+#endif
 
 bool
 GABC_Util::walk(const std::string &filename, Walker &walker,

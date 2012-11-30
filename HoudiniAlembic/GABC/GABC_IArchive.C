@@ -23,7 +23,7 @@
 #include <UT/UT_WorkArgs.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 
-#define SHOW_COUNTS
+//#define SHOW_COUNTS
 #include <UT/UT_ShowCounts.h>
 UT_COUNTER(theCount, "GABC_IArchive")
 

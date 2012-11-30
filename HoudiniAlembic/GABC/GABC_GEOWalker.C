@@ -28,7 +28,7 @@
 namespace {
     typedef Imath::M44d				M44d;
     typedef Imath::V3d				V3d;
-    typedef Alembic::Abc::IObject		IObject;
+    typedef GABC_IObject			IObject;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
     typedef Alembic::Abc::Int32ArraySamplePtr	Int32ArraySamplePtr;
@@ -36,6 +36,7 @@ namespace {
     typedef Alembic::Abc::P3fArraySamplePtr	P3fArraySamplePtr;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef Alembic::Abc::PropertyHeader	PropertyHeader;
+    typedef Alembic::Abc::WrapExistingFlag	WrapExistingFlag;
 
     typedef Alembic::AbcGeom::IXform		IXform;
     typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
@@ -53,7 +54,8 @@ namespace {
     typedef Alembic::AbcGeom::INuPatchSchema	INuPatchSchema;
     typedef INuPatchSchema::Sample		INuPatchSample;
 
-    M44d	identity44d(1, 0, 0, 0,
+    const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
+    const M44d	identity44d(1, 0, 0, 0,
 			    0, 1, 0, 0,
 			    0, 0, 1, 0,
 			    0, 0, 0, 1);
@@ -624,7 +626,7 @@ namespace {
     makeAbcPrim(GABC_GEOWalker &walk, const IObject &obj,
 	    const ObjectHeader &ohead)
     {
-	switch (GABC_Util::getNodeType(obj))
+	switch (obj.nodeType())
 	{
 	    case GABC_POLYMESH:
 	    case GABC_SUBD:
@@ -653,7 +655,11 @@ namespace {
     getAnimationType(GABC_GEOWalker &walk, const IObject &obj)
     {
 	GABC_AnimationType	atype;
+#if 0
 	atype = GABC_Util::getAnimationType(walk.filename(), obj, false);
+#else
+	atype = obj.getAnimationType(false);
+#endif
 	if (atype == GABC_ANIMATION_TOPOLOGY)
 	    walk.setNonConstantTopology();
 	return atype;
@@ -663,8 +669,7 @@ namespace {
     makeSubD(GABC_GEOWalker &walk, const IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
-	ISubD			subd(const_cast<IObject &>(obj),
-					Alembic::Abc::kWrapExisting);
+	ISubD			subd(obj.object(), gabcWrapExisting);
 	ISubDSchema		&ps = subd.getSchema();
 	P3fArraySamplePtr	P = ps.getPositionsProperty().getValue(iss);
 	Int32ArraySamplePtr	counts=ps.getFaceCountsProperty().getValue(iss);
@@ -715,8 +720,7 @@ namespace {
     makePolyMesh(GABC_GEOWalker &walk, const IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
-	IPolyMesh		polymesh(const_cast<IObject &>(obj),
-					Alembic::Abc::kWrapExisting);
+	IPolyMesh		polymesh(obj.object(), gabcWrapExisting);
 	IPolyMeshSchema		&ps = polymesh.getSchema();
 	P3fArraySamplePtr	P = ps.getPositionsProperty().getValue(iss);
 	Int32ArraySamplePtr	counts=ps.getFaceCountsProperty().getValue(iss);
@@ -769,8 +773,7 @@ namespace {
     makeCurves(GABC_GEOWalker &walk, const IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
-	ICurves			curves(const_cast<IObject &>(obj),
-					Alembic::Abc::kWrapExisting);
+	ICurves			curves(obj.object(), gabcWrapExisting);
 	ICurvesSchema		&cs = curves.getSchema();
 	P3fArraySamplePtr	P = cs.getPositionsProperty().getValue(iss);
 	Int32ArraySamplePtr	nvtx =cs.getNumVerticesProperty().getValue(iss);
@@ -835,7 +838,7 @@ namespace {
     }
 
     void
-    makeLocator(GABC_GEOWalker &walk, IXform &xform)
+    makeLocator(GABC_GEOWalker &walk, IXform &xform, const GABC_IObject &obj)
     {
 	Alembic::Abc::IScalarProperty	loc(xform.getProperties(), "locator");
 	ISampleSelector			iss = walk.timeSample();
@@ -843,7 +846,7 @@ namespace {
 	const int			nvertex = 1;
 	const int			nprim = 1;
 
-	GABC_AnimationType	atype = getAnimationType(walk, xform);
+	GABC_AnimationType	atype = getAnimationType(walk, obj);
 	if (atype != GABC_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
@@ -852,7 +855,7 @@ namespace {
 	{
 	    if (!walk.includeXform() || walk.transformConstant())
 	    {
-		walk.trackPtVtxPrim(xform, npoint, nvertex, nprim, false);
+		walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, false);
 		return;
 	    }
 	}
@@ -883,15 +886,14 @@ namespace {
 	locatorAttribute(walk, "parentRot", lr.x, lr.y, lr.z);
 	locatorAttribute(walk, "parentScale", ls.x, ls.y, ls.z);
 
-	walk.trackPtVtxPrim(xform, npoint, nvertex, nprim, true);
+	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
 
     void
     makePoints(GABC_GEOWalker &walk, const IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
-	IPoints			points(const_cast<IObject &>(obj),
-					Alembic::Abc::kWrapExisting);
+	IPoints			points(obj.object(), gabcWrapExisting);
 	IPointsSchema		&ps = points.getSchema();
 	P3fArraySamplePtr	P = ps.getPositionsProperty().getValue(iss);
 
@@ -945,8 +947,7 @@ namespace {
     makeNuPatch(GABC_GEOWalker &walk, const IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
-	INuPatch		nupatch(const_cast<IObject &>(obj),
-					Alembic::Abc::kWrapExisting);
+	INuPatch		nupatch(obj.object(), gabcWrapExisting);
 	INuPatchSchema		&ps = nupatch.getSchema();
 	INuPatchSample		patch = ps.getValue(iss);
 	FloatArraySamplePtr	uknots = patch.getUKnot();
@@ -1112,15 +1113,15 @@ GABC_GEOWalker::process(const IObject &obj)
     //fprintf(stderr, "Process: %s\n", (const char *)obj.getFullName().c_str());
     if (IXform::matches(ohead))
     {
-	IXform	xform(obj, Alembic::Abc::kWrapExisting);
-	if (buildLocator() && GABC_Util::isMayaLocator(xform))
+	IXform	xform(obj.object(), gabcWrapExisting);
+	if (buildLocator() && obj.isMayaLocator())
 	{
 	    if (matchObjectName(obj) && matchAnimationFilter(obj))
 	    {
 		if (buildAbcPrim())
 		    makeAbcPrim(*this, obj, ohead);
 		else
-		    makeLocator(*this, xform);
+		    makeLocator(*this, xform, obj);
 	    }
 	    return true;	// Process locator children
 	}
@@ -1142,7 +1143,7 @@ GABC_GEOWalker::process(const IObject &obj)
 	    makeAbcPrim(*this, obj, ohead);
 	else
 	{
-	    switch (GABC_Util::getNodeType(obj))
+	    switch (obj.nodeType())
 	    {
 		case GABC_POLYMESH:
 		    makePolyMesh(*this, obj);
@@ -1208,7 +1209,11 @@ GABC_GEOWalker::matchAnimationFilter(const IObject &obj) const
     {
 	// If none of the transforms in are animating, maybe the object itself
 	// is animating.
+#if 0
 	animating = GABC_Util::getAnimationType(filename(), obj, false);
+#else
+	animating = obj.getAnimationType(false);
+#endif
     }
     switch (myAnimationFilter)
     {
@@ -1260,7 +1265,7 @@ getParentXform(IObject kid)
     while (true)
     {
 	parent = kid.getParent();
-	if (!parent)
+	if (!parent.valid())
 	{
 	    UT_ASSERT(0 && "There should have been a transform");
 	    return kid;

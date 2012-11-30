@@ -35,7 +35,7 @@ class GEO_Detail;
 class GABC_API GABC_GEOPrim : public GEO_Primitive
 {
 public:
-    typedef Alembic::Abc::IObject	IObject;
+    typedef GABC_IObject	IObject;
 
     GABC_GEOPrim(GEO_Detail *d, GA_Offset offset = GA_INVALID_OFFSET);
     virtual ~GABC_GEOPrim();
@@ -132,7 +132,7 @@ public:
     const std::string	&getObjectPath() const	{ return myObjectPath; }
     const IObject	&getObject() const	{ return myObject; }
     GABC_NodeType	 abcNodeType() const
-			    { return GABC_Util::getNodeType(myObject); }
+			    { return myObject.nodeType(); }
     GABC_AnimationType	 animation() const	{ return myAnimation; }
     bool		 isConstant() const
 			 {
@@ -187,7 +187,11 @@ public:
     static bool		getAlembicBounds(UT_BoundingBox &box,
 				const IObject &obj,
 				fpreal sample_time,
-				bool &isConstant);
+				bool &isConstant)
+			{
+			    return obj.getBoundingBox(box, sample_time,
+						isConstant);
+			}
 
 protected:
     GA_DECLARE_INTRINSICS();

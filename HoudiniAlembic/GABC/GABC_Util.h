@@ -25,23 +25,23 @@
 // Houdini includes
 #include <SYS/SYS_Types.h>
 #include <UT/UT_Matrix4.h>
-
-// We need the definition of IObject
-#include <Alembic/Abc/IObject.h>
+#include "GABC_IObject.h"
 
 class UT_StringArray;
 
 class GABC_API GABC_Util
 {
 public:
-    typedef Alembic::Abc::IObject		IObject;
+    typedef GABC_IObject			IObject;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef std::vector<std::string>		PathList;
 
+#if 0
     /// Determine the node type given an input object.  If GABC_UNKNOWN is
     /// returned, you can still check the ObjectHeader to see if it matches
     /// other object types.
-    static GABC_NodeType	getNodeType(const IObject &obj);
+    static GABC_NodeType	getNodeType(const IObject &obj)
+				    { return obj.nodeType(); }
 
     /// Classify a transform node
     static bool		isMayaLocator(const IObject &obj);
@@ -53,6 +53,7 @@ public:
     static GABC_AnimationType	getAnimationType(const std::string &filename,
 						const IObject &node,
 						bool include_transform);
+#endif
 
     /// Class used in traversal of Alembic trees
     ///

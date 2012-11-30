@@ -49,7 +49,7 @@ GABC_GUPrim::build(GU_Detail *gdp,
 GABC_GUPrim *
 GABC_GUPrim::build(GU_Detail *gdp,
 		const std::string &filename,
-		const Alembic::AbcGeom::IObject &object,
+		const GABC_IObject &object,
 		fpreal frame,
 		bool use_transform)
 {
