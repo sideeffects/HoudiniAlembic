@@ -690,7 +690,7 @@ namespace {
 	}
 	if (!walk.reusePrimitives())
 	{
-	    // Asser that we need to create the polygons
+	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
 	    appendFaces(walk, npoint, counts, indices);
@@ -742,7 +742,7 @@ namespace {
 	}
 	if (!walk.reusePrimitives())
 	{
-	    // Asser that we need to create the polygons
+	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
 	    appendFaces(walk, npoint, counts, indices);
@@ -793,7 +793,7 @@ namespace {
 	}
 	if (!walk.reusePrimitives())
 	{
-	    // Asser that we need to create the polygons
+	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
 	    appendCurves(walk, npoint, nvtx);
@@ -858,7 +858,7 @@ namespace {
 	}
 	if (!walk.reusePrimitives())
 	{
-	    // Asser that we need to create the polygons
+	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
 	    appendParticles(walk, npoint);
@@ -916,7 +916,7 @@ namespace {
 	}
 	if (!walk.reusePrimitives())
 	{
-	    // Asser that we need to create the polygons
+	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
 	    appendParticles(walk, npoint);
@@ -978,7 +978,7 @@ namespace {
 	}
 	if (!walk.reusePrimitives())
 	{
-	    // Asser that we need to create the polygons
+	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
 	    appendNURBS(walk, uorder, uknots, vorder, vknots);
