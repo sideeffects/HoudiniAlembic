@@ -156,6 +156,14 @@ namespace
 	}
     }
 
+    static void
+    markFilled(GT_AttributeList &alist, const char *name, bool *filled)
+    {
+	int		idx = alist.getIndex(name);
+	if (idx >= 0)
+	    filled[idx] = true;
+    }
+
     static const fpreal	timeBias = 0.0001;
 
     static fpreal
@@ -494,16 +502,23 @@ namespace
 
     #define SET_ARRAY(VAR, NAME, TYPEINFO) \
 	if (VAR && *VAR) { \
-	    setAttributeData(alist, NAME, \
-		    arrayFromSample(arch, VAR->getValue(sample), TYPEINFO), filled); \
-    }
+	    if (ONLY_ANIMATING && VAR->isConstant()) \
+		markFilled(alist, NAME, filled); \
+	    else \
+		setAttributeData(alist, NAME, \
+		    arrayFromSample(arch, VAR->getValue(sample), TYPEINFO), \
+				filled); \
+	}
     #define SET_GEOM_PARAM(VAR, NAME, TYPEINFO) \
 	if (VAR && VAR->valid() && matchScope(VAR->getScope(), \
 		    scope, scope_size)) { \
+	    if (ONLY_ANIMATING && VAR->isConstant()) \
+		markFilled(alist, NAME, filled); \
 	    setAttributeData(alist, NAME, \
 		    arrayFromGeomParam(arch, *VAR, t, TYPEINFO), filled); \
 	}
 
+    template <bool ONLY_ANIMATING>
     static void
     fillAttributeList(GT_AttributeList &alist,
 	    const GABC_NameMapPtr &namemap,
@@ -525,11 +540,12 @@ namespace
 	if (!alist.entries())
 	    return;
 
-	GABC_IArchive	&arch = *obj.archive();
-	ISampleSelector	sample(t);
+	GABC_IArchive		&arch = *obj.archive();
+	ISampleSelector		 sample(t);
+	UT_StackBuffer<bool>	 filled(alist.entries());
 
-	UT_StackBuffer<bool>	filled(alist.entries());
 	memset(filled, 0, sizeof(bool)*alist.entries());
+
 	SET_ARRAY(P, "P", GT_TYPE_POINT)
 	SET_ARRAY(v, "v", GT_TYPE_VECTOR)
 	SET_ARRAY(ids, "id", GT_TYPE_NONE)
@@ -585,6 +601,7 @@ namespace
 	if (prop && *prop)
 	    map.add(name, true);
     }
+
     template <typename T>
     static void
     addGeomParamToMap(GT_AttributeMap &map, const char *name, T *param,
@@ -673,13 +690,20 @@ namespace
 	else
 	{
 	    alist = new GT_AttributeList(GT_AttributeMapHandle(map));
-	    fillAttributeList(*alist, namemap, prim, obj, t, scope, scope_size,
-		    arb, P, v, N, uvs, ids, widths, Pw);
+	    if (alist->entries())
+	    {
+		UT_StackBuffer<bool>	filled(alist->entries());
+		memset(filled, 0, sizeof(bool)*alist->entries());
+		fillAttributeList<false>(*alist, namemap, prim, obj, t,
+			scope, scope_size,
+			arb, P, v, N, uvs, ids, widths, Pw);
+	    }
 	}
 
 	return GT_AttributeListHandle(alist);
     }
 
+#if 0
     static GT_AttributeListHandle
     initializeAttributeList(const GEO_Primitive *prim,
 			const GABC_IObject &obj,
@@ -698,6 +722,36 @@ namespace
 	return initializeAttributeList(prim, obj, namemap, t, &scope, 1,
 		arb, P, v, N, uvs, ids, widths, Pw);
     }
+#endif
+
+    static GT_AttributeListHandle
+    updateAttributeList(const GT_AttributeListHandle &src,
+			const GEO_Primitive *prim,
+			const GABC_IObject &obj,
+			const GABC_NameMapPtr &namemap,
+			fpreal t, 
+			const GeometryScope *scope,
+			int scope_size,
+			ICompoundProperty arb,
+			const IP3fArrayProperty *P = NULL,
+			const IV3fArrayProperty *v = NULL,
+			const IN3fGeomParam *N = NULL,
+			const IV2fGeomParam *uvs = NULL,
+			const IUInt64ArrayProperty *ids = NULL,
+			const IFloatGeomParam *widths = NULL,
+			const IFloatArrayProperty *Pw = NULL)
+    {
+	if (!src || !src->entries())
+	    return src;
+
+	// Copy the existing attributes
+	GT_AttributeList	*alist = new GT_AttributeList(*src);
+	// Only fill animating attributes
+	fillAttributeList<true>(*alist, namemap, prim, obj, t,
+		    scope, scope_size, arb, P, v, N, uvs, ids, widths, Pw);
+	return GT_AttributeListHandle(alist);
+    }
+
 
     template <typename T>
     static bool
@@ -706,11 +760,122 @@ namespace
 	return !ptr || !ptr->valid() || ptr->size() == 0;
     }
 
+    class CreateAttributeList
+    {
+    public:
+	inline GT_AttributeListHandle	build(
+			    GT_Owner,
+			    const GEO_Primitive *prim,
+			    const GABC_IObject &obj,
+			    const GABC_NameMapPtr &namemap,
+			    fpreal t,
+			    const GeometryScope *scope,
+			    int scope_size,
+			    ICompoundProperty arb,
+			    const IP3fArrayProperty *P = NULL,
+			    const IV3fArrayProperty *v = NULL,
+			    const IN3fGeomParam *N = NULL,
+			    const IV2fGeomParam *uvs = NULL,
+			    const IUInt64ArrayProperty *ids = NULL,
+			    const IFloatGeomParam *widths = NULL,
+			    const IFloatArrayProperty *Pw = NULL) const
+	{
+	    return initializeAttributeList(prim, obj, namemap, t,
+		    scope, scope_size, arb, P, v, N, uvs, ids, widths, Pw);
+	}
+	inline GT_AttributeListHandle	build(
+			    GT_Owner,
+			    const GEO_Primitive *prim,
+			    const GABC_IObject &obj,
+			    const GABC_NameMapPtr &namemap,
+			    fpreal t,
+			    GeometryScope scope,
+			    ICompoundProperty arb,
+			    const IP3fArrayProperty *P = NULL,
+			    const IV3fArrayProperty *v = NULL,
+			    const IN3fGeomParam *N = NULL,
+			    const IV2fGeomParam *uvs = NULL,
+			    const IUInt64ArrayProperty *ids = NULL,
+			    const IFloatGeomParam *widths = NULL,
+			    const IFloatArrayProperty *Pw = NULL) const
+	{
+	    return initializeAttributeList(prim, obj, namemap, t,
+		    &scope, 1, arb, P, v, N, uvs, ids, widths, Pw);
+	}
+    };
+    class UpdateAttributeList
+    {
+    public:
+	UpdateAttributeList(const GT_PrimitiveHandle &prim)
+	    : myPrim(prim)
+	{
+	}
+	inline const GT_AttributeListHandle &getSource(GT_Owner owner) const
+	{
+	    switch (owner)
+	    {
+		case GT_OWNER_VERTEX:
+		    return myPrim->getVertexAttributes();
+		case GT_OWNER_POINT:
+		    return myPrim->getPointAttributes();
+		case GT_OWNER_UNIFORM:
+		    return myPrim->getUniformAttributes();
+		case GT_OWNER_DETAIL:
+		    return myPrim->getDetailAttributes();
+		default:
+		    UT_ASSERT(0);
+	    }
+	    return myPrim->getPointAttributes();
+	}
+	inline GT_AttributeListHandle	build(
+			    GT_Owner owner,
+			    const GEO_Primitive *prim,
+			    const GABC_IObject &obj,
+			    const GABC_NameMapPtr &namemap,
+			    fpreal t,
+			    const GeometryScope *scope,
+			    int scope_size,
+			    ICompoundProperty arb,
+			    const IP3fArrayProperty *P = NULL,
+			    const IV3fArrayProperty *v = NULL,
+			    const IN3fGeomParam *N = NULL,
+			    const IV2fGeomParam *uvs = NULL,
+			    const IUInt64ArrayProperty *ids = NULL,
+			    const IFloatGeomParam *widths = NULL,
+			    const IFloatArrayProperty *Pw = NULL) const
+	{
+	    return updateAttributeList(getSource(owner), prim, obj, namemap, t,
+		    scope, scope_size, arb, P, v, N, uvs, ids, widths, Pw);
+	}
+	inline GT_AttributeListHandle	build(
+			    GT_Owner owner,
+			    const GEO_Primitive *prim,
+			    const GABC_IObject &obj,
+			    const GABC_NameMapPtr &namemap,
+			    fpreal t,
+			    GeometryScope scope,
+			    ICompoundProperty arb,
+			    const IP3fArrayProperty *P = NULL,
+			    const IV3fArrayProperty *v = NULL,
+			    const IN3fGeomParam *N = NULL,
+			    const IV2fGeomParam *uvs = NULL,
+			    const IUInt64ArrayProperty *ids = NULL,
+			    const IFloatGeomParam *widths = NULL,
+			    const IFloatArrayProperty *Pw = NULL) const
+	{
+	    return updateAttributeList(getSource(owner), prim, obj, namemap, t,
+		    &scope, 1, arb, P, v, N, uvs, ids, widths, Pw);
+	}
+	const GT_PrimitiveHandle	&myPrim;
+    };
+
+    template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
-    buildPointMesh(const GEO_Primitive *prim,
-		const GABC_IObject &obj,
-		fpreal t,
-		const GABC_NameMapPtr &namemap)
+    buildPointMesh(const ATTRIB_CREATOR &acreate,
+	    const GEO_Primitive *prim,
+	    const GABC_IObject &obj,
+	    fpreal t,
+	    const GABC_NameMapPtr &namemap)
     {
 	IPoints			 shape(obj.object(), gabcWrapExisting);
 	IPointsSchema		&ss = shape.getSchema();
@@ -725,18 +890,20 @@ namespace
 	GeometryScope	vertex_scope[3] = { gabcVertexScope, gabcVaryingScope, gabcFacevaryingScope };
 	GeometryScope	detail_scope[3] = { gabcUniformScope, gabcConstantScope, gabcUnknownScope };
 
-	vertex = initializeAttributeList(prim, obj, namemap, t,
+	vertex = acreate.build(GT_OWNER_POINT, prim, obj, namemap, t,
 			vertex_scope, 3, ss.getArbGeomParams(),
 			&P, &v, NULL, NULL, &ids, &widths);
-	detail = initializeAttributeList(prim, obj, namemap, t,
+	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
 			detail_scope, 3, ss.getArbGeomParams());
 
 	GT_Primitive	*gt = new GT_PrimPointMesh(vertex, detail);
 	return GT_PrimitiveHandle(gt);
     }
 
+    template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
-    buildSubDMesh(const GEO_Primitive *prim,
+    buildSubDMesh(const ATTRIB_CREATOR &acreate,
+			const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
 			const GABC_NameMapPtr &namemap)
@@ -759,23 +926,23 @@ namespace
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 	GeometryScope	point_scope[2] = { gabcVaryingScope, gabcVertexScope };
 
-	point = initializeAttributeList(prim, obj, namemap, t,
+	point = acreate.build(GT_OWNER_POINT, prim, obj, namemap, t,
 				point_scope, 2,
 				ss.getArbGeomParams(),
 				&P,
 				&v,
 				NULL,
 				&uvs);
-	vertex = initializeAttributeList(prim, obj, namemap, t,
+	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
 				gabcFacevaryingScope,
 				ss.getArbGeomParams(),
 				NULL,
 				NULL,
 				NULL,
 				&uvs);
-	uniform = initializeAttributeList(prim, obj, namemap, t,
+	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap, t,
 				gabcUniformScope, ss.getArbGeomParams());
-	detail = initializeAttributeList(prim, obj, namemap, t,
+	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
 				theConstantUnknownScope, 2,
 				ss.getArbGeomParams());
 
@@ -827,8 +994,10 @@ namespace
 	return GT_PrimitiveHandle(gt);
     }
 
+    template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
-    buildPolyMesh(const GEO_Primitive *prim,
+    buildPolyMesh(const ATTRIB_CREATOR &acreate,
+			const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
 			const GABC_NameMapPtr &namemap)
@@ -852,23 +1021,23 @@ namespace
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 	GeometryScope	point_scope[2] = { gabcVaryingScope, gabcVertexScope };
 
-	point = initializeAttributeList(prim, obj, namemap, t,
+	point = acreate.build(GT_OWNER_POINT, prim, obj, namemap, t,
 				point_scope, 2,
 				ss.getArbGeomParams(),
 				&P,
 				&v,
 				&N,
 				&uvs);
-	vertex = initializeAttributeList(prim, obj, namemap, t,
+	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
 				gabcFacevaryingScope,
 				ss.getArbGeomParams(),
 				NULL,
 				NULL,
 				&N,
 				&uvs);
-	uniform = initializeAttributeList(prim, obj, namemap, t,
+	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap, t,
 				gabcUniformScope, ss.getArbGeomParams());
-	detail = initializeAttributeList(prim, obj, namemap, t,
+	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
 				theConstantUnknownScope, 2,
 				ss.getArbGeomParams());
 
@@ -882,8 +1051,9 @@ namespace
 	return GT_PrimitiveHandle(gt);
     }
 
+    template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
-    buildCurveMesh(const GEO_Primitive *prim,
+    buildCurveMesh(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
 			const GABC_NameMapPtr &namemap)
@@ -909,7 +1079,7 @@ namespace
 					gabcFacevaryingScope
 				 };
 
-	vertex = initializeAttributeList(prim, obj, namemap, t,
+	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
 				vertex_scope, 3,
 				ss.getArbGeomParams(),
 				NULL,
@@ -918,9 +1088,9 @@ namespace
 				&uvs,
 				NULL,
 				&widths);
-	uniform = initializeAttributeList(prim, obj, namemap, t,
+	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap, t,
 				gabcUniformScope, ss.getArbGeomParams());
-	detail = initializeAttributeList(prim, obj, namemap, t,
+	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
 				theConstantUnknownScope, 2,
 				ss.getArbGeomParams());
 
@@ -974,8 +1144,9 @@ namespace
 	return GT_DataArrayHandle(xyz);
     }
 
+    template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
-    buildNuPatch(const GEO_Primitive *prim,
+    buildNuPatch(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
 			const GABC_NameMapPtr &namemap)
@@ -1010,7 +1181,7 @@ namespace
 					gabcUnknownScope
 				 };
 
-	vertex = initializeAttributeList(prim, obj, namemap, t,
+	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
 				vertex_scope, 3,
 				ss.getArbGeomParams(),
 				NULL,
@@ -1020,7 +1191,7 @@ namespace
 				NULL,
 				NULL,
 				&Pw);
-	detail = initializeAttributeList(prim, obj, namemap, t,
+	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
 				detail_scope, 3,
 				ss.getArbGeomParams());
 
@@ -1446,19 +1617,19 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
     switch (nodeType())
     {
 	case GABC_POLYMESH:
-	    prim = buildPolyMesh(gprim, *this, t, namemap);
+	    prim = buildPolyMesh(CreateAttributeList(), gprim, *this, t, namemap);
 	    break;
 	case GABC_SUBD:
-	    prim = buildSubDMesh(gprim, *this, t, namemap);
+	    prim = buildSubDMesh(CreateAttributeList(), gprim, *this, t, namemap);
 	    break;
 	case GABC_POINTS:
-	    prim = buildPointMesh(gprim, *this, t, namemap);
+	    prim = buildPointMesh(CreateAttributeList(), gprim, *this, t, namemap);
 	    break;
 	case GABC_CURVES:
-	    prim = buildCurveMesh(gprim, *this, t, namemap);
+	    prim = buildCurveMesh(CreateAttributeList(), gprim, *this, t, namemap);
 	    break;
 	case GABC_NUPATCH:
-	    prim = buildNuPatch(gprim, *this, t, namemap);
+	    prim = buildNuPatch(CreateAttributeList(), gprim, *this, t, namemap);
 	    break;
 	default:
 	    break;
@@ -1469,16 +1640,40 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 
 GT_PrimitiveHandle
 GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
-				const GEO_Primitive *prim,
+				const GEO_Primitive *gprim,
 				fpreal new_time,
 				const GABC_NameMapPtr &namemap) const
 {
-    GABC_AnimationType	atype;
-    return getPrimitive(prim, new_time, atype, namemap);
-#if 0
-    GABC_AutoLock	lock(archive());
-    return src;
-#endif
+    UT_ASSERT(src);
+    GT_PrimitiveHandle	prim;
+    switch (nodeType())
+    {
+	case GABC_POLYMESH:
+	    prim = buildPolyMesh(UpdateAttributeList(src), gprim,
+			*this, new_time, namemap);
+	    break;
+	case GABC_SUBD:
+	    prim = buildSubDMesh(UpdateAttributeList(src), gprim,
+			*this, new_time, namemap);
+	    break;
+	case GABC_POINTS:
+	    prim = buildPointMesh(UpdateAttributeList(src), gprim,
+			*this, new_time, namemap);
+	    break;
+	case GABC_CURVES:
+	    prim = buildCurveMesh(UpdateAttributeList(src), gprim,
+			*this, new_time, namemap);
+	    break;
+	case GABC_NUPATCH:
+	    prim = buildNuPatch(UpdateAttributeList(src), gprim,
+			*this, new_time, namemap);
+	    break;
+	default:
+	    break;
+    }
+    if (!prim)
+	prim = src;
+    return prim;
 }
 
 
@@ -1756,13 +1951,27 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
 {
     if (!valid())
 	return false;
+    IObject		obj = object();
     GABC_AutoLock	lock(archive());
+    bool		ascended = false;
+
+    while (obj.valid() && !IXform::matches(obj.getHeader()))
+    {
+	obj = obj.getParent();
+	ascended = true;
+    }
+    if (!obj.valid())
+	return false;
 #if 0
+    if (ascended)
+	return GABC_Util::getWorldTransform(archive()->filename(),
+		GABC_IObject(archive(), obj), t, xform,
+		isConstant, inheritsXform);
     return GABC_Util::getWorldTransform(archive()->filename(),
 			*this, t, xform, isConstant, inheritsXform);
 #else
     return GABC_Util::getWorldTransform(archive()->filename(),
-			object(), t, xform, isConstant, inheritsXform);
+			obj, t, xform, isConstant, inheritsXform);
 #endif
 }
 
