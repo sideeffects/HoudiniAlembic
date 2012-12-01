@@ -18,6 +18,8 @@
 #ifndef __ROP_AbcTree__
 #define __ROP_AbcTree__
 
+#include <GABC/GABC_IArchive.h>
+#include <GABC/GABC_NameMap.h>
 #include <GABC/GABC_Util.h>
 #include <Alembic/Abc/OArchive.h>
 #include <UT/UT_HashTable.h>
