@@ -40,6 +40,8 @@
 // This file contains functions that will run arbitrary Python code
 #include <PY/PY_Python.h>
 #include <PY/PY_InterpreterAutoLock.h>
+#include <GABC/GABC_IArchive.h>
+#include <GABC/GABC_NameMap.h>
 #include <GABC/GABC_Util.h>
 #include <Alembic/AbcGeom/All.h>
 #include <HOM/HOM_Module.h>
