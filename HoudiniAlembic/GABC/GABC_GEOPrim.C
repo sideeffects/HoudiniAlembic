@@ -17,7 +17,6 @@
 
 #include "GABC_GEOPrim.h"
 #include "GABC_Util.h"
-#include "GABC_NameMap.h"
 #include <GA/GA_IntrinsicMacros.h>
 #include <GA/GA_PrimitiveJSON.h>
 #include <GT/GT_Transform.h>

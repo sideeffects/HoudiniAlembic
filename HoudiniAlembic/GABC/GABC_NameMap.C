@@ -16,6 +16,7 @@
  */
 
 #include "GABC_NameMap.h"
+#include "GABC_IArchive.h"
 #include "GABC_Util.h"
 #include <UT/UT_Lock.h>
 #include <UT/UT_JSONParser.h>

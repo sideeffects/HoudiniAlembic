@@ -103,7 +103,7 @@ private:
 static inline void intrusive_ptr_add_ref(GABC_IArchive *i) { i->incref(); }
 static inline void intrusive_ptr_release(GABC_IArchive *i) { i->decref(); }
 
-class GABC_AutoLock
+class GABC_API GABC_AutoLock
 {
 public:
     GABC_AutoLock(const GABC_IArchive &arch)

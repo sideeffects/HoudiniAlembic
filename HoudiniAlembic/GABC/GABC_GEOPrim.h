@@ -21,6 +21,7 @@
 #include "GABC_API.h"
 #include "GABC_Util.h"
 #include "GABC_NameMap.h"
+#include "GABC_IArchive.h"
 #include <Alembic/AbcGeom/Foundation.h>		// For topology enum
 
 #include <GT/GT_Handles.h>
