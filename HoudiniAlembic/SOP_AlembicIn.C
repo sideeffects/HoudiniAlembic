@@ -46,7 +46,7 @@
 #include <OP/OP_Director.h>
 
 SOP_AlembicIn2::Parms::Parms()
-    : myBuildAbcPrim(true)
+    : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
     , myBuildAbcXform(false)
     , myFilename()
     , myObjectPath()
@@ -62,7 +62,7 @@ SOP_AlembicIn2::Parms::Parms()
 }
 
 SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
-    : myBuildAbcPrim(true)
+    : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
     , myBuildAbcXform(false)
     , myFilename()
     , myObjectPath()
@@ -83,7 +83,7 @@ SOP_AlembicIn2::Parms &
 SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
 {
     myFilename = src.myFilename;
-    myBuildAbcPrim = src.myBuildAbcPrim;
+    myLoadMode = src.myLoadMode;
     myBuildAbcXform = src.myBuildAbcXform;
     myIncludeXform = src.myIncludeXform;
     myBuildLocator = src.myBuildLocator;
@@ -103,7 +103,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
 bool
 SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 {
-    if (myBuildAbcPrim != src.myBuildAbcPrim)
+    if (myLoadMode != src.myLoadMode)
 	return true;
     if (myBuildAbcXform != src.myBuildAbcXform)
 	return true;
@@ -170,7 +170,7 @@ static PRM_Name prm_addpath("addpath", "Add Path Attribute");
 static PRM_Name prm_pathattrib("pathattrib", "Path Attribute");
 static PRM_Name prm_remapAttribName("remapAttributes", "Remap Attributes");
 
-static PRM_Name prm_abcprimName("abcprim", "Create Alembic Primitives");
+static PRM_Name prm_loadmodeName("loadmode", "Load As");
 static PRM_Name prm_abcxformName("abcxform", "Create Primitives For Transform Nodes");
 
 static PRM_Default prm_frameDefault(1, "$FF");
@@ -183,6 +183,17 @@ static PRM_Default prm_fileattribDefault(0, "abcFileName");
 static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
         "__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu"
                 "(hou.pwd().evalParm('fileName'))[:16380]", CH_PYTHON_SCRIPT);
+
+static PRM_Name	loadModeOptions[] = {
+    PRM_Name("alembic",	"Load Alembic Primitives"),
+    PRM_Name("houdini",	"Load Houdini Geometry"),
+    // PRM_Name("hpoints", "Houdini Point Cloud"),
+    // PRM_Name("abcboxes", "Alembic Primitive Boxes"),
+    // PRM_Name("hboxes", "Houdini Boxes"),
+    PRM_Name( 0 )
+};
+static PRM_Default prm_loadmodeDefault(0, "alembic");
+static PRM_ChoiceList menu_loadmode(PRM_CHOICELIST_SINGLE, loadModeOptions);
 
 static PRM_Name groupNameOptions[] = {
     PRM_Name("none",	"No groups"),
@@ -228,7 +239,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 {
     PRM_Template(PRM_CALLBACK, 1, &prm_reloadbutton,
 	    0, 0, 0, SOP_AlembicIn2::reloadGeo),
-    PRM_Template(PRM_TOGGLE, 1, &prm_abcprimName, PRMoneDefaults),
+    PRM_Template(PRM_ORD, 1, &prm_loadmodeName, &prm_loadmodeDefault,
+	    &menu_loadmode),
     PRM_Template(PRM_FILE,  1, &prm_filenameName, 0, 0, 0, 0, &theAbcPattern),
     PRM_Template(PRM_FLT_J, 1, &prm_frameName, &prm_frameDefault),
     PRM_Template(PRM_FLT_J, 1, &prm_fpsName, &prm_fpsDefault),
@@ -295,7 +307,7 @@ SOP_AlembicIn2::disableParms()
     unsigned	changed = 0;
     changed += enableParm("pathattrib", evalInt("addpath", 0, 0));
     changed += enableParm("fileattrib", evalInt("addfile", 0, 0));
-    changed += enableParm("abcxform", evalInt("abcprim", 0, 0));
+    changed += enableParm("abcxform", evalInt("loadmode", 0, 0) == 0);
 
     return changed;
 }
@@ -310,8 +322,17 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     evalString(sval, "fileName", 0, now);
     parms.myFilename = (const char *)sval;
 
-    parms.myBuildAbcPrim = evalInt("abcprim", 0, now) != 0;
-    parms.myBuildAbcXform = parms.myBuildAbcPrim
+    switch (evalInt("loadmode", 0, now) != 0)
+    {
+	case 0:
+	default:
+	    parms.myLoadMode = GABC_GEOWalker::LOAD_ABC_PRIMITIVES;
+	    break;
+	case 1:
+	    parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_PRIMITIVES;
+	    break;
+    }
+    parms.myBuildAbcXform = parms.myLoadMode
 				&& (evalInt("abcxform", 0, now) != 0);
     parms.myBuildLocator = evalInt("loadLocator", 0, now) != 0;
 
@@ -402,7 +423,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     }
     walk.setIncludeXform(parms.myIncludeXform);
     walk.setBuildLocator(parms.myBuildLocator);
-    walk.setBuildAbcPrim(parms.myBuildAbcPrim);
+    walk.setLoadMode(parms.myLoadMode);
     walk.setBuildAbcXform(parms.myBuildAbcXform);
     walk.setNameMapPtr(parms.myNameMapPtr);
     if (myLastParms.myPathAttribute != parms.myPathAttribute)
@@ -502,7 +523,7 @@ SOP_AlembicIn2::syncNodeVersion(const char *old_version,
     // to create Alembic primitives.
     if (UT_String::compareVersionString(old_version, "12.5.0") < 0)
     {
-	setInt("abcprim", 0, 0, 0);
+	setInt("loadmode", 0, 0, 1);
     }
     SOP_Node::syncNodeVersion(old_version, current_version, node_deleted);
 }

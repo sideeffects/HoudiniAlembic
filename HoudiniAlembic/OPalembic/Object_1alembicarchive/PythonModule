@@ -135,7 +135,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
                 isString=True)
             ExpressionToParm(rootNode.parm('frame'), sopNode.parm('frame'))
             ExpressionToParm(rootNode.parm('fps'), sopNode.parm('fps'))
-            ExpressionToParm(rootNode.parm('abcprim'), sopNode.parm('abcprim'))
+            ExpressionToParm(rootNode.parm('loadmode'), sopNode.parm('loadmode'))
 
         sopNode.parm('objectPath').set(currentPath)
         sopNode.parm('includeXform').set(0)
@@ -242,7 +242,7 @@ def WalkAndPush(rootNode, parentNode):
         if not cxform or not cxform.eval():
             _pushScalarParm('frame', rootNode, kid)
             _pushScalarParm('fps', rootNode, kid)
-            _pushScalarParm('abcprim', rootNode, kid)
+            _pushScalarParm('loadmode', rootNode, kid)
             _pushRemapAttributesParm(rootNode, kid)
         WalkAndPush(rootNode, kid)
 

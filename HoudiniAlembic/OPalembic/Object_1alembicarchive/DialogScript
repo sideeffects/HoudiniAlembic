@@ -297,10 +297,17 @@
 	export	none
     }
     parm {
-	name	"abcprim"
-	label	"Create Alembic Primitives"
-	type	toggle
-	default	{ 1  }
+	name	"loadmode"
+	label	"Load As"
+	type	ordinal
+	default	{ 0  }
+	menu	{
+	    "alembic"	"Load Alembic Primitives"
+	    "houdini"	"Load Houdini Geometry"
+	    //"hpoints"	"Houdini Point Cloud"
+	    //"abcboxes"	"Alembic Primitive Boxes"
+	    //"hboxes"	"Houdini Boxes"
+	}
 	export	none
     }
     multiparm {

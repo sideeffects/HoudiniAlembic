@@ -57,6 +57,15 @@ public:
 	ABC_GROUP_XFORM_NODE,	// Name geometry group based on transform node
     };
 
+    enum LoadMode
+    {
+	LOAD_ABC_PRIMITIVES,		// Load Alembic primitives
+	LOAD_HOUDINI_PRIMITIVES,	// Load houdini primitives
+	LOAD_HOUDINI_POINTS,		// Load point cloud for objects
+	LOAD_ABC_BOXES,			// Load Bounds as Alembic geometry
+	LOAD_HOUDINI_BOXES		// Load Bounds as Houdini geometry
+    };
+
     /// Animating object filter
     enum AFilter
     {
@@ -91,7 +100,9 @@ public:
     bool	includeXform() const	{ return myIncludeXform; }
     bool	reusePrimitives() const	{ return myReusePrimitives; }
     bool	buildLocator() const	{ return myBuildLocator; }
-    bool	buildAbcPrim() const	{ return myBuildAbcPrim; }
+    LoadMode	loadMode() const	{ return myLoadMode; }
+    bool	buildAbcPrim() const
+			{ return myLoadMode == LOAD_ABC_PRIMITIVES; }
     bool	buildAbcXform() const	{ return myBuildAbcXform; }
     bool	pathAttributeChanged() const { return myPathAttributeChanged; }
     /// @}
@@ -140,7 +151,7 @@ public:
     void	setIncludeXform(bool v)		{ myIncludeXform = v; }
     void	setReusePrimitives(bool v);
     void	setBuildLocator(bool v)		{ myBuildLocator = v; }
-    void	setBuildAbcPrim(bool v)		{ myBuildAbcPrim = v; }
+    void	setLoadMode(LoadMode mode)	{ myLoadMode = mode; }
     void	setBuildAbcXform(bool v)	{ myBuildAbcXform = v; }
     void	setPathAttributeChanged(bool v)	{ myPathAttributeChanged = v; }
     void	setGroupMode(GroupMode m)	{ myGroupMode = m; }
@@ -223,7 +234,7 @@ private:
     bool	myIncludeXform;		// Transform geometry
     bool	myBuildLocator;		// Whether to build Maya locators
     bool	myPathAttributeChanged;	// Whether path attrib name changed
-    bool	myBuildAbcPrim;		// Build Alembic primitives
+    LoadMode	myLoadMode;		// Build Alembic primitives
     bool	myBuildAbcXform;	// Build primitives for transforms
 
     exint	myPointCount;		// Points added

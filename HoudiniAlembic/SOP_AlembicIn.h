@@ -83,7 +83,7 @@ private:
 
 	Parms	&operator=(const Parms &src);
 
-	bool				myBuildAbcPrim;
+	GABC_GEOWalker::LoadMode	myLoadMode;
 	bool				myBuildAbcXform;
 	std::string			myFilename;
 	UT_String			myObjectPath;
