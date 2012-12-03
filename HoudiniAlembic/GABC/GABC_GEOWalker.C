@@ -581,17 +581,22 @@ namespace {
 		start = walk.pointCount();
 		len = npoint;
 		break;
+
 	    case GA_ATTRIB_VERTEX:
 		start = walk.vertexCount();
 		len = nvertex;
 		break;
-	    case GA_ATTRIB_PRIMITIVE:
+
 	    case GA_ATTRIB_GLOBAL:
 		// At the current time, we map global attributes to primitive
 		// attributes.
+		owner = GA_ATTRIB_PRIMITIVE;
+		// Fall Through to primitive case
+	    case GA_ATTRIB_PRIMITIVE:
 		start = walk.primitiveCount();
 		len = nprim;
 		break;
+
 	    default:
 		UT_ASSERT(0);
 		return;
