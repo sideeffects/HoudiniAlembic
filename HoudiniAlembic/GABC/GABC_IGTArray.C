@@ -54,7 +54,6 @@ namespace
 
 GABC_IGTStringArray::GABC_IGTStringArray(const GABC_IArray &array)
     : GT_DAIndexedString(array.entries(), array.tupleSize())
-    , myArray(array)
 {
     // The array is stored as an array of std::string objects
     const std::string	*data = reinterpret_cast<const std::string *>(array.data());

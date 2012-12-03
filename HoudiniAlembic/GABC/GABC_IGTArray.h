@@ -284,7 +284,6 @@ public:
     {
     }
 private:
-    GABC_IArray	 myArray;
 };
 
 typedef GABC_IGTArray<uint8, GT_STORE_UINT8>		GABC_GTUnsigned8Array;
