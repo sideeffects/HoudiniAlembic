@@ -1172,10 +1172,7 @@ namespace
 	int	pXidx = umap->add("parentTrans", true);
 	int	pRidx = umap->add("parentRot", true);
 	int	pSidx = umap->add("parentScale", true);
-#if 0
-	// TODO: This should be here!!!
 	int	pHidx = umap->add("parentShear", true);
-#endif
 
 	point = GT_AttributeListHandle(new GT_AttributeList(pmap));
 	detail = GT_AttributeListHandle(new GT_AttributeList(umap));
@@ -1185,10 +1182,7 @@ namespace
 	detail->set(pXidx, new GT_RealConstant(1, pxval.x, 3), 0);
 	detail->set(pRidx, new GT_RealConstant(1, prval.x, 3), 0);
 	detail->set(pSidx, new GT_RealConstant(1, psval.x, 3), 0);
-#if 0
-	// TODO: This should be here!!!
 	detail->set(pHidx, new GT_RealConstant(1, phval.x, 3), 0);
-#endif
 
 	return new GT_PrimPointMesh(point, detail);
     }
