@@ -36,25 +36,6 @@ public:
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef std::vector<std::string>		PathList;
 
-#if 0
-    /// Determine the node type given an input object.  If GABC_UNKNOWN is
-    /// returned, you can still check the ObjectHeader to see if it matches
-    /// other object types.
-    static GABC_NodeType	getNodeType(const IObject &obj)
-				    { return obj.nodeType(); }
-
-    /// Classify a transform node
-    static bool		isMayaLocator(const IObject &obj);
-
-    /// Check whether an arbitrary property is animated
-    static bool		isConstant(ICompoundProperty arb, int property_index);
-
-    /// Get the animation type of a given node
-    static GABC_AnimationType	getAnimationType(const std::string &filename,
-						const IObject &node,
-						bool include_transform);
-#endif
-
     /// Class used in traversal of Alembic trees
     ///
     /// For standard walking of the tree, you'd likely have a process() method

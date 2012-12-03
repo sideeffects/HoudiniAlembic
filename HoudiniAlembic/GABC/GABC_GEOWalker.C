@@ -772,11 +772,7 @@ namespace {
     getAnimationType(GABC_GEOWalker &walk, const IObject &obj)
     {
 	GABC_AnimationType	atype;
-#if 0
-	atype = GABC_Util::getAnimationType(walk.filename(), obj, false);
-#else
 	atype = obj.getAnimationType(false);
-#endif
 	if (atype == GABC_ANIMATION_TOPOLOGY)
 	    walk.setNonConstantTopology();
 	return atype;
@@ -1326,11 +1322,7 @@ GABC_GEOWalker::matchAnimationFilter(const IObject &obj) const
     {
 	// If none of the transforms in are animating, maybe the object itself
 	// is animating.
-#if 0
-	animating = GABC_Util::getAnimationType(filename(), obj, false);
-#else
 	animating = obj.getAnimationType(false);
-#endif
     }
     switch (myAnimationFilter)
     {

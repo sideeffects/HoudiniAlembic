@@ -294,10 +294,5 @@ typedef GABC_IGTArray<fpreal32, GT_STORE_REAL32>	GABC_GTReal32Array;
 typedef GABC_IGTArray<fpreal64, GT_STORE_REAL64>	GABC_GTReal64Array;
 
 GABC_API extern GT_DataArrayHandle GABCarray(const GABC_IArray &iarray);
-#if 0
-GABC_API extern GT_DataArrayhandle GABCarray(
-				const Alembic::Abc::IScalarProperty &prop,
-				const Alembic::Abc::ISampleSelector &iss);
-#endif
 
 #endif

@@ -416,26 +416,6 @@ namespace
     typedef Alembic::AbcGeom::IPoints		IPoints;
     typedef Alembic::AbcGeom::IPointsSchema	IPointsSchema;
     typedef Alembic::AbcGeom::IFloatGeomParam	IFloatGeomParam;
-
-#if 0
-    static void
-    assignBox(UT_BoundingBox &utbox, const Box3d &abcbox)
-    {
-	utbox.setBounds(abcbox.min[0], abcbox.min[1], abcbox.min[2],
-			abcbox.max[0], abcbox.max[1], abcbox.max[2]);
-    }
-
-    template <typename ABC_T, typename SCHEMA_T>
-    static void
-    abcBounds(const IObject &obj, UT_BoundingBox &box,
-		const ISampleSelector &iss)
-    {
-	ABC_T				 prim(obj, Alembic::Abc::kWrapExisting);
-	SCHEMA_T			&ss = prim.getSchema();
-	typename SCHEMA_T::Sample	 sample = ss.getValue(iss);
-	assignBox(box, sample.getSelfBounds());
-    }
-#endif
 }
 
 void
@@ -449,43 +429,6 @@ GABC_GEOPrim::updateAnimation()
     // non-constant (i.e. Homogeneous).
     myAnimation = myObject.getAnimationType(myUseTransform);
 }
-
-#if 0
-bool
-GABC_GEOPrim::getAlembicBounds(UT_BoundingBox &box, const IObject &obj,
-	fpreal sample_time, bool &isConstant)
-{
-    ISampleSelector	sample(sample_time);
-    UT_AutoLock		lock(theH5Lock);
-
-    switch (GABC_Util::getNodeType(obj))
-    {
-	case GABC_POLYMESH:
-	    abcBounds<IPolyMesh, IPolyMeshSchema>(obj, box, sample);
-	    break;
-	case GABC_SUBD:
-	    abcBounds<ISubD, ISubDSchema>(obj, box, sample);
-	    break;
-	case GABC_CURVES:
-	    abcBounds<ICurves, ICurvesSchema>(obj, box, sample);
-	    break;
-	case GABC_POINTS:
-	    abcBounds<IPoints, IPointsSchema>(obj, box, sample);
-	    break;
-	case GABC_NUPATCH:
-	    abcBounds<INuPatch, INuPatchSchema>(obj, box, sample);
-	    break;
-	case GABC_XFORM:
-	    // TODO: If locator, get the position for the bounding box
-	    box.initBounds(0, 0, 0);
-	    break;
-	default:
-	    return false;	// Unsupported object type
-    }
-    isConstant = GABC_Util::getAnimationType(std::string(), obj, false) == GABC_ANIMATION_CONSTANT;
-    return true;
-}
-#endif
 
 int
 GABC_GEOPrim::getBBox(UT_BoundingBox *bbox) const
@@ -511,30 +454,6 @@ GABC_GEOPrim::getBBox(UT_BoundingBox *bbox) const
     return 1;
 }
 
-#if 0
-static fpreal
-getMaxWidth(IFloatGeomParam param, fpreal frame)
-{
-    if (!param.valid())
-	return 0;
-
-    ISampleSelector			iss(frame);
-    IFloatGeomParam::sample_type	psample;
-
-    param.getExpanded(psample, iss);
-    Alembic::Abc::FloatArraySamplePtr	vals = psample.getVals();
-    exint				len = vals->size();
-    float				maxwidth = 0;
-
-    const float	*widths = (const float *)vals->get();
-    for (exint i = 0; i < len; ++i)
-    {
-	maxwidth = SYSmax(maxwidth, widths[i]);
-    }
-    return maxwidth;
-}
-#endif
-
 bool
 GABC_GEOPrim::getRenderingBounds(UT_BoundingBox &box) const
 {
@@ -544,32 +463,6 @@ GABC_GEOPrim::getRenderingBounds(UT_BoundingBox &box) const
     getTransform(xform);
     box.transform(xform);
     return true;
-#if 0
-    if (!getBBox(&box))
-	return false;
-    switch (GABC_Util::getNodeType(myObject))
-    {
-	case GABC_POINTS:
-	{
-	    UT_AutoLock		 lock(theH5Lock);
-	    IPoints		 points(myObject, Alembic::Abc::kWrapExisting);
-	    IPointsSchema	&ss = points.getSchema();
-	    box.enlargeBounds(0, getMaxWidth(ss.getWidthsParam(), myFrame));
-	    break;
-	}
-	case GABC_CURVES:
-	{
-	    UT_AutoLock		 lock(theH5Lock);
-	    ICurves		 curves(myObject, Alembic::Abc::kWrapExisting);
-	    ICurvesSchema	&ss = curves.getSchema();
-	    box.enlargeBounds(0, getMaxWidth(ss.getWidthsParam(), myFrame));
-	    break;
-	}
-	default:
-	    break;
-    }
-    return true;
-#endif
 }
 
 void

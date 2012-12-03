@@ -715,27 +715,6 @@ namespace
 	return GT_AttributeListHandle(alist);
     }
 
-#if 0
-    static GT_AttributeListHandle
-    initializeAttributeList(const GEO_Primitive *prim,
-			const GABC_IObject &obj,
-			const GABC_NameMapPtr &namemap,
-			fpreal t, 
-			const GeometryScope scope,
-			ICompoundProperty arb,
-			const IP3fArrayProperty *P = NULL,
-			const IV3fArrayProperty *v = NULL,
-			const IN3fGeomParam *N = NULL,
-			const IV2fGeomParam *uvs = NULL,
-			const IUInt64ArrayProperty *ids = NULL,
-			const IFloatGeomParam *widths = NULL,
-			const IFloatArrayProperty *Pw = NULL)
-    {
-	return initializeAttributeList(prim, obj, namemap, t, &scope, 1,
-		arb, P, v, N, uvs, ids, widths, Pw);
-    }
-#endif
-
     static GT_AttributeListHandle
     updateAttributeList(const GT_AttributeListHandle &src,
 			const GEO_Primitive *prim,
