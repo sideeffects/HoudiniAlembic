@@ -184,7 +184,7 @@ loadDetail(GU_Detail *gdp,
     walk.setFrame(frame, fps);
     walk.setIncludeXform(true);
     walk.setBuildLocator(false);
-    walk.setBuildAbcPrim(true);
+    walk.setLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES);
     walk.setGroupMode(GABC_GEOWalker::ABC_GROUP_NONE);
 
     if (objectpath.isstring())
