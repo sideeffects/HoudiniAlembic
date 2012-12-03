@@ -17,36 +17,6 @@
 
 #include "GABC_GTPrim.h"
 #include "GABC_GEOPrim.h"
-#include "GABC_Util.h"
-#include "GABC_NameMap.h"
-#include <Alembic/AbcGeom/All.h>
-#include <UT/UT_StackBuffer.h>
-#include <UT/UT_Lock.h>
-#include <UT/UT_DoubleLock.h>
-#include <GT/GT_Refine.h>
-#include <GT/GT_GEOPrimitive.h>
-#include <GT/GT_Util.h>
-#include <GT/GT_DANumeric.h>
-#include <GT/GT_DAConstantValue.h>
-#include <GT/GT_DAIndexedString.h>
-#include <GT/GT_PrimitiveBuilder.h>
-#include <GT/GT_PrimSubdivisionMesh.h>
-#include <GT/GT_PrimPolygonMesh.h>
-#include <GT/GT_PrimCurveMesh.h>
-#include <GT/GT_PrimPointMesh.h>
-#include <GT/GT_PrimNuPatch.h>
-#include <GT/GT_TrimNuCurves.h>
-#include <GT/GT_AttributeList.h>
-#include <GT/GT_Transform.h>
-
-using namespace Alembic::AbcGeom;
-
-namespace
-{
-    static GT_DataArrayHandle		theXformCounts;
-    static GT_AttributeListHandle	theXformVertex;
-    static GT_AttributeListHandle	theXformUniform;
-}
 
 void
 GABC_GTPrimCollect::registerPrimitive(const GA_PrimitiveTypeId &id)

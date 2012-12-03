@@ -45,7 +45,6 @@ class GABC_API GABC_GEOWalker : public GABC_Util::Walker
 public:
     typedef Alembic::Abc::M44d			M44d;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
-    typedef GABC_IObject			IObject;
 
     /// Test by loading "test.abc" in the current directory and saving
     /// "test.geo" as output.
@@ -69,9 +68,9 @@ public:
     GABC_GEOWalker(GU_Detail &gdp);
     virtual ~GABC_GEOWalker();
 
-    virtual bool	preProcess(const IObject &node);
+    virtual bool	preProcess(const GABC_IObject &node);
 
-    virtual bool	process(const IObject &node);
+    virtual bool	process(const GABC_IObject &node);
     virtual bool	interrupted() const;
 
     /// Quickly update ABC primitives with the new time
@@ -156,7 +155,7 @@ public:
 
     /// Keep track of added points/vertices/primitives.  This should be called
     /// after the primitives have been added to the detail.
-    void	trackPtVtxPrim(const IObject &obj,
+    void	trackPtVtxPrim(const GABC_IObject &obj,
 				exint npoints, exint nvertex, exint nprim,
 				bool do_transform);
 
@@ -197,16 +196,16 @@ public:
     /// Get the current transform
     const M44d	&getTransform() const	{ return myMatrix; }
 
-    /// Get the group name associated with an IObject
-    bool	getGroupName(UT_String &str, const IObject &obj) const;
+    /// Get the group name associated with an GABC_IObject
+    bool	getGroupName(UT_String &str, const GABC_IObject &obj) const;
 
     /// Translate attribute names.  This will return false if the attribute is
     /// not allowed.
     bool	translateAttributeName(GA_AttributeOwner own, UT_String &name);
 
 protected:
-    bool		matchObjectName(const IObject &obj) const;
-    bool		matchAnimationFilter(const IObject &obj) const;
+    bool		matchObjectName(const GABC_IObject &obj) const;
+    bool		matchAnimationFilter(const GABC_IObject &obj) const;
 
 private:
     GU_Detail		&myDetail;

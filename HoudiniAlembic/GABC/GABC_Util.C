@@ -34,7 +34,6 @@ namespace
     typedef Alembic::Abc::index_t		index_t;
     typedef Alembic::Abc::chrono_t		chrono_t;
     typedef GABC_IArchivePtr			IArchive;
-    typedef GABC_IObject			IObject;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
@@ -213,8 +212,8 @@ namespace
 
     // Returns whether the transform is constant
     void
-    abcLocalTransform(M44d &localXform, IObject obj, fpreal sampleTime,
-	    bool &isConstant, bool &inheritsXform)
+    abcLocalTransform(M44d &localXform, const GABC_IObject &obj,
+	    fpreal sampleTime, bool &isConstant, bool &inheritsXform)
     {
 	IXform		xformObject(obj.object(), gabcWrapExisting);
 	TimeSamplingPtr timeSampling =xformObject.getSchema().getTimeSampling();
@@ -324,16 +323,16 @@ namespace
 	    , myIObject()
 	{
 	}
-	ArchiveObjectItem(const IObject &obj)
+	ArchiveObjectItem(const GABC_IObject &obj)
 	    : UT_CappedItem()
 	    , myIObject(obj)
 	{
 	}
 	// Approximate usage
-	virtual int64	getMemoryUsage() const	{ return 1024; }
-	IObject		getObject() const	{ return myIObject; }
+	virtual int64		 getMemoryUsage() const { return 1024; }
+	const GABC_IObject	&getObject() const { return myIObject; }
     private:
-	IObject		 myIObject;
+	GABC_IObject	 myIObject;
     };
 
     struct ArchiveCacheEntry
@@ -358,7 +357,7 @@ namespace
 		}
 
 	// Build a cache of constant (non-changing) transforms
-	void	buildTransformCache(IObject root, const char *path,
+	void	buildTransformCache(const GABC_IObject &root, const char *path,
 				    const M44d &parent)
 	{
 	    UT_WorkBuffer	fullpath;
@@ -427,7 +426,7 @@ namespace
 		}
 
 	/// Get an object's local transform
-	void	getLocalTransform(M44d &x, const IObject &obj, fpreal now,
+	void	getLocalTransform(M44d &x, const GABC_IObject &obj, fpreal now,
 			bool &isConstant, bool &inheritsXform)
 		{
 		    if (IXform::matches(obj.getHeader()))
@@ -443,7 +442,7 @@ namespace
 		}
 
 	/// Find the full world transform for an object
-	bool	getWorldTransform(M44d &x, const IObject &obj, fpreal now,
+	bool	getWorldTransform(M44d &x, const GABC_IObject &obj, fpreal now,
 			bool &isConstant, bool &inheritsXform)
 		{
 		    isConstant = true;
@@ -466,8 +465,8 @@ namespace
 		    else
 		    {
 			// Get our local transform
-			M44d	localXform;
-			IObject dad = obj.getParent();
+			M44d		localXform;
+			GABC_IObject	dad = obj.getParent();
 
 			getLocalTransform(localXform, obj, now,
 				isConstant, inheritsXform);
@@ -495,14 +494,14 @@ namespace
 
 	/// Find an object in the object cache -- this prevents having to
 	/// traverse from the root every time we need an object.
-	IObject	findObject(IObject parent,
-		    UT_WorkBuffer &fullpath, const char *component)
+	GABC_IObject	findObject(const GABC_IObject &parent,
+			    UT_WorkBuffer &fullpath, const char *component)
 		{
 		    fullpath.append("/");
 		    fullpath.append(component);
 		    ArchiveObjectKey	key(fullpath.buffer());
-		    IObject		kid;
-		    UT_CappedItemHandle	item = myCache.findItem(key);
+		    GABC_IObject	kid;
+		    UT_CappedItemHandle item = myCache.findItem(key);
 		    if (item)
 		    {
 			kid = UTverify_cast<ArchiveObjectItem *>(item.get())->getObject();
@@ -517,10 +516,10 @@ namespace
 		}
 
 	/// Given a path to the object, return the object
-	IObject getObject(const std::string &objectPath)
+	GABC_IObject getObject(const std::string &objectPath)
 	{
 	    PathList		pathList;
-	    IObject		curr = root();
+	    GABC_IObject	curr = root();
 	    UT_WorkBuffer	fullpath;
 
 	    TokenizeObjectPath(objectPath, pathList);
@@ -540,7 +539,7 @@ namespace
 	    {
 	    }
 
-	    virtual bool	process(const IObject &obj)
+	    virtual bool	process(const GABC_IObject &obj)
 	    {
 		myObjects.push_back(obj.getFullName());
 		return true;
@@ -559,7 +558,8 @@ namespace
 			    return myObjectList;
 			}
 
-	static bool	walkTree(IObject node, GABC_Util::Walker &walker)
+	static bool	walkTree(const GABC_IObject &node,
+				GABC_Util::Walker &walker)
 			{
 			    if (walker.interrupted())
 				return false;
@@ -573,7 +573,7 @@ namespace
 	void	setError(const std::string &e)	{ error = e; }
 
     private:
-	IObject		root()	{ return myArchive->getTop(); }
+	GABC_IObject		root()	{ return myArchive->getTop(); }
 	IArchive				myArchive;
 	std::string				error;
 	PathList				myObjectList;
@@ -649,15 +649,14 @@ GABC_Util::Walker::~Walker()
 }
 
 bool
-GABC_Util::Walker::preProcess(const IObject &)
+GABC_Util::Walker::preProcess(const GABC_IObject &)
 {
     return true;
 }
 
 bool
-GABC_Util::Walker::walkChildren(const IObject &node)
+GABC_Util::Walker::walkChildren(const GABC_IObject &obj)
 {
-    IObject	&obj = const_cast<IObject &>(node);
     exint	nkids = obj.getNumChildren();
     for (exint i = 0; i < nkids; ++i)
     {
@@ -677,7 +676,7 @@ GABC_Util::walk(const std::string &filename, Walker &walker,
     for (exint i = 0; i < objects.entries(); ++i)
     {
 	std::string	path(objects(i));
-	IObject	obj = findObject(filename, path);
+	GABC_IObject	obj = findObject(filename, path);
 	if (obj.valid())
 	{
 	    if (!walker.preProcess(obj))
@@ -718,13 +717,13 @@ GABC_Util::fileCacheSize()
     return g_maxCache;
 }
 
-IObject
+GABC_IObject
 GABC_Util::findObject(const std::string &filename,
 	const std::string &objectpath)
 {
     ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
     return cacheEntry->isValid() ? cacheEntry->getObject(objectpath)
-		: IObject();
+		: GABC_IObject();
 }
 
 
@@ -743,7 +742,7 @@ GABC_Util::getLocalTransform(const std::string &filename,
 	ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
 	if (cacheEntry->isValid())
 	{
-	    IObject	obj = cacheEntry->getObject(objectpath);
+	    GABC_IObject	obj = cacheEntry->getObject(objectpath);
 	    if (obj.valid())
 	    {
 		cacheEntry->getLocalTransform(lxform, obj,
@@ -775,7 +774,7 @@ GABC_Util::getWorldTransform(const std::string &filename,
 	ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
 	if (cacheEntry->isValid())
 	{
-	    IObject	obj = cacheEntry->getObject(objectpath);
+	    GABC_IObject	obj = cacheEntry->getObject(objectpath);
 	    if (obj.valid())
 	    {
 		success = cacheEntry->getWorldTransform(wxform, obj,
@@ -794,7 +793,7 @@ GABC_Util::getWorldTransform(const std::string &filename,
 
 bool
 GABC_Util::getWorldTransform(const std::string &filename,
-	const IObject &obj,
+	const GABC_IObject &obj,
 	fpreal sample_time,
 	UT_Matrix4D &xform,
 	bool &isConstant,

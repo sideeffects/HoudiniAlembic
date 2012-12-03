@@ -29,7 +29,6 @@
 namespace {
     typedef Imath::M44d				M44d;
     typedef Imath::V3d				V3d;
-    typedef GABC_IObject			IObject;
     typedef Alembic::Abc::DataType		DataType;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
@@ -440,7 +439,7 @@ namespace {
 	GA_AttributeOwner	 owner = getGAOwner(param.getScope());
 	GU_Detail		&gdp = walk.detail();
 	typename		 T::sample_type psample;
-	const_cast<T &>(param).getExpanded(psample, iss);
+	param.getExpanded(psample, iss);
 	switch (owner)
 	{
 	    case GA_ATTRIB_POINT:
@@ -740,7 +739,7 @@ namespace {
     }
 
     void
-    makeAbcPrim(GABC_GEOWalker &walk, const IObject &obj,
+    makeAbcPrim(GABC_GEOWalker &walk, const GABC_IObject &obj,
 	    const ObjectHeader &ohead)
     {
 	switch (obj.nodeType())
@@ -769,7 +768,7 @@ namespace {
     }
 
     GABC_AnimationType
-    getAnimationType(GABC_GEOWalker &walk, const IObject &obj)
+    getAnimationType(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
 	GABC_AnimationType	atype;
 	atype = obj.getAnimationType(false);
@@ -779,7 +778,7 @@ namespace {
     }
 
     void
-    makeSubD(GABC_GEOWalker &walk, const IObject &obj)
+    makeSubD(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
 	ISubD			subd(obj.object(), gabcWrapExisting);
@@ -830,7 +829,7 @@ namespace {
     }
 
     void
-    makePolyMesh(GABC_GEOWalker &walk, const IObject &obj)
+    makePolyMesh(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
 	IPolyMesh		polymesh(obj.object(), gabcWrapExisting);
@@ -883,7 +882,7 @@ namespace {
     }
 
     void
-    makeCurves(GABC_GEOWalker &walk, const IObject &obj)
+    makeCurves(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
 	ICurves			curves(obj.object(), gabcWrapExisting);
@@ -1003,7 +1002,7 @@ namespace {
     }
 
     void
-    makePoints(GABC_GEOWalker &walk, const IObject &obj)
+    makePoints(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
 	IPoints			points(obj.object(), gabcWrapExisting);
@@ -1057,7 +1056,7 @@ namespace {
     }
 
     void
-    makeNuPatch(GABC_GEOWalker &walk, const IObject &obj)
+    makeNuPatch(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
 	INuPatch		nupatch(obj.object(), gabcWrapExisting);
@@ -1196,9 +1195,9 @@ GABC_GEOWalker::updateAbcPrims()
 }
 
 bool
-GABC_GEOWalker::preProcess(const IObject &root)
+GABC_GEOWalker::preProcess(const GABC_IObject &root)
 {
-    IObject	parent = const_cast<IObject &>(root).getParent();
+    GABC_IObject	parent = root.getParent();
     if (parent.valid())
     {
 	UT_Matrix4D	m;
@@ -1219,7 +1218,7 @@ GABC_GEOWalker::preProcess(const IObject &root)
 }
 
 bool
-GABC_GEOWalker::process(const IObject &obj)
+GABC_GEOWalker::process(const GABC_IObject &obj)
 {
     const ObjectHeader	&ohead = obj.getHeader();
 
@@ -1282,7 +1281,7 @@ GABC_GEOWalker::process(const IObject &obj)
 
 		default:
 		    {
-			IObject	parent = const_cast<IObject &>(obj).getParent();
+			GABC_IObject	parent = obj.getParent();
 			if (parent.valid())
 			{
 			    fprintf(stderr, "Unknown alembic node type: %s\n",
@@ -1303,14 +1302,14 @@ GABC_GEOWalker::interrupted() const
 }
 
 bool
-GABC_GEOWalker::matchObjectName(const IObject &obj) const
+GABC_GEOWalker::matchObjectName(const GABC_IObject &obj) const
 {
     UT_String	path(obj.getFullName());
     return path.multiMatch(objectPattern());
 }
 
 bool
-GABC_GEOWalker::matchAnimationFilter(const IObject &obj) const
+GABC_GEOWalker::matchAnimationFilter(const GABC_IObject &obj) const
 {
     if (myAnimationFilter == ABC_AFILTER_ALL)
     {
@@ -1367,10 +1366,10 @@ GABC_GEOWalker::popTransform(const GABC_GEOWalker::TransformState &stash)
     stash.pop(myMatrix, myTransformConstant);
 }
 
-static IObject
-getParentXform(IObject kid)
+static GABC_IObject
+getParentXform(GABC_IObject kid)
 {
-    IObject	parent;
+    GABC_IObject	parent;
     while (true)
     {
 	parent = kid.getParent();
@@ -1386,7 +1385,7 @@ getParentXform(IObject kid)
 }
 
 bool
-GABC_GEOWalker::getGroupName(UT_String &name, const IObject &obj) const
+GABC_GEOWalker::getGroupName(UT_String &name, const GABC_IObject &obj) const
 {
     switch (myGroupMode)
     {
@@ -1404,7 +1403,7 @@ GABC_GEOWalker::getGroupName(UT_String &name, const IObject &obj) const
 }
 
 void
-GABC_GEOWalker::trackPtVtxPrim(const IObject &obj,
+GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
 				exint npoint, exint nvertex, exint nprim,
 				bool do_transform)
 {

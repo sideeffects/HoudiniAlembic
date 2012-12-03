@@ -32,7 +32,6 @@ class UT_StringArray;
 class GABC_API GABC_Util
 {
 public:
-    typedef GABC_IObject			IObject;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef std::vector<std::string>		PathList;
 
@@ -40,7 +39,7 @@ public:
     ///
     /// For standard walking of the tree, you'd likely have a process() method
     /// like this: @code
-    ///	   bool process(const IObject &node)
+    ///	   bool process(const GABC_IObject &node)
     ///		{
     ///		    doSomething(node);
     ///		    return true;	// Process other nodes
@@ -48,7 +47,7 @@ public:
     /// @endcode
     /// However, if you have to pass information to the child nodes, you might
     /// want to do something like: @code
-    ///	    bool process(const IObject &node)
+    ///	    bool process(const GABC_IObject &node)
     ///		{
     ///		    doSomething(node);	// Process this node
     ///		    pushState();	// Set information for kids
@@ -68,19 +67,19 @@ public:
 	/// @c preProcess() is called on the "root" of the walk.  The root may
 	/// @b not be the root of the Alembic file (i.e. when walking lists of
 	/// objects).  The @c preProcess() method will be called one time only.
-	virtual bool	preProcess(const IObject &node);
+	virtual bool	preProcess(const GABC_IObject &node);
 
 	/// Return true to continue traveral and process the children of the
 	/// given node.  Returning false will process the next sibling.  Use
 	/// interrupted() to perform an early termination.
-	virtual bool	process(const IObject &node) = 0;
+	virtual bool	process(const GABC_IObject &node) = 0;
 
 	/// Allow for interruption of walk
 	virtual bool	interrupted() const	{ return false; }
 
 	/// Manually walk children of the given node.  Returns false if the
 	/// walk was interrupted, true if the walk was completed.
-	bool		walkChildren(const IObject &node);
+	bool		walkChildren(const GABC_IObject &node);
 
 	/// @{
 	///  Access the current filename
@@ -104,8 +103,8 @@ public:
     /// Get the file cache size
     static int		fileCacheSize();
 
-    /// Find a given IObject in an Alembic file.
-    static IObject	findObject(const std::string &filename,
+    /// Find a given GABC_IObject in an Alembic file.
+    static GABC_IObject	findObject(const std::string &filename,
 				const std::string &objectpath);
 
 
@@ -143,12 +142,12 @@ public:
 				bool &isConstant,
 				bool &inheritsXform);
 
-    /// Get the world transform for an IObject in an Alembic file.  If the
+    /// Get the world transform for an GABC_IObject in an Alembic file.  If the
     /// given node is a shape node, the transform up to its parent will be
     /// returned.
     static bool		 getWorldTransform(
 				const std::string &filename,
-				const IObject &object,
+				const GABC_IObject &object,
 				fpreal sample_time,
 				UT_Matrix4D &xform,
 				bool &isConstant,

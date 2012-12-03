@@ -36,8 +36,6 @@ class GEO_Detail;
 class GABC_API GABC_GEOPrim : public GEO_Primitive
 {
 public:
-    typedef GABC_IObject	IObject;
-
     GABC_GEOPrim(GEO_Detail *d, GA_Offset offset = GA_INVALID_OFFSET);
     virtual ~GABC_GEOPrim();
 
@@ -131,7 +129,7 @@ public:
     /// Alembic interface
     const std::string	&getFilename() const	{ return myFilename; }
     const std::string	&getObjectPath() const	{ return myObjectPath; }
-    const IObject	&getObject() const	{ return myObject; }
+    const GABC_IObject	&getObject() const	{ return myObject; }
     GABC_NodeType	 abcNodeType() const
 			    { return myObject.nodeType(); }
     GABC_AnimationType	 animation() const	{ return myAnimation; }
@@ -146,7 +144,7 @@ public:
 				fpreal frame,
 				bool use_transform);
     void		 init(const std::string &filename,
-				const IObject &objectpath,
+				const GABC_IObject &objectpath,
 				fpreal frame,
 				bool use_transform);
     void		 setFilename(const std::string &filename);
@@ -186,7 +184,7 @@ public:
     /// @}
 
     static bool		getAlembicBounds(UT_BoundingBox &box,
-				const IObject &obj,
+				const GABC_IObject &obj,
 				fpreal sample_time,
 				bool &isConstant)
 			{
@@ -205,7 +203,7 @@ private:
 
     std::string		myFilename;
     std::string		myObjectPath;
-    IObject		myObject;
+    GABC_IObject	myObject;
     fpreal		myFrame;
     GT_TransformHandle	myGeoTransform;
     GABC_NameMapPtr	myAttributeNameMap;

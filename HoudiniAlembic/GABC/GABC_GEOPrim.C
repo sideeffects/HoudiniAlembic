@@ -399,7 +399,6 @@ GABC_GEOPrim::getJSON() const
 namespace
 {
     typedef Alembic::Abc::Box3d			Box3d;
-    typedef GABC_IObject			IObject;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::AbcGeom::ICompoundProperty	ICompoundProperty;
     typedef Alembic::AbcGeom::IXform		IXform;
@@ -811,7 +810,7 @@ GABC_GEOPrim::init(const std::string &filename,
 
 void
 GABC_GEOPrim::init(const std::string &filename,
-		const IObject &object,
+		const GABC_IObject &object,
 		fpreal frame,
 		bool use_transform)
 {
@@ -894,10 +893,10 @@ GABC_GEOPrim::getABCLocalTransform(UT_Matrix4D &xform) const
     if (!myObject.valid())
 	return false;
 
-    UT_AutoLock		 lock(theH5Lock);
-    bool		 is_const = false;
-    bool		 inheritsXform;
-    IObject		 obj = myObject;
+    UT_AutoLock		lock(theH5Lock);
+    bool		is_const = false;
+    bool		inheritsXform;
+    GABC_IObject	obj = myObject;
     if (abcNodeType() != GABC_XFORM)
 	obj = obj.getParent();
     if (GABC_Util::getLocalTransform(myFilename, obj.getFullName(),
