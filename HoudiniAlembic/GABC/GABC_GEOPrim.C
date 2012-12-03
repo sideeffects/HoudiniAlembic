@@ -520,6 +520,26 @@ GABC_GEOPrim::gtPointCloud() const
 }
 
 GT_PrimitiveHandle
+GABC_GEOPrim::gtBox() const
+{
+    GABC_AnimationType	atype;
+    GT_PrimitiveHandle	result;
+
+    result = myObject.getBoxGeometry(myFrame, atype);
+
+    if (myUseTransform || !myGeoTransform->isIdentity())
+    {
+	UT_Matrix4D	xform;
+	if (getTransform(xform))
+	{
+	    result->setPrimitiveTransform(GT_TransformHandle(
+			new GT_Transform(&xform, 1)));
+	}
+    }
+    return result;
+}
+
+GT_PrimitiveHandle
 GABC_GEOPrim::gtPrimitive() const
 {
     GT_PrimitiveHandle	result;
@@ -540,8 +560,14 @@ GABC_GEOPrim::gtPrimitive() const
     }
     else
     {
+#if 1
 	result = myObject.getPrimitive(this, myFrame,
 			myAnimation, myAttributeNameMap);
+#else
+	result = myObject.getBoxGeometry(myFrame, myAnimation);
+	//result = myObject.getPointCloud(myFrame, myAnimation);
+	myAnimation = GABC_ANIMATION_TOPOLOGY;
+#endif
 	if (myAnimation == GABC_ANIMATION_CONSTANT ||
 		myAnimation == GABC_ANIMATION_ATTRIBUTE)
 	{

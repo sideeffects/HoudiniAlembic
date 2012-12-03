@@ -24,6 +24,7 @@
 #include "GABC_GTUtil.h"
 #include <GU/GU_Detail.h>
 #include <GT/GT_DANumeric.h>
+#include <GT/GT_PrimitiveBuilder.h>
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_Util.h>
 #include <GT/GT_PrimPointMesh.h>
@@ -1784,6 +1785,18 @@ GABC_IObject::getPointCloud(fpreal t,
 	return GT_PrimitiveHandle(prim);
     }
     return GT_PrimitiveHandle();
+}
+
+GT_PrimitiveHandle
+GABC_IObject::getBoxGeometry(fpreal t, GABC_AnimationType &atype) const
+{
+    bool		isconst;
+    UT_BoundingBox	box;
+    if (!getBoundingBox(box, t, isconst))
+	return GT_PrimitiveHandle();
+    atype = isconst ? GABC_ANIMATION_CONSTANT : GABC_ANIMATION_ATTRIBUTE;
+    GT_BuilderStatus	err;
+    return GT_PrimitiveBuilder::box(err, box, NULL);
 }
 
 bool

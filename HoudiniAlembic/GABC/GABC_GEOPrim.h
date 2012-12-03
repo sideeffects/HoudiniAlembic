@@ -165,6 +165,8 @@ public:
 
     /// Return the GT representation of the primitive
     GT_PrimitiveHandle	 gtPrimitive() const;
+    /// Return the GT bounding box for the primitive
+    GT_PrimitiveHandle	 gtBox() const;
     /// Return the point cloud for the primitive.
     GT_PrimitiveHandle	 gtPointCloud() const;
     void		 clearGT();
