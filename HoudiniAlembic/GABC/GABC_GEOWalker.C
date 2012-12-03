@@ -19,6 +19,7 @@
 #include "GABC_NameMap.h"
 #include "GABC_GUPrim.h"
 #include <UT/UT_Interrupt.h>
+#include <UT/UT_StackBuffer.h>
 #include <Alembic/AbcGeom/All.h>
 #include <GU/GU_PrimPoly.h>
 #include <GU/GU_PrimPart.h>
@@ -29,19 +30,23 @@ namespace {
     typedef Imath::M44d				M44d;
     typedef Imath::V3d				V3d;
     typedef GABC_IObject			IObject;
+    typedef Alembic::Abc::DataType		DataType;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
     typedef Alembic::Abc::Int32ArraySamplePtr	Int32ArraySamplePtr;
     typedef Alembic::Abc::FloatArraySamplePtr	FloatArraySamplePtr;
     typedef Alembic::Abc::P3fArraySamplePtr	P3fArraySamplePtr;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
+    typedef Alembic::Abc::IArrayProperty	IArrayProperty;
     typedef Alembic::Abc::PropertyHeader	PropertyHeader;
+    typedef Alembic::Abc::ArraySamplePtr	ArraySamplePtr;
     typedef Alembic::Abc::WrapExistingFlag	WrapExistingFlag;
 
     typedef Alembic::AbcGeom::IXform		IXform;
     typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
     typedef Alembic::AbcGeom::XformSample	XformSample;
 
+    typedef Alembic::AbcGeom::GeometryScope	GeometryScope;
     typedef Alembic::AbcGeom::ISubD		ISubD;
     typedef Alembic::AbcGeom::ISubDSchema	ISubDSchema;
     typedef Alembic::AbcGeom::IPolyMesh		IPolyMesh;
@@ -83,7 +88,7 @@ namespace {
     };
 
     static GA_AttributeOwner
-    getGAOwner(Alembic::AbcGeom::GeometryScope scope)
+    getGAOwner(GeometryScope scope)
     {
 	switch (scope)
 	{
@@ -226,6 +231,24 @@ namespace {
 	}
     }
 
+    static void
+    copyStringAttribute(GU_Detail &gdp, GA_RWAttributeRef &attrib,
+		    const ArraySamplePtr &array,
+		    int extent, exint start, exint end, bool extend_array)
+    {
+	GA_RWHandleS		 h(attrib.getAttribute());
+	int			 tsize = SYSmin(extent, attrib.getTupleSize());
+	const std::string	*data = (const std::string *)array->getData();
+	UT_ASSERT(h.isValid());
+	for (exint i = start; i < end; ++i)
+	{
+	    for (int j = 0; j < tsize; ++j)
+		h.set(GA_Offset(i), j, data[j].c_str());
+	    if (!extend_array)
+		data += extent;
+	}
+    }
+
     template <typename T, typename GA_T, typename ABC_T>
     static void
     setNumericAttribute(GU_Detail &gdp, GA_RWAttributeRef &attrib,
@@ -261,6 +284,36 @@ namespace {
 	if (!strcmp(name, "uv") && tsize > 1 && tsize < 4)
 	    return GA_TYPE_VOID;
 	return GA_TYPE_VECTOR;
+    }
+
+    template <typename GT_T, typename ABC_T>
+    static void
+    copyNumericAttribute(GU_Detail &gdp, GA_RWAttributeRef &attrib,
+		    const ArraySamplePtr &array,
+		    int extent, exint start, exint end, bool extend_array)
+    {
+	int			 tsize = SYSmin(extent, attrib.getTupleSize());
+	const GA_AIFTuple	*tuple = attrib.getAIFTuple();
+	const ABC_T		*data = (const ABC_T *)array->getData();
+	UT_StackBuffer<GT_T>	 buf(tsize);
+	if (!data || !tuple)
+	    return;
+	for (exint i = start; i < end; ++i)
+	{
+	    if (SYSisSame<GT_T, ABC_T>())
+	    {
+		tuple->set(attrib.getAttribute(), GA_Offset(i),
+			(GT_T *)data, tsize);
+	    }
+	    else
+	    {
+		for (int j = 0; j < tsize; ++j)
+		    buf[j] = data[j];
+		tuple->set(attrib.getAttribute(), GA_Offset(i), buf, tsize);
+	    }
+	    if (!extend_array)
+		data += extent;
+	}
     }
 
     /// Template argument @T is expected to be a
@@ -384,9 +437,9 @@ namespace {
     {
 	if (!param.valid())
 	    return;
-	GU_Detail		&gdp = walk.detail();
 	GA_AttributeOwner	 owner = getGAOwner(param.getScope());
-	typename T::sample_type	psample;
+	GU_Detail		&gdp = walk.detail();
+	typename		 T::sample_type psample;
 	const_cast<T &>(param).getExpanded(psample, iss);
 	switch (owner)
 	{
@@ -511,89 +564,153 @@ namespace {
 	}
     }
 
-    template <typename T>
     static void
-    arbitraryGeomAttributeT(GABC_GEOWalker &walk,
-		ICompoundProperty parent,
-		const PropertyHeader &head,
-		const char *name,
-		exint npoint, exint nvertex, exint nprim)
-    {
-	T		 param(parent, head.getName());
-	ISampleSelector	 iss = walk.timeSample();
-	setGeomAttribute(walk, name, param, iss, npoint, nvertex, nprim);
-    }
-
-    #define MATCH_ARB(TYPENAME)	\
-	if (Alembic::AbcGeom::TYPENAME::matches(head)) { \
-	    arbitraryGeomAttributeT<Alembic::AbcGeom::TYPENAME>( \
-		    walk, parent, head, name, npoint, nvertex, nprim); \
-	    return; \
-	}
-    static void
-    arbitraryGeomAttribute(GABC_GEOWalker &walk,
+    copyArrayToAttribute(GABC_GEOWalker &walk,
 	    ICompoundProperty parent,
 	    const PropertyHeader &head,
 	    const char *name,
-	    exint npoint, exint nvertex, exint nprim)
+	    GA_AttributeOwner owner,
+	    exint npoint,
+	    exint nvertex,
+	    exint nprim)
     {
-	// Yuck.
-	MATCH_ARB(IBoolGeomParam);
-	MATCH_ARB(IUcharGeomParam);
-	MATCH_ARB(ICharGeomParam);
-	MATCH_ARB(IUInt16GeomParam);
-	MATCH_ARB(IInt16GeomParam);
-	MATCH_ARB(IUInt32GeomParam);
-	MATCH_ARB(IInt32GeomParam);
-	MATCH_ARB(IUInt64GeomParam);
-	MATCH_ARB(IInt64GeomParam);
-	MATCH_ARB(IHalfGeomParam);
-	MATCH_ARB(IFloatGeomParam);
-	MATCH_ARB(IDoubleGeomParam);
-	MATCH_ARB(IStringGeomParam);
-	MATCH_ARB(IWstringGeomParam);
-	MATCH_ARB(IV2sGeomParam);
-	MATCH_ARB(IV2iGeomParam);
-	MATCH_ARB(IV2fGeomParam);
-	MATCH_ARB(IV2dGeomParam);
-	MATCH_ARB(IV3sGeomParam);
-	MATCH_ARB(IV3iGeomParam);
-	MATCH_ARB(IV3fGeomParam);
-	MATCH_ARB(IV3dGeomParam);
-	MATCH_ARB(IP2sGeomParam);
-	MATCH_ARB(IP2iGeomParam);
-	MATCH_ARB(IP2fGeomParam);
-	MATCH_ARB(IP2dGeomParam);
-	MATCH_ARB(IP3sGeomParam);
-	MATCH_ARB(IP3iGeomParam);
-	MATCH_ARB(IP3fGeomParam);
-	MATCH_ARB(IP3dGeomParam);
-	MATCH_ARB(IBox2sGeomParam);
-	MATCH_ARB(IBox2iGeomParam);
-	MATCH_ARB(IBox2fGeomParam);
-	MATCH_ARB(IBox2dGeomParam);
-	MATCH_ARB(IBox3sGeomParam);
-	MATCH_ARB(IBox3iGeomParam);
-	MATCH_ARB(IBox3fGeomParam);
-	MATCH_ARB(IBox3dGeomParam);
-	MATCH_ARB(IM33fGeomParam);
-	MATCH_ARB(IM33dGeomParam);
-	MATCH_ARB(IM44fGeomParam);
-	MATCH_ARB(IM44dGeomParam);
-	MATCH_ARB(IQuatfGeomParam);
-	MATCH_ARB(IQuatdGeomParam);
-	MATCH_ARB(IC3hGeomParam);
-	MATCH_ARB(IC3fGeomParam);
-	MATCH_ARB(IC3cGeomParam);
-	MATCH_ARB(IC4hGeomParam);
-	MATCH_ARB(IC4fGeomParam);
-	MATCH_ARB(IC4cGeomParam);
-	MATCH_ARB(IN2fGeomParam);
-	MATCH_ARB(IN2dGeomParam);
-	MATCH_ARB(IN3fGeomParam);
-	MATCH_ARB(IN3dGeomParam);
+	exint		len;
+	exint		start;
+	switch (owner)
+	{
+	    case GA_ATTRIB_POINT:
+		start = walk.pointCount();
+		len = npoint;
+		break;
+	    case GA_ATTRIB_VERTEX:
+		start = walk.vertexCount();
+		len = nvertex;
+		break;
+	    case GA_ATTRIB_PRIMITIVE:
+	    case GA_ATTRIB_GLOBAL:
+		// At the current time, we map global attributes to primitive
+		// attributes.
+		start = walk.primitiveCount();
+		len = nprim;
+		break;
+	    default:
+		UT_ASSERT(0);
+		return;
+	}
+	UT_ASSERT(head.isArray());
+	IArrayProperty	prop(parent, head.getName());
+	ArraySamplePtr	sample;
+	prop.get(sample, walk.timeSample());
+	if (!sample->valid())
+	    return;
+	GU_Detail	&gdp = walk.detail();
+	const DataType	dtype = prop.getDataType();
+	GA_Storage	store = getGAStorage(dtype);
+	int		tsize = getGATupleSize(dtype);
+	bool		extend_array = len > sample->size();
+	const char	*terp = prop.getMetaData().get("interpretation").c_str();
+	GA_TypeInfo	tinfo = getGATypeInfo(terp);
+	GA_RWAttributeRef	aref = findAttribute(gdp, owner, name,
+					    tsize, store, terp);
+	if (!aref.isValid())
+	    return;
+
+	if (aref.getAttribute() != gdp.getP())
+	{
+	    if (tinfo == GA_TYPE_VECTOR)
+		tinfo = isReallyVector(name, tsize);
+	    aref.getAttribute()->setTypeInfo(tinfo);
+	}
+	switch (aref.getStorageClass())
+	{
+	    case GA_STORECLASS_REAL:
+		switch (dtype.getPod())
+		{
+		    case Alembic::Abc::kFloat16POD:
+			copyNumericAttribute<fpreal32, fpreal16>(gdp,
+				aref, sample, tsize, start, start+len,
+				extend_array);
+			break;
+		    case Alembic::Abc::kFloat32POD:
+			copyNumericAttribute<fpreal32, fpreal32>(gdp,
+				aref, sample, tsize, start, start+len,
+				extend_array);
+			break;
+		    case Alembic::Abc::kFloat64POD:
+			copyNumericAttribute<fpreal64, fpreal64>(gdp,
+				aref, sample, tsize, start, start+len,
+				extend_array);
+			break;
+		    default:
+			UT_ASSERT(0 && "Invalid real type");
+		}
+		break;
+	    case GA_STORECLASS_INT:
+		switch (dtype.getPod())
+		{
+		    case Alembic::Abc::kUint8POD:
+			copyNumericAttribute<int32, uint8>(gdp,
+				aref, sample, tsize, start, start+len,
+				extend_array);
+			break;
+		    case Alembic::Abc::kInt32POD:
+			copyNumericAttribute<int32, int32>(gdp,
+				aref, sample, tsize, start, start+len,
+				extend_array);
+			break;
+		    case Alembic::Abc::kInt64POD:
+			copyNumericAttribute<int64, int64>(gdp,
+				aref, sample, tsize, start, start+len,
+				extend_array);
+			break;
+		    case Alembic::Abc::kUint64POD:
+			copyNumericAttribute<int64, uint64>(gdp,
+				aref, sample, tsize, start, start+len,
+				extend_array);
+			break;
+		    case Alembic::Abc::kBooleanPOD:
+			copyNumericAttribute<int32, bool>(gdp,
+				aref, sample, tsize, start, start+len,
+				extend_array);
+			break;
+		    case Alembic::Abc::kInt8POD:
+			copyNumericAttribute<int32, int8>(gdp,
+				aref, sample, tsize, start, start+len,
+				extend_array);
+			break;
+		    case Alembic::Abc::kUint16POD:
+			copyNumericAttribute<int32, uint16>(gdp,
+				aref, sample, tsize, start, start+len,
+				extend_array);
+			break;
+		    case Alembic::Abc::kInt16POD:
+			copyNumericAttribute<int32, int16>(gdp,
+				aref, sample, tsize, start, start+len,
+				extend_array);
+			break;
+		    case Alembic::Abc::kUint32POD:
+			copyNumericAttribute<int64, uint32>(gdp,
+				aref, sample, tsize, start, start+len,
+				extend_array);
+			break;
+		    default:
+			UT_ASSERT(0 && "Invalid integer type");
+			break;
+		}
+		break;
+	    case GA_STORECLASS_STRING:
+		if (dtype.getPod() == Alembic::Abc::kStringPOD)
+		{
+		    copyStringAttribute(gdp, aref, sample, tsize,
+			    start, start+len, extend_array);
+		}
+		else UT_ASSERT(0 && "Invalid string type");
+		break;
+	    default:
+		UT_ASSERT(0 && "Unsupported attribute type");
+		break;
+	}
     }
-    #undef MATCH_ARB
 
     GA_AttributeOwner
     arbitraryGAOwner(const PropertyHeader &ph)
@@ -617,8 +734,8 @@ namespace {
 	    GA_Storage	store = getGAStorage(head.getDataType());
 	    if (store == GA_STORE_INVALID)
 		continue;
-	    arbitraryGeomAttribute(walk, arb, head,
-		    name, npoint, nvertex, nprim);
+	    copyArrayToAttribute(walk, arb, head,
+		    name, owner, npoint, nvertex, nprim);
 	}
     }
 
