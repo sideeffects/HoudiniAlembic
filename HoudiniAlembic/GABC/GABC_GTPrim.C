@@ -161,6 +161,13 @@ GABC_GTPrimitive::save(UT_JSONWriter &w) const
     return ok && w.jsonEndMap();
 }
 
+const GT_ViewportRefineOptions &
+GABC_GTPrimitive::viewportRefineOptions() const
+{
+    static GT_ViewportRefineOptions     vopt(true);
+    return vopt;
+}
+
 //-------------------------------------------------------------------
 
 void

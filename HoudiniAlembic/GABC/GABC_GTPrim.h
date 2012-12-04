@@ -68,6 +68,7 @@ public:
     virtual int		 getMotionSegments() const;
     virtual int64	 getMemoryUsage() const;
     virtual bool	 save(UT_JSONWriter &w) const;
+    virtual const GT_ViewportRefineOptions	&viewportRefineOptions() const;
     /// @}
 
     static QLOD		 getLOD(const GT_RefineParms *parms);
