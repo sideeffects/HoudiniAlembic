@@ -2079,6 +2079,17 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
 }
 
 bool
+GABC_IObject::worldTransform(fpreal t, M44d &m4,
+	bool &is_const, bool &inherits) const
+{
+    UT_Matrix4D	xform;
+    if (!worldTransform(t, xform, is_const, inherits))
+	return false;
+    m4 = convertMatrix(xform);
+    return true;
+}
+
+bool
 GABC_IObject::localTransform(fpreal t, UT_Matrix4D &mat,
 	bool &isConstant, bool &inheritsXform) const
 {
@@ -2117,5 +2128,16 @@ GABC_IObject::localTransform(fpreal t, UT_Matrix4D &mat,
     {
 	mat.identity();
     }
+    return true;
+}
+
+bool
+GABC_IObject::localTransform(fpreal t, M44d &m4,
+	bool &is_const, bool &inherits) const
+{
+    UT_Matrix4D	xform;
+    if (!localTransform(t, xform, is_const, inherits))
+	return false;
+    m4 = convertMatrix(xform);
     return true;
 }

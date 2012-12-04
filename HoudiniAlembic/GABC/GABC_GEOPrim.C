@@ -30,8 +30,6 @@
 
 namespace
 {
-    static UT_Lock	theH5Lock;
-
     static bool
     saveEmptyNameMap(UT_JSONWriter &w)
     {
@@ -864,19 +862,9 @@ GABC_GEOPrim::getABCLocalTransform(UT_Matrix4D &xform) const
     if (!myObject.valid())
 	return false;
 
-    UT_AutoLock		lock(theH5Lock);
     bool		is_const = false;
     bool		inheritsXform;
-    GABC_IObject	obj = myObject;
-    if (abcNodeType() != GABC_XFORM)
-	obj = obj.getParent();
-    if (GABC_Util::getLocalTransform(myFilename, obj.getFullName(),
-			myFrame, xform, is_const, inheritsXform))
-    {
-	return true;
-    }
-    xform.identity();
-    return false;
+    return myObject.localTransform(myFrame, xform, is_const, inheritsXform);
 }
 
 void

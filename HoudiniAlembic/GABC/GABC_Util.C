@@ -210,80 +210,6 @@ namespace
         }
     }
 
-    // Returns whether the transform is constant
-    void
-    abcLocalTransform(M44d &localXform, const GABC_IObject &obj,
-	    fpreal sampleTime, bool &isConstant, bool &inheritsXform)
-    {
-	IXform		xformObject(obj.object(), gabcWrapExisting);
-	TimeSamplingPtr timeSampling =xformObject.getSchema().getTimeSampling();
-	size_t		numSamples = xformObject.getSchema().getNumSamples();
-
-	isConstant = xformObject.getSchema().isConstant();
-	inheritsXform = xformObject.getSchema().getInheritsXforms();
-
-	chrono_t inTime = sampleTime;
-	chrono_t outTime = sampleTime;
-
-	if (numSamples > 1)
-	{
-	    const chrono_t epsilon = 1.0 / 10000.0;
-
-	    std::pair<index_t, chrono_t> floorIndex =
-		    timeSampling->getFloorIndex(sampleTime, numSamples);
-
-	    //make sure we're not equal enough
-	    if (fabs(floorIndex.second - sampleTime) > epsilon)
-	    {
-		//make sure we're not before the first sample
-		if (floorIndex.second < sampleTime)
-		{
-		    //make sure there's another sample available afterwards
-		    if (floorIndex.first+1 < numSamples)
-		    {
-			inTime = floorIndex.second;
-			outTime = timeSampling->getSampleTime(
-				floorIndex.first+1);
-		    }
-		}
-	    }
-	}
-
-	//interpolate if necessary
-	if (inTime != outTime )
-	{
-	    XformSample inSample = xformObject.getSchema().getValue(
-		    ISampleSelector(inTime));
-
-	    XformSample outSample = xformObject.getSchema().getValue(
-		    ISampleSelector(outTime));
-
-	    double t = (sampleTime - inTime) / (outTime - inTime);
-
-	    Imath::V3d s_l,s_r,h_l,h_r,t_l,t_r;
-	    Imath::Quatd quat_l,quat_r;
-
-	    DecomposeXForm(inSample.getMatrix(), s_l, h_l, quat_l, t_l);
-	    DecomposeXForm(outSample.getMatrix(), s_r, h_r, quat_r, t_r);
-
-	    if ((quat_l ^ quat_r) < 0)
-	    {
-		quat_r = -quat_r;
-	    }
-
-	    localXform = RecomposeXForm(lerp(s_l, s_r, t),
-		     lerp(h_l, h_r, t),
-		     Imath::slerp(quat_l, quat_r, t),
-		     lerp(t_l, t_r, t));
-	}
-	else
-	{
-	    XformSample xformSample = xformObject.getSchema().getValue(
-		    ISampleSelector(sampleTime));
-	    localXform = xformSample.getMatrix();
-	}
-    }
-
     class ArchiveObjectKey : public UT_CappedKey
     {
     public:
@@ -429,11 +355,7 @@ namespace
 	void	getLocalTransform(M44d &x, const GABC_IObject &obj, fpreal now,
 			bool &isConstant, bool &inheritsXform)
 		{
-		    if (IXform::matches(obj.getHeader()))
-		    {
-			abcLocalTransform(x, obj, now, isConstant, inheritsXform);
-		    }
-		    else
+		    if (!obj.localTransform(now, x, isConstant, inheritsXform))
 		    {
 			isConstant = true;
 			inheritsXform = true;

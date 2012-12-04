@@ -40,6 +40,7 @@ class UT_StringArray;
 class GABC_API GABC_IObject : public GABC_IItem
 {
 public:
+    typedef Alembic::Abc::M44d			M44d;
     typedef Alembic::Abc::IObject		IObject;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
@@ -190,18 +191,30 @@ public:
     GT_DataArrayHandle	getUserProperty(const std::string &name, fpreal t,
 				GABC_AnimationType &atype) const;
 
+    /// @{
     /// Get the world transform for the node.  This includes all it's parent
     /// transforms.
     bool		worldTransform(fpreal t,
 				    UT_Matrix4D &xform,
 				    bool &isConstant,
 				    bool &inheritsXform) const;
+    bool		worldTransform(fpreal t,
+				    M44d &xform,
+				    bool &isConstant,
+				    bool &inheritsXform) const;
+    /// @}
 
+    /// @{
     /// Get the local transform for the node.  This is an identity matrix 
     bool		localTransform(fpreal t,
 				    UT_Matrix4D &xform,
 				    bool &isConstant,
 				    bool &inheritsXform) const;
+    bool		localTransform(fpreal t,
+				    M44d &xform,
+				    bool &isConstant,
+				    bool &inheritsXform) const;
+    /// @}
 
     /// @{
     /// Member data access
