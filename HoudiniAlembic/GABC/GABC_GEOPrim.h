@@ -22,6 +22,7 @@
 #include "GABC_Util.h"
 #include "GABC_NameMap.h"
 #include "GABC_IArchive.h"
+#include "GABC_GTPrim.h"
 #include <Alembic/AbcGeom/Foundation.h>		// For topology enum
 
 #include <GT/GT_Handles.h>
@@ -127,17 +128,17 @@ public:
 
     /// @{
     /// Alembic interface
-    const std::string	&getFilename() const	{ return myFilename; }
-    const std::string	&getObjectPath() const	{ return myObjectPath; }
-    const GABC_IObject	&getObject() const	{ return myObject; }
+    const std::string	&filename() const	{ return myFilename; }
+    const std::string	&objectPath() const	{ return myObjectPath; }
+    const GABC_IObject	&object() const	{ return myObject; }
     GABC_NodeType	 abcNodeType() const
 			    { return myObject.nodeType(); }
-    GABC_AnimationType	 animation() const	{ return myAnimation; }
+    GABC_AnimationType	 animation() const	{ return myGTPrimitive->animation(); }
     bool		 isConstant() const
 			 {
-			     return myAnimation == GABC_ANIMATION_CONSTANT;
+			     return animation() == GABC_ANIMATION_CONSTANT;
 			 }
-    fpreal		 getFrame() const	{ return myFrame; }
+    fpreal		 frame() const	{ return myFrame; }
 
     void		 init(const std::string &filename,
 				const std::string &objectpath,
@@ -203,18 +204,16 @@ private:
 
     void	copyMemberDataFrom(const GABC_GEOPrim &src);
 
-    std::string		myFilename;
-    std::string		myObjectPath;
-    GABC_IObject	myObject;
-    fpreal		myFrame;
-    GT_TransformHandle	myGeoTransform;
-    GABC_NameMapPtr	myAttributeNameMap;
+    std::string		 myFilename;
+    std::string		 myObjectPath;
+    GABC_IObject	 myObject;
+    fpreal		 myFrame;
+    GT_TransformHandle	 myGeoTransform;
+    GT_TransformHandle	 myGTTransform;
+    GABC_NameMapPtr	 myAttributeNameMap;
+    GABC_GTPrimitive	*myGTPrimitive;
+    bool		 myUseTransform;
 
-    mutable UT_BoundingBox	myBox;
-    mutable GT_TransformHandle	myGTTransform;
-    mutable GT_PrimitiveHandle	myGTPrimitive;
-    mutable GABC_AnimationType	myAnimation;
-    bool			myUseTransform;
 };
 
 #endif

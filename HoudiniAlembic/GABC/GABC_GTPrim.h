@@ -19,7 +19,89 @@
 #define __GABC_GTPrim__
 
 #include "GABC_API.h"
+#include <GT/GT_Primitive.h>
 #include <GT/GT_GEOPrimCollect.h>
+#include "GABC_Types.h"
+
+class GABC_GEOPrim;
+
+/// Simple wrapper for Alembic primitives
+class GABC_GTPrimitive : public GT_Primitive
+{
+public:
+    // Quantized LOD
+    enum QLOD
+    {
+	LOD_SURFACE,
+	LOD_POINTS,
+	LOD_BOXES
+    };
+
+    GABC_GTPrimitive(const GABC_GEOPrim *prim)
+	: myPrimitive(prim)
+	, myCacheLOD(LOD_SURFACE)
+	, myCache()
+	, myAnimation(GABC_ANIMATION_TOPOLOGY)
+    {
+    }
+    GABC_GTPrimitive	&operator=(const GABC_GTPrimitive &src)
+			{
+			    copyFrom(src);
+			    return *this;
+			}
+    void		copyFrom(const GABC_GTPrimitive &src)
+			{
+			    // We do *not* copy the primitive
+			    myCache = src.myCache;
+			    myCacheFrame = src.myCacheFrame;
+			    myAnimation = src.myAnimation;
+			    myCacheLOD = src.myCacheLOD;
+			}
+
+    virtual ~GABC_GTPrimitive();
+    /// @{
+    /// Methods defined on GT_Primitive
+    virtual const char	*className() const;
+    virtual void	 enlargeBounds(UT_BoundingBox boxes[], int nseg) const;
+    virtual bool	 refine(GT_Refine &refiner,
+				    const GT_RefineParms *parms) const;
+    virtual int		 getMotionSegments() const;
+    virtual int64	 getMemoryUsage() const;
+    virtual bool	 save(UT_JSONWriter &w) const;
+    /// @}
+
+    static QLOD		 getLOD(const GT_RefineParms *parms);
+
+    void			 clear()
+				 {
+				     myCache = GT_PrimitiveHandle();
+				 }
+    const GABC_GEOPrim		*primitive() const	{ return myPrimitive; }
+    const GT_PrimitiveHandle	&cache() const		{ return myCache; }
+    fpreal			 cacheFrame() const	{ return myCacheFrame; }
+    GABC_AnimationType		 animation() const	{ return myAnimation; }
+    QLOD			 cacheLOD() const	{ return myCacheLOD; }
+
+    void			 updateTransform(const UT_Matrix4D &xform);
+    void			 updateAnimation(bool consider_transform);
+private:
+    GABC_GTPrimitive(const GABC_GTPrimitive &src)
+	: GT_Primitive(src)
+	, myPrimitive(NULL)
+	, myCacheLOD(src.myCacheLOD)
+	, myCache(src.myCache)
+	, myAnimation(src.myAnimation)
+    {
+	UT_ASSERT(0 && "Copy c-tor");
+    }
+    void		 updateCache(const GT_RefineParms *parms);
+
+    const GABC_GEOPrim	*myPrimitive;
+    GT_PrimitiveHandle	 myCache;
+    fpreal		 myCacheFrame;
+    GABC_AnimationType	 myAnimation;
+    QLOD		 myCacheLOD;
+};
 
 /// Hook to handle tesselation of tetra primitives
 ///

@@ -59,11 +59,10 @@ GABC_GEOPrim::GABC_GEOPrim(GEO_Detail *d, GA_Offset offset)
     , myObjectPath()
     , myObject()
     , myFrame(0)
-    , myAnimation(GABC_ANIMATION_TOPOLOGY)
     , myUseTransform(true)
-    , myGTPrimitive()
+    , myGTPrimitive(new GABC_GTPrimitive(this))
 {
-    myBox.makeInvalid();
+    myGTPrimitive->incref();	// Old-school
     myGeoTransform = GT_Transform::identity();
 }
 
@@ -77,11 +76,7 @@ GABC_GEOPrim::copyMemberDataFrom(const GABC_GEOPrim &src)
     myGeoTransform = src.myGeoTransform;
     myAttributeNameMap = src.myAttributeNameMap;
     myUseTransform = src.myUseTransform;
-    myAnimation = src.myAnimation;
-
-    // Data which shouldn't be copied
-    myBox.makeInvalid();
-    myGTPrimitive = GT_PrimitiveHandle();
+    myGTPrimitive->copyFrom(*src.myGTPrimitive);
 
     if (!myUseTransform)
     {
@@ -97,12 +92,13 @@ GABC_GEOPrim::copyMemberDataFrom(const GABC_GEOPrim &src)
 
 GABC_GEOPrim::~GABC_GEOPrim()
 {
+    myGTPrimitive->decref();	// Old school reference counting
 }
 
 void
 GABC_GEOPrim::clearForDeletion()
 {
-    myGTPrimitive = GT_PrimitiveHandle();
+    myGTPrimitive->clear();
     myGeoTransform = GT_Transform::identity();
 }
 
@@ -110,7 +106,7 @@ void
 GABC_GEOPrim::stashed(int onoff, GA_Offset offset)
 {
     myGeoTransform = GT_Transform::identity();
-    myGTPrimitive = GT_PrimitiveHandle();
+    myGTPrimitive->clear();
     GEO_Primitive::stashed(onoff, offset);
 }
 
@@ -263,16 +259,16 @@ public:
 		    {
 			case geo_FILENAME:
 			{
-			    const std::string	&f = abc(pr)->getFilename();
+			    const std::string	&f = abc(pr)->filename();
 			    return w.jsonStringToken(f.c_str(), f.length());
 			}
 			case geo_OBJECTPATH:
 			{
-			    const std::string	&f = abc(pr)->getObjectPath();
+			    const std::string	&f = abc(pr)->objectPath();
 			    return w.jsonStringToken(f.c_str(), f.length());
 			}
 			case geo_FRAME:
-			    return w.jsonValue(abc(pr)->getFrame());
+			    return w.jsonValue(abc(pr)->frame());
 
 			case geo_TRANSFORM:
 			    return abc(pr)->geoTransform()->save(w);
@@ -355,11 +351,11 @@ public:
 		    switch (i)
 		    {
 			case geo_FILENAME:
-			    return abc(a)->getFilename() == abc(b)->getFilename();
+			    return abc(a)->filename() == abc(b)->filename();
 			case geo_OBJECTPATH:
-			    return abc(a)->getObjectPath() == abc(b)->getObjectPath();
+			    return abc(a)->objectPath() == abc(b)->objectPath();
 			case geo_FRAME:
-			    return abc(a)->getFrame() == abc(b)->getFrame();
+			    return abc(a)->frame() == abc(b)->frame();
 
 			case geo_TRANSFORM:
 			    return (*abc(a)->geoTransform() ==
@@ -426,7 +422,8 @@ GABC_GEOPrim::updateAnimation()
     // We initialize based on the shape topology, but if the shape topology is
     // constant, there are still various factors which can make the primitive
     // non-constant (i.e. Homogeneous).
-    myAnimation = myObject.getAnimationType(myUseTransform);
+    myGTPrimitive->updateAnimation(myUseTransform);
+    //myAnimation = myObject.getAnimationType(myUseTransform);
 }
 
 int
@@ -436,17 +433,10 @@ GABC_GEOPrim::getBBox(UT_BoundingBox *bbox) const
     if (!myObject.valid())
 	return 0;
 
-    if (!myBox.isValid())
-    {
-	bool	isConstant;
-	if (!getAlembicBounds(*bbox, myObject, myFrame, isConstant))
-	    return 0;
-	myBox = *bbox;	// Cache for future use
-    }
-    else
-    {
-	*bbox = myBox;
-    }
+    bool	isconst;
+    if (!myObject.getBoundingBox(*bbox, myFrame, isconst))
+	return 0;
+
     UT_Matrix4D	xform;
     getTransform(xform);
     bbox->transform(xform);
@@ -496,7 +486,7 @@ GABC_GEOPrim::getVelocityRange(UT_Vector3 &vmin, UT_Vector3 &vmax) const
 void
 GABC_GEOPrim::clearGT()
 {
-    myGTPrimitive.reset(NULL);
+    myGTPrimitive->clear();
 }
 
 GT_PrimitiveHandle
@@ -542,71 +532,29 @@ GABC_GEOPrim::gtBox() const
 GT_PrimitiveHandle
 GABC_GEOPrim::gtPrimitive() const
 {
-    GT_PrimitiveHandle	result;
-    if (myGTPrimitive)	// Cached since geometry is static
-    {
-	switch (myAnimation)
-	{
-	    case GABC_ANIMATION_CONSTANT:
-		result = myGTPrimitive;
-		break;
-	    case GABC_ANIMATION_ATTRIBUTE:
-		result = myObject.updatePrimitive(myGTPrimitive, this,
-			myFrame, myAttributeNameMap);
-		break;
-	    default:
-		UT_ASSERT(0 && "Unexpected animation type");
-	}
-    }
-    else
-    {
-#if 1
-	result = myObject.getPrimitive(this, myFrame,
-			myAnimation, myAttributeNameMap);
-#else
-	result = myObject.getBoxGeometry(myFrame, myAnimation);
-	//result = myObject.getPointCloud(myFrame, myAnimation);
-	myAnimation = GABC_ANIMATION_TOPOLOGY;
-#endif
-	if (myAnimation == GABC_ANIMATION_CONSTANT ||
-		myAnimation == GABC_ANIMATION_ATTRIBUTE)
-	{
-	    myGTPrimitive = result;	// Cache constant geometry
-	}
-    }
-
     if (myUseTransform || !myGeoTransform->isIdentity())
     {
 	UT_Matrix4D	xform;
 	if (getTransform(xform))
-	{
-	    result->setPrimitiveTransform(GT_TransformHandle(
-			new GT_Transform(&xform, 1)));
-	}
+	    myGTPrimitive->updateTransform(xform);
     }
-    return result;
+    return GT_PrimitiveHandle(myGTPrimitive);
 }
 
 void
 GABC_GEOPrim::setGeoTransform(const GT_TransformHandle &x)
 {
+    UT_Matrix4D	xform;
     myGeoTransform = x;
-    if (myGTPrimitive)
-    {
-	UT_Matrix4D	xform;
-	if (getTransform(xform))
-	{
-	    GT_Transform	*x = new GT_Transform(&xform, 1);
-	    myGTPrimitive->setPrimitiveTransform(GT_TransformHandle(x));
-	}
-    }
+    if (getTransform(xform))
+	myGTPrimitive->updateTransform(xform);
 }
 
 void
 GABC_GEOPrim::setAttributeNameMap(const GABC_NameMapPtr &m)
 {
     myAttributeNameMap = m;
-    myGTPrimitive = GT_PrimitiveHandle();	// Rebuild primitive
+    myGTPrimitive->clear();
 }
 
 void
@@ -718,12 +666,12 @@ namespace
     static const char *
     intrinsicFilename(const GABC_GEOPrim *p)
     {
-	return p->getFilename().c_str();
+	return p->filename().c_str();
     }
     static const char *
     intrinsicObjectPath(const GABC_GEOPrim *p)
     {
-	return p->getObjectPath().c_str();
+	return p->objectPath().c_str();
     }
     static const char *
     intrinsicAnimation(const GABC_GEOPrim *p)
@@ -794,7 +742,7 @@ GA_START_INTRINSIC_DEF(GABC_GEOPrim, geo_NUM_INTRINISCS)
     GA_INTRINSIC_S(GABC_GEOPrim, geo_INTRINSIC_ABC_PATH,
 	    "abcobjectpath", intrinsicObjectPath)
     GA_INTRINSIC_METHOD_F(GABC_GEOPrim, geo_INTRINSIC_ABC_FRAME,
-	    "abcframe", getFrame)
+	    "abcframe", frame)
     GA_INTRINSIC_S(GABC_GEOPrim, geo_INTRINSIC_ABC_ANIMATION,
 	    "abcanimation", intrinsicAnimation)
     GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_LOCALXFORM,
@@ -867,10 +815,6 @@ void
 GABC_GEOPrim::setFrame(fpreal f)
 {
     myFrame = f;
-    if (myAnimation != GABC_ANIMATION_CONSTANT)
-    {
-	myBox.makeInvalid();
-    }
 }
 
 bool
@@ -905,7 +849,8 @@ GABC_GEOPrim::getABCWorldTransform(UT_Matrix4D &xform) const
     {
 	if (is_const)
 	{
-	    myGTTransform = GT_TransformHandle(new GT_Transform(&xform, 1));
+	    GABC_GEOPrim	*me = const_cast<GABC_GEOPrim *>(this);
+	    me->myGTTransform = GT_TransformHandle(new GT_Transform(&xform, 1));
 	}
 	return true;
     }
