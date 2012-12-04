@@ -1796,7 +1796,7 @@ GABC_IObject::getBoxGeometry(fpreal t, GABC_AnimationType &atype) const
 	return GT_PrimitiveHandle();
     atype = isconst ? GABC_ANIMATION_CONSTANT : GABC_ANIMATION_ATTRIBUTE;
     GT_BuilderStatus	err;
-    return GT_PrimitiveBuilder::box(err, box, NULL);
+    return GT_PrimitiveBuilder::wireBox(err, box, NULL);
 }
 
 bool
