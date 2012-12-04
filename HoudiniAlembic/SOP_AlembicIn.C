@@ -322,7 +322,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     evalString(sval, "fileName", 0, now);
     parms.myFilename = (const char *)sval;
 
-    switch (evalInt("loadmode", 0, now) != 0)
+    switch (evalInt("loadmode", 0, now))
     {
 	case 0:
 	default:
