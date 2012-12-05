@@ -69,7 +69,8 @@ GABC_IArchive::~GABC_IArchive()
 {
     UT_DEC_COUNTER(theCount);
     GABC_AutoLock	lock(*this);	// Lock for member data deletion
-    purgeObjects();	// Clear all my objects out
+    if (!purged())
+	purgeObjects();	// Clear all my objects out
 }
 
 void

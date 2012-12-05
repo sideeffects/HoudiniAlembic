@@ -39,12 +39,6 @@ public:
     /// Destructor
     ~GABC_IArchive();
 
-    /// @{
-    /// Open an archive.
-    /// @note This method is @b not thread-safe.  You must lock around it.
-    static GABC_IArchivePtr	open(const std::string &filename);
-    /// @}
-
     /// Test validity
     bool		valid() const		{ return myArchive.valid(); }
 
@@ -84,6 +78,14 @@ public:
 		    if (!myRefCount.add(-1))
 			delete this;
 		}
+    /// @}
+
+    /// @{
+    /// Open an archive.  Please use GABC_Util::open instead
+    /// This method is @b not thread-safe.  You must lock around it.
+    /// @private
+    static GABC_IArchivePtr	open(const std::string &filename);
+    /// @}
 
 private:
     GABC_IArchive(const std::string &filename);

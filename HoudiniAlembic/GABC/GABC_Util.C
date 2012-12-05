@@ -26,7 +26,6 @@
 #include <UT/UT_SysClone.h>
 #include <UT/UT_SymbolTable.h>
 #include <boost/tokenizer.hpp>
-#include "GABC_IArchive.h"
 
 namespace
 {
@@ -494,6 +493,8 @@ namespace
 	void	setArchive(const IArchive &a)	{ myArchive = a; }
 	void	setError(const std::string &e)	{ error = e; }
 
+	const GABC_IArchivePtr	&archive()	{ return myArchive; }
+
     private:
 	GABC_IObject		root()	{ return myArchive->getTop(); }
 	IArchive				myArchive;
@@ -556,7 +557,9 @@ namespace
     {
         ArchiveCache::iterator it = g_archiveCache->find(path);
 	if (it != g_archiveCache->end())
+	{
 	    g_archiveCache->erase(it);
+	}
     }
     void
     ClearArchiveCache()
@@ -741,6 +744,14 @@ GABC_Util::getWorldTransform(const std::string &filename,
 	xform = UT_Matrix4D(wxform.x);
     return success;
 }
+
+GABC_IArchivePtr
+GABC_Util::open(const std::string &path)
+{
+    ArchiveCacheEntryPtr	arch = LoadArchive(path);
+    return arch->archive();
+}
+
 
 const PathList &
 GABC_Util::getObjectList(const std::string &filename)

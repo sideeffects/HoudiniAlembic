@@ -25,6 +25,7 @@
 // Houdini includes
 #include <SYS/SYS_Types.h>
 #include <UT/UT_Matrix4.h>
+#include "GABC_IArchive.h"
 #include "GABC_IObject.h"
 
 class UT_StringArray;
@@ -92,6 +93,8 @@ public:
 	std::string	myFilename;
 	friend class GABC_Util;
     };
+
+    static GABC_IArchivePtr	open(const std::string &filename);
 
     /// Clear the cache.  If no filename is given, the entire cache will be
     /// cleared.
