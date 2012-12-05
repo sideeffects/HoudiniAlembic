@@ -32,7 +32,6 @@ namespace
     typedef Alembic::Abc::M44d			M44d;
     typedef Alembic::Abc::index_t		index_t;
     typedef Alembic::Abc::chrono_t		chrono_t;
-    typedef GABC_IArchivePtr			IArchive;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
@@ -490,19 +489,19 @@ namespace
 			}
 
 	bool	isValid() const		{ return myArchive && myArchive->valid(); }
-	void	setArchive(const IArchive &a)	{ myArchive = a; }
+	void	setArchive(const GABC_IArchivePtr &a)	{ myArchive = a; }
 	void	setError(const std::string &e)	{ error = e; }
 
 	const GABC_IArchivePtr	&archive()	{ return myArchive; }
 
     private:
 	GABC_IObject		root()	{ return myArchive->getTop(); }
-	IArchive				myArchive;
-	std::string				error;
-	PathList				myObjectList;
-	AbcTransformMap				myStaticXforms;
-	UT_CappedCache				myCache;
-	UT_CappedCache				myDynamicXforms;
+	GABC_IArchivePtr	myArchive;
+	std::string		error;
+	PathList		myObjectList;
+	AbcTransformMap		myStaticXforms;
+	UT_CappedCache		myCache;
+	UT_CappedCache		myDynamicXforms;
     };
 
     typedef UT_SharedPtr<ArchiveCacheEntry>		ArchiveCacheEntryPtr;
