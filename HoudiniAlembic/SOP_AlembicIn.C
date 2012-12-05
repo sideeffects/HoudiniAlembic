@@ -185,7 +185,7 @@ static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
                 "(hou.pwd().evalParm('fileName'))[:16380]", CH_PYTHON_SCRIPT);
 
 static PRM_Name	loadModeOptions[] = {
-    PRM_Name("alembic",	"Load Alembic Primitives"),
+    PRM_Name("alembic",	"Alembic Delayed Load Primitives"),
     PRM_Name("houdini",	"Load Houdini Geometry"),
     // PRM_Name("hpoints", "Houdini Point Cloud"),
     // PRM_Name("abcboxes", "Alembic Primitive Boxes"),

@@ -302,7 +302,7 @@
 	type	ordinal
 	default	{ 0  }
 	menu	{
-	    "alembic"	"Load Alembic Primitives"
+	    "alembic"	"Alembic Delayed Load Primitives"
 	    "houdini"	"Load Houdini Geometry"
 	    //"hpoints"	"Houdini Point Cloud"
 	    //"abcboxes"	"Alembic Primitive Boxes"

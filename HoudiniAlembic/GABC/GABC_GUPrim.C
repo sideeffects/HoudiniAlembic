@@ -86,7 +86,7 @@ GABC_GUPrim::registerMyself(GA_PrimitiveFactory *factory)
 			gu_newPrimABC,
 			GA_FAMILY_NONE);
     
-    theDef->setLabel("Alembic Shape");
+    theDef->setLabel("Alembic Delayed Load");
     theDef->setHasLocalTransform(true);
     registerIntrinsics(*theDef);
 
