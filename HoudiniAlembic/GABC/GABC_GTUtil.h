@@ -82,6 +82,8 @@ namespace GABC_GTUtil
 	    return GT_TYPE_NORMAL;
 	if (!strcmp(interp, "quat"))
 	    return GT_TYPE_QUATERNION;
+	if (!strcmp(interp, "rgb"))
+	    return GT_TYPE_COLOR;
 	return GT_TYPE_NONE;
     }
 };

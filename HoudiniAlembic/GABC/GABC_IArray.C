@@ -42,7 +42,7 @@ GABC_IArray::purge()
 
 GABC_IArray
 GABC_IArray::getSample(GABC_IArchive &arch, const IArrayProperty &prop,
-	const ISampleSelector &iss)
+	const ISampleSelector &iss, GT_Type override_type)
 {
     ArraySamplePtr	sample;
 
@@ -54,6 +54,10 @@ GABC_IArray::getSample(GABC_IArchive &arch, const IArrayProperty &prop,
 	    return GABC_IArray();
     }
 
+    if (override_type != GT_TYPE_NONE)
+    {
+	return getSample(arch, sample, override_type);
+    }
     return getSample(arch, sample,
 	    prop.getMetaData().get("interpretation").c_str());
 }

@@ -58,17 +58,21 @@ public:
 		const ArraySamplePtr &sample, GT_Type type);
 
     static GABC_IArray getSample(GABC_IArchive &arch,
-		const IArrayProperty &prop, index_t index)
+		const IArrayProperty &prop, index_t index,
+		GT_Type override_type=GT_TYPE_NONE)
     {
-	return getSample(arch, prop, ISampleSelector(index));
+	return getSample(arch, prop, ISampleSelector(index), override_type);
     }
     static GABC_IArray getSample(GABC_IArchive &arch,
-		const IArrayProperty &prop, chrono_t time)
+		const IArrayProperty &prop, chrono_t time,
+		GT_Type override_type=GT_TYPE_NONE)
     {
-	return getSample(arch, prop, ISampleSelector(time));
+	return getSample(arch, prop, ISampleSelector(time), override_type);
     }
+    // If a type is specified, the implicit array type will be overridden
     static GABC_IArray getSample(GABC_IArchive &arch,
-		const IArrayProperty &prop, const ISampleSelector &iss);
+		const IArrayProperty &prop, const ISampleSelector &iss,
+		GT_Type override_type);
 
     GABC_IArray()
 	: GABC_IItem()

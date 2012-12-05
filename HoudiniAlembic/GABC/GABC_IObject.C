@@ -109,22 +109,6 @@ namespace
 	return GABCarray(GABC_IArray::getSample(arch, param, gttype));
     }
 
-    /// Given an AbcGeom::ITypedGeomParam (i.e. IN3fGeomParam)
-    template <typename T>
-    static GT_DataArrayHandle
-    arrayFromGeomParam(GABC_IArchive &arch, const T &gparam, fpreal t,
-	    GT_Type tinfo)
-    {
-	if (!gparam || !gparam.valid())
-	    return GT_DataArrayHandle();
-
-	ISampleSelector		 iss(t);
-	typename T::sample_type	psample;
-
-	const_cast<T &>(gparam).getExpanded(psample, iss);
-	return GABCarray(GABC_IArray::getSample(arch, psample.getVals(), tinfo));
-    }
-
     static bool
     matchScope(GeometryScope needle, const GeometryScope *haystack, int size)
     {
@@ -178,7 +162,7 @@ namespace
 	nsamp  = SYSmax(nsamp, 1);
 	std::pair<index_t, chrono_t> t0 = itime->getFloorIndex(t, nsamp);
 	i0 = i1 = t0.first;
-	if (SYSisEqual(t, t0.second, timeBias))
+	if (nsamp == 1 || SYSisEqual(t, t0.second, timeBias))
 	    return 0;
 	std::pair<index_t, chrono_t> t1 = itime->getCeilIndex(t, nsamp);
 	i1 = t1.first;
@@ -194,9 +178,10 @@ namespace
     }
 
     static GT_DataArrayHandle
-    getArraySample(GABC_IArchive &arch, const IArrayProperty &prop, index_t idx)
+    getArraySample(GABC_IArchive &arch, const IArrayProperty &prop,
+	    index_t idx, GT_Type tinfo)
     {
-	GABC_IArray	iarray = GABC_IArray::getSample(arch, prop, idx);
+	GABC_IArray	iarray = GABC_IArray::getSample(arch, prop, idx, tinfo);
 	return GABCarray(iarray);
     }
 
@@ -398,21 +383,44 @@ namespace
     }
 
     static GT_DataArrayHandle
-    readArrayProperty(GABC_IArchive &arch, IArrayProperty &prop, fpreal t)
+    readArrayProperty(GABC_IArchive &arch, const IArrayProperty &prop,
+	    fpreal t, GT_Type tinfo)
     {
 	index_t i0, i1;
 	fpreal	bias = getIndex(t, prop.getTimeSampling(),
 				prop.getNumSamples(), i0, i1);
-	GT_DataArrayHandle	s0 = getArraySample(arch, prop, i0);
+	GT_DataArrayHandle	s0 = getArraySample(arch, prop, i0, tinfo);
 	if (i0 == i1 || !GTisFloat(s0->getStorage()))
 	    return s0;
-	GT_DataArrayHandle	s1 = getArraySample(arch, prop, i1);
+	GT_DataArrayHandle	s1 = getArraySample(arch, prop, i1, tinfo);
 	return blendArrays(s0, s1, bias);
     }
 
+    template <typename T>
     static GT_DataArrayHandle
-    readScalarProperty(GABC_IArchive &arch,
-	    IScalarProperty &prop,
+    readGeomProperty(GABC_IArchive &arch, const T &gparam, fpreal t,
+	    GT_Type tinfo)
+    {
+	if (!gparam || !gparam.valid())
+	    return GT_DataArrayHandle();
+
+	index_t i0, i1;
+	fpreal	bias = getIndex(t, gparam.getTimeSampling(),
+				gparam.getNumSamples(), i0, i1);
+	typename T::sample_type	v0;
+	gparam.getExpanded(v0, i0);
+	GT_DataArrayHandle	s0 = arrayFromSample(arch, v0.getVals(), tinfo);
+	if (i0 == i1 || !GTisFloat(s0->getStorage()))
+	    return s0;
+	typename T::sample_type	v1;
+	gparam.getExpanded(v1, i1);
+	GT_DataArrayHandle	s1 = arrayFromSample(arch, v1.getVals(), tinfo);
+	return blendArrays(s0, s1, bias);
+    }
+
+
+    static GT_DataArrayHandle
+    readScalarProperty(GABC_IArchive &arch, const IScalarProperty &prop,
 	    fpreal t)
     {
 	index_t i0, i1;
@@ -440,7 +448,8 @@ namespace
 		*atype = prop.isConstant() ? GABC_ANIMATION_CONSTANT
 					: GABC_ANIMATION_ATTRIBUTE;
 	    }
-	    return readArrayProperty(arch, prop, t);
+	    // Pick up the type from the property interpretation
+	    return readArrayProperty(arch, prop, t, GT_TYPE_NONE);
 	}
 	else if (header.isScalar())
 	{
@@ -466,7 +475,7 @@ namespace
 	UT_ASSERT(P.valid());
 	atype = P.isConstant() ? GABC_ANIMATION_CONSTANT
 				: GABC_ANIMATION_ATTRIBUTE;
-	return readArrayProperty(*obj.archive(), P, t);
+	return readArrayProperty(*obj.archive(), P, t, GT_TYPE_POINT);
     }
 
     template <typename PRIM_T, typename SCHEMA_T>
@@ -478,7 +487,7 @@ namespace
 	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
 	if (!v.valid())
 	    return GT_DataArrayHandle();
-	return readArrayProperty(*obj.archive(), v, t);
+	return readArrayProperty(*obj.archive(), v, t, GT_TYPE_VECTOR);
     }
 
     static void
@@ -519,8 +528,7 @@ namespace
 		markFilled(alist, NAME, filled); \
 	    else \
 		setAttributeData(alist, NAME, \
-		    arrayFromSample(arch, VAR->getValue(sample), TYPEINFO), \
-				filled); \
+		    readArrayProperty(arch, *VAR, t, TYPEINFO), filled); \
 	}
     #define SET_GEOM_PARAM(VAR, NAME, TYPEINFO) \
 	if (VAR && VAR->valid() && matchScope(VAR->getScope(), \
@@ -528,7 +536,7 @@ namespace
 	    if (ONLY_ANIMATING && VAR->isConstant()) \
 		markFilled(alist, NAME, filled); \
 	    setAttributeData(alist, NAME, \
-		    arrayFromGeomParam(arch, *VAR, t, TYPEINFO), filled); \
+		    readGeomProperty(arch, *VAR, t, TYPEINFO), filled); \
 	}
 
     template <bool ONLY_ANIMATING>
