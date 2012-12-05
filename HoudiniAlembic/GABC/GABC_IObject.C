@@ -1775,12 +1775,15 @@ GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
     return prim;
 }
 
-
 GT_PrimitiveHandle
 GABC_IObject::getPointCloud(fpreal t,
 	GABC_AnimationType &atype) const
 {
     GT_DataArrayHandle	P = getPosition(t, atype);
+    if (!P && nodeType() == GABC_XFORM)
+    {
+	P = GT_DataArrayHandle(new GT_RealConstant(1, 0.0, 3, GT_TYPE_POINT));
+    }
     if (P)
     {
 	GT_AttributeMapHandle	pmap(new GT_AttributeMap());

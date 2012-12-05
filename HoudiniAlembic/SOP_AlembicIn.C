@@ -322,18 +322,18 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     evalString(sval, "fileName", 0, now);
     parms.myFilename = (const char *)sval;
 
+    parms.myBuildAbcXform = false;
     switch (evalInt("loadmode", 0, now))
     {
 	case 0:
 	default:
 	    parms.myLoadMode = GABC_GEOWalker::LOAD_ABC_PRIMITIVES;
+	    parms.myBuildAbcXform = (evalInt("abcxform", 0, now) != 0);
 	    break;
 	case 1:
 	    parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_PRIMITIVES;
 	    break;
     }
-    parms.myBuildAbcXform = parms.myLoadMode
-				&& (evalInt("abcxform", 0, now) != 0);
     parms.myBuildLocator = evalInt("loadLocator", 0, now) != 0;
 
     evalString(parms.myObjectPath, "objectPath", 0, now);

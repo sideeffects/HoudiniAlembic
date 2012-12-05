@@ -92,7 +92,8 @@ GABC_GTPrimitive::updateCache(const GT_RefineParms *parms)
 		myCache = obj.getBoxGeometry(frame, myAnimation);
 		break;
 	}
-	myCache->setPrimitiveTransform(getPrimitiveTransform());
+	if (myCache)
+	    myCache->setPrimitiveTransform(getPrimitiveTransform());
     }
     else if (myAnimation == GABC_ANIMATION_ATTRIBUTE && myCacheFrame != frame)
     {
