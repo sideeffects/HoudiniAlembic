@@ -117,7 +117,11 @@ namespace
 	    for (exint i = 0; i < nsegs; ++i)
 		gtlist(i) = myList(i)->gtPrimitive();
 	    openProceduralObject();
-		addProcedural(new VRAY_ProcGT(gtlist));
+		// We set the shutter close to be 1 since the deformation
+		// geometry already has the shutter built-in (i.e. the frame
+		// associated with the Alembic shape primitive has the sample
+		// time baked in).
+		addProcedural(new VRAY_ProcGT(gtlist, 1.0));
 	    closeObject();
 	    for (exint i = 0; i < nsegs; ++i)
 	    {
