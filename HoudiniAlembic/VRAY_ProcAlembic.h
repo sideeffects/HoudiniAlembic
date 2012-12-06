@@ -58,7 +58,12 @@ public:
     virtual bool	isThreadSafe() const	{ return true; }
 
 private:
-    GU_Detail			*myDetail;
+    const UT_Array<GU_Detail *>	&getDetailList() const
+    {
+	return myLoadDetails.entries() ? myLoadDetails : myConstDetails;
+    }
+
+    UT_Array<GU_Detail *>	 myLoadDetails;
     UT_Array<GU_Detail *>	 myConstDetails;
     fpreal			 myPreBlur, myPostBlur;
     bool			 myNonAlembic;

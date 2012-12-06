@@ -135,7 +135,7 @@ namespace
 };
 
 VRAY_ProcAlembic::VRAY_ProcAlembic()
-    : myDetail(NULL)
+    : myLoadDetails()
     , myConstDetails()
     , myPreBlur(0)
     , myPostBlur(0)
@@ -145,7 +145,8 @@ VRAY_ProcAlembic::VRAY_ProcAlembic()
 
 VRAY_ProcAlembic::~VRAY_ProcAlembic()
 {
-    delete myDetail;
+    for (int i = 0; i < myLoadDetails.entries(); ++i)
+	freeGeometry(myLoadDetails(i));
     for (int i = 0; i < myConstDetails.entries(); ++i)
 	freeGeometry(myConstDetails(i));
 }
@@ -173,19 +174,41 @@ VRAY_ProcAlembic::getClassName()
     return "VRAY_ProcAlembic";
 }
 
+static void
+moveAlembicTime(GU_Detail &gdp, fpreal finc)
+{
+    const GA_PrimitiveTypeId	abctype = GABC_GUPrim::theTypeId();
+
+    for (GA_Iterator it(gdp.getPrimitiveRange()); !it.atEnd(); ++it)
+    {
+	GEO_Primitive	*prim = gdp.getGEOPrimitive(*it);
+	if (prim->getTypeId() != abctype)
+	    continue;
+	GABC_GEOPrim	*abcprim = UTverify_cast<GABC_GEOPrim *>(prim);
+	abcprim->setFrame(abcprim->frame() + finc);
+    }
+}
+
 static bool
-loadDetail(GU_Detail *gdp,
+loadDetail(UT_Array<GU_Detail *> &details,
 	const char *filename,
 	fpreal frame,
 	fpreal fps,
+	const fpreal shutter[2],
 	UT_String &objectpath,
 	const UT_String &objectpattern)
 {
-    GABC_GEOWalker	walk(*gdp);
+    GABC_GEOWalker	walk(*details(0));
     bool		success;
+    fpreal		fstart = frame, finc = 1;
+    if (details.entries() > 1)
+    {
+	finc = (shutter[1] - shutter[0]) / fps;
+	fstart = frame - finc * shutter[0];
+    }
 
     walk.setObjectPattern(objectpattern);
-    walk.setFrame(frame, fps);
+    walk.setFrame(fstart, fps);
     walk.setIncludeXform(true);
     walk.setBuildLocator(false);
     walk.setLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES);
@@ -206,6 +229,14 @@ loadDetail(GU_Detail *gdp,
     else
     {
 	success = GABC_Util::walk(filename, walk);
+    }
+    if (success && details.entries() > 1)
+    {
+	for (int i = 1; i < details.entries(); ++i)
+	{
+	    details(i)->merge(*details(0));
+	    moveAlembicTime(*details(i), i*finc);
+	}
     }
     return success;
 }
@@ -247,16 +278,27 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
     {
 	fpreal	frame;
 	fpreal	fps;
-	myDetail = allocateGeometry();
+	fpreal	shutter[2];
+	int	nsegs;
+	if (!import("camera:shutter", shutter, 2))
+	{
+	    shutter[0] = 0;
+	    shutter[1] = 1;
+	}
+	if (!import("object:geosamples", &nsegs, 1))
+	    nsegs = 1;
+	for (int i = 0; i < nsegs; ++i)
+	    myLoadDetails.append(allocateGeometry());
 	import("frame", &frame, 1);
 	import("fps", &fps, 1);
 	import("objectpath", objectpath);
 	import("objectpattern", objectpattern);
-	if (!loadDetail(myDetail, filename, frame, fps,
+	if (!loadDetail(myLoadDetails, filename, frame, fps, shutter,
 		    objectpath, objectpattern))
 	{
-	    freeGeometry(myDetail);
-	    myDetail = NULL;
+	    for (int i = 0; i < myLoadDetails.entries(); ++i)
+		freeGeometry(myLoadDetails(i));
+	    myLoadDetails.resize(0);
 	}
     }
     else
@@ -311,7 +353,7 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 	    }
 	}
     }
-    return myDetail || myConstDetails.entries();
+    return myLoadDetails.entries() || myConstDetails.entries();
 }
 
 static fpreal
@@ -427,39 +469,29 @@ getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic,
 void
 VRAY_ProcAlembic::getBoundingBox(UT_BoundingBox &box)
 {
-    if (myDetail)
+    const UT_Array<GU_Detail *>	&details = getDetailList();
+    box.initBounds();
+    for (int i = 0; i < details.entries(); ++i)
     {
-	getBoxForRendering(*myDetail, box, myNonAlembic, myPreBlur, myPostBlur);
-    }
-    else
-    {
-	box.initBounds();
-	for (int i = 0; i < myConstDetails.entries(); ++i)
-	{
-	    UT_BoundingBox	tbox;
-	    getBoxForRendering(*myConstDetails(i), tbox,
-		    myNonAlembic, myPreBlur, myPostBlur);
-	    box.enlargeBounds(tbox);
-	}
+	UT_BoundingBox	tbox;
+	getBoxForRendering(*details(i), tbox,
+		myNonAlembic, myPreBlur, myPostBlur);
+	box.enlargeBounds(tbox);
     }
 }
 
 void
 VRAY_ProcAlembic::render()
 {
+    const UT_Array<GU_Detail *>	&details = getDetailList();
     const GU_Detail		*gdp;
     const GA_PrimitiveTypeId	 abctype = GABC_GUPrim::theTypeId();
     bool			 warned = false;
     bool			 addgeo = false;
 
-    int nsegments = myConstDetails.entries();
-    if (nsegments)
-	gdp = myConstDetails(0);
-    else
-    {
-	nsegments = 1;
-	gdp = myDetail;
-    }
+    int nsegments = details.entries();
+    UT_ASSERT(nsegments);
+    gdp = details(0);
 
     if (!gdp->getNumPrimitives())
     {
@@ -478,7 +510,7 @@ VRAY_ProcAlembic::render()
 		for (int i = 1; i < nsegments; ++i)
 		{
 		    const GEO_Primitive	*seg;
-		    seg = myConstDetails(i)->primitives()(prim->getNum());
+		    seg = details(i)->primitives()(prim->getNum());
 		    abclist(i) = UTverify_cast<const GABC_GEOPrim *>(seg);
 		}
 		openProceduralObject();
@@ -503,7 +535,7 @@ VRAY_ProcAlembic::render()
     if (addgeo)
     {
 	fpreal	tstep;
-	int	ngeo = myConstDetails.entries();
+	int	ngeo = details.entries();
 	if (ngeo > 0)
 	{
 	    tstep = ngeo > 1 ? 1.0/(ngeo-1) : 1;
