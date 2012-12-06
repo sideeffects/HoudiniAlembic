@@ -39,6 +39,7 @@ public:
 
     GABC_GTPrimitive(const GABC_GEOPrim *prim)
 	: myPrimitive(prim)
+	, myCacheFrame(0)
 	, myCacheLOD(LOD_SURFACE)
 	, myCache()
 	, myAnimation(GABC_ANIMATION_TOPOLOGY)

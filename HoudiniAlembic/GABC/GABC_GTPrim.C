@@ -36,7 +36,7 @@ GABC_GTPrimitive::enlargeBounds(UT_BoundingBox boxes[], int nseg) const
 {
     bool		isconst;
     UT_BoundingBox	box;
-    myPrimitive->object().getBoundingBox(box, myCacheFrame, isconst);
+    myPrimitive->object().getBoundingBox(box, myPrimitive->frame(), isconst);
     for (int i = 0; i < nseg; ++i)
 	boxes[i].enlargeBounds(box);
 }
@@ -147,15 +147,34 @@ GABC_GTPrimitive::getMemoryUsage() const
 bool
 GABC_GTPrimitive::save(UT_JSONWriter &w) const
 {
-    jsonWriter	j(w, "AlembicShape");
-    bool	ok = true;
+    jsonWriter		j(w, "AlembicShape");
+    UT_BoundingBox	box;
+    bool		ok = true;
+    std::string	filename = myPrimitive->filename();
+    std::string	objectPath = myPrimitive->objectPath();
     ok = ok && w.jsonBeginMap();
-    ok = ok && w.jsonKeyToken("cacheFrame");
-    ok = ok && w.jsonValue(myCacheFrame);
-    ok = ok && w.jsonKeyToken("cacheLOD");
-    ok = ok && w.jsonValue(myCacheLOD);
+    if (UTisstring(filename.c_str()))
+    {
+	ok = ok && w.jsonKeyToken("primFile");
+	ok = ok && w.jsonStringToken(filename.c_str());
+    }
+    if (UTisstring(objectPath.c_str()))
+    {
+	ok = ok && w.jsonKeyToken("primObject");
+	ok = ok && w.jsonStringToken(objectPath.c_str());
+    }
+    box.initBounds();
+    enlargeBounds(&box, 1);
+    ok = ok && w.jsonKeyToken("bounds");
+    ok = ok && box.save(w);
     if (myCache)
     {
+	ok = ok && w.jsonKeyToken("primFrame");
+	ok = ok && w.jsonValue(myPrimitive->frame());
+	ok = ok && w.jsonKeyToken("cacheFrame");
+	ok = ok && w.jsonValue(myCacheFrame);
+	ok = ok && w.jsonKeyToken("cacheLOD");
+	ok = ok && w.jsonValue(myCacheLOD);
 	ok = ok && w.jsonKeyToken("cacheGeometry");
 	ok = ok && myCache->save(w);
     }
