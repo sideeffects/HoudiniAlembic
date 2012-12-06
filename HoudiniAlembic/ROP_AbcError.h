@@ -31,31 +31,19 @@ public:
     {}
     virtual ~ROP_AbcError();
 
-    void	clear()
-		{
-		    mySuccess = true;
-		    handleClear();
-		}
+    void	clear();
 
     UT_Interrupt	*getInterrupt() const	{ return myInterrupt; }
     bool		 wasInterrupted() const;
 
-    bool	success() const
-		{
-		    return mySuccess;
-		}
+    bool		 success() const	{ return mySuccess; }
 
-    /// Error always returns false
-    bool	errorString(const char *msg)
-		{
-		    mySuccess = false;
-		    handleError(msg);
-		    return false;
-		}
-    void	warningString(const char *msg)	{ handleWarning(msg); }
-    void	infoString(const char *msg)		{ handleInfo(msg); }
+    /// @c errorString() always returns false
+    bool	errorString(const char *msg);
+    void	warningString(const char *msg);
+    void	infoString(const char *msg);
 
-    /// Error always returns false
+    /// @c error() always returns false
     bool	error(const char *format, ...)
 		    SYS_PRINTF_CHECK_ATTRIBUTE(2, 3);
     void	warning(const char *format, ...)

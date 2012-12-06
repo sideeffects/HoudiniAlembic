@@ -20,6 +20,8 @@
 #include <UT/UT_Interrupt.h>
 #include <stdarg.h>
 
+static UT_Lock	theLock;
+
 ROP_AbcError::~ROP_AbcError()
 {
 }
@@ -28,6 +30,36 @@ bool
 ROP_AbcError::wasInterrupted() const
 {
     return myInterrupt && myInterrupt->opInterrupt();
+}
+
+void
+ROP_AbcError::clear()
+{
+    UT_AutoLock	lock(theLock);
+    mySuccess = true;
+    handleClear();
+}
+
+bool
+ROP_AbcError::errorString(const char *msg)
+{
+    UT_AutoLock	lock(theLock);
+    handleError(msg);
+    mySuccess = false;
+    return false;
+}
+void
+ROP_AbcError::warningString(const char *msg)
+{
+    UT_AutoLock	lock(theLock);
+    handleWarning(msg);
+}
+
+void
+ROP_AbcError::infoString(const char *msg)
+{
+    UT_AutoLock	lock(theLock);
+    handleInfo(msg);
 }
 
 bool
@@ -39,6 +71,8 @@ ROP_AbcError::error(const char *format, ...)
     va_start(args, format);
     wbuf.vsprintf(format, args);
     va_end(args);
+
+    UT_AutoLock	lock(theLock);
     handleError(wbuf.buffer());
     mySuccess = false;
     return false;
@@ -53,6 +87,8 @@ ROP_AbcError::warning(const char *format, ...)
     va_start(args, format);
     wbuf.vsprintf(format, args);
     va_end(args);
+
+    UT_AutoLock	lock(theLock);
     handleWarning(wbuf.buffer());
 }
 
@@ -65,6 +101,8 @@ ROP_AbcError::info(const char *format, ...)
     va_start(args, format);
     wbuf.vsprintf(format, args);
     va_end(args);
+
+    UT_AutoLock	lock(theLock);
     handleInfo(wbuf.buffer());
 }
 
