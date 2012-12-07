@@ -34,7 +34,8 @@ public:
     {
 	LOD_SURFACE,
 	LOD_POINTS,
-	LOD_BOXES
+	LOD_BOXES,
+	LOD_CENTROID
     };
 
     GABC_GTPrimitive(const GABC_GEOPrim *prim)

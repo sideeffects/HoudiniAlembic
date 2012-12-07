@@ -136,6 +136,10 @@ public:
     /// attributes.
     GT_PrimitiveHandle	getBoxGeometry(fpreal t, GABC_AnimationType &a) const;
 
+    /// Get a point for the centroid of the bounding box.  This doesn't include
+    /// any attributes.
+    GT_PrimitiveHandle	getCentroidGeometry(fpreal t, GABC_AnimationType &a) const;
+
     /// Get local transform for the object.  For shape objects, this will
     /// return an identity transform.  The animation type only considers the
     /// local transform (not all the parent transforms).

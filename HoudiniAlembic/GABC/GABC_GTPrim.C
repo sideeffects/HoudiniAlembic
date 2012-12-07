@@ -49,7 +49,9 @@ GABC_GTPrimitive::getLOD(const GT_RefineParms *parms)
 	return LOD_SURFACE;
     if (lod > 0.49)
 	return LOD_POINTS;
-    return LOD_BOXES;
+    if (lod > 0.24)
+	return LOD_BOXES;
+    return LOD_CENTROID;
 }
 
 void
@@ -91,6 +93,9 @@ GABC_GTPrimitive::updateCache(const GT_RefineParms *parms)
 	    case LOD_BOXES:
 		myCache = obj.getBoxGeometry(frame, myAnimation);
 		break;
+	    case LOD_CENTROID:
+		myCache = obj.getCentroidGeometry(frame, myAnimation);
+		break;
 	}
 	if (myCache)
 	    myCache->setPrimitiveTransform(getPrimitiveTransform());
@@ -110,6 +115,9 @@ GABC_GTPrimitive::updateCache(const GT_RefineParms *parms)
 		break;
 	    case LOD_BOXES:
 		myCache = obj.getBoxGeometry(frame, myAnimation);
+		break;
+	    case LOD_CENTROID:
+		myCache = obj.getCentroidGeometry(frame, myAnimation);
 		break;
 	}
     }

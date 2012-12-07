@@ -1810,6 +1810,25 @@ GABC_IObject::getBoxGeometry(fpreal t, GABC_AnimationType &atype) const
     return GT_PrimitiveBuilder::wireBox(err, box, NULL);
 }
 
+GT_PrimitiveHandle
+GABC_IObject::getCentroidGeometry(fpreal t, GABC_AnimationType &atype) const
+{
+    bool		isconst;
+    UT_BoundingBox	box;
+    if (!getBoundingBox(box, t, isconst))
+	return GT_PrimitiveHandle();
+    atype = isconst ? GABC_ANIMATION_CONSTANT : GABC_ANIMATION_ATTRIBUTE;
+    fpreal64	pos[3];
+    pos[0] = box.xcenter();
+    pos[1] = box.ycenter();
+    pos[2] = box.zcenter();
+    GT_AttributeListHandle	 pt;
+    pt = GT_AttributeList::createAttributeList(
+	    "P", new GT_RealConstant(1, pos, 3, GT_TYPE_POINT),
+	    NULL);
+    return new GT_PrimPointMesh(pt, GT_AttributeListHandle());
+}
+
 bool
 GABC_IObject::getLocalTransform(UT_Matrix4D &xform, fpreal t,
 				GABC_AnimationType &atype,
