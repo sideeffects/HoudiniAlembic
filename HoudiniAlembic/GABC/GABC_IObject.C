@@ -418,6 +418,29 @@ namespace
 	return blendArrays(s0, s1, bias);
     }
 
+    static GT_DataArrayHandle
+    readUVProperty(GABC_IArchive &arch, const IV2fGeomParam &uvs, fpreal t)
+    {
+	// Alembic stores uv's as a 2-tuple, but Houdini expects a 3-tuple
+	GT_DataArrayHandle	uv2 = readGeomProperty(arch, uvs,
+					t, GT_TYPE_NONE);
+	UT_ASSERT(uv2 && uv2->getTupleSize() == 2);
+	if (uv2->getTupleSize() == 3)
+	    return uv2;
+	GT_Size			n = uv2->entries();
+	GT_Real32Array		*uv3 = new GT_Real32Array(n, 3,
+						uv2->getTypeInfo());
+	GT_DataArrayHandle	storage;
+	const fpreal32	*src = uv2->getF32Array(storage);
+	fpreal32	*dest = uv3->data();
+	for (exint i = 0; i < n; ++i, src += 2, dest += 3)
+	{
+	    dest[0] = src[0];
+	    dest[1] = src[1];
+	    dest[2] = 0;
+	}
+	return GT_DataArrayHandle(uv3);
+    }
 
     static GT_DataArrayHandle
     readScalarProperty(GABC_IArchive &arch, const IScalarProperty &prop,
@@ -538,6 +561,14 @@ namespace
 	    setAttributeData(alist, NAME, \
 		    readGeomProperty(arch, *VAR, t, TYPEINFO), filled); \
 	}
+    #define SET_GEOM_UVS_PARAM(VAR, NAME) \
+	if (VAR && VAR->valid() && matchScope(VAR->getScope(), \
+		    scope, scope_size)) { \
+	    if (ONLY_ANIMATING && VAR->isConstant()) \
+		markFilled(alist, NAME, filled); \
+	    setAttributeData(alist, NAME, \
+		    readUVProperty(arch, *VAR, t), filled); \
+	}
 
     template <bool ONLY_ANIMATING>
     static void
@@ -571,7 +602,7 @@ namespace
 	SET_ARRAY(v, "v", GT_TYPE_VECTOR)
 	SET_ARRAY(ids, "id", GT_TYPE_NONE)
 	SET_GEOM_PARAM(N, "N", GT_TYPE_NORMAL)
-	SET_GEOM_PARAM(uvs, "uv", GT_TYPE_NONE)
+	SET_GEOM_UVS_PARAM(uvs, "uv")
 	SET_GEOM_PARAM(widths, "width", GT_TYPE_NONE)
 	SET_ARRAY(Pw, "Pw", GT_TYPE_NONE)
 	if (prim && matchScope(gabcConstantScope, scope, scope_size))
