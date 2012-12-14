@@ -1152,7 +1152,10 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
     , myRebuiltNURBS(false)
 {
     if (myBoss)
-	myBossId = myBoss->opStart("Building geometry from Alembic tree");
+    {
+	myBoss->opStart("Building geometry from Alembic tree",
+			0, 0, &myBossId);
+    }
     myAttributePatterns[GA_ATTRIB_VERTEX] = "*";
     myAttributePatterns[GA_ATTRIB_POINT] = "*";
     myAttributePatterns[GA_ATTRIB_PRIMITIVE] = "*";
