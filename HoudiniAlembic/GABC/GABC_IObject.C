@@ -1219,10 +1219,10 @@ namespace
 	point->set( Pidx, new GT_RealConstant(1, ldata, 3), 0);
 	detail->set(lPidx, new GT_RealConstant(1, ldata, 3), 0);
 	detail->set(lSidx, new GT_RealConstant(1, ldata+3, 3), 0);
-	detail->set(pXidx, new GT_RealConstant(1, pxval.x, 3), 0);
-	detail->set(pRidx, new GT_RealConstant(1, prval.x, 3), 0);
-	detail->set(pSidx, new GT_RealConstant(1, psval.x, 3), 0);
-	detail->set(pHidx, new GT_RealConstant(1, phval.x, 3), 0);
+	detail->set(pXidx, new GT_RealConstant(1, &pxval.x, 3), 0);
+	detail->set(pRidx, new GT_RealConstant(1, &prval.x, 3), 0);
+	detail->set(pSidx, new GT_RealConstant(1, &psval.x, 3), 0);
+	detail->set(pHidx, new GT_RealConstant(1, &phval.x, 3), 0);
 
 	return new GT_PrimPointMesh(point, detail);
     }
