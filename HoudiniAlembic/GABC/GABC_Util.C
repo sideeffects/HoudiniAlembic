@@ -261,6 +261,10 @@ namespace
 
     struct ArchiveCacheEntry
     {
+	typedef GABC_Util::ArchiveEventHandler		ArchiveEventHandler;
+	typedef GABC_Util::ArchiveEventHandlerPtr	ArchiveEventHandlerPtr;
+
+	typedef UT_Set<ArchiveEventHandlerPtr>	HandlerSetType;
         ArchiveCacheEntry()
 	    : myCache("abcObjects", 2)
 	    , myDynamicXforms("abxTransforms", 4)
@@ -270,8 +274,31 @@ namespace
         ~ArchiveCacheEntry()
         {
 	    if (myArchive)
+	    {
+		for (HandlerSetType::iterator it = myHandlers.begin();
+			it != myHandlers.end(); ++it)
+		{
+		    const ArchiveEventHandlerPtr	&handler = *it;
+		    if (handler->archive() == myArchive.get())
+		    {
+			handler->cleared();
+			handler->setArchivePtr(NULL);
+		    }
+		}
 		myArchive->purgeObjects();
+	    }
         }
+
+	bool	addHandler(const ArchiveEventHandlerPtr &handler)
+		{
+		    if (myArchive && handler)
+		    {
+			myHandlers.insert(handler);
+			handler->setArchivePtr(myArchive.get());
+			return true;
+		    }
+		    return false;
+		}
 
 	bool	walk(GABC_Util::Walker &walker)
 		{
@@ -502,6 +529,7 @@ namespace
 	AbcTransformMap		myStaticXforms;
 	UT_CappedCache		myCache;
 	UT_CappedCache		myDynamicXforms;
+	HandlerSetType		myHandlers;
     };
 
     typedef UT_SharedPtr<ArchiveCacheEntry>		ArchiveCacheEntryPtr;
@@ -515,6 +543,20 @@ namespace
     ArchiveCache *g_archiveCache(new ArchiveCache);
 
     //-*************************************************************************
+
+    ArchiveCacheEntryPtr
+    FindArchive(const std::string &path)
+    {
+	if (UTisstring(path.c_str()) && UTaccess(path.c_str(), R_OK) == 0)
+	{
+	    ArchiveCache::iterator I = g_archiveCache->find(path);
+	    if (I != g_archiveCache->end())
+	    {
+		return (*I).second;
+	    }
+	}
+	return ArchiveCacheEntryPtr();
+    }
 
     ArchiveCacheEntryPtr
     LoadArchive(const std::string &path)
@@ -677,6 +719,7 @@ GABC_Util::getLocalTransform(const std::string &filename,
     }
     catch (const std::exception &)
     {
+	success = false;
     }
     if (success)
 	xform = UT_Matrix4D(lxform.x);
@@ -744,13 +787,31 @@ GABC_Util::getWorldTransform(const std::string &filename,
     return success;
 }
 
-GABC_IArchivePtr
-GABC_Util::open(const std::string &path)
+GABC_Util::ArchiveEventHandler::~ArchiveEventHandler()
 {
-    ArchiveCacheEntryPtr	arch = LoadArchive(path);
-    return arch->archive();
 }
 
+void
+GABC_Util::ArchiveEventHandler::stopReceivingEvents()
+{
+    myArchive = NULL;
+}
+
+bool
+GABC_Util::addEventHandler(const std::string &path,
+	const GABC_Util::ArchiveEventHandlerPtr &handler)
+{
+    if (handler)
+    {
+	ArchiveCacheEntryPtr	arch = FindArchive(path);
+	if (arch)
+	{
+	    if (arch->addHandler(handler))
+		return true;
+	}
+    }
+    return false;
+}
 
 const PathList &
 GABC_Util::getObjectList(const std::string &filename)

@@ -286,6 +286,7 @@ SOP_AlembicIn2::SOP_AlembicIn2(OP_Network *net, const char *name,
 
 SOP_AlembicIn2::~SOP_AlembicIn2()
 {
+    clearEventHandler();
 }
 
 //-*****************************************************************************
@@ -376,6 +377,37 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	if (abcName.isstring() && hName.isstring())
 	    parms.myNameMapPtr->addMap(abcName, hName);
     }
+}
+
+//-*****************************************************************************
+void
+SOP_AlembicIn2::setupEventHandler(const std::string &filename)
+{
+    clearEventHandler();
+    myEventHandler.reset(new EventHandler(this));
+    if (!GABC_Util::addEventHandler(filename, myEventHandler))
+	myEventHandler.clear();
+}
+
+void
+SOP_AlembicIn2::clearEventHandler()
+{
+    if (myEventHandler)
+    {
+	EventHandler	*h = UTverify_cast<EventHandler*>(myEventHandler.get());
+	h->setSOP(NULL);	// Clear out SOP ptr so no callbacks happen
+    }
+}
+
+//-*****************************************************************************
+
+void
+SOP_AlembicIn2::archiveClearEvent()
+{
+    // Clear out the lasst-cook parameters
+    myLastParms = Parms();
+    myConstantUniqueId = -1;
+    forceRecook();
 }
 
 //-*****************************************************************************
@@ -482,6 +514,8 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     }
     if (needwalk)
     {
+	// So we don't get events during our cook
+	clearEventHandler();
 	if (parms.myObjectPath.isstring())
 	{
 	    UT_WorkArgs	args;
@@ -500,6 +534,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	    if (!GABC_Util::walk(parms.myFilename, walk))
 		addError(SOP_MESSAGE, "Error evaluating Alembic file");
 	}
+	setupEventHandler(parms.myFilename);
     }
 
     if (error() < UT_ERROR_ABORT)

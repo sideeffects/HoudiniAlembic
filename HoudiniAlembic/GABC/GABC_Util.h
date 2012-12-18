@@ -25,6 +25,7 @@
 // Houdini includes
 #include <SYS/SYS_Types.h>
 #include <UT/UT_Matrix4.h>
+#include <UT/UT_SharedPtr.h>
 #include "GABC_IArchive.h"
 #include "GABC_IObject.h"
 
@@ -94,7 +95,38 @@ public:
 	friend class GABC_Util;
     };
 
-    static GABC_IArchivePtr	open(const std::string &filename);
+    /// Event functor called when an archive is flushed from the cache
+    class GABC_API ArchiveEventHandler
+    {
+    public:
+	ArchiveEventHandler() {}
+	virtual ~ArchiveEventHandler();
+
+	/// Return whether the event handler is wired up to an archive
+	bool		valid() const	{ return myArchive != NULL; }
+
+	/// Call this method to no longer receive events
+	void		stopReceivingEvents();
+
+	/// This method is called when the archive is cleared.  The handler
+	/// will no longer receive any events after the archive is cleared.
+	virtual void	cleared() = 0;
+
+	/// @{
+	/// @private
+	/// Methods used to access internal state
+	void		 setArchivePtr(void *a) { myArchive = a; }
+	const void	*archive() const { return myArchive; }
+	/// @}
+    private:
+	void	*myArchive;
+    };
+    typedef UT_SharedPtr<ArchiveEventHandler>	ArchiveEventHandlerPtr;
+
+    /// Add an event handler to be notified of events on the given filename
+    /// The method returns false if the archive hasn't been loaded yet.
+    static bool		addEventHandler(const std::string &filename,
+				const ArchiveEventHandlerPtr &handler);
 
     /// Clear the cache.  If no filename is given, the entire cache will be
     /// cleared.
@@ -118,7 +150,7 @@ public:
     /// Process a list of unique objects in an Alembic file (including their
     /// children)
     static bool		walk(const std::string &filename, Walker &walker,
-			    const UT_StringArray &objects);
+				const UT_StringArray &objects);
 
     /// Get the local transform for a given node in an Alembic file.  The @c
     /// isConstant flag will be true if the local transform is constant (even

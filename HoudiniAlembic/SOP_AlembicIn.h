@@ -47,6 +47,8 @@
 class SOP_AlembicIn2 : public SOP_Node
 {
 public:
+    typedef GABC_Util::ArchiveEventHandler	ArchiveEventHandler;
+    typedef GABC_Util::ArchiveEventHandlerPtr	ArchiveEventHandlerPtr;
     //--------------------------------------------------------------------------
     // Standard hdk declarations
     static OP_Node *myConstructor(OP_Network *net, const char *name,
@@ -59,6 +61,9 @@ public:
 
     static void installSOP(OP_OperatorTable *table);
 
+    /// Called when an archive gets cleared from the cache
+    void	archiveClearEvent();
+
 protected:
     //--------------------------------------------------------------------------
     // Standard hdk declarations
@@ -69,8 +74,12 @@ protected:
     virtual OP_ERROR	cookMySop(OP_Context &context);
     virtual void	syncNodeVersion(const char *old_version,
 				const char *new_version, bool *node_deleted);
+    //--------------------------------------------------------------------------
 
 private:
+    void	setupEventHandler(const std::string &filename);
+    void	clearEventHandler();
+
     class Parms
     {
     public:
@@ -98,12 +107,36 @@ private:
 	GABC_NameMapPtr			myNameMapPtr;
     };
 
+    class EventHandler : public ArchiveEventHandler
+    {
+    public:
+	EventHandler(SOP_AlembicIn2 *sop)
+	    : mySOP(sop)
+	{
+	}
+	virtual ~EventHandler() {}
+
+	void	setSOP(SOP_AlembicIn2 *sop)	{ mySOP = sop; }
+
+	virtual void	cleared()
+	{
+	    if (mySOP)
+	    {
+		mySOP->archiveClearEvent();
+		mySOP = NULL;
+	    }
+	}
+    private:
+	SOP_AlembicIn2	*mySOP;
+    };
+
     void	evaluateParms(Parms &parms, OP_Context &context);
 
-    Parms	myLastParms;
-    bool	myTopologyConstant;
-    bool	myEntireSceneIsConstant;
-    int		myConstantUniqueId;	// Detail id for constant topology
+    ArchiveEventHandlerPtr	myEventHandler;
+    Parms			myLastParms;
+    bool			myTopologyConstant;
+    bool			myEntireSceneIsConstant;
+    int				myConstantUniqueId; // Detail id for constant topology
 };
 
 #endif
