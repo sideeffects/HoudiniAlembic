@@ -229,10 +229,11 @@ namespace
     static const char	*Doc_ArbGeometry =
 	"(value, isConstant, scope) = alembicArbGeometry(abcPath, objectPath, name, sampleTime)\n"
 	"\n"
-	"Returns None or a tuple (value,isConstant,scope).  The tuple contains the"
-	"value for the attribute, it's scope ('varying', 'vertex', 'facevarying', 'uniform',"
-	"'constant' or 'unknown') and a boolean flag indicating whether the attribute"
-	"is constant over time or not.";
+	"Returns None or a tuple (value,isConstant,scope).  The tuple\n"
+	"contains the value for the attribute, it's scope ('varying',\n"
+	"'vertex', 'facevarying', 'uniform', 'constant' or 'unknown') and\n"
+	"a boolean flag indicating whether the attribute is constant over\n"
+	"time or not.";
 
     PY_PyObject *
     Py_AlembicArbGeometry(PY_PyObject *self, PY_PyObject *args)
@@ -269,10 +270,9 @@ namespace
     static const char	*Doc_UserProperty =
 	"(value, isConstant) = alembicUserProperty(abcPath, objectPath, name, sampleTime)\n"
 	"\n"
-	"Returns None or a tuple (value,scope,isConstant).  The tuple contains the"
-	"value for the attribute, it's scope ('varying', 'vertex', 'facevarying', 'uniform',"
-	"'constant' or 'unknown') and a boolean flag indicating whether the attribute"
-	"is constant over time or not.";
+	"Returns None or a tuple (value,isConstant).  The tuple contains the\n"
+	"value for the attribute, and a boolean flag indicating whether the\n"
+	"attribute is constant over time or not.\n";
 
     PY_PyObject *
     Py_AlembicUserProperty(PY_PyObject *self, PY_PyObject *args)
@@ -298,7 +298,7 @@ namespace
 	    PY_Py_RETURN_NONE;
 	}
 	data = obj.getUserProperty(name, sampleTime, atype);
-	PY_PyObject	*rcode = PY_PyTuple_New(3);
+	PY_PyObject	*rcode = PY_PyTuple_New(2);
 	PY_PyTuple_SetItem(rcode, 0, dataFromArray(data));
 	PY_PyTuple_SetItem(rcode, 1, atype == GABC_ANIMATION_CONSTANT ? PY_Py_True() : PY_Py_False());
 	return rcode;
