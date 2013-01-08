@@ -226,7 +226,7 @@ public:
 
 protected:
     /// Verify the object matches filters before generating geometry
-    bool		 acceptFilter(const GABC_IObject &obj) const;
+    bool		 filterObject(const GABC_IObject &obj) const;
 
 private:
     bool		 matchObjectName(const GABC_IObject &obj) const;

@@ -1246,7 +1246,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	IXform	xform(obj.object(), gabcWrapExisting);
 	if (buildLocator() && obj.isMayaLocator())
 	{
-	    if (acceptFilter(obj))
+	    if (filterObject(obj))
 	    {
 		if (buildAbcPrim())
 		    makeAbcPrim(*this, obj, ohead);
@@ -1267,7 +1267,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	return true;
     }
 
-    if (acceptFilter(obj))
+    if (filterObject(obj))
     {
 	if (buildAbcPrim())
 	    makeAbcPrim(*this, obj, ohead);
@@ -1320,7 +1320,7 @@ GABC_GEOWalker::interrupted() const
 }
 
 bool
-GABC_GEOWalker::acceptFilter(const GABC_IObject &obj) const
+GABC_GEOWalker::filterObject(const GABC_IObject &obj) const
 {
     return matchObjectName(obj) &&
 	    matchAnimationFilter(obj) &&
@@ -1367,10 +1367,19 @@ GABC_GEOWalker::matchBounds(const GABC_IObject &obj) const
     if (myBoxCullMode == BOX_CULL_IGNORE)
 	return true;
 
+    if (IXform::matches(obj.getHeader()))
+	return true;	// Any transform nodes match
+
     bool		isConstant;
     UT_BoundingBox	box;
 
     obj.getBoundingBox(box, myTime, isConstant);
+    if (includeXform())
+    {
+	// The top of our transform stack is the world space transform for the
+	// shape.
+	box.transform(UT_Matrix4(myMatrix.x));
+    }
     switch (myBoxCullMode)
     {
 	case BOX_CULL_ANY_INSIDE:
