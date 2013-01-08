@@ -71,7 +71,6 @@ public:
 	LOAD_ABC_PRIMITIVES,		// Load Alembic primitives
 	LOAD_HOUDINI_PRIMITIVES,	// Load houdini primitives
 	LOAD_HOUDINI_POINTS,		// Load point cloud for objects
-	LOAD_ABC_BOXES,			// Load Bounds as Alembic geometry
 	LOAD_HOUDINI_BOXES		// Load Bounds as Houdini geometry
     };
 

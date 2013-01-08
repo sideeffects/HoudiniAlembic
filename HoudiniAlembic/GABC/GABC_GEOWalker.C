@@ -1123,6 +1123,51 @@ namespace {
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
+
+    static void
+    buildPointCloud(GABC_GEOWalker &walk, const GABC_IObject &obj,
+		    const P3fArraySamplePtr &P)
+    {
+	GU_Detail		&gdp = walk.detail();
+	exint			 startpoint = walk.pointCount();
+	exint			 npoint = P->size();
+	const Imath::V3f	*Pdata = P->get();
+
+	if (!walk.reusePrimitives())
+	{
+	    for (exint i = 0; i < npoint; ++i)
+	    {
+		GA_Offset	pt = gdp.appendPointOffset();
+		UT_ASSERT(pt == GA_Offset(startpoint+i));
+	    }
+	}
+	for (exint i = 0; i < npoint; ++i)
+	{
+	    GA_Offset	pt = GA_Offset(startpoint+i);
+	    gdp.setPos3(pt, Pdata[i].x, Pdata[i].y, Pdata[i].z);
+	}
+	UT_String	groupname;
+	if (walk.getGroupName(groupname, obj))
+	{
+	    GA_PointGroup	*g = gdp.newPointGroup(groupname);
+	    for (exint i = 0; i < npoint; ++i)
+		g->addOffset(GA_Offset(startpoint+i));
+	}
+	if (getAnimationType(walk, obj) != GABC_ANIMATION_CONSTANT)
+	    walk.setNonConstant();
+	walk.trackPtVtxPrim(obj, npoint, 0, 0, true);
+    }
+
+    template <typename ABC_T, typename SCHEMA_T>
+    static void
+    makePointMesh(GABC_GEOWalker &walk, const GABC_IObject &obj)
+    {
+	ISampleSelector		 iss = walk.timeSample();
+	ABC_T			 prim(obj.object(), gabcWrapExisting);
+	SCHEMA_T		&ps = prim.getSchema();
+	P3fArraySamplePtr	 P = ps.getPositionsProperty().getValue(iss);
+	buildPointCloud(walk, obj, P);
+    }
 }
 
 GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
@@ -1173,7 +1218,8 @@ GABC_GEOWalker::~GABC_GEOWalker()
 void
 GABC_GEOWalker::setReusePrimitives(bool v)
 {
-    myReusePrimitives = v && myDetail.getNumPrimitives() > 0;
+    myReusePrimitives = v &&
+	(myDetail.getNumPrimitives() > 0 || myLoadMode == LOAD_HOUDINI_POINTS);
 }
 
 void
@@ -1269,44 +1315,89 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 
     if (filterObject(obj))
     {
-	if (buildAbcPrim())
-	    makeAbcPrim(*this, obj, ohead);
-	else
+	switch (myLoadMode)
 	{
-	    switch (obj.nodeType())
-	    {
-		case GABC_POLYMESH:
-		    makePolyMesh(*this, obj);
-		    break;
-		case GABC_SUBD:
-		    makeSubD(*this, obj);
-		    break;
-		case GABC_CURVES:
-		    makeCurves(*this, obj);
-		    break;
-		case GABC_POINTS:
-		    makePoints(*this, obj);
-		    break;
-		case GABC_NUPATCH:
-		    makeNuPatch(*this, obj);
-		    break;
+	    case LOAD_ABC_PRIMITIVES:
+		makeAbcPrim(*this, obj, ohead);
+		break;
+	    case LOAD_HOUDINI_PRIMITIVES:
+		switch (obj.nodeType())
+		{
+		    case GABC_POLYMESH:
+			makePolyMesh(*this, obj);
+			break;
+		    case GABC_SUBD:
+			makeSubD(*this, obj);
+			break;
+		    case GABC_CURVES:
+			makeCurves(*this, obj);
+			break;
+		    case GABC_POINTS:
+			makePoints(*this, obj);
+			break;
+		    case GABC_NUPATCH:
+			makeNuPatch(*this, obj);
+			break;
 
-		case GABC_CAMERA:	// Ignore these leaf nodes
-		case GABC_FACESET:
-		case GABC_LIGHT:
-		case GABC_MATERIAL:
-		    break;
+		    case GABC_CAMERA:	// Ignore these leaf nodes
+		    case GABC_FACESET:
+		    case GABC_LIGHT:
+		    case GABC_MATERIAL:
+			break;
 
-		default:
+		    default:
 		    {
 			GABC_IObject	parent = obj.getParent();
 			if (parent.valid())
 			{
-			    fprintf(stderr, "Unknown alembic node type: %s\n",
+			    fprintf(stderr,
+				    "Unknown alembic node type: %s\n",
 				    obj.getFullName().c_str());
 			}
 		    }
-	    }
+		}
+		break;
+
+	    case LOAD_HOUDINI_POINTS:
+		switch (obj.nodeType())
+		{
+		    case GABC_POLYMESH:
+			makePointMesh<IPolyMesh, IPolyMeshSchema>(*this, obj);
+			break;
+		    case GABC_SUBD:
+			makePointMesh<ISubD, ISubDSchema>(*this, obj);
+			break;
+		    case GABC_CURVES:
+			makePointMesh<ICurves, ICurvesSchema>(*this, obj);
+			break;
+		    case GABC_POINTS:
+			makePointMesh<IPoints, IPointsSchema>(*this, obj);
+			break;
+		    case GABC_NUPATCH:
+			makePointMesh<INuPatch, INuPatchSchema>(*this, obj);
+			break;
+
+		    case GABC_CAMERA:	// Ignore these leaf nodes
+		    case GABC_FACESET:
+		    case GABC_LIGHT:
+		    case GABC_MATERIAL:
+			break;
+
+		    default:
+		    {
+			GABC_IObject	parent = obj.getParent();
+			if (parent.valid())
+			{
+			    fprintf(stderr,
+				    "Unknown alembic node type: %s\n",
+				    obj.getFullName().c_str());
+			}
+		    }
+		}
+		break;
+	    case LOAD_HOUDINI_BOXES:
+	    default:
+		UT_ASSERT(0);
 	}
     }
 
@@ -1374,6 +1465,13 @@ GABC_GEOWalker::matchBounds(const GABC_IObject &obj) const
     UT_BoundingBox	box;
 
     obj.getBoundingBox(box, myTime, isConstant);
+    if (!isConstant)
+    {
+	// If the bounding box changes over time, then we may be culled in the
+	// future, meaning that the primitive count is non-constant.
+	const_cast<GABC_GEOWalker *>(this)->setNonConstant();
+	const_cast<GABC_GEOWalker *>(this)->setNonConstantTopology();
+    }
     if (includeXform())
     {
 	// The top of our transform stack is the world space transform for the
@@ -1472,7 +1570,7 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
     UT_ASSERT(myDetail.getNumPoints() >= myPointCount + npoint);
     UT_ASSERT(myDetail.getNumVertices() >= myVertexCount + nvertex);
     UT_ASSERT(myDetail.getNumPrimitives() >= myPrimitiveCount + nprim);
-    if (myPathAttribute.isValid() && pathAttributeChanged())
+    if (nprim && myPathAttribute.isValid() && pathAttributeChanged())
     {
 	std::string	 pathStr = obj.getFullName();
 	const char	*path = pathStr.c_str();
@@ -1483,7 +1581,7 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
     }
     UT_String		 gname;
     GA_PrimitiveGroup	*g = NULL;
-    if (getGroupName(gname, obj))
+    if (nprim && getGroupName(gname, obj))
     {
 	g = myDetail.newPrimitiveGroup(gname);
 	for (exint i = 0; i < nprim; ++i)

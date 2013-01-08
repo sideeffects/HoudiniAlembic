@@ -201,8 +201,7 @@ static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
 static PRM_Name	loadModeOptions[] = {
     PRM_Name("alembic",	"Alembic Delayed Load Primitives"),
     PRM_Name("houdini",	"Load Houdini Geometry"),
-    // PRM_Name("hpoints", "Houdini Point Cloud"),
-    // PRM_Name("abcboxes", "Alembic Primitive Boxes"),
+    PRM_Name("hpoints", "Houdini Point Cloud"),
     // PRM_Name("hboxes", "Houdini Boxes"),
     PRM_Name( 0 )
 };
@@ -428,6 +427,9 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	case 1:
 	    parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_PRIMITIVES;
 	    break;
+	case 2:
+	    parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_POINTS;
+	    break;
     }
     parms.myBuildLocator = evalInt("loadLocator", 0, now) != 0;
     parms.myBoundMode = getCullingBox(parms.myBoundBox, context);
@@ -575,14 +577,13 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     walk.setBounds(parms.myBoundMode, parms.myBoundBox);
 
     bool	needwalk = true;
-    if (!myTopologyConstant)
+    walk.setReusePrimitives(myTopologyConstant);
+    if (!walk.reusePrimitives())
     {
 	gdp->clearAndDestroy();
-	walk.setReusePrimitives(false);
     }
     else
     {
-	walk.setReusePrimitives(true);
 	gdp->destroyInternalNormalAttribute();
 	if (walk.buildAbcPrim())
 	{
