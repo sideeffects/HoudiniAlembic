@@ -22,6 +22,7 @@
 #include <UT/UT_StackBuffer.h>
 #include <Alembic/AbcGeom/All.h>
 #include <GU/GU_PrimPoly.h>
+#include <GU/GU_PrimPolySoup.h>
 #include <GU/GU_PrimPart.h>
 #include <GU/GU_PrimNURBSurf.h>
 #include <GA/GA_Handle.h>
@@ -1168,6 +1169,76 @@ namespace {
 	P3fArraySamplePtr	 P = ps.getPositionsProperty().getValue(iss);
 	buildPointCloud(walk, obj, P);
     }
+
+    // Vertex->point mappings for box.  The points are expected to be in the
+    // order:
+    //   0: (xmin, ymin, zmin)
+    //   1: (xmax, ymin, zmin)
+    //   2: (xmin, ymax, zmin)
+    //   3: (xmax, ymax, zmin)
+    //   4: (xmin, ymin, zmax)
+    //   5: (xmax, ymin, zmax)
+    //   6: (xmin, ymax, zmax)
+    //   7: (xmax, ymax, zmax)
+    static int	boxVertexMap[] = {
+	0, 1, 3, 2,	// Front face
+	1, 5, 7, 3,	// Right face
+	5, 4, 6, 7,	// Back face
+	4, 0, 2, 6,	// Left face
+	2, 3, 7, 6,	// Top face
+	0, 4, 5, 1,	// Bottom face
+    };
+
+    static void
+    makeBox(GU_Detail &gdp)
+    {
+	GA_Offset		 pts[8];
+	GA_Offset		 vertices[24];
+	GEO_PrimPolySoup	*soup = GU_PrimPolySoup::build(&gdp);
+	UT_Array<GA_Offset>	 vtxlist;
+
+	for (int i = 0; i < 8; ++i)
+	    pts[i] = gdp.appendPointOffset();
+	for (int i = 0; i < 24; ++i)
+	{
+	    int	vnum = soup->appendVertex(pts[boxVertexMap[i]]);
+	    vertices[i] = soup->getVertexOffset(vnum);
+	}
+	for (int face = 0; face < 6; ++face)
+	{
+	    vtxlist.entries(0);
+	    for (int i = 0; i < 4; ++i)
+		vtxlist.append(vertices[i + face*4]);
+	    soup->appendPolygon(vtxlist);
+	}
+    }
+
+    static void
+    setBoxPositions(GU_Detail &gdp, const UT_BoundingBox &box,
+	    exint start)
+    {
+	gdp.setPos3(GA_Offset(start+0), box.xmin(), box.ymin(), box.zmin());
+	gdp.setPos3(GA_Offset(start+1), box.xmax(), box.ymin(), box.zmin());
+	gdp.setPos3(GA_Offset(start+2), box.xmin(), box.ymax(), box.zmin());
+	gdp.setPos3(GA_Offset(start+3), box.xmax(), box.ymax(), box.zmin());
+	gdp.setPos3(GA_Offset(start+4), box.xmin(), box.ymin(), box.zmax());
+	gdp.setPos3(GA_Offset(start+5), box.xmax(), box.ymin(), box.zmax());
+	gdp.setPos3(GA_Offset(start+6), box.xmin(), box.ymax(), box.zmax());
+	gdp.setPos3(GA_Offset(start+7), box.xmax(), box.ymax(), box.zmax());
+    }
+
+    static void
+    makeHoudiniBox(GABC_GEOWalker &walk, const GABC_IObject &obj,
+	    const UT_BoundingBox &box)
+    {
+	GU_Detail	&gdp = walk.detail();
+	if (!walk.reusePrimitives())
+	    makeBox(gdp);
+	setBoxPositions(gdp, box, walk.pointCount());
+	if (getAnimationType(walk, obj) != GABC_ANIMATION_CONSTANT)
+	    walk.setNonConstant();
+	walk.trackPtVtxPrim(obj, 8, 24, 1, true);
+    }
 }
 
 GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
@@ -1396,6 +1467,13 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 		}
 		break;
 	    case LOAD_HOUDINI_BOXES:
+		{
+		    UT_BoundingBox	box;
+		    bool		isConstant;
+		    if (obj.getBoundingBox(box, myTime, isConstant))
+			makeHoudiniBox(*this, obj, box);
+		}
+		break;
 	    default:
 		UT_ASSERT(0);
 	}

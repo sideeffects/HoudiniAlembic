@@ -202,7 +202,7 @@ static PRM_Name	loadModeOptions[] = {
     PRM_Name("alembic",	"Alembic Delayed Load Primitives"),
     PRM_Name("houdini",	"Load Houdini Geometry"),
     PRM_Name("hpoints", "Houdini Point Cloud"),
-    // PRM_Name("hboxes", "Houdini Boxes"),
+    PRM_Name("hboxes",  "Bounding Boxes"),
     PRM_Name( 0 )
 };
 static PRM_Default prm_loadmodeDefault(0, "alembic");
@@ -429,6 +429,9 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	    break;
 	case 2:
 	    parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_POINTS;
+	    break;
+	case 3:
+	    parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_BOXES;
 	    break;
     }
     parms.myBuildLocator = evalInt("loadLocator", 0, now) != 0;
