@@ -472,10 +472,7 @@ namespace {
     {
 	GU_Detail	&gdp = walk.detail();
 	exint		 startpoint = walk.pointCount();
-	for (exint i = 0; i < npoint; ++i)
-	{
-	    UT_VERIFY(gdp.appendPointOffset() == GA_Offset(startpoint+i));
-	}
+	UT_VERIFY(gdp.appendPointBlock(npoint) == GA_Offset(startpoint));
 	return startpoint;
     }
 
@@ -1136,11 +1133,7 @@ namespace {
 
 	if (!walk.reusePrimitives())
 	{
-	    for (exint i = 0; i < npoint; ++i)
-	    {
-		GA_Offset	pt = gdp.appendPointOffset();
-		UT_ASSERT(pt == GA_Offset(startpoint+i));
-	    }
+	    UT_VERIFY(gdp.appendPointBlock(npoint) == GA_Offset(startpoint));
 	}
 	for (exint i = 0; i < npoint; ++i)
 	{
@@ -1192,16 +1185,15 @@ namespace {
     static void
     makeBox(GU_Detail &gdp)
     {
-	GA_Offset		 pts[8];
+	GA_Offset		 firstpoint;
 	GA_Offset		 vertices[24];
 	GEO_PrimPolySoup	*soup = GU_PrimPolySoup::build(&gdp);
 	UT_Array<GA_Offset>	 vtxlist;
 
-	for (int i = 0; i < 8; ++i)
-	    pts[i] = gdp.appendPointOffset();
+	firstpoint = gdp.appendPointBlock(8);
 	for (int i = 0; i < 24; ++i)
 	{
-	    int	vnum = soup->appendVertex(pts[boxVertexMap[i]]);
+	    int	vnum = soup->appendVertex(firstpoint + boxVertexMap[i]);
 	    vertices[i] = soup->getVertexOffset(vnum);
 	}
 	for (int face = 0; face < 6; ++face)
