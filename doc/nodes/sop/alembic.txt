@@ -11,6 +11,8 @@ geometry network."""
 @parameters
 
 Reload Geometry:
+    #id: reload
+
     Clears the Alembic cache and reloads fresh geometry
 
 File name:
@@ -33,6 +35,51 @@ Frames per second:
     current frames-per-second setting). If the archive file was created with a
     different FPS, you will need to enter it here.
 
+== Geometry ==
+Load As:
+    #id: loadmode
+
+    How the Alembic geometry should be loaded into Houdini.
+    - Alembic Delayed Load Primitives
+	These custom primitives are very light-weight and will display faster
+	in the viewport.  They are not as full featured as other Houdini
+	primitive types (i.e. ray-tracing is not very accurate), but can be
+	converted to other primitive types if need be.
+    - Load Houdini Geometry
+	Convert the Alembic primitives to use native Houdini geometry.
+    - Houdini Point Cloud
+	Load the `P` attribute from the Alembic primitives as a Houdini point
+	cloud.  Currently, this doesn't load any attributes other than `P`.
+    - Bounding Boxes
+	Load only the bounding boxes of the Alembic primitives.
+
+Create Primitives For Transform Nodes:
+    #id abcxform
+    
+    When loading Alembic primitives, create separate primitives for the
+    transform nodes in the Alembic scene.
+
+Transform Geometry To World Space:
+    #id: includeXform
+    
+    Bake each object's world space transformation (relative to the root of the
+    archive) into the primitives of the object.
+
+Load Maya Locator:
+    #id: loadLocator
+
+    Test for transform nodes which match how Maya saves out locator nodes and
+    load these into Houdini.
+
+Primitive Groups:
+    #id: groupnames
+
+    Whether to create group names on the Alembic shape nodes, or whether to use
+    the transform (object) name. If a transform object has multiple shape
+    nodes, it's sometimes useful to put the geometry into the same group.
+
+== Selection ==
+
 Object Path:
     #id: objectPath
     
@@ -41,37 +88,96 @@ Object Path:
     all the geometry in the archive.
 
 Object Pattern:
-    Only objects matching this pattern will be loaded. This is a more generic and likely simpler way of specifying objects to be loaded than the __Object Path__.
+    #id: objectPattern
+
+    Only objects matching this pattern will be loaded. This is a more generic
+    and likely simpler way of specifying objects to be loaded than the __Object
+    Path__.
+
+Animating Objects:
+    #id: animationfilter
+
+    This allows you to filter objects based on whether they are animated or not.
+    - Include All Primitives (default)
+	Load primitives whether the are animating or static
+    - Only Static Primitives
+	Only load primitives which are *not* animated
+    - Only Animating Primitives
+	Only load primitives which change over time
+
+Box Culling:
+    #id: boxcull
+
+    This allows you to only load primitives based on their bounding box in space.
+    - No spatial filtering (default)
+	Loads all primitives
+    - Load Objects Entirely Inside Box
+	Loads only objects which are entirely contained inside the specified
+	bounding box
+    - Load Objects Partially Inside Box
+	Loads only objects whose bounding box intersects the specified bounding
+	box.
+    - Load Objects Entirely Outside Box
+	Loads only objects which are entirely outside the specified bounding box
+    - Load Objects Partially Outside Box
+	Loads only objects whose bounding box is not entirely contained in the
+	specified bounding box.
+
+Use First Input To Specify Box
+    #id: boxsource
+
+    Use the input to the Alembic SOP to specify the bounding box used for Box
+    Culling.
+
+Box Size:
+    #id: boxsize
+    Manually specify the size of the culling bounding box
+
+Box Center:
+    #id: boxcenter
+    Manually specify the center of the culling bounding box
+
+
+== Attributes ==
 
 Point Attributes:
+    #id: pointAttributes
     Only point attributes matching the given pattern will be loaded.
 
 Vertex Attributes:
+    #id: vertexAttributes
     Only vertex attributes matching the given pattern will be loaded.
 
 Primitive Attributes:
+    #id: primitiveAttributes
     Only primitive attributes matching the given pattern will be loaded.
 
 Detail Attributes:
+    #id: detailAttributes
     Only detail attributes matching the given pattern will be loaded.
 
 NOTE:
-    All intrinsic attributes on Alembic nodes will be created in all cases. For example, the `velocity` attribute on points will be created regardless of whether it matches the __Point Attribute__ pattern.
-
-Include Xform:
-    #id: includeXform
-    
-    Bake each object's world space transformation (relative to the root of the
-    archive) into the object's points.
-
-Primitive Groups:
-    Whether to create group names on the Alembic shape nodes, or whether to use the transform (object) name. If a transform object has multiple shape nodes, it's sometimes useful to put the geometry into the same group.
+    All intrinsic attributes on Alembic nodes will be created in all cases. For
+    example, the `velocity` attribute on points will be created regardless of
+    whether it matches the __Point Attribute__ pattern.
 
 Add Path Attribute:
-    This option allows you to put the full path of the shape node into the named string attribute, since Houdini can mangle the group names (no special characters are allowed in group names).
+    #id: addpath
+    This option allows you to put the full path of the shape node into the
+    named string attribute, since Houdini can mangle the group names (no
+    special characters are allowed in group names).
 
 Path Attribute:
+    #id: pathattrib
     The name of the Path Attribute.
+
+Add Filename Attribute:
+    #id: addfile
+    Add a detail attribute containing the filename
+
+Filename Attribute:
+    #id: fileattrib
+    The name of the Filename Attribute.
 
 Remap attributes:
     #id: remapAttributes
@@ -79,7 +185,3 @@ Remap attributes:
     Use this multiparm to rename Alembic point, vertex, and/or primitive
     attributes to their Houdini equivalents. For example, remapping `MyColor`
     to `Cd` (diffuse color). Click the + button to add a new mapping.
-
-
-
-
