@@ -174,7 +174,7 @@ static PRM_Name prm_filenameName("fileName", "File Name");
 static PRM_Name prm_frameName("frame", "Frame");
 static PRM_Name prm_fpsName("fps", "Frames Per Second");
 static PRM_Name prm_objectPathName("objectPath", "Object Path");
-static PRM_Name prm_includeXformName("includeXform", "Include Shape Transforms");
+static PRM_Name prm_includeXformName("includeXform", "Transform Geometry To World Space");
 static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
 static PRM_Name prm_animationfilter("animationfilter", "Animating Objects");
 static PRM_Name prm_boxcull("boxcull", "Box Culling");
@@ -264,31 +264,37 @@ static PRM_SpareData	theAbcPattern(
 	NULL
 );
 
+static PRM_Default	mainSwitcher[] =
+{
+    PRM_Default(5, "Geometry"),
+    PRM_Default(7, "Selection"),
+    PRM_Default(9, "Attributes"),
+};
+
 PRM_Template SOP_AlembicIn2::myTemplateList[] =
 {
     PRM_Template(PRM_CALLBACK, 1, &prm_reloadbutton,
 	    0, 0, 0, SOP_AlembicIn2::reloadGeo),
-    PRM_Template(PRM_ORD, 1, &prm_loadmodeName, &prm_loadmodeDefault,
-	    &menu_loadmode),
     PRM_Template(PRM_FILE,  1, &prm_filenameName, 0, 0, 0, 0, &theAbcPattern),
     PRM_Template(PRM_FLT_J, 1, &prm_frameName, &prm_frameDefault),
     PRM_Template(PRM_FLT_J, 1, &prm_fpsName, &prm_fpsDefault),
-    PRM_Template(PRM_STRING, 1, &prm_objectPathName, &prm_objectPathDefault,
-            &prm_objectPathMenu),
-    PRM_Template(PRM_STRING, 1, &prm_objecPatternName, &prm_starDefault),
-    PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_POINT],
-		&prm_starDefault),
-    PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_VERTEX],
-		&prm_starDefault),
-    PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_PRIMITIVE],
-		&prm_starDefault),
-    PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_DETAIL],
-		&prm_starDefault),
-    PRM_Template(PRM_TOGGLE, 1, &prm_includeXformName, &prm_includeXformDefault),
+
+    // Define 3 tabs of folders
+    PRM_Template(PRM_SWITCHER, 3, &PRMswitcherName, mainSwitcher),
+
+    // Geometry tab
+    PRM_Template(PRM_ORD, 1, &prm_loadmodeName, &prm_loadmodeDefault,
+	    &menu_loadmode),
     PRM_Template(PRM_TOGGLE, 1, &prm_abcxformName, PRMzeroDefaults),
+    PRM_Template(PRM_TOGGLE, 1, &prm_includeXformName, &prm_includeXformDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_loadLocatorName, &prm_loadLocatorDefault),
     PRM_Template(PRM_ORD, 1, &prm_groupnames, &prm_groupnamesDefault,
 	    &menu_groupnames),
+
+    // Selection tab
+    PRM_Template(PRM_STRING, 1, &prm_objectPathName, &prm_objectPathDefault,
+            &prm_objectPathMenu),
+    PRM_Template(PRM_STRING, 1, &prm_objecPatternName, &prm_starDefault),
     PRM_Template(PRM_ORD, 1, &prm_animationfilter, &prm_animationfilterDefault,
 	    &menu_animationfilter),
     PRM_Template(PRM_ORD, 1, &prm_boxcull, &prm_boxcullDefault,
@@ -297,6 +303,16 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_XYZ_J,  3, &boxcullSize, PRMoneDefaults,
 	    NULL, &boxcullSizeRange),
     PRM_Template(PRM_XYZ_J,  3, &boxcullCenter, PRMzeroDefaults),
+
+    // Attribute tab
+    PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_POINT],
+		&prm_starDefault),
+    PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_VERTEX],
+		&prm_starDefault),
+    PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_PRIMITIVE],
+		&prm_starDefault),
+    PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_DETAIL],
+		&prm_starDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_addpath, PRMzeroDefaults),
     PRM_Template(PRM_STRING, 1, &prm_pathattrib, &prm_pathattribDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_addfile, PRMzeroDefaults),
