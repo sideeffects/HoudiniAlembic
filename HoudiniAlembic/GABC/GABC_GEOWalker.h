@@ -57,6 +57,15 @@ public:
 	ABC_GROUP_XFORM_NODE,	// Name geometry group based on transform node
     };
 
+    enum BoxCullMode
+    {
+	BOX_CULL_IGNORE,	// Ignore bounding box
+	BOX_CULL_ANY_INSIDE,	// Add if boxes overlap
+	BOX_CULL_INSIDE,	// Add if box is entirely inside
+	BOX_CULL_ANY_OUTSIDE,	// Add if any of object is outside filter box
+	BOX_CULL_OUTSIDE,	// Add if object is entirely outside bounds
+    };
+
     enum LoadMode
     {
 	LOAD_ABC_PRIMITIVES,		// Load Alembic primitives
@@ -156,6 +165,7 @@ public:
     void	setPathAttributeChanged(bool v)	{ myPathAttributeChanged = v; }
     void	setGroupMode(GroupMode m)	{ myGroupMode = m; }
     void	setAnimationFilter(AFilter m)	{ myAnimationFilter = m; }
+    void	setBounds(BoxCullMode mode, const UT_BoundingBox &box);
     /// @}
 
     /// @{
@@ -215,21 +225,27 @@ public:
     bool	translateAttributeName(GA_AttributeOwner own, UT_String &name);
 
 protected:
-    bool		matchObjectName(const GABC_IObject &obj) const;
-    bool		matchAnimationFilter(const GABC_IObject &obj) const;
+    /// Verify the object matches filters before generating geometry
+    bool		 acceptFilter(const GABC_IObject &obj) const;
 
 private:
+    bool		 matchObjectName(const GABC_IObject &obj) const;
+    bool		 matchAnimationFilter(const GABC_IObject &obj) const;
+    bool		 matchBounds(const GABC_IObject &obj) const;
+
     GU_Detail		&myDetail;
     UT_String		 myObjectPattern;
     UT_String		 myAttributePatterns[GA_ATTRIB_OWNER_N];
     GABC_NameMapPtr	 myNameMapPtr;	// Attribute map for ABC primitives
     GA_RWHandleS	 myPathAttribute;
+    UT_BoundingBox	 myCullBox;
     UT_Interrupt	*myBoss;
     int			 myBossId;
     M44d		 myMatrix;
 
     fpreal	myTime;			// Alembic evaluation time
     GroupMode	myGroupMode;		// How to construct group names
+    BoxCullMode	myBoxCullMode;
     AFilter	myAnimationFilter;	// Animating object filter
     bool	myIncludeXform;		// Transform geometry
     bool	myBuildLocator;		// Whether to build Maya locators

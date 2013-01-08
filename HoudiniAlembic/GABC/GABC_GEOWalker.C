@@ -1160,6 +1160,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
     myAttributePatterns[GA_ATTRIB_POINT] = "*";
     myAttributePatterns[GA_ATTRIB_PRIMITIVE] = "*";
     myAttributePatterns[GA_ATTRIB_DETAIL] = "*";
+    myCullBox.makeInvalid();	// 
 }
 
 GABC_GEOWalker::~GABC_GEOWalker()
@@ -1173,6 +1174,15 @@ void
 GABC_GEOWalker::setReusePrimitives(bool v)
 {
     myReusePrimitives = v && myDetail.getNumPrimitives() > 0;
+}
+
+void
+GABC_GEOWalker::setBounds(BoxCullMode mode, const UT_BoundingBox &box)
+{
+    myBoxCullMode = mode;
+    myCullBox = box;
+    if (!myCullBox.isValid())
+	myBoxCullMode = BOX_CULL_IGNORE;
 }
 
 void
@@ -1236,7 +1246,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	IXform	xform(obj.object(), gabcWrapExisting);
 	if (buildLocator() && obj.isMayaLocator())
 	{
-	    if (matchObjectName(obj) && matchAnimationFilter(obj))
+	    if (acceptFilter(obj))
 	    {
 		if (buildAbcPrim())
 		    makeAbcPrim(*this, obj, ohead);
@@ -1257,7 +1267,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	return true;
     }
 
-    if (matchObjectName(obj) && matchAnimationFilter(obj))
+    if (acceptFilter(obj))
     {
 	if (buildAbcPrim())
 	    makeAbcPrim(*this, obj, ohead);
@@ -1310,6 +1320,14 @@ GABC_GEOWalker::interrupted() const
 }
 
 bool
+GABC_GEOWalker::acceptFilter(const GABC_IObject &obj) const
+{
+    return matchObjectName(obj) &&
+	    matchAnimationFilter(obj) &&
+	    matchBounds(obj);
+}
+
+bool
 GABC_GEOWalker::matchObjectName(const GABC_IObject &obj) const
 {
     UT_String	path(obj.getFullName());
@@ -1340,6 +1358,33 @@ GABC_GEOWalker::matchAnimationFilter(const GABC_IObject &obj) const
 	case ABC_AFILTER_ALL:
 	    UT_ASSERT(0 && "Impossible code!");
     }
+    return true;
+}
+
+bool
+GABC_GEOWalker::matchBounds(const GABC_IObject &obj) const
+{
+    if (myBoxCullMode == BOX_CULL_IGNORE)
+	return true;
+
+    bool		isConstant;
+    UT_BoundingBox	box;
+
+    obj.getBoundingBox(box, myTime, isConstant);
+    switch (myBoxCullMode)
+    {
+	case BOX_CULL_ANY_INSIDE:
+	    return myCullBox.intersects(box) != 0;
+	case BOX_CULL_INSIDE:
+	    return box.isInside(myCullBox) != 0;
+	case BOX_CULL_ANY_OUTSIDE:
+	    return box.isInside(myCullBox) == 0;
+	case BOX_CULL_OUTSIDE:
+	    return myCullBox.intersects(box) == 0;
+	case BOX_CULL_IGNORE:
+	    UT_ASSERT_P(0);
+    }
+    UT_ASSERT_P(0 && "Unexpected case");
     return true;
 }
 

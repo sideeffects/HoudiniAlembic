@@ -40,6 +40,7 @@
 #include <UT/UT_DSOVersion.h>
 #include <UT/UT_WorkArgs.h>
 #include <GU/GU_Detail.h>
+#include <SOP/SOP_Guide.h>
 #include <PRM/PRM_Include.h>
 #include <PRM/PRM_SpareData.h>
 #include <OP/OP_OperatorTable.h>
@@ -48,6 +49,7 @@
 SOP_AlembicIn2::Parms::Parms()
     : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
     , myBuildAbcXform(false)
+    , myBoundMode(GABC_GEOWalker::BOX_CULL_IGNORE)
     , myFilename()
     , myObjectPath()
     , myObjectPattern()
@@ -59,10 +61,12 @@ SOP_AlembicIn2::Parms::Parms()
     , myFilenameAttribute()
     , myNameMapPtr()
 {
+    myBoundBox.makeInvalid();
 }
 
 SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
+    , myBoundMode(GABC_GEOWalker::BOX_CULL_IGNORE)
     , myBuildAbcXform(false)
     , myFilename()
     , myObjectPath()
@@ -84,6 +88,8 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
 {
     myFilename = src.myFilename;
     myLoadMode = src.myLoadMode;
+    myBoundMode = src.myBoundMode;
+    myBoundBox = src.myBoundBox;
     myBuildAbcXform = src.myBuildAbcXform;
     myIncludeXform = src.myIncludeXform;
     myBuildLocator = src.myBuildLocator;
@@ -105,6 +111,13 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 {
     if (myLoadMode != src.myLoadMode)
 	return true;
+    if (myBoundMode != src.myBoundMode)
+	return true;
+    if (myBoundMode != GABC_GEOWalker::BOX_CULL_IGNORE)
+    {
+	if (myBoundBox != src.myBoundBox)
+	    return true;
+    }
     if (myBuildAbcXform != src.myBuildAbcXform)
 	return true;
     if (myFilename != src.myFilename)
@@ -161,9 +174,10 @@ static PRM_Name prm_filenameName("fileName", "File Name");
 static PRM_Name prm_frameName("frame", "Frame");
 static PRM_Name prm_fpsName("fps", "Frames Per Second");
 static PRM_Name prm_objectPathName("objectPath", "Object Path");
-static PRM_Name prm_includeXformName("includeXform", "Include Xform");
+static PRM_Name prm_includeXformName("includeXform", "Include Shape Transforms");
 static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
 static PRM_Name prm_animationfilter("animationfilter", "Animating Objects");
+static PRM_Name prm_boxcull("boxcull", "Box Culling");
 static PRM_Name prm_addfile("addfile", "Add Filename Attribute");
 static PRM_Name prm_fileattrib("fileattrib", "Filename Attribute");
 static PRM_Name prm_addpath("addpath", "Add Path Attribute");
@@ -194,6 +208,22 @@ static PRM_Name	loadModeOptions[] = {
 };
 static PRM_Default prm_loadmodeDefault(0, "alembic");
 static PRM_ChoiceList menu_loadmode(PRM_CHOICELIST_SINGLE, loadModeOptions);
+
+static PRM_Name boxCullOptions[] = {
+    PRM_Name("none",	"No spatial filtering"),
+    PRM_Name("inside",	"Load objects entirely inside box"),
+    PRM_Name("anyinside",	"Load objects with any part in box"),
+    PRM_Name("outside",	"Load object outside box"),
+    PRM_Name("anyoutside",	"Load objects with any part outside box"),
+    PRM_Name( 0 )
+};
+static PRM_Default	prm_boxcullDefault(0, "none");
+static PRM_ChoiceList	menu_boxcull(PRM_CHOICELIST_SINGLE, boxCullOptions);
+
+static PRM_Name	boxcullSource("boxsource", "Use First Input To Specify Box");
+static PRM_Name	boxcullSize("boxsize", "Box Size");
+static PRM_Range boxcullSizeRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 10);
+static PRM_Name	boxcullCenter("boxcenter", "Box Center");
 
 static PRM_Name groupNameOptions[] = {
     PRM_Name("none",	"No groups"),
@@ -262,6 +292,12 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 	    &menu_groupnames),
     PRM_Template(PRM_ORD, 1, &prm_animationfilter, &prm_animationfilterDefault,
 	    &menu_animationfilter),
+    PRM_Template(PRM_ORD, 1, &prm_boxcull, &prm_boxcullDefault,
+	    &menu_boxcull),
+    PRM_Template(PRM_TOGGLE, 1, &boxcullSource, PRMzeroDefaults),
+    PRM_Template(PRM_XYZ_J,  3, &boxcullSize, PRMoneDefaults,
+	    NULL, &boxcullSizeRange),
+    PRM_Template(PRM_XYZ_J,  3, &boxcullCenter, PRMzeroDefaults),
     PRM_Template(PRM_TOGGLE, 1, &prm_addpath, PRMzeroDefaults),
     PRM_Template(PRM_STRING, 1, &prm_pathattrib, &prm_pathattribDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_addfile, PRMzeroDefaults),
@@ -282,6 +318,7 @@ SOP_AlembicIn2::SOP_AlembicIn2(OP_Network *net, const char *name,
     , myEntireSceneIsConstant(false)
     , myConstantUniqueId(-1)
 {
+    mySopFlags.setNeedGuide1(1);
 }
 
 SOP_AlembicIn2::~SOP_AlembicIn2()
@@ -302,13 +339,70 @@ SOP_AlembicIn2::reloadGeo(void *data, int index, float time, const PRM_Template 
 
 //-*****************************************************************************
 
-unsigned
-SOP_AlembicIn2::disableParms()
+GABC_GEOWalker::BoxCullMode
+SOP_AlembicIn2::getCullingBox(UT_BoundingBox &box, OP_Context &ctx)
 {
-    unsigned	changed = 0;
-    changed += enableParm("pathattrib", evalInt("addpath", 0, 0));
-    changed += enableParm("fileattrib", evalInt("addfile", 0, 0));
-    changed += enableParm("abcxform", evalInt("loadmode", 0, 0) == 0);
+    UT_String			boxcull;
+    GABC_GEOWalker::BoxCullMode	mode = GABC_GEOWalker::BOX_CULL_IGNORE;
+    fpreal			now = ctx.getTime();
+
+    evalString(boxcull, "boxcull", 0, now);
+    if (boxcull == "inside")
+	mode = GABC_GEOWalker::BOX_CULL_INSIDE;
+    else if (boxcull == "anyinside")
+	mode = GABC_GEOWalker::BOX_CULL_ANY_INSIDE;
+    else if (boxcull == "outside")
+	mode = GABC_GEOWalker::BOX_CULL_OUTSIDE;
+    else if (boxcull == "anyoutside")
+	mode = GABC_GEOWalker::BOX_CULL_ANY_OUTSIDE;
+    if (mode != GABC_GEOWalker::BOX_CULL_IGNORE)
+    {
+	bool	useinput = (nInputs() != 0 && evalInt("boxsource", 0, now) != 0);
+	if (useinput)
+	{
+	    if (lockInputs(ctx) >= UT_ERROR_ABORT)
+		mode = GABC_GEOWalker::BOX_CULL_IGNORE;
+	    const GU_Detail	*src = inputGeo(0, ctx);
+	    src->getBBox(&box);
+	    unlockInputs();
+	}
+	else
+	{
+	    fpreal	size[3];
+	    fpreal	center[3];
+	    evalFloats("boxsize", size, ctx.getTime());
+	    evalFloats("boxcenter", center, ctx.getTime());
+	    box.initBounds(center[0]-size[0]*.5,
+			    center[1]-size[1]*.5,
+			    center[2]-size[2]*.5);
+	    box.enlargeBounds(center[0]+size[0]*.5,
+			    center[1]+size[1]*.5,
+			    center[2]+size[2]*.5);
+	}
+    }
+    return mode;
+}
+
+//-*****************************************************************************
+
+bool
+SOP_AlembicIn2::updateParmsFlags()
+{
+    bool	changed = false;
+    bool	hasbox = (nInputs() > 0);
+    bool	enablebox = !hasbox || (evalInt("boxsource", 0, 0) == 0);
+    UT_String	boxcull;
+
+    evalString(boxcull, "boxcull", 0, 0);
+    if (boxcull == "none")
+	enablebox = false;
+
+    changed |= enableParm("pathattrib", evalInt("addpath", 0, 0));
+    changed |= enableParm("fileattrib", evalInt("addfile", 0, 0));
+    changed |= enableParm("abcxform", evalInt("loadmode", 0, 0) == 0);
+    changed |= setVisibleState("boxsource", hasbox && boxcull != "none");
+    changed |= setVisibleState("boxsize", enablebox);
+    changed |= setVisibleState("boxcenter", enablebox);
 
     return changed;
 }
@@ -336,6 +430,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	    break;
     }
     parms.myBuildLocator = evalInt("loadLocator", 0, now) != 0;
+    parms.myBoundMode = getCullingBox(parms.myBoundBox, context);
 
     evalString(parms.myObjectPath, "objectPath", 0, now);
     evalString(parms.myObjectPattern, "objectPattern", 0, now);
@@ -477,6 +572,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     }
     walk.setGroupMode(parms.myGroupMode);
     walk.setAnimationFilter(parms.myAnimationFilter);
+    walk.setBounds(parms.myBoundMode, parms.myBoundBox);
 
     bool	needwalk = true;
     if (!myTopologyConstant)
@@ -548,6 +644,20 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     return error();
 }
 
+OP_ERROR
+SOP_AlembicIn2::cookMyGuide1(OP_Context &ctx)
+{
+    UT_BoundingBox	box;
+
+    myGuide1->stashAll();
+    if (getCullingBox(box, ctx) != GABC_GEOWalker::BOX_CULL_IGNORE)
+    {
+	myGuide1->cube(box.xmin(), box.xmax(), box.ymin(), box.ymax(),
+		    box.zmin(), box.zmax());
+    }
+    return error();
+}
+
 //-*****************************************************************************
 void
 SOP_AlembicIn2::syncNodeVersion(const char *old_version,
@@ -572,11 +682,25 @@ SOP_AlembicIn2::installSOP(OP_OperatorTable *table)
         "alembic",			// Internal name
         "Alembic",			// GUI name
         SOP_AlembicIn2::myConstructor,	// Op Constructr
-        SOP_AlembicIn2::myTemplateList,	// GUI Definition
-        0, 0,				// Min,Max # of Inputs
-        0, OP_FLAG_GENERATOR);		// Local Variables/Generator
+        SOP_AlembicIn2::myTemplateList,	// Parameter Definition
+        0, 1,				// Min/Max # of Inputs
+        0,				// Local variables
+	OP_FLAG_GENERATOR);		// Generator flag
     alembic_op->setIconName("SOP_alembic");
     table->addOperator(alembic_op);
+}
+
+const char *
+SOP_AlembicIn2::inputLabel(unsigned int idx) const
+{
+    switch (idx)
+    {
+	case 0:
+	    return "Bounding Source";
+	default:
+	    break;
+    }
+    return "Error";
 }
 
 void

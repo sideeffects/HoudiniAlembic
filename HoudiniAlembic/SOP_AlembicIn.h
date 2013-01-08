@@ -64,14 +64,17 @@ public:
     /// Called when an archive gets cleared from the cache
     void	archiveClearEvent();
 
+    /// Return the label for the given input
+    virtual const char	*inputLabel(unsigned int idx) const;
 protected:
     //--------------------------------------------------------------------------
     // Standard hdk declarations
     SOP_AlembicIn2(OP_Network *net, const char *name, OP_Operator *op);
     virtual ~SOP_AlembicIn2();
 
-    virtual unsigned	disableParms();
+    virtual bool	updateParmsFlags();
     virtual OP_ERROR	cookMySop(OP_Context &context);
+    virtual OP_ERROR	cookMyGuide1(OP_Context &ctx);
     virtual void	syncNodeVersion(const char *old_version,
 				const char *new_version, bool *node_deleted);
     //--------------------------------------------------------------------------
@@ -79,6 +82,9 @@ protected:
 private:
     void	setupEventHandler(const std::string &filename);
     void	clearEventHandler();
+
+    GABC_GEOWalker::BoxCullMode	getCullingBox(UT_BoundingBox &box,
+						OP_Context &context);
 
     class Parms
     {
@@ -93,6 +99,8 @@ private:
 	Parms	&operator=(const Parms &src);
 
 	GABC_GEOWalker::LoadMode	myLoadMode;
+	GABC_GEOWalker::BoxCullMode	myBoundMode;
+	UT_BoundingBox			myBoundBox;
 	bool				myBuildAbcXform;
 	std::string			myFilename;
 	UT_String			myObjectPath;
