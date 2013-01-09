@@ -37,24 +37,25 @@ Frames per second:
 
 == Geometry ==
 Load As:
-    #id: loadmode
+        #id: loadmode
 
-    How the Alembic geometry should be loaded into Houdini.
-    - Alembic Delayed Load Primitives
-	These custom primitives are very light-weight and will display faster
-	in the viewport.  They are not as full featured as other Houdini
-	primitive types (i.e. ray-tracing is not very accurate), but can be
-	converted to other primitive types if need be.
-    - Load Houdini Geometry
-	Convert the Alembic primitives to use native Houdini geometry.
-    - Houdini Point Cloud
-	Load the `P` attribute from the Alembic primitives as a Houdini point
-	cloud.  Currently, this doesn't load any attributes other than `P`.
-    - Bounding Boxes
-	Load only the bounding boxes of the Alembic primitives.
+        How the Alembic geometry should be loaded into Houdini.
+        
+        Alembic Delayed Load Primitives:
+                These custom primitives are very light-weight and will display faster
+        	in the viewport.  They are not as full featured as other Houdini
+        	primitive types (i.e. ray-tracing is not very accurate), but can be
+        	converted to other primitive types if need be.
+        Load Houdini Geometry:
+        	Convert the Alembic primitives to use native Houdini geometry.
+        Houdini Point Cloud:
+        	Load the `P` attribute from the Alembic primitives as a Houdini point
+        	cloud.  Currently, this doesn't load any attributes other than `P`.
+        Bounding Boxes:
+        	Load only the bounding boxes of the Alembic primitives.
 
 Create Primitives For Transform Nodes:
-    #id abcxform
+    #id: abcxform
     
     When loading Alembic primitives, create separate primitives for the
     transform nodes in the Alembic scene.
@@ -98,30 +99,30 @@ Animating Objects:
     #id: animationfilter
 
     This allows you to filter objects based on whether they are animated or not.
-    - Include All Primitives (default)
-	Load primitives whether the are animating or static
-    - Only Static Primitives
-	Only load primitives which are *not* animated
-    - Only Animating Primitives
-	Only load primitives which change over time
+    
+    Include All Primitives (default):
+	Load primitives whether the are animating or static.
+    Only Static Primitives:
+	Only load primitives which are *not* animated.
+    Only Animating Primitives:
+	Only load primitives which change over time.
 
 Box Culling:
     #id: boxcull
 
     This allows you to only load primitives based on their bounding box in space.
-    - No spatial filtering (default)
-	Loads all primitives
-    - Load Objects Entirely Inside Box
-	Loads only objects which are entirely contained inside the specified
-	bounding box
-    - Load Objects Partially Inside Box
+    
+    No spatial filtering (default):
+	Loads all primitives.
+    Load Objects Entirely Inside Box:
+	Loads only objects which are entirely contained inside the specified bounding box.
+    Load Objects Partially Inside Box:
 	Loads only objects whose bounding box intersects the specified bounding
 	box.
-    - Load Objects Entirely Outside Box
-	Loads only objects which are entirely outside the specified bounding box
-    - Load Objects Partially Outside Box
-	Loads only objects whose bounding box is not entirely contained in the
-	specified bounding box.
+    Load Objects Entirely Outside Box:
+	Loads only objects which are entirely outside the specified bounding box.
+    Load Objects Partially Outside Box:
+	Loads only objects whose bounding box is not entirely contained in the specified bounding box.
 
 Use First Input To Specify Box
     #id: boxsource
