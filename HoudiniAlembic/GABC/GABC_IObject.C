@@ -292,17 +292,6 @@ namespace
         return scale_mtx * shear_mtx * rotation_mtx * translation_mtx;
     }
 
-    UT_Matrix4D
-    convertMatrix(const M44d &mat)
-    {
-	return UT_Matrix4D(mat.x);
-    }
-    M44d
-    convertMatrix(const UT_Matrix4D &mat)
-    {
-	return M44d((const double (*)[4])mat.data());
-    }
-
     static V3d
     lerp(const Imath::V3d &a, const Imath::V3d &b, double bias)
     {
@@ -1189,7 +1178,7 @@ namespace
 	    utmat.identity();
 	    isconst = true;
 	}
-	M44d		pmat = convertMatrix(utmat);
+	M44d		pmat = GABC_Util::getM(utmat);
 	V3d		psval, phval, prval, pxval;
 	double		ldata[6];
 	loc.get(ldata, ISampleSelector(t));
@@ -1397,13 +1386,6 @@ namespace
 	return maxwidth;
     }
 
-    static void
-    assignBox(UT_BoundingBox &ut, const Box3d &abc)
-    {
-	ut.setBounds(abc.min[0], abc.min[1], abc.min[2],
-		abc.max[0], abc.max[1], abc.max[2]);
-    }
-
     template <typename ABC_T, typename SCHEMA_T>
     static bool
     abcBounds(const IObject &obj, UT_BoundingBox &box, fpreal t)
@@ -1411,7 +1393,7 @@ namespace
 	ABC_T		 prim(obj, gabcWrapExisting);
 	const SCHEMA_T	&ss = prim.getSchema();
 	typename SCHEMA_T::Sample	s0 = ss.getValue(ISampleSelector(t));
-	assignBox(box, s0.getSelfBounds());
+	box = GABC_Util::getBox(s0.getSelfBounds());
 	return box.isValid();
     }
 
@@ -2146,7 +2128,7 @@ GABC_IObject::worldTransform(fpreal t, M44d &m4,
     UT_Matrix4D	xform;
     if (!worldTransform(t, xform, is_const, inherits))
 	return false;
-    m4 = convertMatrix(xform);
+    m4 = GABC_Util::getM(xform);
     return true;
 }
 
@@ -2183,7 +2165,7 @@ GABC_IObject::localTransform(fpreal t, UT_Matrix4D &mat,
 	    m1 = sample.getMatrix();
 	    m0 = blendMatrix(m0, m1, bias);
 	}
-	mat = convertMatrix(m0);
+	mat = GABC_Util::getM(m0);
     }
     else
     {
@@ -2199,6 +2181,6 @@ GABC_IObject::localTransform(fpreal t, M44d &m4,
     UT_Matrix4D	xform;
     if (!localTransform(t, xform, is_const, inherits))
 	return false;
-    m4 = convertMatrix(xform);
+    m4 = GABC_Util::getM(xform);
     return true;
 }

@@ -25,6 +25,7 @@
 // Houdini includes
 #include <SYS/SYS_Types.h>
 #include <UT/UT_Matrix4.h>
+#include <UT/UT_BoundingBox.h>
 #include <UT/UT_SharedPtr.h>
 #include "GABC_IArchive.h"
 #include "GABC_IObject.h"
@@ -34,8 +35,34 @@ class UT_StringArray;
 class GABC_API GABC_Util
 {
 public:
+    typedef Alembic::Abc::V3d			V3d;
+    typedef Alembic::Abc::Box3d			Box3d;
+    typedef Alembic::Abc::M44d			M44d;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef std::vector<std::string>		PathList;
+
+    /// Create a Box3d from a UT_BoundingBox
+    static Box3d	getBox(const UT_BoundingBox &box)
+    {
+	return Box3d(V3d(box.xmin(), box.ymin(), box.zmin()),
+		    V3d(box.xmax(), box.ymax(), box.zmax()));
+    }
+    /// Create a UT_BoundingBox from a Box3d
+    static UT_BoundingBox	getBox(const Box3d &box)
+    {
+	return UT_BoundingBox(box.min[0], box.min[1], box.min[2],
+		box.max[0], box.max[1], box.max[2]);
+    }
+    /// Create a UT_Matrix4D from an M44d
+    static UT_Matrix4D		getM(const M44d &m)
+    {
+	return UT_Matrix4D(m.x);
+    }
+    /// Create an M44d from a UT_Matrix4D
+    static M44d	getM(const UT_Matrix4D &m)
+    {
+	return M44d((const double (*)[4])m.data());
+    }
 
     /// Class used in traversal of Alembic trees
     ///
