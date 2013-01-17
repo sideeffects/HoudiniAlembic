@@ -247,9 +247,9 @@ namespace
 
 	// Compact the array by trimming off extra tuple entries
 	GT_DANumeric<POD_T, T_STORAGE>	*num;
-	store.reset(num);
 	num = new GT_DANumeric<POD_T, T_STORAGE>(gt->entries(), tsize,
 			    gt->getTypeInfo());
+	store.reset(num);
 	POD_T	*values = num->data();
 	gt->fillArray(values, 0, gt->entries(), tsize);
 	return values;
