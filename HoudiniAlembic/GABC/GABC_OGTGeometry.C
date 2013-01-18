@@ -346,6 +346,40 @@ namespace
     TYPED_FILL(fillN3f, ON3fGeomParam, N3fTPTraits, fpreal32, GT_STORE_REAL32);
     TYPED_FILL(fillF32, OFloatGeomParam, Float32TPTraits, fpreal32, GT_STORE_REAL32);
 
+    static GT_AttributeListHandle
+    transformedAttributes(const GT_Primitive &prim,
+			    const GT_AttributeListHandle &a)
+    {
+	// If the primitive has a transform, we need to get the transformed
+	// primitive attributes.
+	const GT_TransformHandle	&x = prim.getPrimitiveTransform();
+	if (a && x && !x->isIdentity())
+	    return a->transform(x);
+	return a;
+    }
+
+    static GT_AttributeListHandle
+    pointAttributes(const GT_Primitive &prim)
+    {
+	return transformedAttributes(prim, prim.getPointAttributes());
+    }
+    static GT_AttributeListHandle
+    vertexAttributes(const GT_Primitive &prim)
+    {
+	return transformedAttributes(prim, prim.getVertexAttributes());
+    }
+    static GT_AttributeListHandle
+    uniformAttributes(const GT_Primitive &prim)
+    {
+	return transformedAttributes(prim, prim.getUniformAttributes());
+    }
+    static GT_AttributeListHandle
+    detailAttributes(const GT_Primitive &prim)
+    {
+	return transformedAttributes(prim, prim.getDetailAttributes());
+    }
+
+
     static void
     fillPolyMesh(OPolyMesh &dest, const GT_PrimPolygonMesh &src,
 	    IntrinsicCache &cache, const GABC_OOptions &ctx)
@@ -359,8 +393,8 @@ namespace
 	GT_DataArrayHandle	counts;
 	IntrinsicCache		storage;
 
-	const GT_AttributeListHandle	&pt = src.getPointAttributes();
-	const GT_AttributeListHandle	&vtx = src.getVertexAttributes();
+	const GT_AttributeListHandle	&pt = pointAttributes(src);
+	const GT_AttributeListHandle	&vtx = vertexAttributes(src);
 
 	fprintf(stderr, "PolyMesh\n");
 	counts = src.getFaceCountArray().extractCounts();
@@ -403,8 +437,8 @@ namespace
 	IntrinsicCache		storage;
 	SecondaryCache		tstorage;	// Tag storage
 
-	const GT_AttributeListHandle	&pt = src.getPointAttributes();
-	const GT_AttributeListHandle	&vtx = src.getVertexAttributes();
+	const GT_AttributeListHandle	&pt = pointAttributes(src);
+	const GT_AttributeListHandle	&vtx = vertexAttributes(src);
 
 	counts = src.getFaceCountArray().extractCounts();
 	if (cache.needVertex(ctx, src.getVertexList()))
@@ -508,9 +542,9 @@ namespace
 	iPeriod = src.getWrap() ? Alembic::AbcGeom::kPeriodic
 				: Alembic::AbcGeom::kNonPeriodic;
 
-	const GT_AttributeListHandle	&pt = src.getVertexAttributes();
-	const GT_AttributeListHandle	&uniform = src.getUniformAttributes();
-	const GT_AttributeListHandle	&detail = src.getDetailAttributes();
+	const GT_AttributeListHandle	&pt = vertexAttributes(src);
+	const GT_AttributeListHandle	&uniform = uniformAttributes(src);
+	const GT_AttributeListHandle	&detail = detailAttributes(src);
 
 	counts = src.getCurveCountArray().extractCounts();
 	if (cache.needCounts(ctx, counts))
@@ -540,8 +574,8 @@ namespace
 	GT_DataArrayHandle			ids;
 	IntrinsicCache				storage;
 
-	const GT_AttributeListHandle	&pt = src.getPointAttributes();
-	const GT_AttributeListHandle	&detail = src.getDetailAttributes();
+	const GT_AttributeListHandle	&pt = pointAttributes(src);
+	const GT_AttributeListHandle	&detail = detailAttributes(src);
 	ids = pt->get("id");
 	if (!ids)
 	{
@@ -590,7 +624,7 @@ namespace
 	OV3fGeomParam::Sample	iVel;
 	IntrinsicCache		storage;
 
-	const GT_AttributeListHandle		&pt = src.getVertexAttributes();
+	const GT_AttributeListHandle		&pt = vertexAttributes(src);
 	const GT_DataArrayHandle		&Pw = pt->get("Pw");
 
 	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
@@ -880,13 +914,13 @@ GABC_OGTGeometry::writeProperties(const GT_PrimitiveHandle &prim,
 			const GABC_OOptions &ctx)
 {
     writeCompoundProperties(myProperties[VERTEX_PROPERTIES],
-	    prim->getVertexAttributes(), ctx);
+	    vertexAttributes(*prim), ctx);
     writeCompoundProperties(myProperties[POINT_PROPERTIES],
-	    prim->getPointAttributes(), ctx);
+	    pointAttributes(*prim), ctx);
     writeCompoundProperties(myProperties[UNIFORM_PROPERTIES],
-	    prim->getUniformAttributes(), ctx);
+	    uniformAttributes(*prim), ctx);
     writeCompoundProperties(myProperties[DETAIL_PROPERTIES],
-	    prim->getDetailAttributes(), ctx);
+	    detailAttributes(*prim), ctx);
 }
 
 void
@@ -942,6 +976,8 @@ GABC_OGTGeometry::makeProperties(const GT_PrimitiveHandle &prim,
 
     if (vtx != Alembic::AbcGeom::kUnknownScope)
     {
+	// We don't need to transform the attributes to build the Alembic
+	// objects, only when we write their values.
 	makeCompoundProperties(myProperties[VERTEX_PROPERTIES],
 		    prim->getVertexAttributes(), cp, vtx, ctx, *skip);
     }
