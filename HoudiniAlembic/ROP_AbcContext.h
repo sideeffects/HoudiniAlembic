@@ -18,48 +18,119 @@
 #ifndef __ROP_AbcContext__
 #define __ROP_AbcContext__
 
+#include <GABC/GABC_Include.h>
+#include <GABC/GABC_OOptions.h>
+#include <Alembic/AbcGeom/All.h>
 #include <OP/OP_Context.h>
+#include <UT/UT_Array.h>
+#include <UT/UT_String.h>
 
-/// Context for Alembic creation, containing options and frame information
-class ROP_AbcContext
+class UT_WorkBuffer;
+
+/// Alembic evaluation context
+class ROP_AbcContext : public GABC_OOptions
 {
 public:
-    ROP_AbcContext()
-	: myContext()
-	, mySaveAttributes(true)
-	, myPartitionAttribute()
-    {
-    }
-    ROP_AbcContext(fpreal t)
-	: myContext(t)
-	, mySaveAttributes(true)
-	, myPartitionAttribute()
-    {
-    }
+    typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
 
-    bool	 saveAttributes() const		{ return mySaveAttributes; }
+     ROP_AbcContext();
+    ~ROP_AbcContext();
+
+    /// @{
+    /// Time sampling
+    virtual const TimeSamplingPtr	&timeSampling() const
+					    { return myTimeSampling; }
+    const UT_Array<fpreal>	&blurTimes() const { return myBlurTimes; }
+    void			setTimeSampling(fpreal tstart,
+						fpreal tstep,
+						int mb_samples = 1,
+						fpreal shutter_open = 0,
+						fpreal shutter_close = 0);
+    /// @}
+
+    /// @{
+    /// Manage sub-frame time sampling.  To write a single frame, you'll want
+    /// to have code like:
+    /// @code
+    ///   void writeFrame(fpreal time)
+    ///   {
+    ///       for (exint i = 0; i < ctx.samplesPerFrame(); ++i)
+    ///       {
+    ///           ctx.setTime(time, i);
+    ///           ...
+    ///       }
+    ///   }
+    /// @endcode
+    exint		samplesPerFrame() const
+			{
+			    return myBlurTimes.entries();
+			}
+    void		setTime(fpreal base_time, exint samp);
+    /// @}
+
+    /// @{
+    /// Access to the cook context
+    fpreal	  cookTime() const
+		    { return myCookContext.getTime(); }
+    OP_Context	 &cookContext() const
+		    { return const_cast<ROP_AbcContext *>(this)->myCookContext; }
+    /// @}
+
+    /// @{
+    /// Whether to collapse leaf node identity transforms
+    bool	 collapseIdentity() const	{ return myCollapseIdentity; }
+    void	 setCollapseIdentity(bool v)	{ myCollapseIdentity = v; }
+    /// @}
+
+    /// @{
+    /// Set partition attribute for splitting geometry into different shapes
+    enum
+    {
+	// When partitioning using a string attribute that represents the full
+	// path for shape nodes, there are different ways we can name the
+	// resulting shape node.  All of these will have invalid characters
+	// (i.e. '/') replaced with '_'.
+	PATHMODE_FULLPATH,	// Full string (default mode)
+	PATHMODE_SHAPE,		// The tail of the path (shape node)
+	PATHMODE_XFORM,		// The second last path component
+	PATHMODE_XFORM_SHAPE,	// The last two components of the path
+    };
+    int		 partitionMode() const		{ return myPartitionMode; }
+    void	 setPartitionMode(int m)	{ myPartitionMode = m; }
     const char	*partitionAttribute() const	{ return myPartitionAttribute; }
-    fpreal	 time() const			{ return myContext.getTime(); }
-    OP_Context	&context() const
+    void	 setPartitionAttribute(const char *s)
+		    { myPartitionAttribute.harden(s); }
+    void	 clearPartitionAttribute()
 		 {
-		     // The Houdini API expects a non-const OP_Context,
-		     // however, for all intents and purposes, the context is
-		     // const.
-		     return (const_cast<ROP_AbcContext *>(this))->myContext;
+		     myPartitionMode = PATHMODE_FULLPATH;
+		     myPartitionAttribute.clear();
 		 }
+    /// @}
 
-    void	setContext(const OP_Context &c)	{ myContext = c; }
-    void	setTime(fpreal t)		{ myContext.setTime(t); }
-    void	setSaveAttributes(bool v)	{ mySaveAttributes = v; }
-    void	setPartitionAttribute(const char *s)
-		{
-		    myPartitionAttribute.harden(s);
-		}
+    /// @{
+    /// Utility method to take the value of the partition attribute and
+    /// generate the name according to the partition mode.  Any slashes ('/')
+    /// will be replaced with the replace_char.
+    const char 		*partitionModeValue(const char *value,
+				UT_WorkBuffer &storage,
+				char replace_char=':') const
+			{
+			    return partitionModeValue(myPartitionMode,
+				    value, storage, replace_char);
+			}
+    static const char	*partitionModeValue(int mode, const char *value,
+				UT_WorkBuffer &storage,
+				char replace_char=':');
+    /// @}
 
 private:
-    OP_Context	myContext;
-    UT_String	myPartitionAttribute;
-    bool	mySaveAttributes;
+    TimeSamplingPtr	myTimeSampling;
+    UT_Array<fpreal>	myBlurTimes;	// Sub-frame offsets for motion blur
+    OP_Context		myCookContext;
+    UT_String		myPartitionAttribute;
+    fpreal		myWriteTime;
+    int			myPartitionMode;
+    bool		myCollapseIdentity;
 };
 
 #endif

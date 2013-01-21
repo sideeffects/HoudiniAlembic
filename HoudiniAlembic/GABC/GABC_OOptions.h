@@ -50,18 +50,29 @@ public:
     void		setOptimizeSpace(SpaceOptimize v)
 			    { myOptimizeSpace = v; }
 
+    /// @{
     /// Whether or not to save attributes along with the geometry.  Default true
     bool	saveAttributes() const		{ return mySaveAttributes; }
     void	setSaveAttributes(bool f)	{ mySaveAttributes = f; }
+    /// @}
 
+    /// @{
     /// Whether to use the display or render SOP.  Default is to choose render.
     bool	useDisplaySOP() const		{ return myUseDisplaySOP; }
     void	setUseDisplaySOP(bool f)	{ myUseDisplaySOP = f; }
+    /// @}
+
+    /// @{
+    /// Whether to cook full bounding boxes for all nodes
+    bool	fullBounds() const	{ return myFullBounds; }
+    void	setFullBounds(bool f)	{ myFullBounds = f; }
+    /// @}
 
 private:
     SpaceOptimize	myOptimizeSpace;
     bool		mySaveAttributes;
     bool		myUseDisplaySOP;
+    bool		myFullBounds;
 };
 
 #endif

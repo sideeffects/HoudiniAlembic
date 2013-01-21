@@ -1,6 +1,6 @@
 #include "ROP_AlembicOut.h"
-#include "ROP_AbcError.h"
-#include "ROP_AbcTree.h"
+#include "ROP_AbcOpBuilder.h"
+#include "ROP_AbcArchive.h"
 #include <ROP/ROP_Shared.h>
 
 #include <OBJ/OBJ_Node.h>
@@ -10,18 +10,18 @@
 #include <OP/OP_Director.h>
 #include <PRM/PRM_Include.h>
 #include <PRM/PRM_SpareData.h>
+#include <GABC/GABC_OError.h>
 
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_DSOVersion.h>
 
-
 namespace
 {
-    class rop_AlembicOutError : public ROP_AbcError
+    class rop_AlembicOutError : public GABC_OError
     {
     public:
 	rop_AlembicOutError(ROP_AlembicOut &node, UT_Interrupt *interrupt)
-	    : ROP_AbcError(interrupt)
+	    : GABC_OError(interrupt)
 	    , myNode(node)
 	{
 	}
@@ -49,6 +49,10 @@ namespace
     static PRM_Name	theCollapseName("collapse", "Collapse identity transforms");
     static PRM_Name	theSaveAttributesName("save_attributes",
 				"Save Attributes");
+    static PRM_Name	theFullBoundsName("full_bounds",
+				"Full Bounding Box Tree");
+    static PRM_Name	thePartitionModeName("partition_mode",
+				"Partition Mode");
     static PRM_Name	thePartitionAttributeName("partition_attribute",
 				"Partition Attribute");
     static PRM_Name	theVerboseName("verbose", "Verbosity");
@@ -58,17 +62,56 @@ namespace
     static PRM_Default	theObjectsDefault(0, "*");
     static PRM_Default	theCollapseDefault(1, "yes");
     static PRM_Default	theSaveAttributesDefault(1, "yes");
+    static PRM_Default	theFullBoundsDefault(0, "no");
+    static PRM_Default	thePartitionModeDefault(0, "no");
     static PRM_Default	thePartitionAttributeDefault(0, "");
     static PRM_Default	theVerboseDefault(0);
 
-    static PRM_Name	thePartitionAttributeChoices[] = {
+    static PRM_Name	thePartitionModeChoices[] =
+    {
+	PRM_Name("no",		"No geometry partitioning"),
+	PRM_Name("full",	"Use entire attribute value"),
+	PRM_Name("shape",	"Use shape node component of path attribute value"),
+	PRM_Name("xform",	"Use transform node component of path attribute value"),
+	PRM_Name("xformshape",	"Use combination of transform/shape node"),
+	PRM_Name(),	// Sentinal
+    };
+    static bool
+    mapPartitionMode(const char *mode, int &value)
+    {
+	value = ROP_AbcContext::PATHMODE_FULLPATH;
+	if (!strcmp(mode, "full"))
+	    return true;
+	if (!strcmp(mode, "shape"))
+	{
+	    value = ROP_AbcContext::PATHMODE_SHAPE;
+	    return true;
+	}
+	if (!strcmp(mode, "xform"))
+	{
+	    value = ROP_AbcContext::PATHMODE_XFORM;
+	    return true;
+	}
+	if (!strcmp(mode, "xformshape"))
+	{
+	    value = ROP_AbcContext::PATHMODE_XFORM_SHAPE;
+	    return true;
+	}
+	return false;
+    }
+
+    static PRM_Name	thePartitionAttributeChoices[] =
+    {
 	PRM_Name("",		"No geometry partitions"),
 	PRM_Name("name",	"Partition based on the 'name' attribute"),
+	PRM_Name("abcPath",	"Partition based on the 'abcPath' attribute"),
 	PRM_Name()	// Sentinal
     };
 
     static PRM_ChoiceList	theObjectsMenu(PRM_CHOICELIST_REPLACE,
 					buildBundleMenu);
+    static PRM_ChoiceList	thePartitionModeMenu(PRM_CHOICELIST_SINGLE,
+					thePartitionModeChoices);
     static PRM_ChoiceList	thePartitionAttributeMenu(PRM_CHOICELIST_REPLACE,
 					thePartitionAttributeChoices);
 
@@ -100,8 +143,13 @@ namespace
 				    &theObjectsMenu, 0, 0,
 				    &theObjectList),
 	PRM_Template(PRM_TOGGLE, 1, &theCollapseName, &theCollapseDefault),
+	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName,
+				    &theFullBoundsDefault),
 	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
 				    &theSaveAttributesDefault),
+	PRM_Template(PRM_ORD, 1, &thePartitionModeName,
+				    &thePartitionModeDefault,
+				    &thePartitionModeMenu),
 	PRM_Template(PRM_STRING, 1, &thePartitionAttributeName,
 				    &thePartitionAttributeDefault,
 				    &thePartitionAttributeMenu),
@@ -144,7 +192,8 @@ namespace
 
 ROP_AlembicOut::ROP_AlembicOut(OP_Network *net, const char *name, OP_Operator *op)
     : ROP_Node(net, name, op)
-    , myTree(NULL)
+    , myArchive(NULL)
+    , myContext(NULL)
     , myError(NULL)
     , myVerbose(0)
 {
@@ -152,30 +201,37 @@ ROP_AlembicOut::ROP_AlembicOut(OP_Network *net, const char *name, OP_Operator *o
 
 ROP_AlembicOut::~ROP_AlembicOut()
 {
-    delete myTree;
 }
 
 void
 ROP_AlembicOut::close()
 {
-    delete myTree;
-    delete myError;
-    myTree = 0;
-    myError = 0;
+    delete myContext;	myContext = NULL;
+    delete myError;	myError = NULL;
+    delete myArchive;	myArchive = NULL;
 }
 
 int
 ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 {
     close();
+
+    /// Trap errors
+    myError = new rop_AlembicOutError(*this, UTgetInterrupt());
+    myContext = new ROP_AbcContext();
+
     if (!executePreRenderScript(start))
 	return 0;
 
+    /// Evaluate parameters
     UT_String	 filename;
     UT_String	 root;
     UT_String	 objects;
     fpreal	 tdelta = (end - start);
     fpreal	 tstep;
+    int		 mb_samples = 1;
+    fpreal	 shutter_open = 0;
+    fpreal	 shutter_close = 0;
     OP_Node	*rootnode = NULL;
 
     FILENAME(filename, start);
@@ -183,6 +239,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     OBJECTS(objects, start);
     myVerbose = VERBOSE(start);
     myEndTime = end;
+    myFirstFrame = true;
 
     filename.trimBoundingSpace();
     root.trimBoundingSpace();
@@ -198,33 +255,45 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     if (error() >= UT_ERROR_ABORT)
 	return 0;
 
-    if (nframes < 2 || tdelta < 1e-6)
-	tstep = 1.0/(OPgetDirector()->getChannelManager()->getSamplesPerSec());
+    if (nframes < 2 || SYSequalZero(tdelta))
+	tstep = 1.0/(CHgetManager()->getSamplesPerSec());
     else
 	tstep = tdelta / (nframes-1);
 
-    UT_String	partition;
-    myError = new rop_AlembicOutError(*this, UTgetInterrupt());
-    myTree = new ROP_AbcTree();
-    myTree->setCollapseNodes(COLLAPSE(start));
-    myTree->setSaveAttributes(SAVE_ATTRIBUTES(start));
-    PARTITION_ATTRIBUTE(partition, start);
-    myTree->setPartitionAttribute(partition);
+    myContext->setCollapseIdentity(COLLAPSE(start));
+    myContext->setSaveAttributes(SAVE_ATTRIBUTES(start));
+    myContext->setFullBounds(FULL_BOUNDS(start));
 
-    bool enableMotionBlur = MOTIONBLUR(start);
-    myTree->setMotionBlur(enableMotionBlur);
-    if (enableMotionBlur)
+    UT_String	partition_mode;
+    UT_String	partition_attrib;
+    int		partition_mode_val;
+
+    PARTITION_MODE(partition_mode, start);
+    myContext->clearPartitionAttribute();
+    if (mapPartitionMode(partition_mode, partition_mode_val))
     {
-        myTree->setShutterParms(SHUTTEROPEN(start),
-		SHUTTERCLOSE(start), SAMPLES(start));
+	PARTITION_ATTRIBUTE(partition_attrib, start);
+	myContext->setPartitionMode(partition_mode_val);
+	myContext->setPartitionAttribute(partition_attrib);
     }
 
-    if (!myTree->open(*myError, rootnode, filename, start, tstep))
+    if (MOTIONBLUR(start))
+    {
+	mb_samples = SYSmax(SAMPLES(start), 1);
+	shutter_open = SHUTTEROPEN(start);
+	shutter_close = SHUTTERCLOSE(start);
+    }
+    myContext->setTimeSampling(start, tstep,
+		mb_samples, shutter_open, shutter_close);
+
+    myArchive = new ROP_AbcArchive();
+    if (!myArchive->open(*myError, filename))
     {
 	close();
 	return 0;
     }
 
+    // Now, build the tree
     OP_Bundle	*bundle = getParmBundle("objects", 0, objects,
 			OPgetDirector()->getManager("obj"), "!!OBJ!!");
     if (bundle)
@@ -233,15 +302,18 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 	message.sprintf("Alembic file %s created with %d objects",
 		(const char *)filename, bundle->entries());
 	abcInfo(-1, message.buffer());
+	ROP_AbcOpBuilder	builder(rootnode);
 	for (exint i = 0; i < bundle->entries(); ++i)
 	{
-	    addObject(bundle->getNode(i), start);
+	    OP_Node	*node = bundle->getNode(i);
+	    if (filterNode(node, start))
+		builder.addChild(*myError, node);
 	}
+	//builder.ls();
+	builder.buildTree(*myArchive, *myContext);
     }
-    else
-    {
-	abcWarning("No objects found in bundle");
-    }
+    if (!myArchive->childCount())
+	abcWarning("No objects selected for writing");
 
     if (error() >= UT_ERROR_ABORT)
     {
@@ -251,11 +323,11 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     return 1;
 }
 
-void
-ROP_AlembicOut::addObject(OP_Node *node, fpreal now)
+bool
+ROP_AlembicOut::filterNode(OP_Node *node, fpreal now)
 {
     if (!node)
-	return;
+	return false;
 
     OBJ_Node	*obj = node->castToOBJNode();
     if (!obj)
@@ -263,26 +335,30 @@ ROP_AlembicOut::addObject(OP_Node *node, fpreal now)
 	UT_WorkBuffer	path;
 	node->getFullPath(path);
 	myError->error("%s is not an object", path.buffer());
-	return;
+	return false;
     }
-#if 0
-    // We likely want to output all objects (including bones)
-    if (!obj->isObjectRenderable())
-    {
-	UT_WorkBuffer	path;
-	node->getFullPath(path);
-	myError->info("Skipping non-renderable object: %s", path.buffer());
-	return;
-    }
-#endif
     if (!obj->getObjectDisplay(now))
     {
-	return;
+	return false;
     }
-
-    if (!myTree->addObject(*myError, obj))
-	return;
+    return true;
 }
+
+#if  0
+static void
+countObjects(const ROP_AbcObject *root, int &total, int &tdep, int &stdep)
+{
+    typedef ROP_AbcObject::ChildContainer	Container;
+    total++;
+    if (root->timeDependent()) tdep++;
+    if (root->selfTimeDependent()) stdep++;
+    const Container	&kids = root->getChildren();
+    for (Container::const_iterator it = kids.begin(); it != kids.end(); ++it)
+    {
+	countObjects(it->second, total, tdep, stdep);
+    }
+}
+#endif
 
 ROP_RENDER_CODE
 ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
@@ -293,10 +369,33 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	return ROP_ABORT_RENDER;
     }
 
-    if (!myTree->writeSample(*myError, time))
+    if (myArchive)
     {
-	close();
-	return ROP_ABORT_RENDER;
+	int		start = 0;
+	//UT_StopWatch	timer; timer.start();
+	if (myFirstFrame)
+	{
+	    myFirstFrame = false;
+	    myContext->setTime(time, 0);
+	    if (!myArchive->firstFrame(*myError, *myContext))
+		return ROP_ABORT_RENDER;
+	    start = 1;
+#if 0
+	    fprintf(stderr, "First frame: %g\n", timer.lap());
+	    int stdep = 0;
+	    int tdep = 0;
+	    int total = 0;
+	    countObjects(myArchive, total, tdep, stdep);
+	    fprintf(stderr, "Nodes: %d %d/%d\n", total, stdep, tdep);
+#endif
+	}
+	for (int i = start; i < myContext->samplesPerFrame(); ++i)
+	{
+	    myContext->setTime(time, i);
+	    if (!myArchive->nextFrame(*myError, *myContext))
+		return ROP_ABORT_RENDER;
+	    //fprintf(stderr, "Next frame: %g\n", timer.lap());
+	}
     }
 
     if (!executePostFrameScript(time))
@@ -321,8 +420,11 @@ ROP_AlembicOut::endRender()
 bool
 ROP_AlembicOut::updateParmsFlags()
 {
-    bool	 changed = ROP_Node::updateParmsFlags();
+    bool	changed = ROP_Node::updateParmsFlags();
+    UT_String	mode;
 
+    PARTITION_MODE(mode, 0);
+    changed |= enableParm("partition_attribute", mode != "no");
     changed |= enableParm("shutter", MOTIONBLUR(0));
     changed |= enableParm("samples", MOTIONBLUR(0));
 

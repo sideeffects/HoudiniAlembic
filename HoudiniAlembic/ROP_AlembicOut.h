@@ -4,8 +4,9 @@
 #include <ROP/ROP_Node.h>
 #include <ROP/ROP_Error.h>
 
-class ROP_AbcTree;
-class ROP_AbcError;
+class GABC_OError;
+class ROP_AbcContext;
+class ROP_AbcArchive;
 
 class ROP_AlembicOut : public ROP_Node
 {
@@ -36,7 +37,7 @@ public:
 
 protected:
     void	close();
-    void	addObject(OP_Node *obj, fpreal now);
+    bool	filterNode(OP_Node *obj, fpreal now);
 
     void	FILENAME(UT_String &str, fpreal time)
 		    { getOutputOverrideEx(str, time, "filename", "mkpath"); }
@@ -48,6 +49,10 @@ protected:
 		    { return evalInt("collapse", 0, time) != 0; }
     bool	SAVE_ATTRIBUTES(fpreal time)
 		    { return evalInt("save_attributes", 0, time) != 0; }
+    bool	FULL_BOUNDS(fpreal time)
+		    { return evalInt("full_bounds", 0, time) != 0; }
+    void	PARTITION_MODE(UT_String &sval, fpreal time)
+		    { evalString(sval, "partition_mode", 0, time); }
     void	PARTITION_ATTRIBUTE(UT_String &str, fpreal time)
 		    { evalString(str, "partition_attribute", 0, time); }
     int		VERBOSE(fpreal time)
@@ -61,10 +66,12 @@ protected:
     int		SAMPLES(fpreal time)
 		    { return evalInt("samples", 0, time); }
 
-    ROP_AbcTree		*myTree;
-    ROP_AbcError	*myError;
+    ROP_AbcArchive	*myArchive;
+    ROP_AbcContext	*myContext;
+    GABC_OError		*myError;
     fpreal		 myEndTime;
     int			 myVerbose;
+    bool		 myFirstFrame;
 };
 
 #endif
