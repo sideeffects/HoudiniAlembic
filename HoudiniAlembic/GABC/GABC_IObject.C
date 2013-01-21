@@ -889,6 +889,46 @@ namespace
 	const GT_PrimitiveHandle	&myPrim;
     };
 
+    static GT_FaceSetPtr
+    loadFaceSet(const GABC_IObject &obj, fpreal t)
+    {
+	IFaceSet		 shape(obj.object(), gabcWrapExisting);
+	IFaceSetSchema		&ss = shape.getSchema();
+	IFaceSetSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
+	GT_FaceSetPtr		 set = new GT_FaceSet();
+	Int32ArraySamplePtr	 faces = sample.getFaces();
+
+	if (!isEmpty(faces))
+	{
+	    const int32		*indices = faces->get();
+	    exint		 size = faces->size();
+	    for (exint i = 0; i < size; ++i)
+		set->addFace(indices[i]);
+	}
+
+	return set;
+    }
+
+    template <typename GT_PRIMTYPE>
+    static void
+    loadFaceSets(GT_PRIMTYPE &pmesh, const GABC_IObject &obj, fpreal t)
+    {
+	exint	nkids = obj.getNumChildren();
+	for (exint i = 0; i < nkids; ++i)
+	{
+	    GABC_IObject	kid = obj.getChild(i);
+	    if (kid.valid() && kid.nodeType() == GABC_FACESET)
+	    {
+		GT_FaceSetPtr	set = loadFaceSet(kid, t);
+		if (set)
+		{
+		    pmesh.addFaceSet(kid.getName().c_str(), set);
+		}
+	    }
+	}
+    }
+
+
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
     buildPointMesh(const ATTRIB_CREATOR &acreate,
@@ -1011,6 +1051,8 @@ namespace
 	    gt->appendIntTag("hole", GT_DataArrayHandle(index));
 	}
 
+	loadFaceSets(*gt, obj, t);
+
 	return GT_PrimitiveHandle(gt);
     }
 
@@ -1061,12 +1103,13 @@ namespace
 				theConstantUnknownScope, 2,
 				ss.getArbGeomParams());
 
-	GT_Primitive	*gt = new GT_PrimPolygonMesh(counts,
-				indices,
-				point,
-				vertex,
-				uniform,
-				detail);
+	GT_PrimPolygonMesh	*gt = new GT_PrimPolygonMesh(counts,
+					indices,
+					point,
+					vertex,
+					uniform,
+					detail);
+	loadFaceSets(*gt, obj, t);
 
 	return GT_PrimitiveHandle(gt);
     }
@@ -1135,12 +1178,14 @@ namespace
 		break;
 	}
 
-	GT_Primitive	*gt = new GT_PrimCurveMesh(basis,
-				counts,
-				vertex,
-				uniform,
-				detail,
-				periodic);
+	GT_PrimCurveMesh	*gt = new GT_PrimCurveMesh(basis,
+					counts,
+					vertex,
+					uniform,
+					detail,
+					periodic);
+
+	loadFaceSets(*gt, obj, t);
 
 	return GT_PrimitiveHandle(gt);
     }
