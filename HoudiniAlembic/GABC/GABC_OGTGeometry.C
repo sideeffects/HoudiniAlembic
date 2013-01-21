@@ -396,16 +396,11 @@ namespace
 	const GT_AttributeListHandle	&pt = pointAttributes(src);
 	const GT_AttributeListHandle	&vtx = vertexAttributes(src);
 
-	fprintf(stderr, "PolyMesh\n");
 	counts = src.getFaceCountArray().extractCounts();
 	if (cache.needVertex(ctx, src.getVertexList()))
 	    iInd = int32Array(src.getVertexList(), storage.vertexList());
-	else
-	    fprintf(stderr, "  Reuse Ind\n");
 	if (cache.needCounts(ctx, counts))
 	    iCnt = int32Array(counts, storage.counts());
-	else
-	    fprintf(stderr, "  Reuse Counts\n");
 	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
 	fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt, vtx);
 	fillN3f(iNml, cache, ctx, "N", storage.N(), pt, vtx);
@@ -614,7 +609,6 @@ namespace
 	    ONuPatch &dest, const GT_PrimNuPatch &src,
 	    IntrinsicCache &cache, const GABC_OOptions &ctx)
     {
-	fprintf(stderr, "NURBS?\n");
 	FloatArraySample	iUKnot;
 	FloatArraySample	iVKnot;
 	FloatArraySample	iPosWeight;
