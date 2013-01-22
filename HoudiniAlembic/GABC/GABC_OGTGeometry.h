@@ -218,9 +218,11 @@ public:
 			GT_DataArrayHandle &cache);
 	GT_DataArrayHandle	myData[9];
     };
+    /// Return the secondary cache (allocating if needed)
     SecondaryCache	&getSecondaryCache();
 protected:
-    /// Return the secondary cache (allocating if needed)
+    void	makeFaceSets(const GT_PrimitiveHandle &prim,
+			const GABC_OOptions &ctx);
     void	makeProperties(const GT_PrimitiveHandle &prim,
 			const GABC_OOptions &ctx);
     void	writeProperties(const GT_PrimitiveHandle &prim,
@@ -246,11 +248,12 @@ private:
 	ONuPatch	*myNuPatch;
 	void		*myVoidPtr;
     } myShape;
-    std::string		 myName;
-    PropertyMap		 myProperties[MAX_PROPERTIES];
-    IntrinsicCache	 myCache;	// Cache for space optimization
-    SecondaryCache	*mySecondaryCache;
-    int			 myType;
+    std::string			 myName;
+    PropertyMap			 myProperties[MAX_PROPERTIES];
+    IntrinsicCache		 myCache; // Cache for space optimization
+    SecondaryCache		*mySecondaryCache;
+    UT_Array<std::string>	 myFaceSetNames;
+    int				 myType;
 };
 
 #endif

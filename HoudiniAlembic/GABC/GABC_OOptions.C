@@ -19,6 +19,7 @@
 
 GABC_OOptions::GABC_OOptions()
     : myOptimizeSpace(OPTIMIZE_DEFAULT)
+    , myFaceSetMode(FACESET_DEFAULT)
     , mySaveAttributes(true)
     , myUseDisplaySOP(false)
     , myFullBounds(false)

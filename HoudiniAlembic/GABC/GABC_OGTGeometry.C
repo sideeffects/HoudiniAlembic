@@ -52,11 +52,13 @@ namespace
     typedef Alembic::Abc::P3fArraySample	P3fArraySample;
     typedef Alembic::Abc::OCompoundProperty	OCompoundProperty;
     typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
+    typedef Alembic::AbcGeom::OFaceSet		OFaceSet;
     typedef Alembic::AbcGeom::OPolyMesh		OPolyMesh;
     typedef Alembic::AbcGeom::OSubD		OSubD;
     typedef Alembic::AbcGeom::OCurves		OCurves;
     typedef Alembic::AbcGeom::OPoints		OPoints;
     typedef Alembic::AbcGeom::ONuPatch		ONuPatch;
+    typedef Alembic::AbcGeom::OFaceSetSchema	OFaceSetSchema;
     typedef Alembic::AbcGeom::OPolyMeshSchema	OPolyMeshSchema;
     typedef Alembic::AbcGeom::OSubDSchema	OSubDSchema;
     typedef Alembic::AbcGeom::OCurvesSchema	OCurvesSchema;
@@ -379,9 +381,31 @@ namespace
 	return transformedAttributes(prim, prim.getDetailAttributes());
     }
 
+    template <typename ABC_TYPE>
+    static void
+    fillFaceSets(const UT_Array<std::string> &names,
+	    ABC_TYPE &dest, const GT_FaceSetMapPtr &src)
+    {
+	for (exint i = 0; i < names.entries(); ++i)
+	{
+	    const GT_FaceSetPtr	&set = src->find(names(i).c_str());
+	    if (set)
+	    {
+		UT_ASSERT(dest.hasFaceSet(names(i)));
+		OFaceSet		fset = dest.getFaceSet(names(i));
+		OFaceSetSchema		&ss = fset.getSchema();
+		OFaceSetSchema::Sample	sample;
+		GT_DataArrayHandle	items = set->extractMembers();
+		GT_DataArrayHandle	store;
+		sample.setFaces(int32Array(items, store));
+		ss.set(sample);
+	    }
+	}
+    }
 
     static void
-    fillPolyMesh(OPolyMesh &dest, const GT_PrimPolygonMesh &src,
+    fillPolyMesh(OPolyMesh &dest,
+	    const GT_PrimPolygonMesh &src,
 	    IntrinsicCache &cache, const GABC_OOptions &ctx)
     {
 	Int32ArraySample	iInd;
@@ -917,6 +941,70 @@ GABC_OGTGeometry::writeProperties(const GT_PrimitiveHandle &prim,
 	    detailAttributes(*prim), ctx);
 }
 
+static GT_FaceSetMapPtr
+getFaceSetMap(const GT_PrimitiveHandle &prim)
+{
+    GT_FaceSetMapPtr	facesets;
+    switch (prim->getPrimitiveType())
+    {
+	case GT_PRIM_POLYGON_MESH:
+	case GT_PRIM_SUBDIVISION_MESH:
+	    {
+		const GT_PrimPolygonMesh	*p;
+		p = UTverify_cast<const GT_PrimPolygonMesh *>(prim.get());
+		facesets = p->faceSetMap();
+	    }
+	    break;
+	case GT_PRIM_CURVE_MESH:
+	    {
+		const GT_PrimCurveMesh	*p;
+		p = UTverify_cast<const GT_PrimCurveMesh *>(prim.get());
+		facesets = p->faceSetMap();
+	    }
+	    break;
+    }
+    return facesets;
+}
+
+void
+GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
+	const GABC_OOptions &ctx)
+{
+    if (ctx.faceSetMode() == GABC_OOptions::FACESET_NONE)
+    {
+	return;
+    }
+    GT_DataArrayHandle	ids;
+    GT_FaceSetMapPtr	facesets = getFaceSetMap(prim);
+    if (!facesets)
+	return;
+    for (GT_FaceSetMap::iterator it = facesets->begin(); !it.atEnd(); ++it)
+    {
+	std::string		 name = it.name();
+	const GT_FaceSetPtr	&set = it.faceSet();
+	if (ctx.faceSetMode() == GABC_OOptions::FACESET_ALL_GROUPS ||
+		set->entries() != 0)
+	{
+	    myFaceSetNames.append(name);
+	    switch (myType)
+	    {
+		case GT_PRIM_POLYGON_MESH:
+		    {
+			OPolyMeshSchema	&ss = myShape.myPolyMesh->getSchema();
+			ss.createFaceSet(name);
+		    }
+		    break;
+		case GT_PRIM_SUBDIVISION_MESH:
+		    {
+			OSubDSchema	&ss = myShape.mySubD->getSchema();
+			ss.createFaceSet(name);
+		    }
+		    break;
+	    }
+	}
+    }
+}
+
 void
 GABC_OGTGeometry::makeProperties(const GT_PrimitiveHandle &prim,
 			const GABC_OOptions &ctx)
@@ -1036,6 +1124,7 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 		myShape.myPolyMesh = new OPolyMesh(parent, myName,
 					ctx.timeSampling());
 		makeProperties(prim, ctx);
+		makeFaceSets(prim, ctx);
 		return update(prim, err, ctx);
 	    }
 	    return true;
@@ -1044,6 +1133,7 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 		myShape.mySubD = new OSubD(parent, myName,
 					ctx.timeSampling());
 		makeProperties(prim, ctx);
+		makeFaceSets(prim, ctx);
 		return update(prim, err, ctx);
 	    }
 	    return true;
@@ -1100,12 +1190,18 @@ GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
 			*(GT_PrimPolygonMesh *)(prim.get()),
 			myCache, ctx);
 	    writeProperties(prim, ctx);
+	    fillFaceSets(myFaceSetNames,
+			myShape.myPolyMesh->getSchema(),
+			((GT_PrimPolygonMesh *)(prim.get()))->faceSetMap());
 	    return true;
 	case GT_PRIM_SUBDIVISION_MESH:
 	    fillSubD(*this, *myShape.mySubD,
 			*(GT_PrimSubdivisionMesh *)(prim.get()),
 			myCache, ctx);
 	    writeProperties(prim, ctx);
+	    fillFaceSets(myFaceSetNames,
+			myShape.mySubD->getSchema(),
+			((GT_PrimSubdivisionMesh *)(prim.get()))->faceSetMap());
 	    return true;
 	case GT_PRIM_POINT_MESH:
 	    fillPoints(*myShape.myPoints,

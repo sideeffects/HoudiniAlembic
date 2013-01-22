@@ -89,6 +89,7 @@ namespace
 		const ROP_AbcContext &ctx)
     {
 	OP_Network	*obj = sop->getCreator();
+	rparms.setFaceSetMode(ctx.faceSetMode());
 	if (isToggleEnabled(obj, "vm_rendersubd", ctx.cookTime(), false) ||
 	    isToggleEnabled(obj, "ri_rendersubd", ctx.cookTime(), false))
 	{

@@ -126,7 +126,6 @@ GABC_GUPrim::doConvert(const GU_ConvertParms &parms) const
 
     if (parms.toType == GEO_PrimTypeCompat::GEOPRIMPOLY)
 	rparms.setAllowPolySoup(false);
-    rparms.setProcessFaceSets(true);
 
     GT_Util::makeGEO(details, prim, &rparms);
     if (!details.entries())

@@ -50,6 +50,19 @@ public:
     void		setOptimizeSpace(SpaceOptimize v)
 			    { myOptimizeSpace = v; }
 
+    /// Face set creation
+    enum FaceSetMode
+    {
+	FACESET_NONE,		// Don't create face sets
+	FACESET_NON_EMPTY,	// Only create face sets for non-empty groups
+	FACESET_ALL_GROUPS,	// Create face sets for all primitive groups
+
+	FACESET_DEFAULT = FACESET_NON_EMPTY,
+    };
+    bool	faceSetMode() const	{ return myFaceSetMode; }
+    void	setFaceSetMode(FaceSetMode m)	{ myFaceSetMode = m; }
+
+
     /// @{
     /// Whether or not to save attributes along with the geometry.  Default true
     bool	saveAttributes() const		{ return mySaveAttributes; }
@@ -70,6 +83,7 @@ public:
 
 private:
     SpaceOptimize	myOptimizeSpace;
+    FaceSetMode		myFaceSetMode;
     bool		mySaveAttributes;
     bool		myUseDisplaySOP;
     bool		myFullBounds;

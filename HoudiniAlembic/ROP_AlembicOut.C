@@ -56,6 +56,7 @@ namespace
     static PRM_Name	thePartitionAttributeName("partition_attribute",
 				"Partition Attribute");
     static PRM_Name	theVerboseName("verbose", "Verbosity");
+    static PRM_Name	theFaceSetModeName("facesets", "Face Sets");
 
     static PRM_Default	theFilenameDefault(0, "$HIP/output.abc");
     static PRM_Default	theRootDefault(0, "/obj");
@@ -66,6 +67,7 @@ namespace
     static PRM_Default	thePartitionModeDefault(0, "no");
     static PRM_Default	thePartitionAttributeDefault(0, "");
     static PRM_Default	theVerboseDefault(0);
+    static PRM_Default	theFaceSetDefault(0);
 
     static PRM_Name	thePartitionModeChoices[] =
     {
@@ -100,6 +102,35 @@ namespace
 	return false;
     }
 
+    static PRM_Name	theFaceSetModeChoices[] =
+    {
+	PRM_Name("no",	"No face sets"),
+	PRM_Name("nonempty",	"Save non-empty groups as face sets"),
+	PRM_Name("all",		"Save all groups as face sets"),
+	PRM_Name()
+    };
+    static bool
+    mapFaceSetMode(const char *mode, GABC_OOptions::FaceSetMode &value)
+    {
+	value = ROP_AbcContext::FACESET_DEFAULT;
+	if (!strcmp(mode, "no"))
+	{
+	    value = ROP_AbcContext::FACESET_NONE;
+	    return true;
+	}
+	if (!strcmp(mode, "nonempty"))
+	{
+	    value = ROP_AbcContext::FACESET_NON_EMPTY;
+	    return true;
+	}
+	if (!strcmp(mode, "all"))
+	{
+	    value = ROP_AbcContext::FACESET_ALL_GROUPS;
+	    return true;
+	}
+	return false;
+    }
+
     static PRM_Name	thePartitionAttributeChoices[] =
     {
 	PRM_Name("",		"No geometry partitions"),
@@ -114,6 +145,8 @@ namespace
 					thePartitionModeChoices);
     static PRM_ChoiceList	thePartitionAttributeMenu(PRM_CHOICELIST_REPLACE,
 					thePartitionAttributeChoices);
+    static PRM_ChoiceList	theFaceSetModeMenu(PRM_CHOICELIST_SINGLE,
+					theFaceSetModeChoices);
 
     static PRM_Range	theVerboseRange(PRM_RANGE_RESTRICTED, 0,
 				    PRM_RANGE_UI, 3);
@@ -130,6 +163,7 @@ namespace
     static PRM_Default	theMotionBlurDefault(0, "no");
     static PRM_Default	theSampleDefault(2);
     static PRM_Default	theShutterDefault[] = {0, 1};
+    static PRM_Default	theFaceSetModeDefault(1, "nonempty");
 
     static PRM_Template	theParameters[] = {
 	PRM_Template(PRM_FILE,	1, &theFilenameName, &theFilenameDefault),
@@ -147,6 +181,9 @@ namespace
 				    &theFullBoundsDefault),
 	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
 				    &theSaveAttributesDefault),
+	PRM_Template(PRM_ORD, 1, &theFaceSetModeName,
+				    &theFaceSetModeDefault,
+				    &theFaceSetModeMenu),
 	PRM_Template(PRM_ORD, 1, &thePartitionModeName,
 				    &thePartitionModeDefault,
 				    &thePartitionModeMenu),
@@ -259,6 +296,14 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 	tstep = 1.0/(CHgetManager()->getSamplesPerSec());
     else
 	tstep = tdelta / (nframes-1);
+
+    UT_String			faceset_str;
+    GABC_OOptions::FaceSetMode	faceset_mode;
+    FACESET_MODE(faceset_str, start);
+    if (mapFaceSetMode(faceset_str, faceset_mode))
+	myContext->setFaceSetMode(faceset_mode);
+    else
+	abcWarning("Invalid value for faceset mode");
 
     myContext->setCollapseIdentity(COLLAPSE(start));
     myContext->setSaveAttributes(SAVE_ATTRIBUTES(start));
