@@ -59,7 +59,7 @@ public:
 
 	FACESET_DEFAULT = FACESET_NON_EMPTY,
     };
-    bool	faceSetMode() const	{ return myFaceSetMode; }
+    FaceSetMode	faceSetMode() const	{ return myFaceSetMode; }
     void	setFaceSetMode(FaceSetMode m)	{ myFaceSetMode = m; }
 
 
