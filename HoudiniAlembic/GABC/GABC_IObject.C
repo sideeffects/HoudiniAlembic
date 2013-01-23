@@ -1449,9 +1449,18 @@ namespace
 	for (exint i = 0; i < narb; ++i)
 	{
 	    const PropertyHeader	&head = arb.getPropertyHeader(i);
-	    IArrayProperty		 prop(arb, head.getName());
-	    if (!prop.isConstant())
-		return true;
+#if 0
+	    if (head.isCompound())
+	    {
+		fprintf(stderr, "Indexed array? %s\n", head.getName().c_str());
+	    }
+	    else
+#endif
+	    {
+		IArrayProperty		 prop(arb, head.getName());
+		if (!prop.isConstant())
+		    return true;
+	    }
 	}
 	return false;
     }
@@ -1658,48 +1667,56 @@ GABC_IObject::getAnimationType(bool include_transform) const
     if (!valid())
 	return GABC_ANIMATION_INVALID;
     GABC_AutoLock	lock(archive());
-
     GABC_AnimationType	atype = GABC_ANIMATION_CONSTANT;
-    // Set the topology based on a combination of conditions.
-    // We initialize based on the shape topology, but if the shape topology is
-    // constant, there are still various factors which can make the primitive
-    // non-constant (i.e. Homogeneous).
-    switch (nodeType())
+
+    try
     {
-	case GABC_POLYMESH:
-	    atype = getAnimation<IPolyMesh, IPolyMeshSchema>(*this);
-	    break;
-	case GABC_SUBD:
-	    atype = getAnimation<ISubD, ISubDSchema>(*this);
-	    break;
-	case GABC_CURVES:
-	    atype = getAnimation<ICurves, ICurvesSchema>(*this);
-	    break;
-	case GABC_POINTS:
-	    atype = getAnimation<IPoints, IPointsSchema>(*this);
-	    break;
-	case GABC_NUPATCH:
-	    atype = getAnimation<INuPatch, INuPatchSchema>(*this);
-	    break;
-	case GABC_XFORM:
-	    if (isMayaLocator())
-		atype = getLocatorAnimation(*this);
-	    else
-		atype = getAnimation<IXform, IXformSchema>(*this);
-	    break;
-	default:
-	    atype = GABC_ANIMATION_TOPOLOGY;
-	    break;
-    }
-    if (atype == GABC_ANIMATION_CONSTANT && include_transform)
-    {
-	GABC_IObject	parent = getParent();
-	if (parent.valid())
+	// Set the topology based on a combination of conditions.  We
+	// initialize based on the shape topology, but if the shape topology is
+	// constant, there are still various factors which can make the
+	// primitive non-constant (i.e. Homogeneous).
+	switch (nodeType())
 	{
-	    // Check to see if transform is non-constant
-	    UT_Matrix4D	xform;
-	    getWorldTransform(xform, 0, atype);
+	    case GABC_POLYMESH:
+		atype = getAnimation<IPolyMesh, IPolyMeshSchema>(*this);
+		break;
+	    case GABC_SUBD:
+		atype = getAnimation<ISubD, ISubDSchema>(*this);
+		break;
+	    case GABC_CURVES:
+		atype = getAnimation<ICurves, ICurvesSchema>(*this);
+		break;
+	    case GABC_POINTS:
+		atype = getAnimation<IPoints, IPointsSchema>(*this);
+		break;
+	    case GABC_NUPATCH:
+		atype = getAnimation<INuPatch, INuPatchSchema>(*this);
+		break;
+	    case GABC_XFORM:
+		if (isMayaLocator())
+		    atype = getLocatorAnimation(*this);
+		else
+		    atype = getAnimation<IXform, IXformSchema>(*this);
+		break;
+	    default:
+		atype = GABC_ANIMATION_TOPOLOGY;
+		break;
 	}
+	if (atype == GABC_ANIMATION_CONSTANT && include_transform)
+	{
+	    GABC_IObject	parent = getParent();
+	    if (parent.valid())
+	    {
+		// Check to see if transform is non-constant
+		UT_Matrix4D	xform;
+		getWorldTransform(xform, 0, atype);
+	    }
+	}
+    }
+    catch (const std::exception &e)
+    {
+	atype = GABC_ANIMATION_INVALID;
+	UT_ASSERT(0 && "Alembic exception");
     }
     return atype;
 }
@@ -1710,20 +1727,27 @@ GABC_IObject::getBoundingBox(UT_BoundingBox &box, fpreal t, bool &isconst) const
     if (!valid())
 	return false;
     GABC_AutoLock	lock(archive());
-    switch (nodeType())
+    try
     {
-	case GABC_POLYMESH:
-	    return abcBounds<IPolyMesh, IPolyMeshSchema>(object(), box, t);
-	case GABC_SUBD:
-	    return abcBounds<ISubD, ISubDSchema>(object(), box, t);
-	case GABC_CURVES:
-	    return abcBounds<ICurves, ICurvesSchema>(object(), box, t);
-	case GABC_POINTS:
-	    return abcBounds<IPoints, IPointsSchema>(object(), box, t);
-	case GABC_NUPATCH:
-	    return abcBounds<INuPatch, INuPatchSchema>(object(), box, t);
-	default:
-	    break;
+	switch (nodeType())
+	{
+	    case GABC_POLYMESH:
+		return abcBounds<IPolyMesh, IPolyMeshSchema>(object(), box, t);
+	    case GABC_SUBD:
+		return abcBounds<ISubD, ISubDSchema>(object(), box, t);
+	    case GABC_CURVES:
+		return abcBounds<ICurves, ICurvesSchema>(object(), box, t);
+	    case GABC_POINTS:
+		return abcBounds<IPoints, IPointsSchema>(object(), box, t);
+	    case GABC_NUPATCH:
+		return abcBounds<INuPatch, INuPatchSchema>(object(), box, t);
+	    default:
+		break;
+	}
+    }
+    catch (const std::exception &e)
+    {
+	UT_ASSERT(0 && "Alembic exception");
     }
     return false;
 }
@@ -1766,30 +1790,43 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
     GABC_AutoLock	lock(archive());
     GT_PrimitiveHandle	prim;
     atype = GABC_ANIMATION_CONSTANT;
-    switch (nodeType())
+    try
     {
-	case GABC_POLYMESH:
-	    prim = buildPolyMesh(CreateAttributeList(), gprim, *this, t, namemap);
-	    break;
-	case GABC_SUBD:
-	    prim = buildSubDMesh(CreateAttributeList(), gprim, *this, t, namemap);
-	    break;
-	case GABC_POINTS:
-	    prim = buildPointMesh(CreateAttributeList(), gprim, *this, t, namemap);
-	    break;
-	case GABC_CURVES:
-	    prim = buildCurveMesh(CreateAttributeList(), gprim, *this, t, namemap);
-	    break;
-	case GABC_NUPATCH:
-	    prim = buildNuPatch(CreateAttributeList(), gprim, *this, t, namemap);
-	    break;
-	case GABC_XFORM:
-	    if (isMayaLocator())
-		prim = buildLocator(*this, t);
-	    else
-		prim = buildTransform(*this);
-	default:
-	    break;
+	switch (nodeType())
+	{
+	    case GABC_POLYMESH:
+		prim = buildPolyMesh(CreateAttributeList(), gprim,
+			*this, t, namemap);
+		break;
+	    case GABC_SUBD:
+		prim = buildSubDMesh(CreateAttributeList(), gprim,
+			*this, t, namemap);
+		break;
+	    case GABC_POINTS:
+		prim = buildPointMesh(CreateAttributeList(), gprim,
+			*this, t, namemap);
+		break;
+	    case GABC_CURVES:
+		prim = buildCurveMesh(CreateAttributeList(), gprim,
+			*this, t, namemap);
+		break;
+	    case GABC_NUPATCH:
+		prim = buildNuPatch(CreateAttributeList(), gprim,
+			*this, t, namemap);
+		break;
+	    case GABC_XFORM:
+		if (isMayaLocator())
+		    prim = buildLocator(*this, t);
+		else
+		    prim = buildTransform(*this);
+	    default:
+		break;
+	}
+    }
+    catch (const std::exception &e)
+    {
+	UT_ASSERT(0 && "Alembic exception");
+	prim = GT_PrimitiveHandle();
     }
     atype = (prim) ? getAnimationType(false) : GABC_ANIMATION_CONSTANT;
     return prim;
@@ -1803,30 +1840,38 @@ GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
 {
     UT_ASSERT(src);
     GT_PrimitiveHandle	prim;
-    switch (nodeType())
+    try
     {
-	case GABC_POLYMESH:
-	    prim = buildPolyMesh(UpdateAttributeList(src), gprim,
-			*this, new_time, namemap);
-	    break;
-	case GABC_SUBD:
-	    prim = buildSubDMesh(UpdateAttributeList(src), gprim,
-			*this, new_time, namemap);
-	    break;
-	case GABC_POINTS:
-	    prim = buildPointMesh(UpdateAttributeList(src), gprim,
-			*this, new_time, namemap);
-	    break;
-	case GABC_CURVES:
-	    prim = buildCurveMesh(UpdateAttributeList(src), gprim,
-			*this, new_time, namemap);
-	    break;
-	case GABC_NUPATCH:
-	    prim = buildNuPatch(UpdateAttributeList(src), gprim,
-			*this, new_time, namemap);
-	    break;
-	default:
-	    break;
+	switch (nodeType())
+	{
+	    case GABC_POLYMESH:
+		prim = buildPolyMesh(UpdateAttributeList(src), gprim,
+			    *this, new_time, namemap);
+		break;
+	    case GABC_SUBD:
+		prim = buildSubDMesh(UpdateAttributeList(src), gprim,
+			    *this, new_time, namemap);
+		break;
+	    case GABC_POINTS:
+		prim = buildPointMesh(UpdateAttributeList(src), gprim,
+			    *this, new_time, namemap);
+		break;
+	    case GABC_CURVES:
+		prim = buildCurveMesh(UpdateAttributeList(src), gprim,
+			    *this, new_time, namemap);
+		break;
+	    case GABC_NUPATCH:
+		prim = buildNuPatch(UpdateAttributeList(src), gprim,
+			    *this, new_time, namemap);
+		break;
+	    default:
+		break;
+	}
+    }
+    catch (const std::exception &e)
+    {
+	UT_ASSERT(0 && "Alembic exception");
+	prim = GT_PrimitiveHandle();
     }
     if (!prim)
 	prim = src;
@@ -1920,20 +1965,32 @@ GABC_IObject::getPosition(fpreal t, GABC_AnimationType &atype) const
     if (valid())
     {
 	GABC_AutoLock	lock(archive());
-	switch (nodeType())
+	try
 	{
-	    case GABC_POLYMESH:
-		return gabcGetPosition<IPolyMesh, IPolyMeshSchema>(*this, t, atype);
-	    case GABC_SUBD:
-		return gabcGetPosition<ISubD, ISubDSchema>(*this, t, atype);
-	    case GABC_CURVES:
-		return gabcGetPosition<ICurves, ICurvesSchema>(*this, t, atype);
-	    case GABC_POINTS:
-		return gabcGetPosition<IPoints, IPointsSchema>(*this, t, atype);
-	    case GABC_NUPATCH:
-		return gabcGetPosition<INuPatch, INuPatchSchema>(*this, t, atype);
-	    default:
-		break;
+	    switch (nodeType())
+	    {
+		case GABC_POLYMESH:
+		    return gabcGetPosition<IPolyMesh,
+			       IPolyMeshSchema>(*this, t, atype);
+		case GABC_SUBD:
+		    return gabcGetPosition<ISubD,
+			       ISubDSchema>(*this, t, atype);
+		case GABC_CURVES:
+		    return gabcGetPosition<ICurves,
+			       ICurvesSchema>(*this, t, atype);
+		case GABC_POINTS:
+		    return gabcGetPosition<IPoints,
+			       IPointsSchema>(*this, t, atype);
+		case GABC_NUPATCH:
+		    return gabcGetPosition<INuPatch,
+			       INuPatchSchema>(*this, t, atype);
+		default:
+		    break;
+	    }
+	}
+	catch (const std::exception &e)
+	{
+	    UT_ASSERT(0 && "Alembic exception");
 	}
     }
     atype = GABC_ANIMATION_CONSTANT;
@@ -1946,20 +2003,27 @@ GABC_IObject::getVelocity(fpreal t, GABC_AnimationType &atype) const
     if (valid())
     {
 	GABC_AutoLock	lock(archive());
-	switch (nodeType())
+	try
 	{
-	    case GABC_POLYMESH:
-		return gabcGetVelocity<IPolyMesh, IPolyMeshSchema>(*this, t);
-	    case GABC_SUBD:
-		return gabcGetVelocity<ISubD, ISubDSchema>(*this, t);
-	    case GABC_CURVES:
-		return gabcGetVelocity<ICurves, ICurvesSchema>(*this, t);
-	    case GABC_POINTS:
-		return gabcGetVelocity<IPoints, IPointsSchema>(*this, t);
-	    case GABC_NUPATCH:
-		return gabcGetVelocity<INuPatch, INuPatchSchema>(*this, t);
-	    default:
-		break;
+	    switch (nodeType())
+	    {
+		case GABC_POLYMESH:
+		    return gabcGetVelocity<IPolyMesh, IPolyMeshSchema>(*this, t);
+		case GABC_SUBD:
+		    return gabcGetVelocity<ISubD, ISubDSchema>(*this, t);
+		case GABC_CURVES:
+		    return gabcGetVelocity<ICurves, ICurvesSchema>(*this, t);
+		case GABC_POINTS:
+		    return gabcGetVelocity<IPoints, IPointsSchema>(*this, t);
+		case GABC_NUPATCH:
+		    return gabcGetVelocity<INuPatch, INuPatchSchema>(*this, t);
+		default:
+		    break;
+	    }
+	}
+	catch (const std::exception &e)
+	{
+	    UT_ASSERT(0 && "Alembic exception");
 	}
     }
     return GT_DataArrayHandle();
@@ -2064,13 +2128,20 @@ GABC_IObject::getGeometryProperty(exint index, fpreal t,
 {
     GABC_AutoLock	lock(archive());
     GT_DataArrayHandle	data;
-    ICompoundProperty	arb = getArbGeomParams();
-    if (arb)
+    try
     {
-	const PropertyHeader	&header = arb.getPropertyHeader(index);
-	name = header.getName();
-	data = convertArbitraryProperty(*archive(), arb, header, t, &atype);
-	scope = getArbitraryPropertyScope(header);
+	ICompoundProperty	arb = getArbGeomParams();
+	if (arb)
+	{
+	    const PropertyHeader	&header = arb.getPropertyHeader(index);
+	    name = header.getName();
+	    data = convertArbitraryProperty(*archive(), arb, header, t, &atype);
+	    scope = getArbitraryPropertyScope(header);
+	}
+    }
+    catch (const std::exception &e)
+    {
+	UT_ASSERT(0 && "Alembic exception");
     }
     return data;
 }
@@ -2081,15 +2152,22 @@ GABC_IObject::getGeometryProperty(const std::string &name, fpreal t,
 {
     GABC_AutoLock	lock(archive());
     GT_DataArrayHandle	data;
-    ICompoundProperty	arb = getArbGeomParams();
-    if (arb)
+    try
     {
-	const PropertyHeader	*header = arb.getPropertyHeader(name);
-	if (header)
+	ICompoundProperty	arb = getArbGeomParams();
+	if (arb)
 	{
-	    data = convertArbitraryProperty(*archive(), arb, *header, t, &atype);
-	    scope = getArbitraryPropertyScope(*header);
+	    const PropertyHeader	*header = arb.getPropertyHeader(name);
+	    if (header)
+	    {
+		data = convertArbitraryProperty(*archive(), arb, *header, t, &atype);
+		scope = getArbitraryPropertyScope(*header);
+	    }
 	}
+    }
+    catch (const std::exception &e)
+    {
+	UT_ASSERT(0 && "Alembic exception");
     }
     return data;
 }
@@ -2108,12 +2186,19 @@ GABC_IObject::getUserProperty(exint index, fpreal t,
 {
     GABC_AutoLock	lock(archive());
     GT_DataArrayHandle	data;
-    ICompoundProperty	arb = getUserProperties();
-    if (arb)
+    try
     {
-	const PropertyHeader	&header = arb.getPropertyHeader(index);
-	name = header.getName();
-	data = convertArbitraryProperty(*archive(), arb, header, t, &atype);
+	ICompoundProperty	arb = getUserProperties();
+	if (arb)
+	{
+	    const PropertyHeader	&header = arb.getPropertyHeader(index);
+	    name = header.getName();
+	    data = convertArbitraryProperty(*archive(), arb, header, t, &atype);
+	}
+    }
+    catch (const std::exception &e)
+    {
+	UT_ASSERT(0 && "Alembic exception");
     }
     return data;
 }
@@ -2124,14 +2209,21 @@ GABC_IObject::getUserProperty(const std::string &name, fpreal t,
 {
     GABC_AutoLock	lock(archive());
     GT_DataArrayHandle	data;
-    ICompoundProperty	arb = getUserProperties();
-    if (arb)
+    try
     {
-	const PropertyHeader	*header = arb.getPropertyHeader(name);
-	if (header)
+	ICompoundProperty	arb = getUserProperties();
+	if (arb)
 	{
-	    data = convertArbitraryProperty(*archive(), arb, *header, t, &atype);
+	    const PropertyHeader	*header = arb.getPropertyHeader(name);
+	    if (header)
+	    {
+		data = convertArbitraryProperty(*archive(), arb, *header, t, &atype);
+	    }
 	}
+    }
+    catch (const std::exception &e)
+    {
+	UT_ASSERT(0 && "Alembic exception");
     }
     return data;
 }
@@ -2153,17 +2245,14 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
     }
     if (!obj.valid())
 	return false;
-#if 1
     if (ascended)
+    {
 	return GABC_Util::getWorldTransform(archive()->filename(),
 		GABC_IObject(archive(), obj), t, xform,
 		isConstant, inheritsXform);
+    }
     return GABC_Util::getWorldTransform(archive()->filename(),
 			*this, t, xform, isConstant, inheritsXform);
-#else
-    return GABC_Util::getWorldTransform(archive()->filename(),
-			obj, t, xform, isConstant, inheritsXform);
-#endif
 }
 
 bool
