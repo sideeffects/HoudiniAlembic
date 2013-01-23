@@ -24,6 +24,7 @@
 #include "GABC_GTUtil.h"
 #include <GU/GU_Detail.h>
 #include <GT/GT_DANumeric.h>
+#include <GT/GT_DAIndirect.h>
 #include <GT/GT_PrimitiveBuilder.h>
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_Util.h>
@@ -473,6 +474,24 @@ namespace
 	    }
 	    return readScalarProperty(arch, prop, t);
 	}
+	else if (header.isCompound())
+	{
+	    ICompoundProperty	  comp(parent, header.getName());
+	    const PropertyHeader *hidx = comp.getPropertyHeader(".indices");
+	    const PropertyHeader *hval = comp.getPropertyHeader(".vals");
+	    if (hidx && hval)
+	    {
+		GT_DataArrayHandle	gtidx, gtval;
+		GABC_AnimationType	atidx, atval;
+		gtidx = convertArbitraryProperty(arch, comp, *hidx, t, &atidx);
+		gtval = convertArbitraryProperty(arch, comp, *hval, t, &atval);
+		if (gtidx && gtval)
+		{
+		    GT_DataArray	*gt = new GT_DAIndirect(gtidx, gtval);
+		    return GT_DataArrayHandle(gt);
+		}
+	    }
+	}
 
 	return GT_DataArrayHandle();
     }
@@ -559,6 +578,25 @@ namespace
 		    readUVProperty(arch, *VAR, t), filled); \
 	}
 
+    static GT_Storage
+    getGTStorage(ICompoundProperty &parent, const PropertyHeader &head)
+    {
+	if (head.isArray() || head.isScalar())
+	    return GABC_GTUtil::getGTStorage(head.getDataType());
+	if (head.isCompound())
+	{
+	    ICompoundProperty	  comp(parent, head.getName());
+	    const PropertyHeader *hidx = comp.getPropertyHeader(".indices");
+	    const PropertyHeader *hval = comp.getPropertyHeader(".vals");
+	    if (hidx && hval)
+	    {
+		return getGTStorage(parent, *hval);
+	    }
+	}
+	UT_ASSERT(0 && "Unhandled property type");
+	return GT_STORE_INVALID;
+    }
+
     template <bool ONLY_ANIMATING>
     static void
     fillAttributeList(GT_AttributeList &alist,
@@ -617,7 +655,7 @@ namespace
 		    if (!name)
 			continue;
 		}
-		GT_Storage	store = GABC_GTUtil::getGTStorage(header.getDataType());
+		GT_Storage	store = getGTStorage(arb, header);
 		if (store == GT_STORE_INVALID)
 		    continue;
 		setAttributeData(alist, name,
@@ -712,7 +750,7 @@ namespace
 		    if (!name)
 			continue;
 		}
-		GT_Storage	store = GABC_GTUtil::getGTStorage(header.getDataType());
+		GT_Storage	store = getGTStorage(arb, header);
 		if (store == GT_STORE_INVALID)
 		    continue;
 		map->add(name, false);
@@ -1449,17 +1487,27 @@ namespace
 	for (exint i = 0; i < narb; ++i)
 	{
 	    const PropertyHeader	&head = arb.getPropertyHeader(i);
-#if 0
-	    if (head.isCompound())
-	    {
-		fprintf(stderr, "Indexed array? %s\n", head.getName().c_str());
-	    }
-	    else
-#endif
+	    if (head.isArray())
 	    {
 		IArrayProperty		 prop(arb, head.getName());
 		if (!prop.isConstant())
 		    return true;
+	    }
+	    else if (head.isScalar())
+	    {
+		IScalarProperty		 prop(arb, head.getName());
+		if (!prop.isConstant())
+		    return true;
+	    }
+	    else if (head.isCompound())
+	    {
+		ICompoundProperty	prop(arb, head.getName());
+		if (prop && abcArbsAreAnimated(prop))
+		    return true;
+	    }
+	    else
+	    {
+		UT_ASSERT(0 && "Unhandled property storage");
 	    }
 	}
 	return false;
