@@ -1306,6 +1306,7 @@ GABC_GEOWalker::setPathAttribute(const GA_RWAttributeRef &a)
 void
 GABC_GEOWalker::updateAbcPrims()
 {
+    bool	setPath = pathAttributeChanged() && myPathAttribute.isValid();
     for (GA_Iterator it(detail().getPrimitiveRange()); !it.atEnd(); ++it)
     {
 	GEO_Primitive	*prim = detail().getGEOPrimitive(*it);
@@ -1318,6 +1319,8 @@ GABC_GEOWalker::updateAbcPrims()
 	// change.
 	// A change in the attribute map will cause an entire rebuild.
 	abc->setFrame(time());
+	if (setPath)
+	    myPathAttribute.set(prim->getMapOffset(), abc->objectPath().c_str());
     }
 }
 

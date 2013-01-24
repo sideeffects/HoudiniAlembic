@@ -95,6 +95,7 @@ private:
 	/// see if new geometry is needed (i.e. the filename has changed, or the
 	/// path attribute has changed, etc.)
 	bool	needsNewGeometry(const Parms &parms);
+	bool	needsPathAttributeUpdate(const Parms &parms);
 
 	Parms	&operator=(const Parms &src);
 
@@ -139,6 +140,7 @@ private:
     };
 
     void	evaluateParms(Parms &parms, OP_Context &context);
+    void	setPathAttributes(GABC_GEOWalker &walk, const Parms &parms);
 
     ArchiveEventHandlerPtr	myEventHandler;
     Parms			myLastParms;

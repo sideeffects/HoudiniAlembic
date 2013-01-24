@@ -105,6 +105,12 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     return *this;
 }
 
+bool
+SOP_AlembicIn2::Parms::needsPathAttributeUpdate(const SOP_AlembicIn2::Parms &parms)
+{
+    return myPathAttribute != parms.myPathAttribute ||
+	myFilenameAttribute != parms.myFilenameAttribute;
+}
 
 bool
 SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
@@ -527,6 +533,27 @@ SOP_AlembicIn2::archiveClearEvent()
 }
 
 //-*****************************************************************************
+void
+SOP_AlembicIn2::setPathAttributes(GABC_GEOWalker &walk, const Parms &parms)
+{
+    if (parms.myPathAttribute.isstring())
+    {
+	GA_RWAttributeRef	a = gdp->addStringTuple(GA_ATTRIB_PRIMITIVE,
+					parms.myPathAttribute, 1);
+	if (a.isValid())
+	    walk.setPathAttribute(a);
+    }
+    if (parms.myFilenameAttribute.isstring())
+    {
+	GA_RWAttributeRef	aref = gdp->addStringTuple(GA_ATTRIB_DETAIL,
+				    parms.myFilenameAttribute, 1);
+	GA_RWHandleS	h(aref.getAttribute());
+	if (h.isValid())
+	    h.set(GA_Offset(0), parms.myFilename.c_str());
+	else
+	    addWarning(SOP_MESSAGE, "Error adding filename attribute");
+    }
+}
 
 OP_ERROR
 SOP_AlembicIn2::cookMySop(OP_Context &context)
@@ -545,10 +572,8 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     // flushed out of the cache.
     myConstantUniqueId = gdp->getUniqueId();
 
-    if (myEntireSceneIsConstant)
-    {
+    if (myEntireSceneIsConstant && !myLastParms.needsPathAttributeUpdate(parms))
 	return error();
-    }
 
     GABC_GEOWalker	walk(*gdp);
 
@@ -600,33 +625,17 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     if (!walk.reusePrimitives())
     {
 	gdp->clearAndDestroy();
+	setPathAttributes(walk, parms);
     }
     else
     {
 	gdp->destroyInternalNormalAttribute();
+	setPathAttributes(walk, parms);
 	if (walk.buildAbcPrim())
 	{
 	    walk.updateAbcPrims();
 	    needwalk =  false;
 	}
-    }
-    // Create the attribute after the detail might have been cleared
-    if (parms.myPathAttribute.isstring())
-    {
-	GA_RWAttributeRef	a = gdp->addStringTuple(GA_ATTRIB_PRIMITIVE,
-					parms.myPathAttribute, 1);
-	if (a.isValid())
-	    walk.setPathAttribute(a);
-    }
-    if (parms.myFilenameAttribute.isstring())
-    {
-	GA_RWAttributeRef	aref = gdp->addStringTuple(GA_ATTRIB_DETAIL,
-				    parms.myFilenameAttribute, 1);
-	GA_RWHandleS	h(aref.getAttribute());
-	if (h.isValid())
-	    h.set(GA_Offset(0), parms.myFilename.c_str());
-	else
-	    addWarning(SOP_MESSAGE, "Error adding filename attribute");
     }
     if (needwalk)
     {
