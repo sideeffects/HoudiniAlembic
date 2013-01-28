@@ -1761,7 +1761,7 @@ GABC_IObject::getAnimationType(bool include_transform) const
 	    }
 	}
     }
-    catch (const std::exception &e)
+    catch (const std::exception &)
     {
 	atype = GABC_ANIMATION_INVALID;
 	UT_ASSERT(0 && "Alembic exception");
@@ -1793,7 +1793,7 @@ GABC_IObject::getBoundingBox(UT_BoundingBox &box, fpreal t, bool &isconst) const
 		break;
 	}
     }
-    catch (const std::exception &e)
+    catch (const std::exception &)
     {
 	UT_ASSERT(0 && "Alembic exception");
     }
@@ -1871,7 +1871,7 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 		break;
 	}
     }
-    catch (const std::exception &e)
+    catch (const std::exception &)
     {
 	UT_ASSERT(0 && "Alembic exception");
 	prim = GT_PrimitiveHandle();
@@ -1916,7 +1916,7 @@ GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
 		break;
 	}
     }
-    catch (const std::exception &e)
+    catch (const std::exception &)
     {
 	UT_ASSERT(0 && "Alembic exception");
 	prim = GT_PrimitiveHandle();
@@ -2036,7 +2036,7 @@ GABC_IObject::getPosition(fpreal t, GABC_AnimationType &atype) const
 		    break;
 	    }
 	}
-	catch (const std::exception &e)
+	catch (const std::exception &)
 	{
 	    UT_ASSERT(0 && "Alembic exception");
 	}
@@ -2069,7 +2069,7 @@ GABC_IObject::getVelocity(fpreal t, GABC_AnimationType &atype) const
 		    break;
 	    }
 	}
-	catch (const std::exception &e)
+	catch (const std::exception &)
 	{
 	    UT_ASSERT(0 && "Alembic exception");
 	}
@@ -2187,7 +2187,7 @@ GABC_IObject::getGeometryProperty(exint index, fpreal t,
 	    scope = getArbitraryPropertyScope(header);
 	}
     }
-    catch (const std::exception &e)
+    catch (const std::exception &)
     {
 	UT_ASSERT(0 && "Alembic exception");
     }
@@ -2213,7 +2213,7 @@ GABC_IObject::getGeometryProperty(const std::string &name, fpreal t,
 	    }
 	}
     }
-    catch (const std::exception &e)
+    catch (const std::exception &)
     {
 	UT_ASSERT(0 && "Alembic exception");
     }
@@ -2244,7 +2244,7 @@ GABC_IObject::getUserProperty(exint index, fpreal t,
 	    data = convertArbitraryProperty(*archive(), arb, header, t, &atype);
 	}
     }
-    catch (const std::exception &e)
+    catch (const std::exception &)
     {
 	UT_ASSERT(0 && "Alembic exception");
     }
@@ -2269,7 +2269,7 @@ GABC_IObject::getUserProperty(const std::string &name, fpreal t,
 	    }
 	}
     }
-    catch (const std::exception &e)
+    catch (const std::exception &)
     {
 	UT_ASSERT(0 && "Alembic exception");
     }
