@@ -46,6 +46,46 @@
 #include <OP/OP_OperatorTable.h>
 #include <OP/OP_Director.h>
 
+namespace
+{
+    typedef GABC_Util::PathList		PathList;
+
+    static int
+    selectAlembicNodes(void *data, int index,
+	    fpreal t, const PRM_Template *)
+    {
+	SOP_AlembicIn2	*sop = (SOP_AlembicIn2 *)(data);
+	UT_WorkBuffer	cmd;
+	UT_String	filename;
+	UT_String	objectpath;
+	cmd.strcpy("treechooser");
+	sop->evalString(filename, "fileName", 0, t);
+	sop->evalString(objectpath, "objectPath", 0, t);
+	const PathList	&abcobjects = GABC_Util::getObjectList((const char *)filename);
+	if (objectpath.isstring())
+	{
+	    cmd.strcat(" -s ");
+	    cmd.protectedStrcat(objectpath);
+	}
+	for (exint i = 0; i < abcobjects.size(); ++i)
+	{
+	    cmd.strcat(" ");
+	    cmd.protectedStrcat(abcobjects[i].c_str());
+	}
+
+	CMD_Manager	*mgr = CMDgetManager();
+	UT_OStrStream	 os;
+	mgr->execute(cmd.buffer(), 0, &os);
+	os << ends;
+	UT_String	result(os.str());
+	result.trimBoundingSpace();
+	sop->setString(result, CH_STRING_LITERAL, "objectPath", 0, t);
+	os.rdbuf()->freeze(0);
+
+	return 0;
+    }
+}
+
 SOP_AlembicIn2::Parms::Parms()
     : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
     , myBuildAbcXform(false)
@@ -180,6 +220,7 @@ static PRM_Name prm_filenameName("fileName", "File Name");
 static PRM_Name prm_frameName("frame", "Frame");
 static PRM_Name prm_fpsName("fps", "Frames Per Second");
 static PRM_Name prm_objectPathName("objectPath", "Object Path");
+static PRM_Name	prm_pickObjectPathName("pickobjectPath", "Pick");
 static PRM_Name prm_includeXformName("includeXform", "Transform Geometry To World Space");
 static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
 static PRM_Name prm_animationfilter("animationfilter", "Animating Objects");
@@ -273,7 +314,7 @@ static PRM_SpareData	theAbcPattern(
 static PRM_Default	mainSwitcher[] =
 {
     PRM_Default(5, "Geometry"),
-    PRM_Default(7, "Selection"),
+    PRM_Default(8, "Selection"),
     PRM_Default(9, "Attributes"),
 };
 
@@ -298,8 +339,10 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 	    &menu_groupnames),
 
     // Selection tab
-    PRM_Template(PRM_STRING, 1, &prm_objectPathName, &prm_objectPathDefault,
-            &prm_objectPathMenu),
+    PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectPathName, &prm_objectPathDefault,
+            &prm_objectPathMenu, NULL),
+    PRM_Template(PRM_CALLBACK, 1, &prm_pickObjectPathName,
+	    0, 0, 0, selectAlembicNodes),
     PRM_Template(PRM_STRING, 1, &prm_objecPatternName, &prm_starDefault),
     PRM_Template(PRM_ORD, 1, &prm_animationfilter, &prm_animationfilterDefault,
 	    &menu_animationfilter),
