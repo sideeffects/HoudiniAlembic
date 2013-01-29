@@ -1816,7 +1816,7 @@ GABC_IObject::getRenderingBoundingBox(UT_BoundingBox &box, fpreal t) const
 		GABC_AutoLock	lock(archive());
 		IPoints		points(myObject, gabcWrapExisting);
 		IPointsSchema	&ss = points.getSchema();
-		box.enlargeBounds(0, getMaxWidth(ss.getWidthsParam(), t));
+		box.expandBounds(0, getMaxWidth(ss.getWidthsParam(), t));
 	    }
 	    break;
 	case GABC_CURVES:
@@ -1824,7 +1824,7 @@ GABC_IObject::getRenderingBoundingBox(UT_BoundingBox &box, fpreal t) const
 		GABC_AutoLock	lock(archive());
 		ICurves		curves(myObject, gabcWrapExisting);
 		ICurvesSchema	&ss = curves.getSchema();
-		box.enlargeBounds(0, getMaxWidth(ss.getWidthsParam(), t));
+		box.expandBounds(0, getMaxWidth(ss.getWidthsParam(), t));
 	    }
 	    break;
 	default:
