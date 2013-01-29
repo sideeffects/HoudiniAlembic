@@ -45,6 +45,10 @@ public:
     virtual bool  	isDegenerate() const;
     virtual int		getBBox(UT_BoundingBox *bbox) const;
     virtual void	enlargePointBounds(UT_BoundingBox &box) const;
+
+    // enlargeBoundingSphere is required for Space-A in the viewport.
+    virtual bool	enlargeBoundingSphere(UT_BoundingSphere &s,
+				const GA_Attribute *P) const;
     virtual void	reverse();
     virtual UT_Vector3  computeNormal() const;
     virtual void	copyPrimitive(const GEO_Primitive *src, 
