@@ -563,22 +563,6 @@ GABC_GEOPrim::enlargePointBounds(UT_BoundingBox &box) const
 	box.enlargeBounds(primbox);
 }
 
-bool
-GABC_GEOPrim::enlargeBoundingSphere(UT_BoundingSphere &s,
-				const GA_Attribute *P) const
-{
-    if (P && P != getDetail().getP())
-    {
-	// Bounding sphere of another attribute
-	return GA_Primitive::enlargeBoundingSphere(s, P);
-    }
-    UT_BoundingBox	box;
-    getBBox(&box);
-    s.addBox(box);
-    return true;
-}
-
-
 void
 GABC_GEOPrim::transform(const UT_Matrix4 &xform)
 {

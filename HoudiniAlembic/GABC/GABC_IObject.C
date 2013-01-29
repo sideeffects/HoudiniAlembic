@@ -1789,6 +1789,9 @@ GABC_IObject::getBoundingBox(UT_BoundingBox &box, fpreal t, bool &isconst) const
 		return abcBounds<IPoints, IPointsSchema>(object(), box, t);
 	    case GABC_NUPATCH:
 		return abcBounds<INuPatch, INuPatchSchema>(object(), box, t);
+	    case GABC_XFORM:
+		box.initBounds(0, 0, 0);
+		return true;
 	    default:
 		break;
 	}
