@@ -57,6 +57,8 @@ namespace {
     typedef Alembic::AbcGeom::IPointsSchema	IPointsSchema;
     typedef Alembic::AbcGeom::INuPatch		INuPatch;
     typedef Alembic::AbcGeom::INuPatchSchema	INuPatchSchema;
+    typedef Alembic::AbcGeom::IFaceSet		IFaceSet;
+    typedef Alembic::AbcGeom::IFaceSetSchema	IFaceSetSchema;
     typedef INuPatchSchema::Sample		INuPatchSample;
 
     const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
@@ -811,6 +813,7 @@ namespace {
 	{
 	    if (!walk.includeXform() || walk.transformConstant())
 	    {
+		walk.trackLastFace(nprim);
 		walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, false);
 		return;
 	    }
@@ -835,7 +838,39 @@ namespace {
 		npoint, nvertex, nprim);
 	fillArb(walk, ps.getArbGeomParams(), npoint, nvertex, nprim);
 
+	walk.trackLastFace(nprim);
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
+    }
+
+    static void
+    makeFaceSet(GABC_GEOWalker &walk, const GABC_IObject &obj)
+    {
+	IFaceSet		 faceset(obj.object(), gabcWrapExisting);
+	IFaceSetSchema		&ss = faceset.getSchema();
+	IFaceSetSchema::Sample	 sample = ss.getValue(walk.timeSample());
+	Int32ArraySamplePtr	 faces = sample.getFaces();
+
+	if (faces && faces->valid() && faces->size() > 0)
+	{
+	    GU_Detail		&gdp = walk.detail();
+	    GA_PrimitiveGroup	*grp = NULL;
+	    const int32		*indices = faces->get();
+	    exint		 size = faces->size();
+	    UT_String		 name(faceset.getName().c_str());
+	    name.forceValidVariableName();
+	    grp = gdp.findPrimitiveGroup(name);
+	    if (!grp)
+		grp = gdp.newPrimitiveGroup(name);
+	    if (grp)
+	    {
+		for (exint i = 0; i < size; ++i)
+		{
+		    int	off = indices[i];
+		    if (off >= 0 && off < walk.lastFaceCount())
+			grp->addOffset(off + walk.lastFaceStart());
+		}
+	    }
+	}
     }
 
     void
@@ -862,6 +897,7 @@ namespace {
 	{
 	    if (!walk.includeXform() || walk.transformConstant())
 	    {
+		walk.trackLastFace(nprim);
 		walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, false);
 		return;
 	    }
@@ -888,6 +924,7 @@ namespace {
 		npoint, nvertex, nprim);
 	fillArb(walk, ps.getArbGeomParams(), npoint, nvertex, nprim);
 
+	walk.trackLastFace(nprim);
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
 
@@ -912,6 +949,7 @@ namespace {
 	{
 	    if (!walk.includeXform() || walk.transformConstant())
 	    {
+		walk.trackLastFace(nprim);
 		walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, false);
 		return;
 	    }
@@ -940,6 +978,7 @@ namespace {
 		npoint, nvertex, nprim);
 	fillArb(walk, cs.getArbGeomParams(), npoint, nvertex, nprim);
 
+	walk.trackLastFace(nprim);
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
 
@@ -1249,6 +1288,8 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
     , myBossId(-1)
     , myMatrix(identity44d)
     , myPathAttribute()
+    , myLastFaceCount(0)
+    , myLastFaceStart(0)
     , myTime(0)
     , myPointCount(0)
     , myVertexCount(0)
@@ -1412,9 +1453,11 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 		    case GABC_NUPATCH:
 			makeNuPatch(*this, obj);
 			break;
+		    case GABC_FACESET:
+			makeFaceSet(*this, obj);
+			break;
 
 		    case GABC_CAMERA:	// Ignore these leaf nodes
-		    case GABC_FACESET:
 		    case GABC_LIGHT:
 		    case GABC_MATERIAL:
 			break;
@@ -1641,6 +1684,15 @@ GABC_GEOWalker::getGroupName(UT_String &name, const GABC_IObject &obj) const
     }
     name.forceValidVariableName();
     return true;
+}
+
+void
+GABC_GEOWalker::trackLastFace(GA_Size nfaces)
+{
+    UT_ASSERT(nfaces >= 0);
+    UT_ASSERT(myDetail.getNumPrimitives() >= myPrimitiveCount + nfaces);
+    myLastFaceStart = GA_Offset(myPrimitiveCount);
+    myLastFaceCount = nfaces;
 }
 
 void

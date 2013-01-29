@@ -223,6 +223,11 @@ public:
     /// not allowed.
     bool	translateAttributeName(GA_AttributeOwner own, UT_String &name);
 
+    /// Access information about last poly/subd/curve mesh loaded
+    GA_Size	lastFaceCount() const	{ return myLastFaceCount; }
+    GA_Offset	lastFaceStart() const	{ return myLastFaceStart; }
+    void	trackLastFace(GA_Size nfaces);
+
 protected:
     /// Verify the object matches filters before generating geometry
     bool		 filterObject(const GABC_IObject &obj) const;
@@ -241,6 +246,8 @@ private:
     UT_Interrupt	*myBoss;
     int			 myBossId;
     M44d		 myMatrix;
+    GA_Size		 myLastFaceCount;	// Number of faces in last mesh
+    GA_Offset		 myLastFaceStart;	// Start of faces in last mash
 
     fpreal	myTime;			// Alembic evaluation time
     GroupMode	myGroupMode;		// How to construct group names
