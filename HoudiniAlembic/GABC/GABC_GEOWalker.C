@@ -184,7 +184,8 @@ namespace {
 
     static GA_RWAttributeRef
     findAttribute(GU_Detail &gdp, GA_AttributeOwner owner,
-	    const char *name, int tsize, GA_Storage storage, const char *interp)
+	    const char *name, const char *abcname,
+	    int tsize, GA_Storage storage, const char *interp)
     {
 	GA_RWAttributeRef	attrib;
 	switch (GAstorageClass(storage))
@@ -208,6 +209,9 @@ namespace {
 
 	    attrib = gdp.addTuple(storage, owner, name, tsize,
 				getDefaults(name, tsize, interp));
+	    if (attrib.isValid() && abcname)
+		attrib.getAttribute()->setExportName(abcname);
+
 	}
 	return attrib;
     }
@@ -323,6 +327,7 @@ namespace {
     setAttribute(GU_Detail &gdp,
 		    GA_AttributeOwner owner,
 		    const char *name,
+		    const char *abcname,
 		    const T &array,
 		    exint start, exint len)
     {
@@ -334,7 +339,7 @@ namespace {
 	const char	*interp= T::element_type::traits_type::interpretation();
 	bool		 extend_array;
 	extend_array = array->size() < len;
-	attrib = findAttribute(gdp, owner, name, tsize, store, interp);
+	attrib = findAttribute(gdp, owner, name, abcname, tsize, store, interp);
 	if (attrib.isValid())
 	{
 	    if (attrib.getAttribute() != gdp.getP())
@@ -432,8 +437,8 @@ namespace {
     template <typename T>
     static void
     setGeomAttribute(GABC_GEOWalker &walk, const char *name,
-			const T &param, ISampleSelector &iss,
-			exint npoint, exint nvertex, exint nprim)
+		const char *abcname, const T &param, ISampleSelector &iss,
+		exint npoint, exint nvertex, exint nprim)
     {
 	if (!param.valid())
 	    return;
@@ -444,22 +449,22 @@ namespace {
 	switch (owner)
 	{
 	    case GA_ATTRIB_POINT:
-		setAttribute(gdp, owner, name,
+		setAttribute(gdp, owner, name, abcname,
 			psample.getVals(), walk.pointCount(), npoint);
 		break;
 	    case GA_ATTRIB_VERTEX:
-		setAttribute(gdp, owner, name,
+		setAttribute(gdp, owner, name, abcname,
 			psample.getVals(), walk.vertexCount(), nvertex);
 		break;
 	    case GA_ATTRIB_PRIMITIVE:
-		setAttribute(gdp, owner, name,
+		setAttribute(gdp, owner, name, abcname,
 			psample.getVals(), walk.primitiveCount(), nprim);
 		break;
 
 	    case GA_ATTRIB_DETAIL:
 		// TODO: We map detail attributes to primitive attributes, so
 		// we need to extend the array to fill all elements!
-		setAttribute(gdp, GA_ATTRIB_PRIMITIVE, name,
+		setAttribute(gdp, GA_ATTRIB_PRIMITIVE, name, abcname,
 			psample.getVals(), walk.primitiveCount(), nprim);
 		break;
 	    default:
@@ -566,6 +571,7 @@ namespace {
 	    ICompoundProperty parent,
 	    const PropertyHeader &head,
 	    const char *name,
+	    const char *abcname,
 	    GA_AttributeOwner owner,
 	    exint npoint,
 	    exint nvertex,
@@ -612,7 +618,7 @@ namespace {
 	bool		extend_array = len > sample->size();
 	const char	*terp = prop.getMetaData().get("interpretation").c_str();
 	GA_TypeInfo	tinfo = getGATypeInfo(terp);
-	GA_RWAttributeRef	aref = findAttribute(gdp, owner, name,
+	GA_RWAttributeRef	aref = findAttribute(gdp, owner, name, abcname,
 					    tsize, store, terp);
 	if (!aref.isValid())
 	    return;
@@ -737,7 +743,8 @@ namespace {
 	    if (store == GA_STORE_INVALID)
 		continue;
 	    copyArrayToAttribute(walk, arb, head,
-		    name, owner, npoint, nvertex, nprim);
+		    name, head.getName().c_str(),
+		    owner, npoint, nvertex, nprim);
 	}
     }
 
@@ -817,14 +824,14 @@ namespace {
 	}
 
 	// Set properties
-	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P",
+	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
 		ps.getPositionsProperty().getValue(iss),
 		walk.pointCount(), npoint);
 	if (ps.getVelocitiesProperty().valid())
-	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v",
+	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v", NULL,
 		    ps.getVelocitiesProperty().getValue(iss),
 		    walk.pointCount(), npoint);
-	setGeomAttribute(walk, "uv", ps.getUVsParam(), iss,
+	setGeomAttribute(walk, "uv", NULL, ps.getUVsParam(), iss,
 		npoint, nvertex, nprim);
 	fillArb(walk, ps.getArbGeomParams(), npoint, nvertex, nprim);
 
@@ -868,16 +875,16 @@ namespace {
 	}
 
 	// Set properties
-	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P",
+	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
 		ps.getPositionsProperty().getValue(iss),
 		walk.pointCount(), npoint);
 	if (ps.getVelocitiesProperty().valid())
-	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v",
+	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v", NULL,
 		    ps.getVelocitiesProperty().getValue(iss),
 		    walk.pointCount(), npoint);
-	setGeomAttribute(walk, "uv", ps.getUVsParam(), iss,
+	setGeomAttribute(walk, "uv", NULL, ps.getUVsParam(), iss,
 		npoint, nvertex, nprim);
-	setGeomAttribute(walk, "N", ps.getNormalsParam(), iss,
+	setGeomAttribute(walk, "N", NULL, ps.getNormalsParam(), iss,
 		npoint, nvertex, nprim);
 	fillArb(walk, ps.getArbGeomParams(), npoint, nvertex, nprim);
 
@@ -918,18 +925,18 @@ namespace {
 	}
 
 	// Set properties
-	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P",
+	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
 		cs.getPositionsProperty().getValue(iss),
 		walk.pointCount(), npoint);
 	if (cs.getVelocitiesProperty().valid())
-	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v",
+	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v", NULL,
 		    cs.getVelocitiesProperty().getValue(iss),
 		    walk.pointCount(), npoint);
-	setGeomAttribute(walk, "uv", cs.getUVsParam(), iss,
+	setGeomAttribute(walk, "uv", NULL, cs.getUVsParam(), iss,
 		npoint, nvertex, nprim);
-	setGeomAttribute(walk, "width", cs.getWidthsParam(), iss,
+	setGeomAttribute(walk, "width", NULL, cs.getWidthsParam(), iss,
 		npoint, nvertex, nprim);
-	setGeomAttribute(walk, "N", cs.getNormalsParam(), iss,
+	setGeomAttribute(walk, "N", NULL, cs.getNormalsParam(), iss,
 		npoint, nvertex, nprim);
 	fillArb(walk, cs.getArbGeomParams(), npoint, nvertex, nprim);
 
@@ -942,7 +949,7 @@ namespace {
     {
 	GA_RWAttributeRef	href = findAttribute(walk.detail(),
 						GA_ATTRIB_PRIMITIVE,
-						name, 3, GA_STORE_REAL64,
+						name, NULL, 3, GA_STORE_REAL64,
 						"float");
 	GA_RWHandleV3		h(href.getAttribute());
 	if (h.isValid())
@@ -1040,19 +1047,20 @@ namespace {
 	}
 
 	// Set properties
-	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P",
+	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
 		ps.getPositionsProperty().getValue(iss),
 		walk.pointCount(), npoint);
 	if (ps.getVelocitiesProperty().valid())
-	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v",
+	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v", NULL,
 		    ps.getVelocitiesProperty().getValue(iss),
 		    walk.pointCount(), npoint);
 	if (ps.getIdsProperty().valid())
-	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "id",
+	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "id", NULL,
 		    ps.getIdsProperty().getValue(iss),
 		    walk.pointCount(), npoint);
 	Alembic::AbcGeom::IFloatGeomParam	widths = ps.getWidthsParam();
-	setGeomAttribute(walk, "width", widths, iss, npoint, nvertex, nprim);
+	setGeomAttribute(walk, "width", NULL, widths, iss,
+		    npoint, nvertex, nprim);
 	fillArb(walk, ps.getArbGeomParams(), npoint, nvertex, nprim);
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
@@ -1106,16 +1114,16 @@ namespace {
 	setKnotVector(*surf->getVBasis(), vknots);
 
 	// Set properties
-	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P",
+	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
 		ps.getPositionsProperty().getValue(iss),
 		walk.pointCount(), npoint);
 	if (ps.getVelocitiesProperty().valid())
-	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v",
+	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v", NULL,
 		    ps.getVelocitiesProperty().getValue(iss),
 		    walk.pointCount(), npoint);
-	setGeomAttribute(walk, "uv", ps.getUVsParam(), iss,
+	setGeomAttribute(walk, "uv", NULL, ps.getUVsParam(), iss,
 		npoint, nvertex, nprim);
-	setGeomAttribute(walk, "N", ps.getNormalsParam(), iss,
+	setGeomAttribute(walk, "N", NULL, ps.getNormalsParam(), iss,
 		npoint, nvertex, nprim);
 	fillArb(walk, ps.getArbGeomParams(), npoint, nvertex, nprim);
 
