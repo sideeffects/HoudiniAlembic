@@ -71,11 +71,11 @@ namespace
 
     static PRM_Name	thePartitionModeChoices[] =
     {
-	PRM_Name("no",		"No geometry partitioning"),
-	PRM_Name("full",	"Use entire attribute value"),
-	PRM_Name("shape",	"Use shape node component of path attribute value"),
-	PRM_Name("xform",	"Use transform node component of path attribute value"),
-	PRM_Name("xformshape",	"Use combination of transform/shape node"),
+	PRM_Name("no",		"No Geometry Partitioning"),
+	PRM_Name("full",	"Use Attribute Value"),
+	PRM_Name("shape",	"Use Shape Node Component Of Path Attribute Value"),
+	PRM_Name("xform",	"Use Transform Node Component Of Path Attribute value"),
+	PRM_Name("xformshape",	"Use Combination Of Transform/Shape Node"),
 	PRM_Name(),	// Sentinal
     };
     static bool
@@ -104,9 +104,9 @@ namespace
 
     static PRM_Name	theFaceSetModeChoices[] =
     {
-	PRM_Name("no",	"No face sets"),
-	PRM_Name("nonempty",	"Save non-empty groups as face sets"),
-	PRM_Name("all",		"Save all groups as face sets"),
+	PRM_Name("no",		"No Face Sets"),
+	PRM_Name("nonempty",	"Save Non-Empty Groups As Face Sets"),
+	PRM_Name("all",		"Save All Groups As Face Sets"),
 	PRM_Name()
     };
     static bool
@@ -133,9 +133,9 @@ namespace
 
     static PRM_Name	thePartitionAttributeChoices[] =
     {
-	PRM_Name("",		"No geometry partitions"),
-	PRM_Name("name",	"Partition based on the 'name' attribute"),
-	PRM_Name("abcPath",	"Partition based on the 'abcPath' attribute"),
+	PRM_Name("",		"No Geometry Partitions"),
+	PRM_Name("name",	"Partition Based On 'name' Attribute"),
+	PRM_Name("abcPath",	"Partition Based On 'abcPath' Attribute"),
 	PRM_Name()	// Sentinal
     };
 

@@ -256,11 +256,11 @@ static PRM_Default prm_loadmodeDefault(0, "alembic");
 static PRM_ChoiceList menu_loadmode(PRM_CHOICELIST_SINGLE, loadModeOptions);
 
 static PRM_Name boxCullOptions[] = {
-    PRM_Name("none",	"No spatial filtering"),
-    PRM_Name("inside",	"Load objects entirely inside box"),
-    PRM_Name("anyinside",	"Load objects with any part in box"),
-    PRM_Name("outside",	"Load object outside box"),
-    PRM_Name("anyoutside",	"Load objects with any part outside box"),
+    PRM_Name("none",		"No Spatial Filtering"),
+    PRM_Name("inside",		"Load Objects Entirely Inside Box"),
+    PRM_Name("anyinside",	"Load Objects With Any Part In Box"),
+    PRM_Name("outside",		"Load Object Outside Box"),
+    PRM_Name("anyoutside",	"Load Objects With Any Part Outside Box"),
     PRM_Name( 0 )
 };
 static PRM_Default	prm_boxcullDefault(0, "none");
@@ -272,9 +272,9 @@ static PRM_Range boxcullSizeRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 10);
 static PRM_Name	boxcullCenter("boxcenter", "Box Center");
 
 static PRM_Name groupNameOptions[] = {
-    PRM_Name("none",	"No groups"),
-    PRM_Name("shape",	"Name group by shape node path" ),
-    PRM_Name("xform",	"Name group by transform node path" ),
+    PRM_Name("none",	"No Groups"),
+    PRM_Name("shape",	"Name Group By Shape Node Path" ),
+    PRM_Name("xform",	"Name Group By Transform Node Path" ),
     PRM_Name( 0 )
 };
 static PRM_Default prm_groupnamesDefault(1, "shape");
