@@ -19,6 +19,10 @@
 #include "GABC_Util.h"
 #include <GA/GA_IntrinsicMacros.h>
 #include <GA/GA_PrimitiveJSON.h>
+#include <GA/GA_SaveMap.h>
+#include <GA/GA_Defragment.h>
+#include <GA/GA_RangeMemberQuery.h>
+#include <GA/GA_MergeMap.h>
 #include <GT/GT_Transform.h>
 #include <GEO/GEO_Detail.h>
 #include <GEO/GEO_PrimType.h>
@@ -57,8 +61,9 @@ GABC_GEOPrim::GABC_GEOPrim(GEO_Detail *d, GA_Offset offset)
     , myObjectPath()
     , myObject()
     , myFrame(0)
-    , myUseTransform(true)
     , myGTPrimitive(new GABC_GTPrimitive(this))
+    , myVertex(GA_INVALID_OFFSET)
+    , myUseTransform(true)
 {
     myGTPrimitive->incref();	// Old-school
     myGeoTransform = GT_Transform::identity();
@@ -90,12 +95,15 @@ GABC_GEOPrim::copyMemberDataFrom(const GABC_GEOPrim &src)
 
 GABC_GEOPrim::~GABC_GEOPrim()
 {
+    if (GAisValid(myVertex))
+	destroyVertex(myVertex);
     myGTPrimitive->decref();	// Old school reference counting
 }
 
 void
 GABC_GEOPrim::clearForDeletion()
 {
+    myVertex = GA_INVALID_OFFSET;
     myGTPrimitive->clear();
     myGeoTransform = GT_Transform::identity();
 }
@@ -106,6 +114,7 @@ GABC_GEOPrim::stashed(int onoff, GA_Offset offset)
     myGeoTransform = GT_Transform::identity();
     myGTPrimitive->clear();
     GEO_Primitive::stashed(onoff, offset);
+    myVertex = onoff ? GA_INVALID_OFFSET : allocateVertex();
 }
 
 bool
@@ -159,33 +168,65 @@ GABC_GEOPrim::calcPerimeter() const
 GA_Size
 GABC_GEOPrim::getVertexCount(void) const
 {
-    return 0;
+    return GAisValid(myVertex) ? 1 : 0;
 }
 
 GA_Offset
-GABC_GEOPrim::getVertexOffset(GA_Size) const
+GABC_GEOPrim::getVertexOffset(GA_Size idx) const
 {
-    UT_ASSERT(0);
-    return GA_INVALID_OFFSET;
+    UT_ASSERT_P(idx == 0);
+    return idx == 0 ? myVertex : GA_INVALID_OFFSET;
+}
+
+void
+GABC_GEOPrim::ensureVertexCreated()
+{
+    if (!GAisValid(myVertex))
+	myVertex = allocateVertex();
+}
+
+void
+GABC_GEOPrim::setVertexPoint(GA_Offset point)
+{
+    if (!GAisValid(myVertex))
+	ensureVertexCreated();
+    wireVertex(myVertex, point);
+}
+
+void
+GABC_GEOPrim::assignVertex(GA_Offset vtx, bool update_topology)
+{
+    if (myVertex != vtx)
+    {
+	if (GAisValid(myVertex))
+	    destroyVertex(myVertex);
+	myVertex = vtx;
+	if (update_topology)
+	    registerVertex(myVertex);
+    }
 }
 
 int
 GABC_GEOPrim::detachPoints(GA_PointGroup &grp)
 {
-    UT_ASSERT(0);
-    return 0;
+    return GAisValid(myVertex)
+	    && grp.containsOffset(getParent()->vertexPoint(myVertex)) ? -2 : 0;
 }
 
 GA_Primitive::GA_DereferenceStatus
-GABC_GEOPrim::dereferencePoint(GA_Offset, bool)
+GABC_GEOPrim::dereferencePoint(GA_Offset pt, bool)
 {
-    return GA_DEREFERENCE_FAIL;
+    return getParent()->vertexPoint(myVertex) == pt
+		? GA_DEREFERENCE_DESTROY
+		: GA_DEREFERENCE_OK;
 }
 
 GA_Primitive::GA_DereferenceStatus
-GABC_GEOPrim::dereferencePoints(const GA_RangeMemberQuery &, bool)
+GABC_GEOPrim::dereferencePoints(const GA_RangeMemberQuery &pq, bool)
 {
-    return GA_DEREFERENCE_FAIL;
+    return pq.contains(getParent()->vertexPoint(myVertex))
+		? GA_DEREFERENCE_DESTROY
+		: GA_DEREFERENCE_OK;
 }
 
 ///
@@ -209,6 +250,7 @@ public:
 	geo_OBJECTPATH,
 	geo_FRAME,
 	geo_TRANSFORM,
+	geo_VERTEX,
 	geo_USETRANSFORM,
 	geo_ATTRIBUTEMAP,
 	geo_ENTRIES
@@ -230,6 +272,7 @@ public:
 				case geo_TRANSFORM:	return "ltransform";
 				case geo_USETRANSFORM:	return "usetransform";
 				case geo_ATTRIBUTEMAP:	return "attributemap";
+				case geo_VERTEX:	return "vertex";
 				case geo_ENTRIES:	break;
 			    }
 			    UT_ASSERT(0);
@@ -275,9 +318,17 @@ public:
 			    return w.jsonBool(abc(pr)->useTransform());
 
 			case geo_ATTRIBUTEMAP:
+			{
 			    if (abc(pr)->attributeNameMap())
 				return abc(pr)->attributeNameMap()->save(w);
 			    return saveEmptyNameMap(w);
+			}
+
+			case geo_VERTEX:
+			{
+			    GA_Offset	vtx = abc(pr)->getVertexOffset(0);
+			    return w.jsonInt(GA_Size(map.getVertexIndex(vtx)));
+			}
 
 			case geo_ENTRIES:
 			    break;
@@ -296,6 +347,7 @@ public:
 		{
 		    UT_WorkBuffer	sval;
 		    fpreal64		fval;
+		    int64		ival;
 		    bool		bval;
 		    GT_TransformHandle	xform;
 		    GABC_NameMapPtr	amap;
@@ -330,6 +382,12 @@ public:
 			    if (!GABC_NameMap::load(amap, p))
 				return false;
 			    abc(pr)->setAttributeNameMap(amap);
+			    return true;
+			case geo_VERTEX:
+			    if (!p.parseInt(ival))
+				return false;
+			    ival = map.getVertexOffset(ival);
+			    abc(pr)->assignVertex(GA_Offset(ival), false);
 			    return true;
 			case geo_ENTRIES:
 			    break;
@@ -366,6 +424,7 @@ public:
 			    return abc(a)->attributeNameMap().get() ==
 				    abc(b)->attributeNameMap().get();
 			case geo_ENTRIES:
+			case geo_VERTEX:
 			    break;
 		    }
 		    return false;
@@ -487,6 +546,27 @@ GABC_GEOPrim::clearGT()
     myGTPrimitive->clear();
 }
 
+bool
+GABC_GEOPrim::needTransform() const
+{
+    if (myUseTransform)			// If we us abc transforms
+	return true;
+    if (!myGeoTransform->isIdentity())	// check if there's a local xform
+	return true;
+    if (GAisValid(myVertex))
+    {
+	const GA_Detail	&gdp = getDetail();
+	GA_Offset	pt = gdp.vertexPoint(myVertex);
+	if (GAisValid(pt))
+	{
+	    UT_Vector3	P = gdp.getPos3(pt);
+	    if (!P.equalZero())
+		return true;
+	}
+    }
+    return false;
+}
+
 GT_PrimitiveHandle
 GABC_GEOPrim::gtPointCloud() const
 {
@@ -495,7 +575,7 @@ GABC_GEOPrim::gtPointCloud() const
 
     result = myObject.getPointCloud(myFrame, atype);
 
-    if (myUseTransform || !myGeoTransform->isIdentity())
+    if (needTransform())
     {
 	UT_Matrix4D	xform;
 	if (getTransform(xform))
@@ -515,7 +595,7 @@ GABC_GEOPrim::gtBox() const
 
     result = myObject.getBoxGeometry(myFrame, atype);
 
-    if (myUseTransform || !myGeoTransform->isIdentity())
+    if (needTransform())
     {
 	UT_Matrix4D	xform;
 	if (getTransform(xform))
@@ -530,7 +610,7 @@ GABC_GEOPrim::gtBox() const
 GT_PrimitiveHandle
 GABC_GEOPrim::gtPrimitive() const
 {
-    if (myUseTransform || !myGeoTransform->isIdentity())
+    if (needTransform())
     {
 	UT_Matrix4D	xform;
 	if (getTransform(xform))
@@ -566,7 +646,18 @@ GABC_GEOPrim::enlargePointBounds(UT_BoundingBox &box) const
 void
 GABC_GEOPrim::transform(const UT_Matrix4 &xform)
 {
-    setGeoTransform(GT_TransformHandle(myGeoTransform->multiply(xform)));
+    if (GAisValid(myVertex))
+    {
+	// If we're tied to a point, the point will be transformed, so we don't
+	// want to pick up the translates.
+	UT_Matrix3	m3(xform);
+	setGeoTransform(GT_TransformHandle(myGeoTransform->multiply(m3)));
+    }
+    else
+    {
+	// Otherwise, we perform a full translation.
+	setGeoTransform(GT_TransformHandle(myGeoTransform->multiply(xform)));
+    }
 }
 
 void
@@ -626,17 +717,28 @@ GABC_GEOPrim::copy(int preserve_shared_pts) const
 }
 
 void
-GABC_GEOPrim::copyUnwiredForMerge(const GA_Primitive *psrc, const GA_MergeMap &)
+GABC_GEOPrim::copyUnwiredForMerge(const GA_Primitive *psrc,
+	const GA_MergeMap &map)
 {
     UT_ASSERT( psrc != this );
     const GABC_GEOPrim	*src = UTverify_cast<const GABC_GEOPrim *>(psrc);
 
     copyMemberDataFrom(*src);
+
+    // Assign my vertex based on the source vertex.
+    if (GAisValid(myVertex))
+    {
+	destroyVertex(myVertex);
+	myVertex = GA_INVALID_OFFSET;
+    }
+    if (GAisValid(src->myVertex))
+	myVertex = map.mapDestFromSource(GA_ATTRIB_VERTEX, src->myVertex);
 }
 
 void
-GABC_GEOPrim::swapVertexOffsets(const GA_Defragment &)
+GABC_GEOPrim::swapVertexOffsets(const GA_Defragment &defrag)
 {
+    myVertex = defrag.mapOffset(myVertex);
 }
 
 enum
@@ -825,6 +927,13 @@ GABC_GEOPrim::getTransform(UT_Matrix4D &xform) const
 	UT_Matrix4D	lxform;
 	myGeoTransform->getMatrix(lxform, 0);
 	xform *= lxform;
+    }
+    if (GAisValid(myVertex))
+    {
+	const GA_Detail	&gdp = getDetail();
+	GA_Offset	pt = gdp.vertexPoint(myVertex);
+	UT_Vector3	P = getParent()->getPos3(pt);
+	xform.translate(P.x(), P.y(), P.z());
     }
     return true;
 }

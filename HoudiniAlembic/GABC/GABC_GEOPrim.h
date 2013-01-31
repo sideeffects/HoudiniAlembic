@@ -126,6 +126,14 @@ public:
     virtual void	setLocalTransform(const UT_Matrix4D &matrix);
     /// @}
 
+    /// Ensure the Alembic primitive has a vertex
+    void	ensureVertexCreated();
+    /// Set vertex to reference the given point.  This will ensure the vertex
+    /// is allocated.
+    void	setVertexPoint(GA_Offset point);
+    /// Called when loading to set the vertex
+    void	assignVertex(GA_Offset vtx, bool update_topology);
+
     /// @{
     /// Alembic interface
     const std::string	&filename() const	{ return myFilename; }
@@ -201,6 +209,7 @@ protected:
 private:
     void	resolveObject();
     void	updateAnimation();
+    bool	needTransform() const;
 
     void	copyMemberDataFrom(const GABC_GEOPrim &src);
 
@@ -212,6 +221,7 @@ private:
     GT_TransformHandle	 myGTTransform;
     GABC_NameMapPtr	 myAttributeNameMap;
     GABC_GTPrimitive	*myGTPrimitive;
+    GA_Offset		 myVertex;
     bool		 myUseTransform;
 
 };

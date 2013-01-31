@@ -90,6 +90,7 @@ SOP_AlembicIn2::Parms::Parms()
     : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
     , myBuildAbcXform(false)
     , myBoundMode(GABC_GEOWalker::BOX_CULL_IGNORE)
+    , myPointMode(GABC_GEOWalker::ABCPRIM_UNIQUE_POINT)
     , myFilename()
     , myObjectPath()
     , myObjectPattern()
@@ -107,6 +108,7 @@ SOP_AlembicIn2::Parms::Parms()
 SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
     , myBoundMode(GABC_GEOWalker::BOX_CULL_IGNORE)
+    , myPointMode(GABC_GEOWalker::ABCPRIM_UNIQUE_POINT)
     , myBuildAbcXform(false)
     , myFilename()
     , myObjectPath()
@@ -129,6 +131,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myFilename = src.myFilename;
     myLoadMode = src.myLoadMode;
     myBoundMode = src.myBoundMode;
+    myPointMode = src.myPointMode;
     myBoundBox = src.myBoundBox;
     myBuildAbcXform = src.myBuildAbcXform;
     myIncludeXform = src.myIncludeXform;
@@ -159,6 +162,11 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	return true;
     if (myBoundMode != src.myBoundMode)
 	return true;
+    if (myLoadMode == GABC_GEOWalker::LOAD_ABC_PRIMITIVES
+	    && myPointMode != src.myPointMode)
+    {
+	return true;
+    }
     if (myBoundMode != GABC_GEOWalker::BOX_CULL_IGNORE)
     {
 	if (myBoundBox != src.myBoundBox)
@@ -232,6 +240,7 @@ static PRM_Name prm_pathattrib("pathattrib", "Path Attribute");
 static PRM_Name prm_remapAttribName("remapAttributes", "Remap Attributes");
 
 static PRM_Name prm_loadmodeName("loadmode", "Load As");
+static PRM_Name prm_pointModeName("pointmode", "Points");
 static PRM_Name prm_abcxformName("abcxform", "Create Primitives For Transform Nodes");
 
 static PRM_Default prm_frameDefault(1, "$FF");
@@ -250,10 +259,18 @@ static PRM_Name	loadModeOptions[] = {
     PRM_Name("houdini",	"Load Houdini Geometry"),
     PRM_Name("hpoints", "Houdini Point Cloud"),
     PRM_Name("hboxes",  "Bounding Boxes"),
-    PRM_Name( 0 )
+    PRM_Name()
 };
 static PRM_Default prm_loadmodeDefault(0, "alembic");
 static PRM_ChoiceList menu_loadmode(PRM_CHOICELIST_SINGLE, loadModeOptions);
+
+static PRM_Name pointModeOptions[] = {
+    PRM_Name("shared",	"Shared Point"),
+    PRM_Name("unique",	"Unique Points"),
+    PRM_Name()
+};
+static PRM_Default prm_pointModeDefault(1, "unique");
+static PRM_ChoiceList menu_pointMode(PRM_CHOICELIST_SINGLE, pointModeOptions);
 
 static PRM_Name boxCullOptions[] = {
     PRM_Name("none",		"No Spatial Filtering"),
@@ -261,7 +278,7 @@ static PRM_Name boxCullOptions[] = {
     PRM_Name("anyinside",	"Load Objects With Any Part In Box"),
     PRM_Name("outside",		"Load Object Outside Box"),
     PRM_Name("anyoutside",	"Load Objects With Any Part Outside Box"),
-    PRM_Name( 0 )
+    PRM_Name()
 };
 static PRM_Default	prm_boxcullDefault(0, "none");
 static PRM_ChoiceList	menu_boxcull(PRM_CHOICELIST_SINGLE, boxCullOptions);
@@ -277,7 +294,7 @@ static PRM_Name groupNameOptions[] = {
     PRM_Name("xform",	"Name Group By Transform Node Path" ),
     PRM_Name( 0 )
 };
-static PRM_Default prm_groupnamesDefault(1, "shape");
+static PRM_Default prm_groupnamesDefault(0, "none");
 static PRM_ChoiceList menu_groupnames(PRM_CHOICELIST_SINGLE, groupNameOptions);
 
 static PRM_Name animationFilterOptions[] = {
@@ -313,7 +330,7 @@ static PRM_SpareData	theAbcPattern(
 
 static PRM_Default	mainSwitcher[] =
 {
-    PRM_Default(5, "Geometry"),
+    PRM_Default(6, "Geometry"),
     PRM_Default(8, "Selection"),
     PRM_Default(9, "Attributes"),
 };
@@ -332,6 +349,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     // Geometry tab
     PRM_Template(PRM_ORD, 1, &prm_loadmodeName, &prm_loadmodeDefault,
 	    &menu_loadmode),
+    PRM_Template(PRM_ORD, 1, &prm_pointModeName, &prm_pointModeDefault,
+	    &menu_pointMode),
     PRM_Template(PRM_TOGGLE, 1, &prm_abcxformName, PRMzeroDefaults),
     PRM_Template(PRM_TOGGLE, 1, &prm_includeXformName, &prm_includeXformDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_loadLocatorName, &prm_loadLocatorDefault),
@@ -456,14 +475,17 @@ SOP_AlembicIn2::updateParmsFlags()
     bool	hasbox = (nInputs() > 0);
     bool	enablebox = !hasbox || (evalInt("boxsource", 0, 0) == 0);
     UT_String	boxcull;
+    bool	loadAbc;
 
     evalString(boxcull, "boxcull", 0, 0);
     if (boxcull == "none")
 	enablebox = false;
+    loadAbc = evalInt("loadmode", 0, 0) == 0;
 
     changed |= enableParm("pathattrib", evalInt("addpath", 0, 0));
     changed |= enableParm("fileattrib", evalInt("addfile", 0, 0));
-    changed |= enableParm("abcxform", evalInt("loadmode", 0, 0) == 0);
+    changed |= enableParm("abcxform", loadAbc);
+    changed |= enableParm("pointmode", loadAbc);
     changed |= setVisibleState("boxsource", hasbox && boxcull != "none");
     changed |= setVisibleState("boxsize", enablebox);
     changed |= setVisibleState("boxcenter", enablebox);
@@ -501,6 +523,16 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     }
     parms.myBuildLocator = evalInt("loadLocator", 0, now) != 0;
     parms.myBoundMode = getCullingBox(parms.myBoundBox, context);
+    switch (evalInt("pointmode", 0, now))
+    {
+	case 0:
+	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_SHARED_POINT;
+	    break;
+	case 1:
+	default:
+	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_UNIQUE_POINT;
+	    break;
+    }
 
     evalString(parms.myObjectPath, "objectPath", 0, now);
     evalString(parms.myObjectPattern, "objectPattern", 0, now);
@@ -680,6 +712,20 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	    needwalk =  false;
 	}
     }
+    if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
+    {
+	GA_Offset	shared = GA_INVALID_OFFSET;
+	if (parms.myPointMode == GABC_GEOWalker::ABCPRIM_SHARED_POINT)
+	{
+	    UT_ASSERT(gdp->getNumPoints() == 0 || gdp->getNumPoints() == 1);
+	    if (gdp->getNumPoints() == 0)
+		shared = gdp->appendPointOffset();
+	    else
+		shared = gdp->pointOffset(GA_Index(0));
+	}
+	walk.setPointMode(parms.myPointMode, shared);
+    }
+
     if (needwalk)
     {
 	// So we don't get events during our cook

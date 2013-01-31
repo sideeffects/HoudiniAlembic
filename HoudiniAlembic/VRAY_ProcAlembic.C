@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2013,
+// Copyright (c) 2009-2012,
 //  Side Effects Software Inc.
 //
 // All rights reserved.
@@ -211,6 +211,7 @@ loadDetail(UT_Array<GU_Detail *> &details,
     walk.setFrame(fstart, fps);
     walk.setIncludeXform(true);
     walk.setBuildLocator(false);
+    walk.setPointMode(GABC_GEOWalker::ABCPRIM_NO_POINT);
     walk.setLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES);
     walk.setGroupMode(GABC_GEOWalker::ABC_GROUP_NONE);
 
@@ -411,7 +412,7 @@ getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic,
 	width = SYSmax(width, findMaxAttributeValue(a, pts));
 	a = gdp.findFloatTuple(GA_ATTRIB_POINT, "pscale");
 	width = SYSmax(width, findMaxAttributeValue(a, pts));
-	box.enlargeBounds(0, width);
+	box.expandBounds(0, width);
 
 	if (preblur != 0|| postblur != 0)
 	{

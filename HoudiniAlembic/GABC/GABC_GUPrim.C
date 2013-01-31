@@ -162,14 +162,22 @@ GABC_GUPrim::convertNew(GU_ConvertParms &parms)
 }
 
 GEO_Primitive *
-GABC_GUPrim::convert(GU_ConvertParms &parms, GA_PointGroup *)
+GABC_GUPrim::convert(GU_ConvertParms &parms, GA_PointGroup *delpts)
 {
-    GU_Detail	*gdp = UTverify_cast<GU_Detail *>(getParent());
-    GA_Size	 nprims = gdp->getPrimitiveMap().indexSize();
+    GU_Detail		*gdp = UTverify_cast<GU_Detail *>(getParent());
+    GA_Size		 nprims = gdp->getPrimitiveMap().indexSize();
 
     if (doConvert(parms))
     {
-	getParent()->deletePrimitive(*this, false);
+	GA_PrimitiveGroup	*grp = parms.getDeletePrimitives();
+
+	if (delpts && GAisValid(getVertexOffset(0)))
+	    delpts->addOffset(getPointOffset(0));
+
+	if (grp)
+	    grp->add(this);
+	else
+	    getParent()->deletePrimitive(*this, !delpts);
     }
     return gdp->getPrimitiveMap().indexSize() > nprims
 		? gdp->primitives()(nprims) : NULL;

@@ -99,8 +99,11 @@ private:
 
 	Parms	&operator=(const Parms &src);
 
-	GABC_GEOWalker::LoadMode	myLoadMode;
-	GABC_GEOWalker::BoxCullMode	myBoundMode;
+	GABC_GEOWalker::LoadMode		myLoadMode;
+	GABC_GEOWalker::BoxCullMode		myBoundMode;
+	GABC_GEOWalker::AbcPrimPointMode	myPointMode;
+	GABC_GEOWalker::GroupMode	myGroupMode;
+	GABC_GEOWalker::AFilter		myAnimationFilter;
 	UT_BoundingBox			myBoundBox;
 	bool				myBuildAbcXform;
 	std::string			myFilename;
@@ -109,8 +112,6 @@ private:
 	UT_String			myAttributePatterns[GA_ATTRIB_OWNER_N];
 	bool				myIncludeXform;
 	bool				myBuildLocator;
-	GABC_GEOWalker::GroupMode	myGroupMode;
-	GABC_GEOWalker::AFilter		myAnimationFilter;
 	UT_String			myPathAttribute;
 	UT_String			myFilenameAttribute;
 	GABC_NameMapPtr			myNameMapPtr;

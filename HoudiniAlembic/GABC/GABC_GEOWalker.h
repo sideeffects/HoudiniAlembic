@@ -82,6 +82,14 @@ public:
 	ABC_AFILTER_ALL		= (ABC_AFILTER_STATIC|ABC_AFILTER_ANIMATING),
     };
 
+    /// How Alembic delayed load primitives are attached to GA points
+    enum AbcPrimPointMode
+    {
+	ABCPRIM_NO_POINT,		// No GA point binding
+	ABCPRIM_SHARED_POINT,		// All primitives share a GA point
+	ABCPRIM_UNIQUE_POINT,		// Each prim has its own point
+    };
+
     GABC_GEOWalker(GU_Detail &gdp);
     virtual ~GABC_GEOWalker();
 
@@ -165,6 +173,8 @@ public:
     void	setGroupMode(GroupMode m)	{ myGroupMode = m; }
     void	setAnimationFilter(AFilter m)	{ myAnimationFilter = m; }
     void	setBounds(BoxCullMode mode, const UT_BoundingBox &box);
+    void	setPointMode(AbcPrimPointMode mode,
+			GA_Offset shared_point = GA_INVALID_OFFSET);
     /// @}
 
     /// @{
@@ -223,10 +233,16 @@ public:
     /// not allowed.
     bool	translateAttributeName(GA_AttributeOwner own, UT_String &name);
 
+    /// @{
     /// Access information about last poly/subd/curve mesh loaded
     GA_Size	lastFaceCount() const	{ return myLastFaceCount; }
     GA_Offset	lastFaceStart() const	{ return myLastFaceStart; }
     void	trackLastFace(GA_Size nfaces);
+    /// @}
+
+    /// Get a GA_Offset to which the Alembic delayed load primitive should be
+    /// attached.  This may return an invalid offset
+    GA_Offset	getPointForAbcPrim();
 
 protected:
     /// Verify the object matches filters before generating geometry
@@ -236,6 +252,11 @@ private:
     bool		 matchObjectName(const GABC_IObject &obj) const;
     bool		 matchAnimationFilter(const GABC_IObject &obj) const;
     bool		 matchBounds(const GABC_IObject &obj) const;
+    bool		 abcPrimPointMode() const
+				{ return myAbcPrimPointMode; }
+    GA_Offset		 abcSharedPoint() const
+				{ return myAbcSharedPoint; }
+
 
     GU_Detail		&myDetail;
     UT_String		 myObjectPattern;
@@ -248,6 +269,8 @@ private:
     M44d		 myMatrix;
     GA_Size		 myLastFaceCount;	// Number of faces in last mesh
     GA_Offset		 myLastFaceStart;	// Start of faces in last mash
+    GA_Offset		 myAbcSharedPoint;	
+    AbcPrimPointMode	 myAbcPrimPointMode;
 
     fpreal	myTime;			// Alembic evaluation time
     GroupMode	myGroupMode;		// How to construct group names

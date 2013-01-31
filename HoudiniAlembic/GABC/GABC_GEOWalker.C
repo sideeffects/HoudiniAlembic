@@ -771,6 +771,9 @@ namespace {
 				obj,
 				walk.time(),
 				walk.includeXform());
+	GA_Offset	pt = walk.getPointForAbcPrim();
+	if (GAisValid(pt))
+	    abc->setVertexPoint(pt);
 	abc->setAttributeNameMap(walk.nameMapPtr());
 	abc->setUseTransform(walk.includeXform());
 	if (!abc->isConstant())
@@ -1290,11 +1293,14 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
     , myPathAttribute()
     , myLastFaceCount(0)
     , myLastFaceStart(0)
+    , myAbcPrimPointMode(ABCPRIM_UNIQUE_POINT)
+    , myAbcSharedPoint(GA_INVALID_OFFSET)
     , myTime(0)
     , myPointCount(0)
     , myVertexCount(0)
     , myPrimitiveCount(0)
     , myGroupMode(ABC_GROUP_SHAPE_NODE)
+    , myBoxCullMode(BOX_CULL_IGNORE)
     , myAnimationFilter(ABC_AFILTER_ALL)
     , myIncludeXform(true)
     , myReusePrimitives(false)
@@ -1341,6 +1347,13 @@ GABC_GEOWalker::setBounds(BoxCullMode mode, const UT_BoundingBox &box)
     myCullBox = box;
     if (!myCullBox.isValid())
 	myBoxCullMode = BOX_CULL_IGNORE;
+}
+
+void
+GABC_GEOWalker::setPointMode(AbcPrimPointMode mode, GA_Offset shared_point)
+{
+    myAbcPrimPointMode = mode;
+    myAbcSharedPoint = shared_point;
 }
 
 void
@@ -1684,6 +1697,21 @@ GABC_GEOWalker::getGroupName(UT_String &name, const GABC_IObject &obj) const
     }
     name.forceValidVariableName();
     return true;
+}
+
+GA_Offset
+GABC_GEOWalker::getPointForAbcPrim()
+{
+    switch (myAbcPrimPointMode)
+    {
+	case ABCPRIM_NO_POINT:
+	    return GA_INVALID_OFFSET;
+	case ABCPRIM_SHARED_POINT:
+	    return myAbcSharedPoint;
+	case ABCPRIM_UNIQUE_POINT:
+	    return myDetail.appendPointOffset();
+    }
+    return GA_INVALID_OFFSET;
 }
 
 void
