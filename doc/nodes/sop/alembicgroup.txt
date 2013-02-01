@@ -1,0 +1,50 @@
+= Alembic =
+
+#type: node
+#context: sop
+#internal: alembicgroup
+#icon: SOP/alembicgroup
+
+"""Creates a geometry group for Alembic primitives."""
+
+@parameters
+
+GroupName:
+    #id: group
+
+    The name of the group to create.
+
+Object Path:
+    #id: objectPath
+    
+    If non blank, only the selected nodes and their children will be added to the group.
+
+Polygon Mesh Alembic Primitives:
+    #id: typepoly
+
+    When disabled, do not select any polygon mesh (IPolyMesh) primitives.
+
+Subdivision Mesh Alembic Primitives:
+    #id: typepoly
+
+    When disabled, do not select any subdivision surface mesh (ISubD) primitives.
+
+Curve Mesh Alembic Primitives:
+    #id: typepoly
+
+    When disabled, do not select any curve mesh (ICurves) primitives.
+
+Point Mesh Alembic Primitives:
+    #id: typepoly
+
+    When disabled, do not select any point mesh (IPoints) primitives.
+
+NURBS Patch Alembic Primitives:
+    #id: typepoly
+
+    When disabled, do not select any NURBS patch (INuPatch) primitives.
+
+Transform Node Primitives:
+    #id: typepoly
+
+    When disabled, do not select any transform node (IXform) primitives.
