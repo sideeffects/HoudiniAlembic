@@ -145,7 +145,7 @@ static PRM_Name	prm_shapeXform("typexform", "Transform Node Primitives");
 
 PRM_Template	SOP_AlembicGroup::myTemplateList[] =
 {
-    PRM_Template(PRM_STRING,	1, &prm_groupName),
+    PRM_Template(PRM_STRING,	1, &prm_groupName, &PRMgroupDefault),
     PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectPathName),
     PRM_Template(PRM_CALLBACK,	1, &prm_pickObjectPathName,
 		0, 0, 0, selectAlembicNodes),
