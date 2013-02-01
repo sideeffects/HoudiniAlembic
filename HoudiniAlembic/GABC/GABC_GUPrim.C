@@ -108,9 +108,18 @@ addGroupToDetails(UT_PtrArray<GU_Detail *> &details,
     const char	*name = group->getName();
     for (int i = 0; i < details.entries(); ++i)
     {
-	UT_ASSERT(!details(i)->primitiveGroups().find(name));
-	GA_PrimitiveGroup	*g = details(i)->newPrimitiveGroup(name);
-	g->setEntries();	// Add all primitives to the new group
+	// If there's an existing group on the detail, that means there was a
+	// face set in the Alembic primitive that matched the group that
+	// existed on the parent.  In that case, we do *not* want to blindly
+	// set the parent group to contain all the converted primitives.
+	// Instead we use the result of the face set.
+	GA_PrimitiveGroup	*g = details(i)->findPrimitiveGroup(name);
+	if (!g)
+	{
+	    // Add all newly converted primitives to the group
+	    g = details(i)->newPrimitiveGroup(name);
+	    g->setEntries();
+	}
     }
 }
 
