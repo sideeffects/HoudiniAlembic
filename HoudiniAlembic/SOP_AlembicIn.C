@@ -482,17 +482,18 @@ SOP_AlembicIn2::updateParmsFlags()
     bool	hasbox = (nInputs() > 0);
     bool	enablebox = !hasbox || (evalInt("boxsource", 0, 0) == 0);
     UT_String	boxcull;
-    bool	loadAbc;
+    int		loadmode;
 
     evalString(boxcull, "boxcull", 0, 0);
     if (boxcull == "none")
 	enablebox = false;
-    loadAbc = evalInt("loadmode", 0, 0) == 0;
+    loadmode = evalInt("loadmode", 0, 0);
 
     changed |= enableParm("pathattrib", evalInt("addpath", 0, 0));
     changed |= enableParm("fileattrib", evalInt("addfile", 0, 0));
-    changed |= enableParm("abcxform", loadAbc);
-    changed |= enableParm("pointmode", loadAbc);
+    changed |= enableParm("abcxform", loadmode == 0);
+    changed |= enableParm("pointmode", loadmode == 0);
+    changed |= enableParm("subdgroup", loadmode == 1);
     changed |= setVisibleState("boxsource", hasbox && boxcull != "none");
     changed |= setVisibleState("boxsize", enablebox);
     changed |= setVisibleState("boxcenter", enablebox);
