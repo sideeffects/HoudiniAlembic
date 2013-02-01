@@ -97,7 +97,8 @@ Objects:
         Only objects that are displayed on the start frame will be output to the archive.
 
 Collapse identity transforms:
-    This option will skip writing any transform nodes which have no transform (an identity transform) for the entire animation.
+    This option will skip writing any transform nodes which have no transform
+    (an identity transform) for the entire animation.
 
     When importing an Alembic scene, there are often empty geometry nodes
     created to contain [Alembic SOPs|Node:sop/alembic]. These objects are simply
@@ -105,11 +106,71 @@ Collapse identity transforms:
     scene, they will be added as dummy transform nodes (roughly doubling
     the size of the Alembic archive node count).
 
-Save Attribute:
-    If this checkbox is turned on, geometry attributes will be saved to the Alembic file.
+Full Bounding Box Tree:
+    This will cause all Alembic nodes to have proper bounding boxes written.
+    Computing bounds for only the shape nodes is more efficient.
+
+Save Attributes:
+    If this checkbox is turned on, geometry attributes will be saved to the
+    Alembic file as arbitrary geometry parameters.
+
+Face Sets:
+    This parameter controls how Houdini primitive groups will be translated to
+    Alembic face sets.  Alembic only supports face sets for polygon and
+    subdivision meshes.
+
+	No Face Sets:
+		No face sets will be saved out
+	Save Non-Empty Groups As Face Sets:
+		Only groups which contain polygons will generate face sets in
+		the Alembic file.
+	Save All Groups As Face Sets:
+		Face sets will be created for all groups, regardless of whether
+		the group contains any polygons.
+
+Subdivision Group:
+    When either the `vm_rendersubd` or `ri_rendersubd` is enabled on the object
+    all polygons will be output as subdivision surfaces shape nodes.  If a
+    group name is specified, only the polygons in the named group will be
+    output as subdivision surface, all other polygons will be output in a
+    polygon mesh.
+
+Partition Mode:
+    When saving a complex piece of geometry, it's possible to partition the
+    geometry into multiple shape nodes by splitting up the primitives based on
+    a string attribute.  There are several different ways to interpret the
+    string values:
+
+	No Geometry Partitioning:
+		The geometry will be output as a single Alembic shape node.
+	Use Attribute Value:
+		The value of the string attribute is used to name the shape
+		node.  This mode is ideal when using the `name` attribute.
+	Use Shape Node Component Of Path Attribute Value:
+		When loading an Alembic file, you can store the Alembic path in
+		a string attribute.  This option will partition the geometry
+		based on the names of the shape nodes stored in the attribute.
+	Use Transform Node Component Of Path Attribute Value:
+		This option will partition the geometry based on the names of
+		the transform nodes stored in the attribute.
+	Use Combination Of Transform/Shape Node:
+		Combines both the transform and shape node names to form the
+		name for the new shape node.
 
 Partition Attribute:
-    Specifies a string attribute which is used to partition a single geometry into multiple Alembic shape nodes. For example, you can use the `name` attribute to split a single piece of Houdini geometry into different Alembic shape nodes based on the value of the name. 
+    Specifies a string attribute which is used to partition a single geometry
+    into multiple Alembic shape nodes. For example, you can use the `name` or
+    the `abcPath` attribute to split a single piece of Houdini geometry into
+    different Alembic shape nodes based on the string value.
 
 Verbosity:
     Add information to the Alembic ROP based on objects written to the archive.
+
+Use Motion Blur:
+    Enabling this will cause sub-frame geometry to be saved to the Alembic file.
+
+Samples:
+    The number of sub-frame motion samples to be saved.
+
+Shutter:
+    The open/close of the shutter for sub-frame motion samples.
