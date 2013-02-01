@@ -76,24 +76,106 @@ namespace
     }
 
     static bool
-    isToggleEnabled(OP_Node *node, const char *name, fpreal now, bool def)
+    isToggleEnabled(OP_Node *node, const char *name,
+	    const ROP_AbcContext &ctx, bool def)
     {
 	int	value;
-	if (node->evalParameterOrProperty(name, 0, now, value))
+	if (node->evalParameterOrProperty(name, 0, ctx.cookTime(), value))
 	    return value != 0;
 	return def;
     }
 
-    static void
-    initializeRefineParms(GT_RefineParms &rparms, const SOP_Node *sop,
-		const ROP_AbcContext &ctx)
+    enum
+    {
+	FORCE_SUBD_OFF,
+	FORCE_SUBD_ON,
+	CHECK_OBJECT_SUBD,
+    };
+
+    static bool
+    objectSubd(const SOP_Node *sop, const ROP_AbcContext &ctx)
     {
 	OP_Network	*obj = sop->getCreator();
+	return isToggleEnabled(obj, "vm_rendersubd", ctx, false) ||
+		isToggleEnabled(obj, "ri_rendersubd", ctx, false);
+    }
+
+    static void
+    initializeRefineParms(GT_RefineParms &rparms, const SOP_Node *sop,
+		const ROP_AbcContext &ctx,
+		int subdmode = CHECK_OBJECT_SUBD)
+    {
 	rparms.setFaceSetMode(ctx.faceSetMode());
-	if (isToggleEnabled(obj, "vm_rendersubd", ctx.cookTime(), false) ||
-	    isToggleEnabled(obj, "ri_rendersubd", ctx.cookTime(), false))
+	switch (subdmode)
 	{
-	    rparms.setPolysAsSubdivision(true);
+	    case CHECK_OBJECT_SUBD:
+		if (objectSubd(sop, ctx))
+		    rparms.setPolysAsSubdivision(true);
+		break;
+	    case FORCE_SUBD_ON:
+		rparms.setPolysAsSubdivision(true);
+		break;
+	}
+    }
+
+    static void
+    partitionGeometryRange(PrimitiveList &primitives,
+	    const std::string &basename,
+	    NameList &names,
+	    const SOP_Node *sop,
+	    const GU_Detail *gdp,
+	    const GA_Range &range,
+	    const ROP_AbcContext &ctx,
+	    int subdmode)
+    {
+	GA_ROAttributeRef	 attrib;
+	const char		*aname = ctx.partitionAttribute();
+	GT_RefineParms		 rparms;
+
+	initializeRefineParms(rparms, sop, ctx, subdmode);
+	if (UTisstring(aname))
+	    attrib = gdp->findStringTuple(GA_ATTRIB_PRIMITIVE, aname);
+	GA_ROHandleS		 str(attrib);
+	if (!str.isValid() || !attrib.getAttribute()->getAIFSharedStringTuple())
+	{
+	    buildGeometry(primitives, gdp, rparms, &range);
+	    return;
+	}
+
+	UT_Array<GA_OffsetList> partitions;
+	NameList		partnames;
+	UT_WorkBuffer		namebuf;
+	partitions.append(GA_OffsetList());
+	partnames.push_back(basename);
+	for (GA_Iterator it(range); !it.atEnd(); ++it)
+	{
+	    GA_StringIndexType	idx;
+	    idx = str.getIndex(*it);
+	    if (idx < 0)
+	    {
+		partitions(0).append(*it);
+	    }
+	    else
+	    {
+		idx++;
+		while (partitions.entries() <= idx)
+		{
+		    const char	*sval = str.get(*it);
+		    sval = ctx.partitionModeValue(sval, namebuf);
+		    partitions.append(GA_OffsetList());
+		    partnames.push_back(sval);;
+		}
+		partitions(idx).append(*it);
+	    }
+	}
+	for (exint i = 0; i < partitions.entries(); ++i)
+	{
+	    if (partitions(i).entries())
+	    {
+		GA_Range	range(gdp->getPrimitiveMap(), partitions(i));
+		buildGeometry(primitives, gdp, rparms, &range);
+		names.push_back(partnames[i]);
+	    }
 	}
     }
 
@@ -107,10 +189,31 @@ namespace
     {
 	names.clear();
 
+	const GA_PrimitiveGroup	*subdgroup = NULL;
+
+	if (UTisstring(ctx.subdGroup()) && objectSubd(sop, ctx))
+	{
+	    subdgroup = gdp->findPrimitiveGroup(ctx.subdGroup());
+	}
+	if (subdgroup)
+	{
+	    // Build subdivision groups first
+	    partitionGeometryRange(primitives, basename, names, sop,
+		    gdp, GA_Range(*subdgroup), ctx, FORCE_SUBD_ON);
+	    // Now, build the 
+	    partitionGeometryRange(primitives, basename, names, sop,
+		    gdp, GA_Range(*subdgroup, true), ctx, FORCE_SUBD_OFF);
+	}
+	else
+	{
+	    partitionGeometryRange(primitives, basename, names, sop,
+		    gdp, gdp->getPrimitiveRange(), ctx, CHECK_OBJECT_SUBD);
+	}
+
+#if 0
 	GA_ROAttributeRef	 attrib;
 	const char		*aname = ctx.partitionAttribute();
 	GT_RefineParms		 rparms;
-
 	initializeRefineParms(rparms, sop, ctx);
 	if (UTisstring(aname))
 	    attrib = gdp->findStringTuple(GA_ATTRIB_PRIMITIVE, aname);
@@ -156,6 +259,7 @@ namespace
 		names.push_back(partnames[i]);
 	    }
 	}
+#endif
     }
 
     SOP_Node *

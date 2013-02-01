@@ -57,6 +57,8 @@ protected:
 		    { evalString(sval, "partition_mode", 0, time); }
     void	PARTITION_ATTRIBUTE(UT_String &str, fpreal time)
 		    { evalString(str, "partition_attribute", 0, time); }
+    void	SUBDGROUP(UT_String &str, fpreal time)
+		    { evalString(str, "subdgroup", 0, time); }
     int		VERBOSE(fpreal time)
 		    { return evalInt("verbose", 0, time); }
     bool	MOTIONBLUR(fpreal time)

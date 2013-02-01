@@ -1285,6 +1285,7 @@ namespace {
 
 GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
     : myDetail(gdp)
+    , mySubdGroup(NULL)
     , myObjectPattern("*")
     , myNameMapPtr()
     , myBoss(UTgetInterrupt())

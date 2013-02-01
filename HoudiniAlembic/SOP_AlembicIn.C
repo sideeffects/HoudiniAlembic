@@ -94,6 +94,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myFilename()
     , myObjectPath()
     , myObjectPattern()
+    , mySubdGroupName()
     , myIncludeXform(true)
     , myBuildLocator(false)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
@@ -113,6 +114,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myFilename()
     , myObjectPath()
     , myObjectPattern()
+    , mySubdGroupName()
     , myIncludeXform(true)
     , myBuildLocator(false)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
@@ -141,6 +143,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myNameMapPtr = src.myNameMapPtr;
     myObjectPath.harden(src.myObjectPath);
     myObjectPattern.harden(src.myObjectPattern);
+    mySubdGroupName.harden(src.mySubdGroupName);
     for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
 	myAttributePatterns[i].harden(src.myAttributePatterns[i]);
     myPathAttribute.harden(src.myPathAttribute);
@@ -182,6 +185,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	return true;
     if (myObjectPath != src.myObjectPath ||
 	    src.myObjectPattern != src.myObjectPattern)
+	return true;
+    if (src.mySubdGroupName != src.mySubdGroupName)
 	return true;
     for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
     {
@@ -308,6 +313,7 @@ static PRM_ChoiceList menu_animationfilter(PRM_CHOICELIST_SINGLE, animationFilte
 
 static PRM_Name prm_loadLocatorName("loadLocator", "Load Maya Locator");
 static PRM_Name prm_objecPatternName("objectPattern", "Object Pattern");
+static PRM_Name prm_subdgroupName("subdgroup", "Subdivision Group");
 static PRM_Name prm_pointAttributesName("pointAttributes", "Point Attributes");
 static PRM_Name prm_vertexAttributesName("vertexAttributes", "Vertex Attributes");
 static PRM_Name prm_primitiveAttributesName("primitiveAttributes", "Primitive Attributes");
@@ -330,7 +336,7 @@ static PRM_SpareData	theAbcPattern(
 
 static PRM_Default	mainSwitcher[] =
 {
-    PRM_Default(6, "Geometry"),
+    PRM_Default(7, "Geometry"),
     PRM_Default(8, "Selection"),
     PRM_Default(9, "Attributes"),
 };
@@ -356,6 +362,7 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_TOGGLE, 1, &prm_loadLocatorName, &prm_loadLocatorDefault),
     PRM_Template(PRM_ORD, 1, &prm_groupnames, &prm_groupnamesDefault,
 	    &menu_groupnames),
+    PRM_Template(PRM_STRING, 1, &prm_subdgroupName),
 
     // Selection tab
     PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectPathName, &prm_objectPathDefault,
@@ -536,6 +543,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 
     evalString(parms.myObjectPath, "objectPath", 0, now);
     evalString(parms.myObjectPattern, "objectPattern", 0, now);
+    evalString(parms.mySubdGroupName, "subdgroup", 0, now);
     for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
     {
 	evalString(parms.myAttributePatterns[i],
@@ -711,6 +719,14 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	    walk.updateAbcPrims();
 	    needwalk =  false;
 	}
+    }
+    if (parms.mySubdGroupName.isstring())
+    {
+	GA_PrimitiveGroup	*g;
+	g = gdp->findPrimitiveGroup(parms.mySubdGroupName);
+	if (!g)
+	    g = gdp->newPrimitiveGroup(parms.mySubdGroupName);
+	walk.setSubdGroup(g);
     }
     if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
     {

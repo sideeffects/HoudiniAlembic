@@ -55,6 +55,8 @@ namespace
 				"Partition Mode");
     static PRM_Name	thePartitionAttributeName("partition_attribute",
 				"Partition Attribute");
+    static PRM_Name	theSubdGroupName("subdgroup",
+				"Subdivision Group");
     static PRM_Name	theVerboseName("verbose", "Verbosity");
     static PRM_Name	theFaceSetModeName("facesets", "Face Sets");
 
@@ -184,6 +186,7 @@ namespace
 	PRM_Template(PRM_ORD, 1, &theFaceSetModeName,
 				    &theFaceSetModeDefault,
 				    &theFaceSetModeMenu),
+	PRM_Template(PRM_STRING, 1, &theSubdGroupName),
 	PRM_Template(PRM_ORD, 1, &thePartitionModeName,
 				    &thePartitionModeDefault,
 				    &thePartitionModeMenu),
@@ -321,6 +324,10 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 	myContext->setPartitionMode(partition_mode_val);
 	myContext->setPartitionAttribute(partition_attrib);
     }
+
+    UT_String	subdgroup;
+    SUBDGROUP(subdgroup, start);
+    myContext->setSubdGroup(subdgroup);
 
     if (MOTIONBLUR(start))
     {

@@ -81,9 +81,15 @@ public:
     void	setFullBounds(bool f)	{ myFullBounds = f; }
     /// @}
 
+    /// @{
+    /// Group name to identify subdivision surfaces
+    const char	*subdGroup() const		{ return mySubdGroup.c_str(); }
+    void	 setSubdGroup(const char *g)	{ mySubdGroup = g; }
+
 private:
     SpaceOptimize	myOptimizeSpace;
     FaceSetMode		myFaceSetMode;
+    std::string		mySubdGroup;
     bool		mySaveAttributes;
     bool		myUseDisplaySOP;
     bool		myFullBounds;

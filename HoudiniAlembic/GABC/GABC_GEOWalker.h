@@ -178,6 +178,12 @@ public:
     /// @}
 
     /// @{
+    /// Primitive group to store subdivision primitives
+    GA_PrimitiveGroup	*subdGroup() const	{ return mySubdGroup; }
+    void		setSubdGroup(GA_PrimitiveGroup *g) { mySubdGroup = g; }
+    /// @}
+
+    /// @{
     /// State modified during traversal
     void	setNonConstant()		{ myIsConstant = false; }
     void	setNonConstantTopology()	{ myTopologyConstant = false; }
@@ -259,6 +265,7 @@ private:
 
 
     GU_Detail		&myDetail;
+    GA_PrimitiveGroup	*mySubdGroup;
     UT_String		 myObjectPattern;
     UT_String		 myAttributePatterns[GA_ATTRIB_OWNER_N];
     GABC_NameMapPtr	 myNameMapPtr;	// Attribute map for ABC primitives
