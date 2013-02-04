@@ -721,9 +721,14 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	    needwalk =  false;
 	}
     }
+    // Delete previous subdivision group
+    if (myLastParms.mySubdGroupName != parms.mySubdGroupName)
+	gdp->destroyPrimitiveGroup(myLastParms.mySubdGroupName);
+    // Create new subd primtiive group
     if (parms.mySubdGroupName.isstring())
     {
 	GA_PrimitiveGroup	*g;
+
 	g = gdp->findPrimitiveGroup(parms.mySubdGroupName);
 	if (!g)
 	    g = gdp->newPrimitiveGroup(parms.mySubdGroupName);
