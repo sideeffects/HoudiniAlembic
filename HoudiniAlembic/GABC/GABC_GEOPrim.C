@@ -914,14 +914,19 @@ GABC_GEOPrim::setObjectPath(const std::string &path)
 void
 GABC_GEOPrim::setFrame(fpreal f)
 {
-    myFrame = f;
+    if (f != myFrame)
+    {
+	myFrame = f;
+	myGTPrimitive->updateAnimation(myUseTransform);
+    }
 }
 
 bool
 GABC_GEOPrim::getTransform(UT_Matrix4D &xform) const
 {
     if (!getABCWorldTransform(xform))
-	return false;
+	xform.identity();
+
     if (!myGeoTransform->isIdentity())
     {
 	UT_Matrix4D	lxform;
