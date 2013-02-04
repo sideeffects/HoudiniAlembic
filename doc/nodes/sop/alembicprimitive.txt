@@ -1,4 +1,4 @@
-= Alembic =
+= Alembic Primitive =
 
 #type: node
 #context: sop
@@ -17,20 +17,22 @@ Group Name:
 Frame:
     #id: frame
     
-    Set the animation frame for the primitive.
+    Sets the animation frame for the primitive.
 
 Frames Per Second:
     #id: fps
 
-    Combined with teh __Frame__ parameter, this is used to convert from
-    Houdini's frame values to the Alembic time base.
+    Combined with the __Frame__ parameter, this is used to convert from Houdini's frame values to the Alembic time base.
 
-@locals:
-    ABCFRAME:
-	The frame value for the current Alembic primitive (in the Alembic time base).
-    ABCFILENAME:
-	The filename of the current Alembic primitive.
-    ABCOBJECT:
-	The object path of the current Alembic primitive.
-    ABCTYPE:
-	The type of the Alembic primitive.
+@locals
+ABCFRAME:
+        The frame value for the current Alembic primitive (in the Alembic time base).
+
+ABCFILENAME:
+        The filename of the current Alembic primitive.
+
+ABCOBJECT:
+        The object path of the current Alembic primitive.
+
+ABCTYPE:
+        The type of the Alembic primitive.
