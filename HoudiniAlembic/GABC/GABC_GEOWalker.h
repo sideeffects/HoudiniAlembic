@@ -244,6 +244,7 @@ public:
     GA_Size	lastFaceCount() const	{ return myLastFaceCount; }
     GA_Offset	lastFaceStart() const	{ return myLastFaceStart; }
     void	trackLastFace(GA_Size nfaces);
+    void	trackSubd(GA_Size nfaces);
     /// @}
 
     /// Get a GA_Offset to which the Alembic delayed load primitive should be

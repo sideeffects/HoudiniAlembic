@@ -842,6 +842,7 @@ namespace {
 	fillArb(walk, ps.getArbGeomParams(), npoint, nvertex, nprim);
 
 	walk.trackLastFace(nprim);
+	walk.trackSubd(nprim);
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
 
@@ -1722,6 +1723,16 @@ GABC_GEOWalker::trackLastFace(GA_Size nfaces)
     UT_ASSERT(myDetail.getNumPrimitives() >= myPrimitiveCount + nfaces);
     myLastFaceStart = GA_Offset(myPrimitiveCount);
     myLastFaceCount = nfaces;
+}
+
+void
+GABC_GEOWalker::trackSubd(GA_Size nfaces)
+{
+    if (mySubdGroup)
+    {
+	for (exint i = 0; i < nfaces; ++i)
+	    mySubdGroup->addOffset(GA_Offset(myPrimitiveCount+i));
+    }
 }
 
 void
