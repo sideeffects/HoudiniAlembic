@@ -69,6 +69,8 @@ protected:
 		    { return evalFloat("shutter", 1, time); }
     int		SAMPLES(fpreal time)
 		    { return evalInt("samples", 0, time); }
+    bool	INITSIM(fpreal time)
+		    { return evalInt("initsim", 0, time) != 0; }
 
     ROP_AbcArchive	*myArchive;
     ROP_AbcContext	*myContext;

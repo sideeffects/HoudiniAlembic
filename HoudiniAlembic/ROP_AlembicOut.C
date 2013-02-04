@@ -59,6 +59,7 @@ namespace
 				"Subdivision Group");
     static PRM_Name	theVerboseName("verbose", "Verbosity");
     static PRM_Name	theFaceSetModeName("facesets", "Face Sets");
+    static PRM_Name	theInitSim("initsim", "Initialize Simulation OPs");
 
     static PRM_Default	theFilenameDefault(0, "$HIP/output.abc");
     static PRM_Default	theRootDefault(0, "/obj");
@@ -178,6 +179,7 @@ namespace
 				    1, &theObjectsName, &theObjectsDefault,
 				    &theObjectsMenu, 0, 0,
 				    &theObjectList),
+	PRM_Template(PRM_TOGGLE, 1, &theInitSim),
 	PRM_Template(PRM_TOGGLE, 1, &theCollapseName, &theCollapseDefault),
 	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName,
 				    &theFullBoundsDefault),
@@ -345,6 +347,12 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 	return 0;
     }
 
+    if (INITSIM(start))
+    {
+	initSimulationOPs();
+	OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
+    }
+
     // Now, build the tree
     OP_Bundle	*bundle = getParmBundle("objects", 0, objects,
 			OPgetDirector()->getManager("obj"), "!!OBJ!!");
@@ -466,6 +474,8 @@ ROP_AlembicOut::endRender()
 
     if (!executePostRenderScript(myEndTime))
 	return ROP_ABORT_RENDER;
+    if (INITSIM(myEndTime))
+	OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
     return ROP_CONTINUE_RENDER;
 }
 
