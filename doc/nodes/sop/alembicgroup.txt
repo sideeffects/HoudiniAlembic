@@ -1,4 +1,4 @@
-= Alembic =
+= Alembic Group =
 
 #type: node
 #context: sop
