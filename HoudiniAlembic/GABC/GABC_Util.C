@@ -481,28 +481,34 @@ namespace
 	class PathListWalker : public GABC_Util::Walker
 	{
 	public:
-	    PathListWalker(PathList &objects)
-		: myObjects(objects)
+	    PathListWalker(PathList &objects,
+			    PathList &full)
+		: myObjectList(objects)
+		, myFullObjectList(full)
 	    {
 	    }
 
 	    virtual bool	process(const GABC_IObject &obj)
 	    {
-		myObjects.push_back(obj.getFullName());
+		if (obj.nodeType() != GABC_FACESET)
+		    myObjectList.push_back(obj.getFullName());
+		myFullObjectList.push_back(obj.getFullName());
 		return true;
 	    }
 	private:
-	    PathList				&myObjects;
+	    PathList	&myObjectList;
+	    PathList	&myFullObjectList;
 	};
 
-	const PathList	&getObjectList()
+	const PathList	&getObjectList(bool full)
 			{
-			    if (isValid() && !myObjectList.size())
+			    if (isValid() && !myFullObjectList.size())
 			    {
-				PathListWalker	func(myObjectList);
+				PathListWalker	func(myObjectList,
+							myFullObjectList);
 				walk(func);
 			    }
-			    return myObjectList;
+			    return full ? myFullObjectList : myObjectList;
 			}
 
 	static bool	walkTree(const GABC_IObject &node,
@@ -526,6 +532,7 @@ namespace
 	GABC_IArchivePtr	myArchive;
 	std::string		error;
 	PathList		myObjectList;
+	PathList		myFullObjectList;
 	AbcTransformMap		myStaticXforms;
 	UT_CappedCache		myCache;
 	UT_CappedCache		myDynamicXforms;
@@ -814,12 +821,12 @@ GABC_Util::addEventHandler(const std::string &path,
 }
 
 const PathList &
-GABC_Util::getObjectList(const std::string &filename)
+GABC_Util::getObjectList(const std::string &filename, bool with_fsets)
 {
     try
     {
 	ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
-	return cacheEntry->getObjectList();
+	return cacheEntry->getObjectList(with_fsets);
     }
     catch (const std::exception &)
     {

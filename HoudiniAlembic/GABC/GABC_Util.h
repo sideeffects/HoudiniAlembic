@@ -216,7 +216,8 @@ public:
 				bool &inheritsXform);
 
     /// Return a list of all the objects in an Alembic file
-    static const PathList	&getObjectList(const std::string &filename);
+    static const PathList	&getObjectList(const std::string &filename,
+					bool include_face_sets=false);
 };
 
 #endif
