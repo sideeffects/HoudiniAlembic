@@ -9,7 +9,7 @@
 
 @parameters
 
-GroupName:
+Group Name:
     #id: group
 
     The name of the group to create.
@@ -17,34 +17,34 @@ GroupName:
 Object Path:
     #id: objectPath
     
-    If non blank, only the selected nodes and their children will be added to the group.
+    If this parameter is not left blank, only the selected nodes and their children will be added to the group.
 
 Polygon Mesh Alembic Primitives:
     #id: typepoly
 
-    When disabled, do not select any polygon mesh (IPolyMesh) primitives.
+    If this checkbox is turned off, no polygon mesh (`IPolyMesh`) primitives will not be selected.
 
 Subdivision Mesh Alembic Primitives:
     #id: typepoly
 
-    When disabled, do not select any subdivision surface mesh (ISubD) primitives.
+    If this checkbox is turned off, no subdivision surface mesh (`ISubD`) primitives will be selected.
 
 Curve Mesh Alembic Primitives:
     #id: typepoly
 
-    When disabled, do not select any curve mesh (ICurves) primitives.
+    If this checkbox is turned off, no curve mesh (`ICurves`) primitives will be selected.
 
 Point Mesh Alembic Primitives:
     #id: typepoly
 
-    When disabled, do not select any point mesh (IPoints) primitives.
+    If this checkbox is turned off, no point mesh (`IPoints`) primitives will be selected.
 
 NURBS Patch Alembic Primitives:
     #id: typepoly
 
-    When disabled, do not select any NURBS patch (INuPatch) primitives.
+    If this checkbox is turned off, no NURBS patch (`INuPatch`) primitives will be selected.
 
 Transform Node Primitives:
     #id: typepoly
 
-    When disabled, do not select any transform node (IXform) primitives.
+    If this checkbox is turned off, no transform node (`IXform)` primitives will be selected.
