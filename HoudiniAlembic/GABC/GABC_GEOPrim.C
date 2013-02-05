@@ -698,7 +698,7 @@ GABC_GEOPrim::copyPrimitive(const GEO_Primitive *psrc, GEO_Point **)
 }
 
 void
-GABC_GEOPrim::copyOffsetPrimitive(const GEO_Primitive *psrc, int)
+GABC_GEOPrim::copyOffsetPrimitive(const GEO_Primitive *psrc, GA_Index)
 {
     copyPrimitive(psrc, NULL);
 }

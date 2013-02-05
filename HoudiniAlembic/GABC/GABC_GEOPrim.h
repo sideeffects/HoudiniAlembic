@@ -111,7 +111,7 @@ public:
     // We need to invalidate the vertex offsets
     virtual void	clearForDeletion();
 
-    virtual void	copyOffsetPrimitive(const GEO_Primitive *src, int base);
+    virtual void	copyOffsetPrimitive(const GEO_Primitive *src, GA_Index base);
     /// @}
 
     /// @{
