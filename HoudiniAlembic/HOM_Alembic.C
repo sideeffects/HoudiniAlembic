@@ -264,6 +264,7 @@ namespace
 	PY_PyTuple_SetItem(rcode, 0, dataFromArray(data));
 	PY_PyTuple_SetItem(rcode, 1, atype == GABC_ANIMATION_CONSTANT ? PY_Py_True() : PY_Py_False());
 	PY_PyTuple_SetItem(rcode, 2, PY_PyString_FromString(scopeName(scope)));
+	PY_Py_INCREF(rcode);
 	return rcode;
     }
 
@@ -301,6 +302,7 @@ namespace
 	PY_PyObject	*rcode = PY_PyTuple_New(2);
 	PY_PyTuple_SetItem(rcode, 0, dataFromArray(data));
 	PY_PyTuple_SetItem(rcode, 1, atype == GABC_ANIMATION_CONSTANT ? PY_Py_True() : PY_Py_False());
+	PY_Py_INCREF(rcode);
 	return rcode;
     }
 
