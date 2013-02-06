@@ -186,7 +186,7 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
     if (myObjectPath != src.myObjectPath ||
 	    src.myObjectPattern != src.myObjectPattern)
 	return true;
-    if (src.mySubdGroupName != src.mySubdGroupName)
+    if (mySubdGroupName != src.mySubdGroupName)
 	return true;
     for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
     {
