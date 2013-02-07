@@ -129,11 +129,16 @@ Face Sets:
         	the group contains any polygons.
 
 Subdivision Group:
-        When either the `vm_rendersubd` or `ri_rendersubd` is enabled on the object,
-        all polygons will be output as subdivision surfaces shape nodes.  If a
-        group name is specified, only the polygons in the named group will be
-        output as subdivision surface. All other polygons will be output in a
-        polygon mesh.
+	If a group name is specified here, any polygons in any objects will be
+	saved as subdivision primitives in the Alembic file.  Other polygons
+	will be saved as polygon mesh nodes.
+
+	If no group is specified on the output driver, object level parameters
+	will be used to control whether polygons are output as subdivision or
+	polygon mesh primitives.  Enabling the `vm_rendersubd` or
+	`ri_rendersubd` will cause polygons to be saved as subdivision
+	primitives.  If specified, the `vm_subdgroup` will be used to select
+	which polygons will be rendered as subdivision surfaces.
 
 Partition Mode:
         When saving a complex piece of geometry, it is possible to partition the
