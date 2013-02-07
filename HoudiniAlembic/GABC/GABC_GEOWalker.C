@@ -527,19 +527,18 @@ namespace {
 	GU_Detail	&gdp = walk.detail();
 	exint		 startpoint = appendPoints(walk, npoint);
 	exint		 ncurves = counts->size();
-	exint		 voff = startpoint;
+	GEO_PolyCounts	 pcounts;
+	exint		 nvtx = 0;
 	for (exint i = 0; i < ncurves; ++i)
 	{
-	    exint	nvtx = (*counts)[i];
-	    GU_PrimPoly	*face = GU_PrimPoly::build(&gdp, nvtx,
-					GU_POLY_OPEN, 0);
-	    for (exint v = 0; v < nvtx; ++v)
-	    {
-		UT_ASSERT(voff + v < startpoint + npoint);
-		face->setVertexPoint(v, GA_Offset(voff+v));
-	    }
-	    voff += nvtx;
+	    nvtx += (*counts)[i];
+	    pcounts.append((*counts)[i]);
 	}
+	UT_StackBuffer<int>	indices(nvtx);
+	for (int i = 0; i < nvtx; ++i)
+	    indices[i] = i;
+	GU_PrimPoly::buildBlock(&gdp, GA_Offset(startpoint), npoint,
+			pcounts, indices, nvtx, false);
     }
 
     void
@@ -551,21 +550,11 @@ namespace {
 	GU_Detail	&gdp = walk.detail();
 	exint		 startpoint = appendPoints(walk, npoint);
 	exint		 nfaces = counts->size();
-	exint		 voff = 0;
+	GEO_PolyCounts	 pcounts;
 	for (exint i = 0; i < nfaces; ++i)
-	{
-	    exint	nvtx = (*counts)[i];
-	    GU_PrimPoly	*face = GU_PrimPoly::build(&gdp, nvtx,
-					GU_POLY_CLOSED, 0);
-	    UT_ASSERT(face->getMapOffset() == GA_Offset(i+walk.primitiveCount()));
-	    for (exint v = 0; v < nvtx; ++v)
-	    {
-		exint	pt = (*indices)[voff+v];
-		UT_ASSERT(pt >= 0 && pt < npoint);
-		face->setVertexPoint(v, GA_Offset(startpoint+pt));
-	    }
-	    voff += nvtx;
-	}
+	    pcounts.append((*counts)[i]);
+	GU_PrimPoly::buildBlock(&gdp, GA_Offset(startpoint), npoint,
+			pcounts, indices->get(), indices->size());
     }
 
     static void
@@ -1237,23 +1226,18 @@ namespace {
     makeBox(GU_Detail &gdp)
     {
 	GA_Offset		 firstpoint;
-	GA_Offset		 vertices[24];
-	GEO_PrimPolySoup	*soup = GU_PrimPolySoup::build(&gdp);
-	UT_Array<GA_Offset>	 vtxlist;
+	static GEO_PolyCounts	*theCounts = 0;
+	if (!theCounts)
+	{
+	    theCounts = new GEO_PolyCounts();
+	    for (int i = 0; i < 6; ++i)
+		theCounts->append(4);
+	}
 
 	firstpoint = gdp.appendPointBlock(8);
-	for (int i = 0; i < 24; ++i)
-	{
-	    int	vnum = soup->appendVertex(firstpoint + boxVertexMap[i]);
-	    vertices[i] = soup->getVertexOffset(vnum);
-	}
-	for (int face = 0; face < 6; ++face)
-	{
-	    vtxlist.entries(0);
-	    for (int i = 0; i < 4; ++i)
-		vtxlist.append(vertices[i + face*4]);
-	    soup->appendPolygon(vtxlist);
-	}
+	GU_PrimPolySoup::build(&gdp, firstpoint, 8, *theCounts,
+		boxVertexMap, 24);
+	gdp.getTopology().validate();
     }
 
     static void
@@ -1280,7 +1264,7 @@ namespace {
 	setBoxPositions(gdp, box, walk.pointCount());
 	if (getAnimationType(walk, obj) != GABC_ANIMATION_CONSTANT)
 	    walk.setNonConstant();
-	walk.trackPtVtxPrim(obj, 8, 24, 1, true);
+	walk.trackPtVtxPrim(obj, 8, 8, 1, true);
     }
 }
 
