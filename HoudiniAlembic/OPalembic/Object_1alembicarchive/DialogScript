@@ -304,9 +304,8 @@
 	menu	{
 	    "alembic"	"Alembic Delayed Load Primitives"
 	    "houdini"	"Load Houdini Geometry"
-	    //"hpoints"	"Houdini Point Cloud"
-	    //"abcboxes"	"Alembic Primitive Boxes"
-	    //"hboxes"	"Houdini Boxes"
+	    "hpoints"	"Houdini Point Cloud"
+	    "hboxes"	"Houdini Boxes"
 	}
 	export	none
     }
