@@ -209,57 +209,6 @@ namespace
 	    partitionGeometryRange(primitives, basename, names, sop,
 		    gdp, gdp->getPrimitiveRange(), ctx, CHECK_OBJECT_SUBD);
 	}
-
-#if 0
-	GA_ROAttributeRef	 attrib;
-	const char		*aname = ctx.partitionAttribute();
-	GT_RefineParms		 rparms;
-	initializeRefineParms(rparms, sop, ctx);
-	if (UTisstring(aname))
-	    attrib = gdp->findStringTuple(GA_ATTRIB_PRIMITIVE, aname);
-	GA_ROHandleS		 str(attrib);
-	if (!str.isValid() || !attrib.getAttribute()->getAIFSharedStringTuple())
-	{
-	    buildGeometry(primitives, gdp, rparms, NULL);
-	    return;
-	}
-
-	UT_Array<GA_OffsetList> partitions;
-	NameList		partnames;
-	UT_WorkBuffer		namebuf;
-	partitions.append(GA_OffsetList());
-	partnames.push_back(basename);
-	for (GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
-	{
-	    GA_StringIndexType	idx;
-	    idx = str.getIndex(*it);
-	    if (idx < 0)
-	    {
-		partitions(0).append(*it);
-	    }
-	    else
-	    {
-		idx++;
-		while (partitions.entries() <= idx)
-		{
-		    const char	*sval = str.get(*it);
-		    sval = ctx.partitionModeValue(sval, namebuf);
-		    partitions.append(GA_OffsetList());
-		    partnames.push_back(sval);;
-		}
-		partitions(idx).append(*it);
-	    }
-	}
-	for (exint i = 0; i < partitions.entries(); ++i)
-	{
-	    if (partitions(i).entries())
-	    {
-		GA_Range	range(gdp->getPrimitiveMap(), partitions(i));
-		buildGeometry(primitives, gdp, rparms, &range);
-		names.push_back(partnames[i]);
-	    }
-	}
-#endif
     }
 
     SOP_Node *
