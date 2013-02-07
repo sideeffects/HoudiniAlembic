@@ -89,33 +89,47 @@ namespace
     {
 	FORCE_SUBD_OFF,
 	FORCE_SUBD_ON,
-	CHECK_OBJECT_SUBD,
     };
 
     static bool
-    objectSubd(const SOP_Node *sop, const ROP_AbcContext &ctx)
+    objectSubd(const SOP_Node *sop, const ROP_AbcContext &ctx,
+	    UT_String &groupname)
     {
+	// If the user has specified a subd group on the output driver, any
+	// polygons in the subd group will be output as OSubD.  All others will
+	// be output as OPolyMesh.
+	groupname = ctx.subdGroup();
+	if (groupname.isstring())
+	    return true;
+
+	// If the user didn't specify a subd group on the output driver, use
+	// the object settings instead.  If the vm_rendersubd or ri_rendersubd
+	// toggles are turned on, we will render the object as subdivision
+	// surfaces.
 	OP_Network	*obj = sop->getCreator();
-	return isToggleEnabled(obj, "vm_rendersubd", ctx, false) ||
-		isToggleEnabled(obj, "ri_rendersubd", ctx, false);
+	if (!isToggleEnabled(obj, "vm_rendersubd", ctx, false) &&
+		!isToggleEnabled(obj, "ri_rendersubd", ctx, false))
+	{
+	    return false;
+	}
+	// However, if the user has specified a special group for subd
+	// surfaces, we only render primitives in that group as subds, while
+	// all others are rendered as polygons.
+	if (!obj->evalParameterOrProperty("vm_subdgroup", 0, 
+		    ctx.cookTime(), groupname))
+	{
+	    groupname = "";
+	}
+	return true;
     }
 
     static void
     initializeRefineParms(GT_RefineParms &rparms, const SOP_Node *sop,
 		const ROP_AbcContext &ctx,
-		int subdmode = CHECK_OBJECT_SUBD)
+		int subdmode)
     {
 	rparms.setFaceSetMode(ctx.faceSetMode());
-	switch (subdmode)
-	{
-	    case CHECK_OBJECT_SUBD:
-		if (objectSubd(sop, ctx))
-		    rparms.setPolysAsSubdivision(true);
-		break;
-	    case FORCE_SUBD_ON:
-		rparms.setPolysAsSubdivision(true);
-		break;
-	}
+	rparms.setPolysAsSubdivision(subdmode == FORCE_SUBD_ON);
     }
 
     static void
@@ -188,26 +202,43 @@ namespace
 	    const ROP_AbcContext &ctx)
     {
 	names.clear();
-
-	const GA_PrimitiveGroup	*subdgroup = NULL;
-
-	if (UTisstring(ctx.subdGroup()) && objectSubd(sop, ctx))
+	UT_String	subdgroupname;
+	if (objectSubd(sop, ctx, subdgroupname))
 	{
-	    subdgroup = gdp->findPrimitiveGroup(ctx.subdGroup());
-	}
-	if (subdgroup)
-	{
-	    // Build subdivision groups first
-	    partitionGeometryRange(primitives, basename, names, sop,
-		    gdp, GA_Range(*subdgroup), ctx, FORCE_SUBD_ON);
-	    // Now, build the 
-	    partitionGeometryRange(primitives, basename, names, sop,
-		    gdp, GA_Range(*subdgroup, true), ctx, FORCE_SUBD_OFF);
+	    if (subdgroupname.isstring())
+	    {
+		// If there's a group name, only the primitives in the group
+		// should be rendered as subd surfaces.
+		const GA_PrimitiveGroup	*subdgroup;
+		subdgroup = gdp->findPrimitiveGroup(subdgroupname);
+		if (subdgroup)
+		{
+		    // Build subdivision groups first
+		    partitionGeometryRange(primitives, basename, names, sop,
+			gdp, GA_Range(*subdgroup), ctx, FORCE_SUBD_ON);
+		    // Now, build the polygons
+		    partitionGeometryRange(primitives, basename, names, sop,
+			gdp, GA_Range(*subdgroup, true), ctx, FORCE_SUBD_OFF);
+		}
+		else
+		{
+		    // If there was no group, then there are no subd surfaces
+		    partitionGeometryRange(primitives, basename, names, sop,
+			gdp, gdp->getPrimitiveRange(), ctx, FORCE_SUBD_OFF);
+		}
+	    }
+	    else
+	    {
+		// All polygons should be rendered as subd primitives
+		partitionGeometryRange(primitives, basename, names, sop,
+			gdp, gdp->getPrimitiveRange(), ctx, FORCE_SUBD_ON);
+	    }
 	}
 	else
 	{
+	    // No subdivision primitives
 	    partitionGeometryRange(primitives, basename, names, sop,
-		    gdp, gdp->getPrimitiveRange(), ctx, CHECK_OBJECT_SUBD);
+		    gdp, gdp->getPrimitiveRange(), ctx, FORCE_SUBD_OFF);
 	}
     }
 
