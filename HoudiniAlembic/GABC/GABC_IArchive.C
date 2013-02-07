@@ -90,7 +90,7 @@ GABC_IArchive::resolveObject(GABC_IObject &obj)
 	if (UTisstring(args(i)))
 	    curr = curr.getChild(args(i));
     }
-    obj.setObject(IObject());
+    obj.setObject(curr);
 }
 
 GABC_IObject
