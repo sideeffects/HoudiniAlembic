@@ -64,9 +64,9 @@ namespace
 	    const GA_Range *range)
     {
 	/// Since there can be all kinds of primitives we don't understand
-	/// (i.e. Tetra, VDB, etc. we build a GT primitive for the detail.  We
-	/// can refine this into simpler primitives until we *do* understand
-	/// them.
+	/// (i.e. all custom ones, Tetra, etc. we build a GT primitive for the
+	/// detail.  We can refine this into simpler primitives until we *do*
+	/// understand them.
 	GT_PrimitiveHandle	detail = GT_GEODetail::makeDetail(gdp, range);
 	if (detail)
 	{
