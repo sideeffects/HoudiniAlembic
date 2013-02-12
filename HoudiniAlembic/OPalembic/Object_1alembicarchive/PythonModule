@@ -22,9 +22,6 @@ def BuildHierarchyRoot(rootNode):
             print 'No filename entered for Alembic scene.'
         return
 
-    shopnet = rootNode.createNode('shopnet')
-    abcProc = shopnet.createNode('vm_geo_alembic')
-
     buildSubnet = rootNode.evalParm('buildSubnet')
 
     tree = ABC.alembicGetSceneHierarchy(fileName, "")
@@ -38,7 +35,6 @@ def BuildHierarchyRoot(rootNode):
                         entry,
                         pathList,
                         buildSubnet,
-                        abcProc,
                         channelRefs)
     if not channelRefs:
         PushParametersToChildren(rootNode)
@@ -95,7 +91,7 @@ def _setupAbcGeo(geo, issubd):
     hou.hscript('opproperty -f -F Render %s mantra,prman* %s' % (geo.path(), parms))
 
 def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
-                pathList, buildSubnet, abcProc, channelRefs):
+                pathList, buildSubnet, channelRefs):
     name, typeName, children = childEntry
     if pathList:
         if pathList[0] != name:
@@ -114,11 +110,6 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
                 if subdParm:
                     subdParm.set(1)
         _setNodeName(currentNode, name)
-
-        proceduralParm = currentNode.parm('shop_geometrypath')
-        if proceduralParm:
-            relPath = currentNode.relativePathTo(abcProc)
-            proceduralParm.set(relPath)
 
         sopNode = currentNode.createNode('alembic')
         
@@ -168,7 +159,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
 
         for entry in children:
             WalkHierarchy(rootNode, currentNode, currentPath,
-                        entry, pathList, buildSubnet, abcProc, channelRefs)
+                        entry, pathList, buildSubnet, channelRefs)
     elif typeName == 'camera':
         currentNode = parentNode.createNode('cam')
         currentNode.setInput(0, parentNode.indirectInputs()[0])
