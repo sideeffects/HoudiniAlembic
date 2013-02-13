@@ -20,6 +20,7 @@
 #include <UT/UT_DSOVersion.h>
 #include <CMD/CMD_Manager.h>
 #include <OP/OP_OperatorTable.h>
+#include <PRM/PRM_SpareData.h>
 #include <GU/GU_PrimSelection.h>
 #include <GABC/GABC_GUPrim.h>
 
@@ -70,12 +71,20 @@ getAlembicPrimitivePaths(const GU_Detail *gdp, PathList &names)
 
 static int
 selectAlembicNodes(void *data, int index,
-	fpreal t, const PRM_Template *)
+	fpreal t, const PRM_Template *tplate)
 {
+    const char	*token = tplate->getToken();
+    if (strncmp(token, "pickobjectPath", 14) != 0)
+    {
+	fprintf(stderr, "Invalid parameter callback\n");
+	return 0;
+    }
+    int			 inst = SYSatoi(token+14);
     SOP_AlembicGroup	*sop = (SOP_AlembicGroup *)(data);
     CMD_Manager		*mgr = CMDgetManager();
     OP_Context		 ctx(t);
     UT_WorkBuffer	 cmd;
+    UT_WorkBuffer	 parmname;
     UT_String		 objectpath;
     PathList		 abcobjects;
     GU_DetailHandle	 gdh;
@@ -93,7 +102,8 @@ selectAlembicNodes(void *data, int index,
     }
 
     cmd.strcpy("treechooser");
-    sop->evalString(objectpath, "objectPath", 0, t);	// Get curr selection
+    parmname.sprintf("objectPath%d", inst);
+    sop->evalString(objectpath, parmname.buffer(), 0, t); // Get curr selection
     getAlembicPrimitivePaths(gdh.readLock(), abcobjects);
     if (objectpath.isstring())
     {
@@ -111,7 +121,7 @@ selectAlembicNodes(void *data, int index,
     os << ends;
     UT_String	result(os.str());
     result.trimBoundingSpace();
-    sop->setString(result, CH_STRING_LITERAL, "objectPath", 0, t);
+    sop->setString(result, CH_STRING_LITERAL, parmname.buffer(), 0, t);
     os.rdbuf()->freeze(0);
 
     return 0;
@@ -133,56 +143,43 @@ splitPathString(UT_String &str, PathList &paths)
 }
 
 static void
-buildPrimSelection(GU_Detail *gdp, const char *group_name)
+buildPrimSelection(GU_Detail *gdp, const std::vector<std::string> &group_names)
 {
     GU_PrimSelection		*primSelection;
 
     delete gdp->selection();
     gdp->selection(0);
-    primSelection = new GU_PrimSelection(*gdp, group_name, 0, "__sopprimgroup");
-    gdp->selection(primSelection);
-}
-
-#if 0
-static void
-buildPrimSelection(GU_Detail *gdp, const UT_StringArray &group_names)
-{
-    GU_PrimSelection		*primSelection;
-
-    delete gdp->selection();
-    gdp->selection(0);
-    if (group_names.entries() == 1)
-	primSelection = new GU_PrimSelection(*gdp, group_names(0), 0,
+    if (group_names.size() == 1)
+	primSelection = new GU_PrimSelection(*gdp, group_names[0].c_str(), 0,
 					     "__sopprimgroup");
     else
     {
 	primSelection = new GU_PrimSelection(*gdp, "_gu_pmselection_", 0,
 					     "__sopprimgroup");
-	for (int i = 0; i < group_names.entries(); i++)
+	for (int i = 0; i < group_names.size(); i++)
 	{
 	    const GA_PrimitiveGroup *group = gdp->findPrimitiveGroup(
-								group_names(i));
+						    group_names[i].c_str());
 	    if (group)
 		primSelection->operator|=(*group);
 	}
     }
     gdp->selection(primSelection);
 }
-#endif
 
-static PRM_Name prm_groupName("group", "Group Name");
-static PRM_Name	prm_objectPathName("objectPath", "Object Path");
-static PRM_Name	prm_pickObjectPathName("pickobjectPath", "Pick");
-static PRM_Name	prm_shapePoly("typepoly", "Polygon Mesh Alembic Primitives");
-static PRM_Name	prm_shapeSubd("typesubd", "Subdivision Mesh Alembic Primitives");
-static PRM_Name	prm_shapeCurves("typecurves", "Curve Mesh Alembic Primitives");
-static PRM_Name	prm_shapePoints("typepoints", "Point Mesh Alembic Primitives");
-static PRM_Name	prm_shapeNuPatch("typenupatch", "NURBS Patch Alembic Primitives");
-static PRM_Name	prm_shapeXform("typexform", "Transform Node Primitives");
+static PRM_Name prm_groupName("group#", "Group Name");
+static PRM_Name	prm_objectPathName("objectPath#", "Object Path");
+static PRM_Name	prm_pickObjectPathName("pickobjectPath#", "Pick");
+static PRM_Name	prm_shapePoly("typepoly#", "Polygon Mesh Alembic Primitives");
+static PRM_Name	prm_shapeSubd("typesubd#", "Subdivision Mesh Alembic Primitives");
+static PRM_Name	prm_shapeCurves("typecurves#", "Curve Mesh Alembic Primitives");
+static PRM_Name	prm_shapePoints("typepoints#", "Point Mesh Alembic Primitives");
+static PRM_Name	prm_shapeNuPatch("typenupatch#", "NURBS Patch Alembic Primitives");
+static PRM_Name	prm_shapeXform("typexform#", "Transform Node Primitives");
 
-}
+static PRM_Name	prm_groupCount("ngroups", "Number Of Groups");
 
-PRM_Template	SOP_AlembicGroup::myTemplateList[] =
+static PRM_Template	groupTemplate[] =
 {
     PRM_Template(PRM_STRING,	1, &prm_groupName, &PRMgroupDefault),
     PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectPathName),
@@ -196,6 +193,17 @@ PRM_Template	SOP_AlembicGroup::myTemplateList[] =
     PRM_Template(PRM_TOGGLE,	1, &prm_shapeXform, PRMoneDefaults),
 
     PRM_Template()
+};
+
+}
+
+PRM_Template	SOP_AlembicGroup::myTemplateList[] =
+{
+    PRM_Template(PRM_MULTITYPE_LIST, groupTemplate, 2,
+	    &prm_groupCount, PRMoneDefaults, 0,
+	    &PRM_SpareData::multiStartOffsetZero),
+
+    PRM_Template()	// Sentinal
 };
 
 SOP_AlembicGroup::SOP_AlembicGroup(OP_Network *net,
@@ -223,32 +231,52 @@ SOP_AlembicGroup::cookMySop(OP_Context &context)
 
     duplicateSource(0, context);
 
-    UT_String	objectPath;
-    UT_String	groupName;
-    PathList	paths;
-    bool	typeMatch[GABC_NUM_NODE_TYPES];
-    fpreal	t = context.getTime();
-    for (int i = 0; i < GABC_NUM_NODE_TYPES; ++i)
-	typeMatch[i] = false;
-
-    evalString(objectPath, "objectPath", 0, t);
-    evalString(groupName, "group", 0, t);
-    splitPathString(objectPath, paths);
-    typeMatch[GABC_XFORM] = evalInt("typexform", 0, t) != 0;
-    typeMatch[GABC_POLYMESH] = evalInt("typepoly", 0, t) != 0;
-    typeMatch[GABC_SUBD] = evalInt("typesubd", 0, t) != 0;
-    typeMatch[GABC_CURVES] = evalInt("typecurves", 0, t) != 0;
-    typeMatch[GABC_POINTS] = evalInt("typepoints", 0, t) != 0;
-    typeMatch[GABC_NUPATCH] = evalInt("typenupatch", 0, t) != 0;
-
-    GA_PrimitiveGroup	*g = gdp->newPrimitiveGroup(groupName);
-    if (g)
+    fpreal			t = context.getTime();
+    int				ngroups = evalInt("ngroups", 0, t);
+    std::vector<std::string>	groupNames;
+    UT_Set<std::string>		groupNameSet;
+    for (int inst = 0; inst < ngroups; ++inst)
     {
-	selectPrimitives(g, paths, typeMatch);
-	buildPrimSelection(gdp, g->getName());
+	UT_String	str;
+	evalStringInst("group#", &inst, str, 0, t);
+	std::string	name = str.toStdString();
+	groupNames.push_back(name);
+	if (groupNameSet.count(name) == 1)
+	{
+	    UT_WorkBuffer	err;
+	    err.sprintf("Warning: multiple groups named: %s", name.c_str());
+	    addWarning(SOP_MESSAGE, err.buffer());
+	}
+	groupNameSet.insert(name);
     }
-    else
-	addError(SOP_ERR_BADGROUP, (const char *)groupName);
+
+    for (int inst = 0; inst < ngroups; ++inst)
+    {
+	std::string	groupName = groupNames[inst];
+	UT_String	objectPath;
+	PathList	paths;
+	bool	typeMatch[GABC_NUM_NODE_TYPES];
+	for (int i = 0; i < GABC_NUM_NODE_TYPES; ++i)
+	    typeMatch[i] = false;
+
+	evalStringInst("objectPath#", &inst, objectPath, 0, t);
+	splitPathString(objectPath, paths);
+	typeMatch[GABC_XFORM] = evalIntInst("typexform#", &inst, 0, t) != 0;
+	typeMatch[GABC_POLYMESH] = evalIntInst("typepoly#", &inst, 0, t) != 0;
+	typeMatch[GABC_SUBD] = evalIntInst("typesubd#", &inst, 0, t) != 0;
+	typeMatch[GABC_CURVES] = evalIntInst("typecurves#", &inst, 0, t) != 0;
+	typeMatch[GABC_POINTS] = evalIntInst("typepoints#", &inst, 0, t) != 0;
+	typeMatch[GABC_NUPATCH] = evalIntInst("typenupatch#", &inst, 0, t) != 0;
+
+	GA_PrimitiveGroup	*g = gdp->newPrimitiveGroup(groupName.c_str());
+	if (g)
+	{
+	    selectPrimitives(g, paths, typeMatch);
+	}
+	else
+	    addError(SOP_ERR_BADGROUP, groupName.c_str());
+    }
+    buildPrimSelection(gdp, groupNames);
 
     unlockInputs();
 
