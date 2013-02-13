@@ -523,7 +523,7 @@ VRAY_ProcAlembic::render()
 	    {
 		if (myNonAlembic)
 		    addgeo = true;
-		if (!warned)
+		else if (!warned)
 		{
 		    void		*handle = queryObject(NULL);
 		    const char	*name = queryObjectName(handle);
@@ -542,7 +542,7 @@ VRAY_ProcAlembic::render()
 	    tstep = ngeo > 1 ? 1.0/(ngeo-1) : 1;
 	    openGeometryObject();
 		for (int i = 0; i < ngeo; ++i)
-		    addGeometry(const_cast<GU_Detail *>(gdp), tstep * i);
+		    addGeometry(const_cast<GU_Detail *>(details(i)), tstep * i);
 	    closeObject();
 	}
     }
