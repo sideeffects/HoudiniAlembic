@@ -20,6 +20,7 @@
 #include <UT/UT_DSOVersion.h>
 #include <CMD/CMD_Manager.h>
 #include <OP/OP_OperatorTable.h>
+#include <GU/GU_PrimSelection.h>
 #include <GABC/GABC_GUPrim.h>
 
 namespace
@@ -131,6 +132,44 @@ splitPathString(UT_String &str, PathList &paths)
     }
 }
 
+static void
+buildPrimSelection(GU_Detail *gdp, const char *group_name)
+{
+    GU_PrimSelection		*primSelection;
+
+    delete gdp->selection();
+    gdp->selection(0);
+    primSelection = new GU_PrimSelection(*gdp, group_name, 0, "__sopprimgroup");
+    gdp->selection(primSelection);
+}
+
+#if 0
+static void
+buildPrimSelection(GU_Detail *gdp, const UT_StringArray &group_names)
+{
+    GU_PrimSelection		*primSelection;
+
+    delete gdp->selection();
+    gdp->selection(0);
+    if (group_names.entries() == 1)
+	primSelection = new GU_PrimSelection(*gdp, group_names(0), 0,
+					     "__sopprimgroup");
+    else
+    {
+	primSelection = new GU_PrimSelection(*gdp, "_gu_pmselection_", 0,
+					     "__sopprimgroup");
+	for (int i = 0; i < group_names.entries(); i++)
+	{
+	    const GA_PrimitiveGroup *group = gdp->findPrimitiveGroup(
+								group_names(i));
+	    if (group)
+		primSelection->operator|=(*group);
+	}
+    }
+    gdp->selection(primSelection);
+}
+#endif
+
 static PRM_Name prm_groupName("group", "Group Name");
 static PRM_Name	prm_objectPathName("objectPath", "Object Path");
 static PRM_Name	prm_pickObjectPathName("pickobjectPath", "Pick");
@@ -204,7 +243,10 @@ SOP_AlembicGroup::cookMySop(OP_Context &context)
 
     GA_PrimitiveGroup	*g = gdp->newPrimitiveGroup(groupName);
     if (g)
+    {
 	selectPrimitives(g, paths, typeMatch);
+	buildPrimSelection(gdp, g->getName());
+    }
     else
 	addError(SOP_ERR_BADGROUP, (const char *)groupName);
 
