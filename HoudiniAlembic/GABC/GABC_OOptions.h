@@ -20,7 +20,10 @@
 
 #include "GABC_API.h"
 #include "GABC_Include.h"
+#include <UT/UT_String.h>
+#include <GA/GA_Types.h>
 #include <Alembic/AbcCoreAbstract/TimeSampling.h>
+#include <Alembic/AbcGeom/GeometryScope.h>
 
 /// Class to specify options for output of Alembic geometry
 class GABC_API GABC_OOptions
@@ -83,13 +86,32 @@ public:
 
     /// @{
     /// Group name to identify subdivision surfaces
-    const char	*subdGroup() const		{ return mySubdGroup.c_str(); }
-    void	 setSubdGroup(const char *g)	{ mySubdGroup = g; }
+    const char	*subdGroup() const		{ return mySubdGroup.buffer(); }
+    void	 setSubdGroup(const char *g)	{ mySubdGroup.harden(g); }
+    /// @}
+
+    /// @{
+    /// Set attribute masks
+    bool	 matchAttribute(Alembic::AbcGeom::GeometryScope scope,
+			const char *name) const;
+    bool	 matchAttribute(GA_AttributeOwner own, const char *name) const;
+    const char	*getAttributePattern(GA_AttributeOwner own) const
+			{ return myAttributePatterns[own].buffer(); }
+    void	 setAttributePattern(GA_AttributeOwner own, const char *pattern)
+		 {
+		     myAttributePatterns[own].harden(pattern);
+		     checkAttributeStars();
+		 }
+    /// @}
 
 private:
+    void		checkAttributeStars();
+
     SpaceOptimize	myOptimizeSpace;
     FaceSetMode		myFaceSetMode;
-    std::string		mySubdGroup;
+    UT_String		mySubdGroup;
+    UT_String		myAttributePatterns[GA_ATTRIB_OWNER_N];
+    bool		myAttributeStars;
     bool		mySaveAttributes;
     bool		myUseDisplaySOP;
     bool		myFullBounds;

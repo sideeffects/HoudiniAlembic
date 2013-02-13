@@ -177,8 +177,11 @@ namespace
 	{
 	    const char			*name = attribs->getName(i);
 	    const GT_DataArrayHandle	&data = attribs->get(i);
-	    if (!data || skips.contains(name))
+	    if (!data || skips.contains(name)
+			|| !ctx.matchAttribute(scope, name))
+	    {
 		continue;
+	    }
 	    if (data->getTypeInfo() == GT_TYPE_HIDDEN)
 		continue;
 	    if (table.findSymbol(name, &prop))

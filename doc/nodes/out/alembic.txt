@@ -114,6 +114,18 @@ Save Attributes:
         If this checkbox is turned on, geometry attributes will be saved to the
         Alembic file as arbitrary geometry parameters.
 
+Point Attributes:
+	Point attributes whose name matches this pattern will be saved in the Alembic file.
+
+Vertex Attributes:
+	Vertex attributes whose name matches this pattern will be saved in the Alembic file.
+
+Primitive Attributes:
+	Primitive attributes whose name matches this pattern will be saved in the Alembic file.
+
+Detail Attributes:
+	Detail attributes whose name matches this pattern will be saved in the Alembic file.
+
 Face Sets:
         This parameter controls how Houdini primitive groups will be translated to
         Alembic face sets.  Alembic only supports face sets for polygon and

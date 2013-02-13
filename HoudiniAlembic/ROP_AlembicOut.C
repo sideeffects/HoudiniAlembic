@@ -63,7 +63,7 @@ namespace
 
     static PRM_Default	theFilenameDefault(0, "$HIP/output.abc");
     static PRM_Default	theRootDefault(0, "/obj");
-    static PRM_Default	theObjectsDefault(0, "*");
+    static PRM_Default	theStarDefault(0, "*");
     static PRM_Default	theCollapseDefault(1, "yes");
     static PRM_Default	theSaveAttributesDefault(1, "yes");
     static PRM_Default	theFullBoundsDefault(0, "no");
@@ -167,6 +167,12 @@ namespace
     static PRM_Default	theSampleDefault(2);
     static PRM_Default	theShutterDefault[] = {0, 1};
     static PRM_Default	theFaceSetModeDefault(1, "nonempty");
+    static PRM_Name	theAttributePatternNames[GA_ATTRIB_OWNER_N] = {
+	PRM_Name("vertexAttributes",	"Vertex Attributes"),
+	PRM_Name("pointAttributes",	"Point Attributes"),
+	PRM_Name("primitiveAttributes",	"Primitive Attributes"),
+	PRM_Name("detailAttributes",	"Detail Attributes"),
+    };
 
     static PRM_Template	theParameters[] = {
 	PRM_Template(PRM_FILE,	1, &theFilenameName, &theFilenameDefault),
@@ -176,7 +182,7 @@ namespace
 				    1, &theRootName, &theRootDefault,
 				    0, 0, 0, &PRM_SpareData::objPath),
 	PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST,
-				    1, &theObjectsName, &theObjectsDefault,
+				    1, &theObjectsName, &theStarDefault,
 				    &theObjectsMenu, 0, 0,
 				    &theObjectList),
 	PRM_Template(PRM_TOGGLE, 1, &theInitSim),
@@ -185,6 +191,18 @@ namespace
 				    &theFullBoundsDefault),
 	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
 				    &theSaveAttributesDefault),
+	PRM_Template(PRM_STRING, 1,
+		&theAttributePatternNames[GA_ATTRIB_POINT],
+		&theStarDefault),
+	PRM_Template(PRM_STRING, 1,
+		&theAttributePatternNames[GA_ATTRIB_VERTEX],
+		&theStarDefault),
+	PRM_Template(PRM_STRING, 1,
+		&theAttributePatternNames[GA_ATTRIB_PRIMITIVE],
+		&theStarDefault),
+	PRM_Template(PRM_STRING, 1,
+		&theAttributePatternNames[GA_ATTRIB_DETAIL],
+		&theStarDefault),
 	PRM_Template(PRM_ORD, 1, &theFaceSetModeName,
 				    &theFaceSetModeDefault,
 				    &theFaceSetModeMenu),
@@ -325,6 +343,12 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 	PARTITION_ATTRIBUTE(partition_attrib, start);
 	myContext->setPartitionMode(partition_mode_val);
 	myContext->setPartitionAttribute(partition_attrib);
+    }
+    for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
+    {
+	UT_String	pattern;
+	evalString(pattern, theAttributePatternNames[i].getToken(), 0, start);
+	myContext->setAttributePattern((GA_AttributeOwner)i, pattern);
     }
 
     UT_String	subdgroup;

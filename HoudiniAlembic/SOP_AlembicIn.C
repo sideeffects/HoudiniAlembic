@@ -314,10 +314,6 @@ static PRM_ChoiceList menu_animationfilter(PRM_CHOICELIST_SINGLE, animationFilte
 static PRM_Name prm_loadLocatorName("loadLocator", "Load Maya Locator");
 static PRM_Name prm_objecPatternName("objectPattern", "Object Pattern");
 static PRM_Name prm_subdgroupName("subdgroup", "Subdivision Group");
-static PRM_Name prm_pointAttributesName("pointAttributes", "Point Attributes");
-static PRM_Name prm_vertexAttributesName("vertexAttributes", "Vertex Attributes");
-static PRM_Name prm_primitiveAttributesName("primitiveAttributes", "Primitive Attributes");
-static PRM_Name prm_detailAttributesName("detailAttributes", "Detail Attributes");
 static PRM_Default prm_starDefault(0, "*");
 static PRM_Default prm_loadLocatorDefault(false);
 
