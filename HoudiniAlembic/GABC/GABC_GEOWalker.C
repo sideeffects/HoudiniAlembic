@@ -538,7 +538,7 @@ namespace {
 	for (int i = 0; i < nvtx; ++i)
 	    indices[i] = i;
 	GU_PrimPoly::buildBlock(&gdp, GA_Offset(startpoint), npoint,
-			pcounts, indices, nvtx, false);
+			pcounts, indices, false);
     }
 
     void
@@ -554,7 +554,7 @@ namespace {
 	for (exint i = 0; i < nfaces; ++i)
 	    pcounts.append((*counts)[i]);
 	GU_PrimPoly::buildBlock(&gdp, GA_Offset(startpoint), npoint,
-			pcounts, indices->get(), indices->size());
+			pcounts, indices->get());
     }
 
     static void
@@ -1225,18 +1225,16 @@ namespace {
     static void
     makeBox(GU_Detail &gdp)
     {
-	GA_Offset		 firstpoint;
-	static GEO_PolyCounts	*theCounts = 0;
+	static GEO_PolyCounts *theCounts = 0;
 	if (!theCounts)
 	{
 	    theCounts = new GEO_PolyCounts();
-	    for (int i = 0; i < 6; ++i)
-		theCounts->append(4);
+	    theCounts->append(4, 6);
 	}
 
-	firstpoint = gdp.appendPointBlock(8);
+	GA_Offset firstpoint = gdp.appendPointBlock(8);
 	GU_PrimPolySoup::build(&gdp, firstpoint, 8, *theCounts,
-		boxVertexMap, 24);
+		boxVertexMap);
 	gdp.getTopology().validate();
     }
 
