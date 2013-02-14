@@ -99,8 +99,8 @@ SOP_AlembicIn2::Parms::Parms()
     , myBuildLocator(false)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
-    , myPathAttribute()
-    , myFilenameAttribute()
+    , myPathAttribute("")
+    , myFilenameAttribute("")
     , myNameMapPtr()
 {
     myBoundBox.makeInvalid();
@@ -119,8 +119,8 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myBuildLocator(false)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
-    , myPathAttribute()
-    , myFilenameAttribute()
+    , myPathAttribute("")
+    , myFilenameAttribute("")
     , myNameMapPtr()
 {
     *this = src;
