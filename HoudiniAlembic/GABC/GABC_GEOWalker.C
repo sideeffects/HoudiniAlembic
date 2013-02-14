@@ -76,7 +76,9 @@ namespace {
 	    IXformSchema	&xs = xform.getSchema();
 	    XformSample		 sample = xs.getValue(walk.timeSample());
 	    if (!xs.isConstant())
+	    {
 		walk.setNonConstant();
+	    }
 	    walk.pushTransform(sample.getMatrix(), xs.isConstant(), myPop,
 		    xs.getInheritsXforms());
 	}
@@ -766,7 +768,9 @@ namespace {
 	abc->setAttributeNameMap(walk.nameMapPtr());
 	abc->setUseTransform(walk.includeXform());
 	if (!abc->isConstant())
+	{
 	    walk.setNonConstant();
+	}
 	walk.trackPtVtxPrim(obj, 0, 0, 1, false);
 
     }
@@ -777,7 +781,9 @@ namespace {
 	GABC_AnimationType	atype;
 	atype = obj.getAnimationType(false);
 	if (atype == GABC_ANIMATION_TOPOLOGY)
+	{
 	    walk.setNonConstantTopology();
+	}
 	return atype;
     }
 
@@ -1188,7 +1194,9 @@ namespace {
 		g->addOffset(GA_Offset(startpoint+i));
 	}
 	if (getAnimationType(walk, obj) != GABC_ANIMATION_CONSTANT)
+	{
 	    walk.setNonConstant();
+	}
 	walk.trackPtVtxPrim(obj, npoint, 0, 0, true);
     }
 
@@ -1261,7 +1269,9 @@ namespace {
 	    makeBox(gdp);
 	setBoxPositions(gdp, box, walk.pointCount());
 	if (getAnimationType(walk, obj) != GABC_ANIMATION_CONSTANT)
+	{
 	    walk.setNonConstant();
+	}
 	walk.trackPtVtxPrim(obj, 8, 8, 1, true);
     }
 }
