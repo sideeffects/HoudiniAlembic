@@ -1480,6 +1480,15 @@ namespace
 	return box.isValid();
     }
 
+    template <typename ABC_T, typename SCHEMA_T>
+    static TimeSamplingPtr
+    abcTimeSampling(const IObject &obj)
+    {
+	ABC_T		 prim(obj, gabcWrapExisting);
+	const SCHEMA_T	&ss = prim.getSchema();
+	return ss.getTimeSampling();
+    }
+
     static bool
     abcArbsAreAnimated(ICompoundProperty arb)
     {
@@ -1831,6 +1840,41 @@ GABC_IObject::getRenderingBoundingBox(UT_BoundingBox &box, fpreal t) const
 	    break;
     }
     return true;
+}
+
+TimeSamplingPtr
+GABC_IObject::timeSampling()
+{
+    //GABC_AutoLock	lock(archive());
+    switch (nodeType())
+    {
+	case GABC_POLYMESH:
+	    return abcTimeSampling<IPolyMesh, IPolyMeshSchema>(object());
+	case GABC_SUBD:
+	    return abcTimeSampling<ISubD, ISubDSchema>(object());
+	case GABC_CURVES:
+	    return abcTimeSampling<ICurves, ICurvesSchema>(object());
+	case GABC_POINTS:
+	    return abcTimeSampling<IPoints, IPointsSchema>(object());
+	case GABC_NUPATCH:
+	    return abcTimeSampling<INuPatch, INuPatchSchema>(object());
+	case GABC_XFORM:
+	    return abcTimeSampling<IXform, IXformSchema>(object());
+	default:
+	    break;
+    }
+    return TimeSamplingPtr();
+}
+
+fpreal
+GABC_IObject::clampTime(fpreal input_time)
+{
+    TimeSamplingPtr	time(timeSampling());
+    exint		nsamples = time ? time->getNumStoredTimes() : 0;
+    if (nsamples < 1)
+	return 0;
+    return SYSclamp(input_time, time->getSampleTime(0),
+			time->getSampleTime(nsamples-1));
 }
 
 GT_PrimitiveHandle

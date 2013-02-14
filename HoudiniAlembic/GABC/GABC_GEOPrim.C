@@ -916,8 +916,23 @@ GABC_GEOPrim::setFrame(fpreal f)
 {
     if (f != myFrame)
     {
+	bool	update = false;
+
+	// If we don't have any transforms involved, we can do a quick check
+	// and clamp the time to the animation time.  If the time stamp is
+	// outside the animation time, we don't need to reset the GT primitive
+	// cache.
+	if (myUseTransform)
+	{
+	    update = true;
+	}
+	else if (myObject.valid())
+	{
+	    update = myObject.clampTime(myFrame) != myObject.clampTime(f);
+	}
 	myFrame = f;
-	myGTPrimitive->updateAnimation(myUseTransform);
+	if (update)
+	    myGTPrimitive->updateAnimation(myUseTransform);
     }
 }
 

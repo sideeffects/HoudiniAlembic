@@ -44,6 +44,7 @@ public:
     typedef Alembic::Abc::IObject		IObject;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
+    typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
     typedef Alembic::AbcGeom::GeometryScope	GeometryScope;
 
     GABC_IObject();
@@ -194,6 +195,12 @@ public:
     ///  - The @c atype parameter is filled out with the animation type
     GT_DataArrayHandle	getUserProperty(const std::string &name, fpreal t,
 				GABC_AnimationType &atype) const;
+
+    /// Access the time sampling pointer
+    TimeSamplingPtr	timeSampling();
+
+    /// Clamp the time to the animated time range
+    fpreal		clampTime(fpreal input_time);
 
     /// @{
     /// Get the world transform for the node.  This includes all it's parent
