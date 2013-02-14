@@ -5,9 +5,11 @@
 
 #include <OBJ/OBJ_Node.h>
 #include <OBJ/OBJ_SharedNames.h>
+#include <SOP/SOP_Node.h>
 #include <OP/OP_Bundle.h>
 #include <OP/OP_BundleList.h>
 #include <OP/OP_Director.h>
+#include <MGR/MGR_Node.h>
 #include <PRM/PRM_Include.h>
 #include <PRM/PRM_SpareData.h>
 #include <GABC/GABC_OError.h>
@@ -276,6 +278,9 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 {
     close();
 
+    SOP_Node	*sop = CAST_SOPNODE(getInput(0));
+    OP_Node	*sop_parent = NULL;
+
     /// Trap errors
     myError = new rop_AlembicOutError(*this, UTgetInterrupt());
     myContext = new ROP_AbcContext();
@@ -295,6 +300,17 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     OP_Node	*rootnode = NULL;
 
     FILENAME(filename, start);
+    if (sop)
+    {
+	sop_parent = sop->getCreator();
+	rootnode = sop_parent ? sop_parent->getParent() : NULL;
+	if (!rootnode)
+	{
+	    abcError("Invalid SOP configuration");
+	    sop = NULL;
+	}
+	myContext->setSingletonSOP(sop);
+    }
     ROOT(root, start);
     OBJECTS(objects, start);
     myVerbose = VERBOSE(start);
@@ -306,10 +322,14 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 
     if (!filename.isstring())
 	abcError("Require Alembic filename");
-    if (!root.isstring())
-	abcError("Require root for all objects");
-    else if (!(rootnode = findNode(root)))
-	abcError("Can't find root node");
+
+    if (!rootnode)
+    {
+	if (!root.isstring())
+	    abcError("Require root for all objects");
+	else if (!(rootnode = findNode(root)))
+	    abcError("Can't find root node");
+    }
 
     // Check for evaluation errors
     if (error() >= UT_ERROR_ABORT)
@@ -377,24 +397,34 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 	OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
     }
 
-    // Now, build the tree
-    OP_Bundle	*bundle = getParmBundle("objects", 0, objects,
-			OPgetDirector()->getManager("obj"), "!!OBJ!!");
-    if (bundle)
+    if (sop)
     {
-	UT_WorkBuffer	message;
-	message.sprintf("Alembic file %s created with %d objects",
-		(const char *)filename, bundle->entries());
-	abcInfo(-1, message.buffer());
+	UT_ASSERT(rootnode && sop_parent);
 	ROP_AbcOpBuilder	builder(rootnode);
-	for (exint i = 0; i < bundle->entries(); ++i)
-	{
-	    OP_Node	*node = bundle->getNode(i);
-	    if (filterNode(node, start))
-		builder.addChild(*myError, node);
-	}
-	//builder.ls();
+	builder.addChild(*myError, sop_parent);
 	builder.buildTree(*myArchive, *myContext);
+    }
+    else
+    {
+	// Now, build the tree
+	OP_Bundle	*bundle = getParmBundle("objects", 0, objects,
+			    OPgetDirector()->getManager("obj"), "!!OBJ!!");
+	if (bundle)
+	{
+	    UT_WorkBuffer	message;
+	    message.sprintf("Alembic file %s created with %d objects",
+		    (const char *)filename, bundle->entries());
+	    abcInfo(-1, message.buffer());
+	    ROP_AbcOpBuilder	builder(rootnode);
+	    for (exint i = 0; i < bundle->entries(); ++i)
+	    {
+		OP_Node	*node = bundle->getNode(i);
+		if (filterNode(node, start))
+		    builder.addChild(*myError, node);
+	    }
+	    //builder.ls();
+	    builder.buildTree(*myArchive, *myContext);
+	}
     }
     if (!myArchive->childCount())
 	abcWarning("No objects selected for writing");
@@ -507,12 +537,16 @@ bool
 ROP_AlembicOut::updateParmsFlags()
 {
     bool	changed = ROP_Node::updateParmsFlags();
+    bool	issop = CAST_SOPNODE(getInput(0)) != NULL;
     UT_String	mode;
 
     PARTITION_MODE(mode, 0);
     changed |= enableParm("partition_attribute", mode != "no");
     changed |= enableParm("shutter", MOTIONBLUR(0));
     changed |= enableParm("samples", MOTIONBLUR(0));
+
+    changed |= enableParm("root", !issop);
+    changed |= enableParm("objects", !issop);
 
     return changed;
 }
@@ -525,10 +559,26 @@ newDriverOperator(OP_OperatorTable *table)
 		"Alembic",
 		createAlembicOut,
 		getTemplatePair(),
-		0, 1,
+		0, 9999,
 		getVariablePair(),
 		OP_FLAG_GENERATOR);
     alembic_op->setIconName("ROP_alembic");
-
     table->addOperator(alembic_op);
+
+    OP_Operator	*alembic_sop = new OP_Operator(
+		"rop_alembic",
+		"ROP Alembic Output",
+		createAlembicOut,
+		getTemplatePair(),
+		0, 1,
+		getVariablePair(),
+		OP_FLAG_GENERATOR|OP_FLAG_MANAGER);
+    alembic_sop->setIconName("ROP_alembic");
+
+    // Note:  This is reliant on the order of operator table construction and
+    // may not be safe to do in all cases.
+    OP_OperatorTable	*soptable = OP_Network::getOperatorTable(
+					    SOP_TABLE_NAME,
+					    SOP_SCRIPT_NAME);
+    soptable->addOperator(alembic_sop);
 }

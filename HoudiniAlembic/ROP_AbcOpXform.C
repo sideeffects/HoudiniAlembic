@@ -17,6 +17,7 @@
 
 #include "ROP_AbcOpXform.h"
 #include <OBJ/OBJ_Node.h>
+#include <SOP/SOP_Node.h>
 #include "ROP_AbcContext.h"
 #include "ROP_AbcOpCamera.h"
 #include "ROP_AbcSOP.h"
@@ -64,11 +65,14 @@ ROP_AbcOpXform::ROP_AbcOpXform(OBJ_Node *node, const ROP_AbcContext &ctx)
     }
     else
     {
-	SOP_Node	*sop;
-	if (ctx.useDisplaySOP())
-	    sop = node->getDisplaySopPtr();
-	else
-	    sop = node->getRenderSopPtr();
+	SOP_Node	*sop = ctx.singletonSOP();
+	if (!sop || sop->getCreator() != node)
+	{
+	    if (ctx.useDisplaySOP())
+		sop = node->getDisplaySopPtr();
+	    else
+		sop = node->getRenderSopPtr();
+	}
 	if (sop)
 	{
 	    addChild(node->getName(), new ROP_AbcSOP(sop));

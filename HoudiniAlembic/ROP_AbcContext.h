@@ -26,6 +26,7 @@
 #include <UT/UT_String.h>
 
 class UT_WorkBuffer;
+class SOP_Node;
 
 /// Alembic evaluation context
 class ROP_AbcContext : public GABC_OOptions
@@ -123,14 +124,21 @@ public:
 				char replace_char=':');
     /// @}
 
+    /// @{
+    /// A singleton SOP is used when rendering from a SOP network
+    SOP_Node		*singletonSOP() const	{ return mySingletonSOP; }
+    void		 setSingletonSOP(SOP_Node *s)	{ mySingletonSOP = s; }
+    /// @}
+
 private:
-    TimeSamplingPtr	myTimeSampling;
-    UT_Array<fpreal>	myBlurTimes;	// Sub-frame offsets for motion blur
-    OP_Context		myCookContext;
-    UT_String		myPartitionAttribute;
-    fpreal		myWriteTime;
-    int			myPartitionMode;
-    bool		myCollapseIdentity;
+    TimeSamplingPtr	 myTimeSampling;
+    UT_Array<fpreal>	 myBlurTimes; // Sub-frame offsets for motion blur
+    OP_Context		 myCookContext;
+    SOP_Node		*mySingletonSOP;
+    UT_String		 myPartitionAttribute;
+    fpreal		 myWriteTime;
+    int			 myPartitionMode;
+    bool		 myCollapseIdentity;
 };
 
 #endif

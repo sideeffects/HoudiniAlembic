@@ -30,6 +30,7 @@ namespace
 ROP_AbcContext::ROP_AbcContext()
     : GABC_OOptions()
     , myTimeSampling()
+    , mySingletonSOP(NULL)
     , myPartitionAttribute()
     , myPartitionMode(ROP_AbcContext::PATHMODE_FULLPATH)
     , myCollapseIdentity(false)
