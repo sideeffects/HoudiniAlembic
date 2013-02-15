@@ -526,6 +526,27 @@ namespace
 			iCreaseIndices, iCreaseLengths, iCreaseSharpnesses,
 			iCornerIndices, iCornerSharpnesses,
 			iHoles);
+	tag = src.findTag("interpolateboundary");
+	if (tag && tag->intCount() == 1)
+	{
+	    const GT_DataArrayHandle	&val = tag->intArray(0);
+	    if (val && val->entries() == 1)
+		sample.setInterpolateBoundary(val->getI32(0));
+	}
+	tag = src.findTag("facevaryinginterpolateboundary");
+	if (tag && tag->intCount() == 1)
+	{
+	    const GT_DataArrayHandle	&val = tag->intArray(0);
+	    if (val && val->entries() == 1)
+		sample.setFaceVaryingInterpolateBoundary(val->getI32(0));
+	}
+	tag = src.findTag("facevaryingpropagatecorners");
+	if (tag && tag->intCount() == 1)
+	{
+	    const GT_DataArrayHandle	&val = tag->intArray(0);
+	    if (val && val->entries() == 1)
+		sample.setFaceVaryingPropagateCorners(val->getI32(0));
+	}
 	if (iUVs.valid())
 	    sample.setUVs(iUVs);
 	if (iVel.valid())

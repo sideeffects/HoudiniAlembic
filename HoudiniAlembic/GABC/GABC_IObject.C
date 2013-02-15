@@ -1088,6 +1088,24 @@ namespace
 						holeIndices->size(), 1);
 	    gt->appendIntTag("hole", GT_DataArrayHandle(index));
 	}
+	int		ival;
+	if (ival = sample.getInterpolateBoundary())
+	{
+	    GT_IntConstant	*val = new GT_IntConstant(1, ival);
+	    gt->appendIntTag("interpolateboundary", GT_DataArrayHandle(val));
+	}
+	if (ival = sample.getFaceVaryingInterpolateBoundary())
+	{
+	    GT_IntConstant	*val = new GT_IntConstant(1, ival);
+	    gt->appendIntTag("facevaryinginterpolateboundary",
+		    GT_DataArrayHandle(val));
+	}
+	if (ival = sample.getFaceVaryingPropagateCorners())
+	{
+	    GT_IntConstant	*val = new GT_IntConstant(1, ival);
+	    gt->appendIntTag("facevaryingpropagatecorners",
+		    GT_DataArrayHandle(val));
+	}
 
 	loadFaceSets(*gt, obj, t);
 
