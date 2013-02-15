@@ -1,0 +1,8 @@
+#type: node
+#context: sop
+#internal: rop_alembic
+#icon: OBJ/geo
+
+= Alembic ROP output driver =
+
+See the [Alembic output node|Node:out/alembic].
