@@ -214,6 +214,7 @@ def _pushScalarParm(name, fnode, tnode):
             expr = fparm.expression()
             tparm.setExpression(expr)
         except:
+            tparm.deleteAllKeyframes()
             tparm.set(fparm.eval())
 
 def _pushRemapAttributesParm(fnode, tnode):
