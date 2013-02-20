@@ -154,21 +154,20 @@ namespace {
     }
 
     static inline GA_TypeInfo
-    getGATypeInfo(const char *interp)
+    getGATypeInfo(const char *interp, int tsize)
     {
-	if (UTisstring(interp))
-	{
-	    if (!strcmp(interp, "point"))
-		return GA_TYPE_POINT;
-	    if (!strcmp(interp, "vector"))
-		return GA_TYPE_VECTOR;
-	    if (!strcmp(interp, "matrix"))
-		return GA_TYPE_TRANSFORM;
-	    if (!strcmp(interp, "normal"))
-		return GA_TYPE_NORMAL;
-	    if (!strcmp(interp, "quat"))
-		return GA_TYPE_QUATERNION;
-	}
+	if (!strcmp(interp, "point"))
+	    return tsize == 4 ? GA_TYPE_HPOINT : GA_TYPE_POINT;
+	if (!strcmp(interp, "vector"))
+	    return GA_TYPE_VECTOR;
+	if (!strcmp(interp, "matrix"))
+	    return GA_TYPE_TRANSFORM;
+	if (!strcmp(interp, "normal"))
+	    return GA_TYPE_NORMAL;
+	if (!strcmp(interp, "quat"))
+	    return GA_TYPE_QUATERNION;
+	if (!strcmp(interp, "rgb") || !strcmp(interp, "rgba"))
+	    return GA_TYPE_COLOR;
 	return GA_TYPE_VOID;
     }
 
@@ -180,9 +179,15 @@ namespace {
     getDefaults(const char *name, int tsize, const char *interp)
     {
 	if (!strcmp(name, "width") && tsize == 1)
+	{
 	    return theWidthDefaults;
-	if (!strcmp(interp, "color"))
+	}
+	if (!strcmp(interp, "color")
+		|| !strcmp(interp, "rgb")
+		|| !strcmp(interp, "rgba"))
+	{
 	    return theColorDefaults;
+	}
 	return theZeroDefaults;
     }
 
@@ -215,6 +220,10 @@ namespace {
 				getDefaults(name, tsize, interp));
 	    if (attrib.isValid() && abcname)
 		attrib.getAttribute()->setExportName(abcname);
+	    if (attrib.isValid() && interp)
+	    {
+		attrib.getAttribute()->setTypeInfo(getGATypeInfo(interp, tsize));
+	    }
 
 	}
 	return attrib;
@@ -348,7 +357,7 @@ namespace {
 	{
 	    if (attrib.getAttribute() != gdp.getP())
 	    {
-		GA_TypeInfo	tinfo = getGATypeInfo(interp);
+		GA_TypeInfo	tinfo = getGATypeInfo(interp, tsize);
 		if (tinfo == GA_TYPE_VECTOR)
 		    tinfo = isReallyVector(name, tsize);
 		attrib.getAttribute()->setTypeInfo(tinfo);
@@ -610,7 +619,7 @@ namespace {
 	int		tsize = getGATupleSize(dtype);
 	bool		extend_array = len > sample->size();
 	const char	*terp = prop.getMetaData().get("interpretation").c_str();
-	GA_TypeInfo	tinfo = getGATypeInfo(terp);
+	GA_TypeInfo	tinfo = getGATypeInfo(terp, tsize);
 	GA_RWAttributeRef	aref = findAttribute(gdp, owner, name, abcname,
 					    tsize, store, terp);
 	if (!aref.isValid())
