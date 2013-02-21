@@ -39,6 +39,7 @@
 #include "VRAY_Procedural.h"
 #include <UT/UT_Array.h>
 #include <UT/UT_StringArray.h>
+#include <UT/UT_SymbolTable.h>
 #include <UT/UT_SharedPtr.h>
 
 class GU_Detail;
@@ -46,6 +47,10 @@ class GU_Detail;
 class VRAY_ProcAlembic : public VRAY_Procedural
 {
 public:
+    // Map between user properties and mantra rendering properties
+    typedef UT_SymbolMap<std::string>		vray_PropertyMap;
+    typedef UT_SharedPtr<vray_PropertyMap>	vray_PropertyMapPtr;
+
     class vray_MergePatterns
     {
     public:
@@ -105,6 +110,7 @@ private:
     UT_Array<GU_Detail *>	myConstDetails;
     UT_Array<GU_Detail *>	myAttribDetails;
     vray_MergePatternPtr	myMergeInfo;
+    vray_PropertyMapPtr		myUserProperties;
     fpreal			myPreBlur, myPostBlur;
     bool			myNonAlembic;
 };

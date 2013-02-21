@@ -38,9 +38,12 @@
 #include "VRAY_ProcAlembic.h"
 #include <GABC/GABC_GEOWalker.h>
 #include <GABC/GABC_GUPrim.h>
+#include <GABC/GABC_IObject.h>
 #include <UT/UT_WorkArgs.h>
 #include <UT/UT_EnvControl.h>
 #include <UT/UT_StringMMPattern.h>
+#include <UT/UT_JSONValue.h>
+#include <UT/UT_JSONParser.h>
 #include "VRAY_ProcGT.h"
 #include "VRAY_IO.h"
 
@@ -50,6 +53,8 @@ UT_COUNTER(thePrimCount, "Alembic Primitives");
 
 namespace
 {
+    typedef UT_SymbolMap<std::string>			vray_PropertyMap;
+    typedef UT_SharedPtr<vray_PropertyMap>		vray_PropertyMapPtr;
     typedef VRAY_ProcAlembic::vray_MergePatternPtr	vray_MergePatternPtr;
 
     static void
@@ -84,12 +89,14 @@ namespace
 	vray_ProcAlembicPrim(const UT_Array<const GABC_GEOPrim *> &list,
 		fpreal preblur, fpreal postblur,
 		const GABC_GEOPrim *aprim,
-		const vray_MergePatternPtr &merge)
+		const vray_MergePatternPtr &merge,
+		const vray_PropertyMapPtr &propertymap)
 	    : myList(list)
 	    , myPreBlur(preblur)
 	    , myPostBlur(postblur)
 	    , myMergePrim(aprim)
 	    , myMergeInfo(merge)
+	    , myPropertyMap(propertymap)
 	{
 	}
 	virtual ~vray_ProcAlembicPrim()
@@ -117,11 +124,85 @@ namespace
 				 box.enlargeBounds(tbox);
 			     }
 			 }
+	void	setIntegerProperty(const char *name,
+			const GT_DataArrayHandle &data)
+	{
+	    GT_DataArrayHandle	storage;
+	    changeSetting(name, data->entries(), data->getI32Array(storage));
+	}
+	void	setRealProperty(const char *name,
+			const GT_DataArrayHandle &data)
+	{
+	    GT_DataArrayHandle	storage;
+
+#if SIZEOF_FPREAL_IS_4
+	    changeSetting(name, data->entries(), data->getF32Array(storage));
+#else
+	    changeSetting(name, data->entries(), data->getF64Array(storage));
+#endif
+	}
+	void	changeShader(const char *name, const char *shader)
+	{
+	    // Mantra expects arguments for a shader, not a single string
+	    UT_String	str(shader);
+	    UT_WorkArgs	args;
+	    str.parse(args);
+	    if (args.getArgc())
+		changeSetting(name, args.getArgc(), args.getArgv());
+	}
+	static bool	isShader(const char *name)
+	{
+	    return !strcmp(name, "surface") ||
+		    !strcmp(name, "displace") ||
+		    !strcmp(name, "matteshader");
+
+	}
+	void	setStringProperty(const char *name,
+			const GT_DataArrayHandle &data)
+	{
+	    exint		size = data->entries();
+	    int			tsize = data->getTupleSize();
+	    UT_StackBuffer<char *>	values(size*tsize);
+	    for (exint i = 0; i < size; ++i)
+		for (int j = 0; j < tsize; ++j)
+		    values[i*tsize+j] = (char *)data->getS(i, j);
+	    if (size == 1 && tsize == 1 && isShader(name))
+		changeShader(name, values[0]);
+	    else
+		changeSetting(name, size*tsize, values);
+	}
+	void	applyProperties(const GABC_GEOPrim *prim)
+	{
+	    GABC_IObject	iobj = prim->object();
+	    if (!iobj.valid())
+		return;
+
+	    fpreal		frame = prim->frame();
+	    GABC_AnimationType	atype;
+
+	    for (vray_PropertyMap::iterator it = myPropertyMap->begin();
+		    !it.atEnd(); ++it)
+	    {
+		GT_DataArrayHandle	data;
+		data = iobj.getUserProperty(it.name(), frame, atype);
+		if (!data)
+		    continue;
+		if (GTisInteger(data->getStorage()))
+		    setIntegerProperty(it.thing().c_str(), data);
+		else if (GTisFloat(data->getStorage()))
+		    setRealProperty(it.thing().c_str(), data);
+		else if (GTisString(data->getStorage()))
+		    setStringProperty(it.thing().c_str(), data);
+		else
+		    VRAYwarning("Alembic Procedural: Bad GT storage %s",
+			    GTstorage(data->getStorage()));
+	    }
+	}
 	virtual void	 render()
 	{
 	    exint				nsegs = myList.entries();
 	    UT_Array<GT_PrimitiveHandle>	gtlist(nsegs, nsegs);
-	    if (myMergeInfo)
+	    if (myMergeInfo && myMergePrim)
 	    {
 		GT_PrimitiveHandle	aprim = myMergePrim->gtPrimitive();
 		for (exint i = 0; i < nsegs; ++i)
@@ -140,6 +221,12 @@ namespace
 		    gtlist(i) = myList(i)->gtPrimitive();
 	    }
 	    openProceduralObject();
+		if (myPropertyMap)
+		{
+		    applyProperties(myList(0));
+		    if (myMergePrim)
+			applyProperties(myMergePrim);
+		}
 		// We set the shutter close to be 1 since the deformation
 		// geometry already has the shutter built-in (i.e. the frame
 		// associated with the Alembic shape primitive has the sample
@@ -155,8 +242,88 @@ namespace
 	UT_Array<const GABC_GEOPrim *>	 myList;
 	const GABC_GEOPrim		*myMergePrim;
 	vray_MergePatternPtr		 myMergeInfo;
+	vray_PropertyMapPtr		 myPropertyMap;
 	fpreal				 myPreBlur, myPostBlur;
     };
+
+    vray_PropertyMapPtr
+    parseUserProperties(UT_String &pattern)
+    {
+	vray_PropertyMapPtr	pmap;
+	pattern.trimBoundingSpace();
+	if (!pattern.isstring())
+	    return pmap;
+	if (pattern.startsWith("{"))
+	{
+	    // Assume this is a map specified using JSON syntax
+	    UT_AutoJSONParser	j(pattern.buffer(), pattern.length());
+	    UT_JSONValue	jval;
+	    if (!jval.parseValue(j))
+	    {
+		VRAYerror("Alembic procedural: error parsing properties: %s",
+			pattern.buffer());
+		return pmap;
+	    }
+	    // If it starts with a '{', it better be a map
+	    UT_ASSERT(jval.getType() == UT_JSONValue::JSON_MAP);
+	    const UT_JSONValueMap	*map = jval.getMap();
+	    if (map)
+	    {
+		pmap.reset(new vray_PropertyMap());
+		UT_StringArray		keys;
+		map->getKeyReferences(keys);
+		for (exint i = 0; i < keys.entries(); ++i)
+		{
+		    const UT_JSONValue	*item = map->get(keys(i));
+		    if (item->getType() == UT_JSONValue::JSON_STRING)
+		    {
+			(*pmap)[keys(i)] = item->getS();
+		    }
+		    else
+		    {
+			VRAYwarning("Alembic procedural: %s '%s'",
+				"Expected string for JSON user property:",
+				keys(i).buffer());
+		    }
+		}
+		if (!pmap->entries())
+		    pmap.clear();
+	    }
+	}
+	else
+	{
+	    // Assume this is a list of properties which define the map.  This
+	    // assumes the user property names match the mantra property names.
+	    pmap.reset(new vray_PropertyMap());
+	    UT_WorkArgs	args;
+	    UT_WorkArgs	split;
+	    pattern.tokenize(args, ", \t\n");
+	    for (int i = 0; i < args.getArgc(); ++i)
+	    {
+		UT_String	val(args.getArg(i));
+		if (val.findChar(':'))
+		{
+		    // Ok, here we have a map abcproperty:mantraproperty
+		    val.tokenize(split, ':');
+		    if (split.getArgc() == 2)
+		    {
+			(*pmap)[split.getArg(0)] = split.getArg(1);
+		    }
+		    else
+		    {
+			VRAYwarning("Alembic procedural: %s %s",
+				"Unexpected abcproperty:mantraproperty string",
+				args.getArg(i));
+		    }
+		}
+		else if (val.isstring())
+		{
+		    (*pmap)[val] = val.toStdString();
+		}
+	    }
+	}
+	return pmap;
+    }
 };
 
 VRAY_ProcAlembic::VRAY_ProcAlembic()
@@ -186,6 +353,7 @@ VRAY_ProceduralArg	 VRAY_ProcAlembic::theArgs[] = {
     VRAY_ProceduralArg("fps",			"float",	"24"),
     VRAY_ProceduralArg("objectpath",		"string",	""),
     VRAY_ProceduralArg("objectpattern",		"string",	"*"),
+    VRAY_ProceduralArg("userpropertymap",	"string", 	""),
     VRAY_ProceduralArg("nonalembic",		"int",		"1"),
     VRAY_ProceduralArg("attribfile",		"string",	""),
     VRAY_ProceduralArg("pointattribs",		"string",	"*,^P,^N,^v"),
@@ -295,22 +463,22 @@ VRAY_ProcAlembic::vray_MergePatterns::init(const char *vpattern,
 	const char *dpattern)
 {
     clear();
-    if (vpattern)
+    if (UTisstring(vpattern))
     {
 	myVertex = new UT_StringMMPattern();
 	myVertex->compile(vpattern);
     }
-    if (ppattern)
+    if (UTisstring(ppattern))
     {
 	myPoint = new UT_StringMMPattern();
 	myPoint->compile(ppattern);
     }
-    if (upattern)
+    if (UTisstring(upattern))
     {
 	myUniform = new UT_StringMMPattern();
 	myUniform->compile(upattern);
     }
-    if (dpattern)
+    if (UTisstring(dpattern))
     {
 	myDetail = new UT_StringMMPattern();
 	myDetail->compile(dpattern);
@@ -331,6 +499,7 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
     UT_String	attribfile("");
     UT_String	objectpath;
     UT_String	objectpattern;
+    UT_String	userpropertymap;
 
     myNonAlembic = true;
     if (import("useobjectgeometry", &ival, 1))
@@ -351,6 +520,12 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 	VRAYwarning("No geometry specified for Alembic procedural");
 	return 0;
     }
+
+    if (import("userpropertymap", userpropertymap))
+    {
+	myUserProperties = parseUserProperties(userpropertymap);
+    }
+
     if (!import("attribfile", attribfile))
 	attribfile = "";
     else
@@ -611,7 +786,7 @@ VRAY_ProcAlembic::render()
     UT_ASSERT(nsegments);
     gdp = details(0);
     agdp = myAttribDetails.entries() ? myAttribDetails(0) : NULL;
-    if (agdp->getNumPrimitives() != gdp->getNumPrimitives())
+    if (agdp && agdp->getNumPrimitives() != gdp->getNumPrimitives())
 	agdp = NULL;
 
     if (!gdp->getNumPrimitives())
@@ -640,7 +815,8 @@ VRAY_ProcAlembic::render()
 		}
 		openProceduralObject();
 		    addProcedural(new vray_ProcAlembicPrim(abclist,
-			myPreBlur, myPostBlur, abc_attrib, myMergeInfo));
+				myPreBlur, myPostBlur, abc_attrib,
+				myMergeInfo, myUserProperties));
 		closeObject();
 		UT_INC_COUNTER(thePrimCount);
 	    }
