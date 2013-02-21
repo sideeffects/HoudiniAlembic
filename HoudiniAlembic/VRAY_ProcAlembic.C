@@ -40,6 +40,7 @@
 #include <GABC/GABC_GUPrim.h>
 #include <UT/UT_WorkArgs.h>
 #include <UT/UT_EnvControl.h>
+#include <UT/UT_StringMMPattern.h>
 #include "VRAY_ProcGT.h"
 #include "VRAY_IO.h"
 
@@ -49,6 +50,8 @@ UT_COUNTER(thePrimCount, "Alembic Primitives");
 
 namespace
 {
+    typedef VRAY_ProcAlembic::vray_MergePatternPtr	vray_MergePatternPtr;
+
     static void
     enlargeVelocityBox(UT_BoundingBox &box,
 	    const UT_Vector3 &vmin, const UT_Vector3 &vmax,
@@ -79,10 +82,14 @@ namespace
     {
     public:
 	vray_ProcAlembicPrim(const UT_Array<const GABC_GEOPrim *> &list,
-		fpreal preblur, fpreal postblur)
+		fpreal preblur, fpreal postblur,
+		const GABC_GEOPrim *aprim,
+		const vray_MergePatternPtr &merge)
 	    : myList(list)
 	    , myPreBlur(preblur)
 	    , myPostBlur(postblur)
+	    , myMergePrim(aprim)
+	    , myMergeInfo(merge)
 	{
 	}
 	virtual ~vray_ProcAlembicPrim()
@@ -112,10 +119,26 @@ namespace
 			 }
 	virtual void	 render()
 	{
-	    exint		nsegs = myList.entries();
+	    exint				nsegs = myList.entries();
 	    UT_Array<GT_PrimitiveHandle>	gtlist(nsegs, nsegs);
-	    for (exint i = 0; i < nsegs; ++i)
-		gtlist(i) = myList(i)->gtPrimitive();
+	    if (myMergeInfo)
+	    {
+		GT_PrimitiveHandle	aprim = myMergePrim->gtPrimitive();
+		for (exint i = 0; i < nsegs; ++i)
+		{
+		    // Merge attributes
+		    gtlist(i) = myList(i)->gtPrimitive(aprim,
+					myMergeInfo->vertex(),
+					myMergeInfo->point(),
+					myMergeInfo->uniform(),
+					myMergeInfo->detail(), NULL);
+		}
+	    }
+	    else
+	    {
+		for (exint i = 0; i < nsegs; ++i)
+		    gtlist(i) = myList(i)->gtPrimitive();
+	    }
 	    openProceduralObject();
 		// We set the shutter close to be 1 since the deformation
 		// geometry already has the shutter built-in (i.e. the frame
@@ -129,14 +152,17 @@ namespace
 	    }
 	}
     private:
-	UT_Array<const GABC_GEOPrim *>	myList;
-	fpreal				myPreBlur, myPostBlur;
+	UT_Array<const GABC_GEOPrim *>	 myList;
+	const GABC_GEOPrim		*myMergePrim;
+	vray_MergePatternPtr		 myMergeInfo;
+	fpreal				 myPreBlur, myPostBlur;
     };
 };
 
 VRAY_ProcAlembic::VRAY_ProcAlembic()
     : myLoadDetails()
     , myConstDetails()
+    , myMergeInfo()
     , myPreBlur(0)
     , myPostBlur(0)
     , myNonAlembic(true)
@@ -149,16 +175,23 @@ VRAY_ProcAlembic::~VRAY_ProcAlembic()
 	freeGeometry(myLoadDetails(i));
     for (int i = 0; i < myConstDetails.entries(); ++i)
 	freeGeometry(myConstDetails(i));
+    for (int i = 0; i < myAttribDetails.entries(); ++i)
+	freeGeometry(myAttribDetails(i));
 }
 
 VRAY_ProceduralArg	 VRAY_ProcAlembic::theArgs[] = {
     VRAY_ProceduralArg("useobjectgeometry",	"int",	"1"),
-    VRAY_ProceduralArg("filename",	"string",	""),
-    VRAY_ProceduralArg("frame",		"float",	"1"),
-    VRAY_ProceduralArg("fps",		"float",	"24"),
-    VRAY_ProceduralArg("objectpath",	"string",	""),
-    VRAY_ProceduralArg("objectpattern",	"string",	"*"),
-    VRAY_ProceduralArg("nonalembic",	"int",		"1"),
+    VRAY_ProceduralArg("filename",		"string",	""),
+    VRAY_ProceduralArg("frame",			"float",	"1"),
+    VRAY_ProceduralArg("fps",			"float",	"24"),
+    VRAY_ProceduralArg("objectpath",		"string",	""),
+    VRAY_ProceduralArg("objectpattern",		"string",	"*"),
+    VRAY_ProceduralArg("nonalembic",		"int",		"1"),
+    VRAY_ProceduralArg("attribfile",		"string",	""),
+    VRAY_ProceduralArg("pointattribs",		"string",	"*,^P,^N,^v"),
+    VRAY_ProceduralArg("vertexattribs",		"string",	"*,^P,^N,^v"),
+    VRAY_ProceduralArg("uniformattribs",	"string",	""),
+    VRAY_ProceduralArg("detailattribs",		"string",	""),
     VRAY_ProceduralArg()
 };
 
@@ -242,6 +275,48 @@ loadDetail(UT_Array<GU_Detail *> &details,
     return success;
 }
 
+void
+VRAY_ProcAlembic::vray_MergePatterns::clear()
+{
+    delete myVertex;
+    delete myPoint;
+    delete myUniform;
+    delete myDetail;
+    myVertex = NULL;
+    myPoint = NULL;
+    myUniform = NULL;
+    myDetail = NULL;
+}
+
+void
+VRAY_ProcAlembic::vray_MergePatterns::init(const char *vpattern,
+	const char *ppattern,
+	const char *upattern,
+	const char *dpattern)
+{
+    clear();
+    if (vpattern)
+    {
+	myVertex = new UT_StringMMPattern();
+	myVertex->compile(vpattern);
+    }
+    if (ppattern)
+    {
+	myPoint = new UT_StringMMPattern();
+	myPoint->compile(ppattern);
+    }
+    if (upattern)
+    {
+	myUniform = new UT_StringMMPattern();
+	myUniform->compile(upattern);
+    }
+    if (dpattern)
+    {
+	myDetail = new UT_StringMMPattern();
+	myDetail->compile(dpattern);
+    }
+}
+
 int
 VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 {
@@ -253,6 +328,7 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
     int		ival;
     bool	useobject;
     UT_String	filename("");
+    UT_String	attribfile("");
     UT_String	objectpath;
     UT_String	objectpattern;
 
@@ -275,6 +351,31 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 	VRAYwarning("No geometry specified for Alembic procedural");
 	return 0;
     }
+    if (!import("attribfile", attribfile))
+	attribfile = "";
+    else
+    {
+	UT_String	point("");
+	UT_String	vertex("");
+	UT_String	uniform("");
+	UT_String	detail("");
+	if (!import("pointattribs", point))
+	    point= "";
+	if (!import("vertexattribs", vertex))
+	    vertex= "";
+	if (!import("uniformattribs", uniform))
+	    uniform= "";
+	if (!import("detailattribs", detail))
+	    detail= "";
+	myMergeInfo.reset(new vray_MergePatterns());
+	myMergeInfo->init(vertex, point, uniform, detail);
+	if (!myMergeInfo->valid())
+	{
+	    myMergeInfo.clear();
+	    attribfile = "";
+	}
+    }
+
     if (filename.isstring())
     {
 	fpreal	frame;
@@ -352,6 +453,22 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 		myConstDetails.append(const_cast<GU_Detail *>(g));
 		referenceGeometry(myConstDetails(i));
 	    }
+	}
+    }
+    if (attribfile.isstring())
+    {
+	fpreal	shutter[2];
+	shutter[0] = 0;
+	shutter[1] = 1;
+	myAttribDetails.append(allocateGeometry());
+	// Re-use the object path/pattern from the file load
+	if (!loadDetail(myAttribDetails, attribfile, 0, 24, shutter,
+		    objectpath, objectpattern))
+	{
+	    for (int i = 0; i < myAttribDetails.entries(); ++i)
+		freeGeometry(myAttribDetails(i));
+	    myAttribDetails.resize(0);
+	    myMergeInfo.clear();
 	}
     }
     return myLoadDetails.entries() || myConstDetails.entries();
@@ -485,7 +602,7 @@ void
 VRAY_ProcAlembic::render()
 {
     const UT_Array<GU_Detail *>	&details = getDetailList();
-    const GU_Detail		*gdp;
+    const GU_Detail		*gdp, *agdp;
     const GA_PrimitiveTypeId	 abctype = GABC_GUPrim::theTypeId();
     bool			 warned = false;
     bool			 addgeo = false;
@@ -493,6 +610,9 @@ VRAY_ProcAlembic::render()
     int nsegments = details.entries();
     UT_ASSERT(nsegments);
     gdp = details(0);
+    agdp = myAttribDetails.entries() ? myAttribDetails(0) : NULL;
+    if (agdp->getNumPrimitives() != gdp->getNumPrimitives())
+	agdp = NULL;
 
     if (!gdp->getNumPrimitives())
     {
@@ -505,8 +625,12 @@ VRAY_ProcAlembic::render()
 	for (GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
 	{
 	    const GEO_Primitive	*prim = gdp->getGEOPrimitive(*it);
+	    const GEO_Primitive	*aprim = agdp ? agdp->getGEOPrimitive(*it):NULL;
 	    if (prim->getTypeId() == abctype)
 	    {
+		const GABC_GEOPrim		*abc_attrib = NULL;
+		if (aprim && aprim->getTypeId() == abctype)
+		    abc_attrib = UTverify_cast<const GABC_GEOPrim *>(aprim);
 		abclist(0) = UTverify_cast<const GABC_GEOPrim *>(prim);
 		for (int i = 1; i < nsegments; ++i)
 		{
@@ -515,7 +639,8 @@ VRAY_ProcAlembic::render()
 		    abclist(i) = UTverify_cast<const GABC_GEOPrim *>(seg);
 		}
 		openProceduralObject();
-		    addProcedural(new vray_ProcAlembicPrim(abclist, myPreBlur, myPostBlur));
+		    addProcedural(new vray_ProcAlembicPrim(abclist,
+			myPreBlur, myPostBlur, abc_attrib, myMergeInfo));
 		closeObject();
 		UT_INC_COUNTER(thePrimCount);
 	    }

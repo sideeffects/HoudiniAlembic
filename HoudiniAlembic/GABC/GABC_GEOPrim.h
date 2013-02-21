@@ -180,6 +180,15 @@ public:
     GT_PrimitiveHandle	 gtPointCloud() const;
     void		 clearGT();
 
+    /// Return a GT primitive with extra attributes given by the @c attrib_list
+    /// and as defined on the @c attrib_prim.
+    GT_PrimitiveHandle	gtPrimitive(const GT_PrimitiveHandle &attrib_prim,
+				const UT_StringMMPattern *vertex_pattern,
+				const UT_StringMMPattern *point_pattern,
+				const UT_StringMMPattern *uniform_pattern,
+				const UT_StringMMPattern *detail_pattern,
+				const GT_RefineParms *parms=NULL) const;
+
     /// @{
     /// Geo transform
     void			setGeoTransform(const GT_TransformHandle &x);

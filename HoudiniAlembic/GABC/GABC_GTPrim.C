@@ -125,6 +125,13 @@ GABC_GTPrimitive::updateCache(const GT_RefineParms *parms)
 	myCache->setPrimitiveTransform(getPrimitiveTransform());
 }
 
+const GT_PrimitiveHandle &
+GABC_GTPrimitive::getRefined(const GT_RefineParms *parms) const
+{
+    const_cast<GABC_GTPrimitive *>(this)->updateCache(parms);
+    return myCache;
+}
+
 bool
 GABC_GTPrimitive::refine(GT_Refine &refiner, const GT_RefineParms *parms) const
 {

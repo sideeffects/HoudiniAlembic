@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2013,
+// Copyright (c) 2009-2012,
 //  Side Effects Software Inc.
 //
 // All rights reserved.
@@ -38,12 +38,50 @@
 
 #include "VRAY_Procedural.h"
 #include <UT/UT_Array.h>
+#include <UT/UT_StringArray.h>
+#include <UT/UT_SharedPtr.h>
 
 class GU_Detail;
 
 class VRAY_ProcAlembic : public VRAY_Procedural
 {
 public:
+    class vray_MergePatterns
+    {
+    public:
+	vray_MergePatterns()
+	    : myVertex(NULL)
+	    , myPoint(NULL)
+	    , myUniform(NULL)
+	    , myDetail(NULL)
+	{
+	}
+	~vray_MergePatterns()
+	{
+	    clear();
+	}
+
+	bool	valid() const
+		    { return myVertex || myPoint || myUniform || myDetail; }
+	void	clear();
+	void	init(const char *vpattern,
+		    const char *ppattern,
+		    const char *upattern,
+		    const char *dpattern);
+
+	UT_StringMMPattern	*vertex() 	{ return myVertex; }
+	UT_StringMMPattern	*point() 	{ return myPoint; }
+	UT_StringMMPattern	*uniform() 	{ return myUniform; }
+	UT_StringMMPattern	*detail() 	{ return myDetail; }
+
+    private:
+	UT_StringMMPattern	*myVertex;
+	UT_StringMMPattern	*myPoint;
+	UT_StringMMPattern	*myUniform;
+	UT_StringMMPattern	*myDetail;
+    };
+    typedef UT_SharedPtr<vray_MergePatterns>	vray_MergePatternPtr;
+
     VRAY_ProcAlembic();
     virtual ~VRAY_ProcAlembic();
 
@@ -63,10 +101,12 @@ private:
 	return myLoadDetails.entries() ? myLoadDetails : myConstDetails;
     }
 
-    UT_Array<GU_Detail *>	 myLoadDetails;
-    UT_Array<GU_Detail *>	 myConstDetails;
-    fpreal			 myPreBlur, myPostBlur;
-    bool			 myNonAlembic;
+    UT_Array<GU_Detail *>	myLoadDetails;
+    UT_Array<GU_Detail *>	myConstDetails;
+    UT_Array<GU_Detail *>	myAttribDetails;
+    vray_MergePatternPtr	myMergeInfo;
+    fpreal			myPreBlur, myPostBlur;
+    bool			myNonAlembic;
 };
 
 #endif

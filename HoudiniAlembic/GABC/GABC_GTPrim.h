@@ -87,6 +87,16 @@ public:
 
     void			 updateTransform(const UT_Matrix4D &xform);
     void			 updateAnimation(bool consider_transform);
+
+    /// Return the "atomic" primitive.  This is the base GT primitive and it
+    /// will be one of:
+    ///	 - GT_PrimPointMesh
+    ///	 - GT_PrimCurveMesh
+    ///	 - GT_PrimPolygonMesh
+    ///	 - GT_PrimSubdivisionMesh
+    ///	 - GT_PrimNuPatch
+    /// If there are errors, this may return a NULL pointer
+    const GT_PrimitiveHandle	&getRefined(const GT_RefineParms *parms) const;
 private:
     GABC_GTPrimitive(const GABC_GTPrimitive &src)
 	: GT_Primitive(src)
@@ -106,11 +116,7 @@ private:
     QLOD		 myCacheLOD;
 };
 
-/// Hook to handle tesselation of tetra primitives
-///
-/// When rendering tet primitives, collect all the tet primitives together,
-/// then a polygonal mesh is generated for the external hull, removing any
-/// shared faces on the inside.
+/// Hook to handle tesselation of Alembic primitives
 class GABC_API GABC_GTPrimCollect : public GT_GEOPrimCollect
 {
 public:

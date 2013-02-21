@@ -619,6 +619,42 @@ GABC_GEOPrim::gtPrimitive() const
     return GT_PrimitiveHandle(myGTPrimitive);
 }
 
+GT_PrimitiveHandle
+GABC_GEOPrim::gtPrimitive(const GT_PrimitiveHandle &attrib_prim,
+				const UT_StringMMPattern *vertex,
+				const UT_StringMMPattern *point,
+				const UT_StringMMPattern *uniform,
+				const UT_StringMMPattern *detail,
+				const GT_RefineParms *parms) const
+{
+    if (!attrib_prim || (!vertex && !point && !uniform && !detail))
+	return gtPrimitive();
+
+    // Get the base primitive
+    GT_PrimitiveHandle		 base = gtPrimitive();
+    const GABC_GTPrimitive	*p0 = UTverify_cast<const GABC_GTPrimitive *>(base.get());
+    GT_PrimitiveHandle		 result = p0->getRefined(parms);
+
+    GT_Primitive		*p1 = NULL;
+    GT_PrimitiveHandle		 tmp;
+
+    const GABC_GTPrimitive	*abc = dynamic_cast<const GABC_GTPrimitive *>(attrib_prim.get());
+    if (abc)
+    {
+	// If it's an Alembic primitive, get its refined geometry
+	tmp = abc->getRefined(parms);
+	p1 = tmp.get();
+    }
+    else
+    {
+	// Assume it's the right type of primitive
+	p1 = attrib_prim.get();
+    }
+    if (!p1)
+	return result;
+    return result->attributeMerge(*p1, vertex, point, uniform, detail);
+}
+
 void
 GABC_GEOPrim::setGeoTransform(const GT_TransformHandle &x)
 {
