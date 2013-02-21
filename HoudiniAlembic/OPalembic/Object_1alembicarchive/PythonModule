@@ -160,6 +160,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
         for entry in children:
             WalkHierarchy(rootNode, currentNode, currentPath,
                         entry, pathList, buildSubnet, channelRefs)
+        currentNode.layoutChildren()
     elif typeName == 'camera':
         currentNode = parentNode.createNode('cam')
         currentNode.setInput(0, parentNode.indirectInputs()[0])
