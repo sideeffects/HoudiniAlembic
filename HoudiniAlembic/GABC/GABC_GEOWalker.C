@@ -618,10 +618,10 @@ namespace {
 	GA_Storage	store = getGAStorage(dtype);
 	int		tsize = getGATupleSize(dtype);
 	bool		extend_array = len > sample->size();
-	const char	*terp = prop.getMetaData().get("interpretation").c_str();
-	GA_TypeInfo	tinfo = getGATypeInfo(terp, tsize);
+	std::string	interp = head.getMetaData().get("interpretation");
+	GA_TypeInfo	tinfo = getGATypeInfo(interp.c_str(), tsize);
 	GA_RWAttributeRef	aref = findAttribute(gdp, owner, name, abcname,
-					    tsize, store, terp);
+					    tsize, store, interp.c_str());
 	if (!aref.isValid())
 	    return;
 
@@ -737,7 +737,7 @@ namespace {
 	for (exint i = 0; i < narb; ++i)
 	{
 	    const PropertyHeader	&head = arb.getPropertyHeader(i);
-	    UT_String			 name = head.getName().c_str();
+	    UT_String			 name(head.getName());
 	    GA_AttributeOwner		 owner = arbitraryGAOwner(head);
 	    if (!walk.translateAttributeName(owner, name))
 		continue;
