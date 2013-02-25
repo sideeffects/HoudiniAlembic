@@ -73,7 +73,6 @@ def _setNodeName(node, name):
     except:
         node.setName(_sanitizeName(name), True)
         
-
 def ExpressionToParm(srcParm, dstParm, isString=False):
     relPath = dstParm.node().relativePathTo(srcParm.node())
     dstParm.setExpression('ch%s("%s/%s")' % (
@@ -84,10 +83,13 @@ def _setupAbcGeo(geo, issubd):
     # We've just created an empty geometry node, we need to add the
     # properties we want.
     # Add mantra default properties
-    #hou.hscript('opproperty -f -F Render %s mantra,prman* *rendersubd*,shop_geometrypath' % geo.path())
-    parms = 'shop_geometrypath'
-    if issubd:
-        parms += ',*rendersubd*'
+    parms = ','.join([
+            'categories',
+            'reflectmask',
+            'refractmask',
+            'lightmask',
+            '*rendersubd*',
+            'shop_geometrypath'])
     hou.hscript('opproperty -f -F Render %s mantra,prman* %s' % (geo.path(), parms))
 
 def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
