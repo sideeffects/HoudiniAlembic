@@ -64,6 +64,7 @@ GABC_GEOPrim::GABC_GEOPrim(GEO_Detail *d, GA_Offset offset)
     , myGTPrimitive(new GABC_GTPrimitive(this))
     , myVertex(GA_INVALID_OFFSET)
     , myUseTransform(true)
+    , myCheckVisibility(true)
 {
     myGTPrimitive->incref();	// Old-school
     myGeoTransform = GT_Transform::identity();
@@ -252,6 +253,7 @@ public:
 	geo_TRANSFORM,
 	geo_VERTEX,
 	geo_USETRANSFORM,
+	geo_CHECKVISIBILITY,
 	geo_ATTRIBUTEMAP,
 	geo_ENTRIES
     };
@@ -263,172 +265,184 @@ public:
 
     virtual int		getEntries() const	{ return geo_ENTRIES; }
     virtual const char	*getKeyword(int i) const
-			{
-			    switch (i)
-			    {
-				case geo_FILENAME:	return "filename";
-				case geo_OBJECTPATH:	return "object";
-				case geo_FRAME:		return "frame";
-				case geo_TRANSFORM:	return "ltransform";
-				case geo_USETRANSFORM:	return "usetransform";
-				case geo_ATTRIBUTEMAP:	return "attributemap";
-				case geo_VERTEX:	return "vertex";
-				case geo_ENTRIES:	break;
-			    }
-			    UT_ASSERT(0);
-			    return NULL;
-			}
+    {
+	switch (i)
+	{
+	    case geo_FILENAME:		return "filename";
+	    case geo_OBJECTPATH:	return "object";
+	    case geo_FRAME:		return "frame";
+	    case geo_TRANSFORM:		return "ltransform";
+	    case geo_USETRANSFORM:	return "usetransform";
+	    case geo_CHECKVISIBILITY:	return "checkvisibility";
+	    case geo_ATTRIBUTEMAP:	return "attributemap";
+	    case geo_VERTEX:		return "vertex";
+	    case geo_ENTRIES:		break;
+	}
+	UT_ASSERT(0);
+	return NULL;
+    }
     virtual bool shouldSaveField(const GA_Primitive *pr, int i,
 			    const GA_SaveMap &map) const
-		{
-		    switch (i)
-		    {
-			case geo_TRANSFORM:
-			    return !abc(pr)->geoTransform()->isIdentity();
-			case geo_ATTRIBUTEMAP:
-			    return abc(pr)->attributeNameMap() &&
-				    abc(pr)->attributeNameMap()->entries();
-			default:
-			    break;
-		    }
-		    return true;
-		}
+    {
+	switch (i)
+	{
+	    case geo_TRANSFORM:
+		return !abc(pr)->geoTransform()->isIdentity();
+	    case geo_ATTRIBUTEMAP:
+		return abc(pr)->attributeNameMap() &&
+			abc(pr)->attributeNameMap()->entries();
+	    default:
+		break;
+	}
+	return true;
+    }
     virtual bool saveField(const GA_Primitive *pr, int i,
 			UT_JSONWriter &w, const GA_SaveMap &map) const
-		{
-		    switch (i)
-		    {
-			case geo_FILENAME:
-			{
-			    const std::string	&f = abc(pr)->filename();
-			    return w.jsonStringToken(f.c_str(), f.length());
-			}
-			case geo_OBJECTPATH:
-			{
-			    const std::string	&f = abc(pr)->objectPath();
-			    return w.jsonStringToken(f.c_str(), f.length());
-			}
-			case geo_FRAME:
-			    return w.jsonValue(abc(pr)->frame());
+    {
+	switch (i)
+	{
+	    case geo_FILENAME:
+	    {
+		const std::string	&f = abc(pr)->filename();
+		return w.jsonStringToken(f.c_str(), f.length());
+	    }
+	    case geo_OBJECTPATH:
+	    {
+		const std::string	&f = abc(pr)->objectPath();
+		return w.jsonStringToken(f.c_str(), f.length());
+	    }
+	    case geo_FRAME:
+		return w.jsonValue(abc(pr)->frame());
 
-			case geo_TRANSFORM:
-			    return abc(pr)->geoTransform()->save(w);
+	    case geo_TRANSFORM:
+		return abc(pr)->geoTransform()->save(w);
 
-			case geo_USETRANSFORM:
-			    return w.jsonBool(abc(pr)->useTransform());
+	    case geo_USETRANSFORM:
+		return w.jsonBool(abc(pr)->useTransform());
 
-			case geo_ATTRIBUTEMAP:
-			{
-			    if (abc(pr)->attributeNameMap())
-				return abc(pr)->attributeNameMap()->save(w);
-			    return saveEmptyNameMap(w);
-			}
+	    case geo_CHECKVISIBILITY:
+		return w.jsonBool(abc(pr)->checkVisibility());
 
-			case geo_VERTEX:
-			{
-			    GA_Offset	vtx = abc(pr)->getVertexOffset(0);
-			    return w.jsonInt(GA_Size(map.getVertexIndex(vtx)));
-			}
+	    case geo_ATTRIBUTEMAP:
+	    {
+		if (abc(pr)->attributeNameMap())
+		    return abc(pr)->attributeNameMap()->save(w);
+		return saveEmptyNameMap(w);
+	    }
 
-			case geo_ENTRIES:
-			    break;
-		    }
-		    UT_ASSERT(0);
-		    return false;
-		}
+	    case geo_VERTEX:
+	    {
+		GA_Offset	vtx = abc(pr)->getVertexOffset(0);
+		return w.jsonInt(GA_Size(map.getVertexIndex(vtx)));
+	    }
+
+	    case geo_ENTRIES:
+		break;
+	}
+	UT_ASSERT(0);
+	return false;
+    }
     virtual bool saveField(const GA_Primitive *pr, int i,
 			UT_JSONValue &v, const GA_SaveMap &map) const
-		{
-		    // Just use default JSON value saving
-		    return GA_PrimitiveJSON::saveField(pr, i, v, map);
-		}
+    {
+	// Just use default JSON value saving
+	return GA_PrimitiveJSON::saveField(pr, i, v, map);
+    }
     virtual bool loadField(GA_Primitive *pr, int i, UT_JSONParser &p,
 			const GA_LoadMap &map) const
-		{
-		    UT_WorkBuffer	sval;
-		    fpreal64		fval;
-		    int64		ival;
-		    bool		bval;
-		    GT_TransformHandle	xform;
-		    GABC_NameMapPtr	amap;
-		    switch (i)
-		    {
-			case geo_FILENAME:
-			    if (!p.parseString(sval))
-				return false;
-			    abc(pr)->setFilename(sval.buffer());
-			    return true;
-			case geo_OBJECTPATH:
-			    if (!p.parseString(sval))
-				return false;
-			    abc(pr)->setObjectPath(sval.buffer());
-			    return true;
-			case geo_FRAME:
-			    if (!p.parseNumber(fval))
-				return false;
-			    abc(pr)->setFrame(fval);
-			    return true;
-			case geo_TRANSFORM:
-			    if (!GT_Transform::load(xform, p))
-				return false;
-			    abc(pr)->setGeoTransform(xform);
-			    return true;
-			case geo_USETRANSFORM:
-			    if (!p.parseBool(bval))
-				return false;
-			    abc(pr)->setUseTransform(bval);
-			    return true;
-			case geo_ATTRIBUTEMAP:
-			    if (!GABC_NameMap::load(amap, p))
-				return false;
-			    abc(pr)->setAttributeNameMap(amap);
-			    return true;
-			case geo_VERTEX:
-			    if (!p.parseInt(ival))
-				return false;
-			    ival = map.getVertexOffset(ival);
-			    abc(pr)->assignVertex(GA_Offset(ival), false);
-			    return true;
-			case geo_ENTRIES:
-			    break;
-		    }
-		    UT_ASSERT(0);
+    {
+	UT_WorkBuffer	sval;
+	fpreal64		fval;
+	int64		ival;
+	bool		bval;
+	GT_TransformHandle	xform;
+	GABC_NameMapPtr	amap;
+	switch (i)
+	{
+	    case geo_FILENAME:
+		if (!p.parseString(sval))
 		    return false;
-		}
+		abc(pr)->setFilename(sval.buffer());
+		return true;
+	    case geo_OBJECTPATH:
+		if (!p.parseString(sval))
+		    return false;
+		abc(pr)->setObjectPath(sval.buffer());
+		return true;
+	    case geo_FRAME:
+		if (!p.parseNumber(fval))
+		    return false;
+		abc(pr)->setFrame(fval);
+		return true;
+	    case geo_TRANSFORM:
+		if (!GT_Transform::load(xform, p))
+		    return false;
+		abc(pr)->setGeoTransform(xform);
+		return true;
+	    case geo_USETRANSFORM:
+		if (!p.parseBool(bval))
+		    return false;
+		abc(pr)->setUseTransform(bval);
+		return true;
+	    case geo_CHECKVISIBILITY:
+		if (!p.parseBool(bval))
+		    return false;
+		abc(pr)->setCheckVisibility(bval);
+		return true;
+	    case geo_ATTRIBUTEMAP:
+		if (!GABC_NameMap::load(amap, p))
+		    return false;
+		abc(pr)->setAttributeNameMap(amap);
+		return true;
+	    case geo_VERTEX:
+		if (!p.parseInt(ival))
+		    return false;
+		ival = map.getVertexOffset(ival);
+		abc(pr)->assignVertex(GA_Offset(ival), false);
+		return true;
+	    case geo_ENTRIES:
+		break;
+	}
+	UT_ASSERT(0);
+	return false;
+    }
     virtual bool loadField(GA_Primitive *pr, int i, UT_JSONParser &p,
 			const UT_JSONValue &v, const GA_LoadMap &map) const
-		{
-		    // Just rely on default value parsing
-		    return GA_PrimitiveJSON::loadField(pr, i, p, v, map);
-		}
+    {
+	// Just rely on default value parsing
+	return GA_PrimitiveJSON::loadField(pr, i, p, v, map);
+    }
     virtual bool isEqual(int i, const GA_Primitive *a,
 			const GA_Primitive *b) const
-		{
-		    switch (i)
-		    {
-			case geo_FILENAME:
-			    return abc(a)->filename() == abc(b)->filename();
-			case geo_OBJECTPATH:
-			    return abc(a)->objectPath() == abc(b)->objectPath();
-			case geo_FRAME:
-			    return abc(a)->frame() == abc(b)->frame();
+    {
+	switch (i)
+	{
+	    case geo_FILENAME:
+		return abc(a)->filename() == abc(b)->filename();
+	    case geo_OBJECTPATH:
+		return abc(a)->objectPath() == abc(b)->objectPath();
+	    case geo_FRAME:
+		return abc(a)->frame() == abc(b)->frame();
 
-			case geo_TRANSFORM:
-			    return (*abc(a)->geoTransform() ==
-				    *abc(b)->geoTransform());
-			case geo_USETRANSFORM:
-			    return abc(a)->useTransform() ==
-				    abc(b)->useTransform();
-			case geo_ATTRIBUTEMAP:
-			    // Just compare pointers directly
-			    return abc(a)->attributeNameMap().get() ==
-				    abc(b)->attributeNameMap().get();
-			case geo_ENTRIES:
-			case geo_VERTEX:
-			    break;
-		    }
-		    return false;
-		}
+	    case geo_TRANSFORM:
+		return (*abc(a)->geoTransform() ==
+			*abc(b)->geoTransform());
+	    case geo_USETRANSFORM:
+		return abc(a)->useTransform() ==
+			abc(b)->useTransform();
+	    case geo_CHECKVISIBILITY:
+		return abc(a)->checkVisibility() ==
+			abc(b)->checkVisibility();
+	    case geo_ATTRIBUTEMAP:
+		// Just compare pointers directly
+		return abc(a)->attributeNameMap().get() ==
+			abc(b)->attributeNameMap().get();
+	    case geo_ENTRIES:
+	    case geo_VERTEX:
+		break;
+	}
+	return false;
+    }
 private:
 };
 
@@ -479,7 +493,7 @@ GABC_GEOPrim::updateAnimation()
     // We initialize based on the shape topology, but if the shape topology is
     // constant, there are still various factors which can make the primitive
     // non-constant (i.e. Homogeneous).
-    myGTPrimitive->updateAnimation(myUseTransform);
+    myGTPrimitive->updateAnimation(myUseTransform, myCheckVisibility);
     //myAnimation = myObject.getAnimationType(myUseTransform);
 }
 
@@ -610,6 +624,8 @@ GABC_GEOPrim::gtBox() const
 GT_PrimitiveHandle
 GABC_GEOPrim::gtPrimitive() const
 {
+    if (!myGTPrimitive->visible())
+	return GT_PrimitiveHandle();
     if (needTransform())
     {
 	UT_Matrix4D	xform;
@@ -627,6 +643,8 @@ GABC_GEOPrim::gtPrimitive(const GT_PrimitiveHandle &attrib_prim,
 				const UT_StringMMPattern *detail,
 				const GT_RefineParms *parms) const
 {
+    if (!myGTPrimitive->visible())
+	return GT_PrimitiveHandle();
     if (!attrib_prim || (!vertex && !point && !uniform && !detail))
 	return gtPrimitive();
 
@@ -784,6 +802,9 @@ enum
     geo_INTRINSIC_ABC_PATH,	// Object path
     geo_INTRINSIC_ABC_FRAME,	// Time
     geo_INTRINSIC_ABC_ANIMATION,	// Animation type
+    geo_INTRINSIC_ABC_CHECKVISIBILITY,	// Whether prim respects visibility
+    geo_INTRINSIC_ABC_VISIBILITY,	// Visibility (on node)
+    geo_INTRINSIC_ABC_FULLVISIBILITY,	// Full visibility (including parent)
     geo_INTRINSIC_ABC_LOCALXFORM,	// Alembic file local transform
     geo_INTRINSIC_ABC_WORLDXFORM,	// Alembic file world transform
     geo_INTRINSIC_ABC_GEOXFORM,		// Geometry transform
@@ -808,6 +829,18 @@ namespace
     intrinsicObjectPath(const GABC_GEOPrim *p)
     {
 	return p->objectPath().c_str();
+    }
+    static bool
+    intrinsicNodeVisibility(const GABC_GEOPrim *p)
+    {
+	bool	animated;
+	return p->object().visibility(animated, p->frame(), false);
+    }
+    static bool
+    intrinsicFullVisibility(const GABC_GEOPrim *p)
+    {
+	bool	animated;
+	return p->object().visibility(animated, p->frame(), true);
     }
     static const char *
     intrinsicAnimation(const GABC_GEOPrim *p)
@@ -867,6 +900,12 @@ namespace
 	p->setGeoTransform(GT_TransformHandle(new GT_Transform(&m, 1)));
 	return 16;
     }
+    static GA_Size
+    intrinsicSetCheckVisibility(GABC_GEOPrim *p, const int64 v)
+    {
+	p->setCheckVisibility(v != 0);
+	return 1;
+    }
 }
 
 GA_START_INTRINSIC_DEF(GABC_GEOPrim, geo_NUM_INTRINISCS)
@@ -881,6 +920,12 @@ GA_START_INTRINSIC_DEF(GABC_GEOPrim, geo_NUM_INTRINISCS)
 	    "abcframe", frame)
     GA_INTRINSIC_S(GABC_GEOPrim, geo_INTRINSIC_ABC_ANIMATION,
 	    "abcanimation", intrinsicAnimation)
+    GA_INTRINSIC_METHOD_I(GABC_GEOPrim, geo_INTRINSIC_ABC_CHECKVISIBILITY,
+	    "abccheckvisibility", checkVisibility)
+    GA_INTRINSIC_I(GABC_GEOPrim, geo_INTRINSIC_ABC_VISIBILITY,
+	    "abcvisibility", intrinsicNodeVisibility)
+    GA_INTRINSIC_I(GABC_GEOPrim, geo_INTRINSIC_ABC_FULLVISIBILITY,
+	    "abcfullvisibility", intrinsicFullVisibility)
     GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_LOCALXFORM,
 	    "abclocaltransform", 16, intrinsicLocalTransform)
     GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_WORLDXFORM,
@@ -892,6 +937,8 @@ GA_START_INTRINSIC_DEF(GABC_GEOPrim, geo_NUM_INTRINISCS)
 
     GA_INTRINSIC_SET_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_GEOXFORM,
 		    intrinsicSetGeoTransform);
+    GA_INTRINSIC_SET_I(GABC_GEOPrim, geo_INTRINSIC_ABC_CHECKVISIBILITY,
+		    intrinsicSetCheckVisibility)
     GA_INTRINSIC_SET_METHOD_F(GABC_GEOPrim, geo_INTRINSIC_ABC_FRAME, setFrame)
 
 GA_END_INTRINSIC_DEF(GABC_GEOPrim, GEO_Primitive)
@@ -905,16 +952,30 @@ GABC_GEOPrim::setUseTransform(bool v)
 }
 
 void
+GABC_GEOPrim::setCheckVisibility(bool v)
+{
+    if (v != myCheckVisibility)
+    {
+	myCheckVisibility = v;
+	if (!myCheckVisibility)
+	    myGTPrimitive->setVisibilityCache(NULL);
+	updateAnimation();
+    }
+}
+
+void
 GABC_GEOPrim::init(const std::string &filename,
 	    const std::string &objectpath,
 	    fpreal frame,
-	    bool use_transform)
+	    bool use_transform,
+	    bool check_visibility)
 {
     myFilename = filename;
     myObjectPath = objectpath;
     myFrame = frame;
     myUseTransform = use_transform;
     setUseTransform(use_transform);
+    setCheckVisibility(check_visibility);
     resolveObject();
 }
 
@@ -922,13 +983,15 @@ void
 GABC_GEOPrim::init(const std::string &filename,
 		const GABC_IObject &object,
 		fpreal frame,
-		bool use_transform)
+		bool use_transform,
+		bool check_visibility)
 {
     myFilename = filename;
     myObject = object;
     myObjectPath = object.getFullName();
     myUseTransform = use_transform;
     setUseTransform(use_transform);
+    setCheckVisibility(check_visibility);
     myFrame = frame;
     updateAnimation();
 }
@@ -968,7 +1031,7 @@ GABC_GEOPrim::setFrame(fpreal f)
 	}
 	myFrame = f;
 	if (update)
-	    myGTPrimitive->updateAnimation(myUseTransform);
+	    myGTPrimitive->updateAnimation(myUseTransform, myCheckVisibility);
     }
 }
 

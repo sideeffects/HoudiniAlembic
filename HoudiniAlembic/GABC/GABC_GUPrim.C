@@ -35,13 +35,14 @@ GABC_GUPrim::build(GU_Detail *gdp,
 		const std::string &filename,
 		const std::string &objectpath,
 		fpreal frame,
-		bool use_transform)
+		bool use_transform,
+		bool check_visibility)
 {
     GABC_GUPrim	*abc;
 
     abc = (GABC_GUPrim *)gdp->appendPrimitive(GABC_GUPrim::theTypeId());
 
-    abc->init(filename, objectpath, frame, use_transform);
+    abc->init(filename, objectpath, frame, use_transform, check_visibility);
 
     return abc; 
 }
@@ -51,13 +52,14 @@ GABC_GUPrim::build(GU_Detail *gdp,
 		const std::string &filename,
 		const GABC_IObject &object,
 		fpreal frame,
-		bool use_transform)
+		bool use_transform,
+		bool check_visibility)
 {
     GABC_GUPrim		*abc;
     UT_BoundingBox	 box;
 
     abc = (GABC_GUPrim *)gdp->appendPrimitive(GABC_GUPrim::theTypeId());
-    abc->init(filename, object, frame, use_transform);
+    abc->init(filename, object, frame, use_transform, check_visibility);
     abc->getBBox(&box);		// Look up box while prim is active
 
     return abc; 

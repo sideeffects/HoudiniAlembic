@@ -70,12 +70,14 @@ public:
 				const std::string &filename,
 				const std::string &objectpath,
 				fpreal frame=0,
-				bool use_transform=true);
+				bool use_transform=true,
+				bool check_visibility=true);
     static GABC_GUPrim	*build(GU_Detail *gdp,
 				const std::string &filename,
 				const GABC_IObject &object,
 				fpreal frame=0,
-				bool use_transform=true);
+				bool use_transform=true,
+				bool check_visibility=true);
 
     virtual void	normal(NormalComp &output) const;
 

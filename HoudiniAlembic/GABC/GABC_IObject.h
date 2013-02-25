@@ -23,6 +23,7 @@
 #include "GABC_Types.h"
 #include "GABC_IItem.h"
 #include "GABC_NameMap.h"
+#include "GABC_Visibility.h"
 #include <UT/UT_Matrix4.h>
 #include <UT/UT_BoundingBox.h>
 #include <GT/GT_Handles.h>
@@ -101,6 +102,14 @@ public:
 
     /// Query whether the node is a Maya locator
     bool		isMayaLocator() const;
+
+    /// Query visibility
+    GABC_VisibilityType	visibility(bool &animated, fpreal t,
+				bool check_parent=false) const;
+
+    /// Query the visibilty by acquiring a visibility cache.  Returns a new
+    /// cache.
+    GABC_VisibilityCache	*visibilityCache() const;
 
     /// Get animation type for this node.
     /// @note This only checks animation types of intrinsic properties

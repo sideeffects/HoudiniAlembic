@@ -24,6 +24,7 @@
 #include "GABC_Types.h"
 
 class GABC_GEOPrim;
+class GABC_VisibilityCache;
 
 /// Simple wrapper for Alembic primitives
 class GABC_GTPrimitive : public GT_Primitive
@@ -39,11 +40,13 @@ public:
     };
 
     GABC_GTPrimitive(const GABC_GEOPrim *prim)
-	: myPrimitive(prim)
-	, myCacheFrame(0)
-	, myCacheLOD(LOD_SURFACE)
+	: GT_Primitive()
 	, myCache()
+	, myPrimitive(prim)
+	, myVisibilityCache(NULL)
+	, myCacheFrame(0)
 	, myAnimation(GABC_ANIMATION_TOPOLOGY)
+	, myCacheLOD(LOD_SURFACE)
     {
     }
     GABC_GTPrimitive	&operator=(const GABC_GTPrimitive &src)
@@ -84,9 +87,15 @@ public:
     fpreal			 cacheFrame() const	{ return myCacheFrame; }
     GABC_AnimationType		 animation() const	{ return myAnimation; }
     QLOD			 cacheLOD() const	{ return myCacheLOD; }
+    bool			 visible() const;
+    const GABC_VisibilityCache	*visibilityCache() const
+					{ return myVisibilityCache; }
 
-    void			 updateTransform(const UT_Matrix4D &xform);
-    void			 updateAnimation(bool consider_transform);
+    void	 updateTransform(const UT_Matrix4D &xform);
+    void	 updateAnimation(bool consider_transform,
+			bool consider_visibility);
+
+    void	 setVisibilityCache(const GABC_VisibilityCache *src);
 
     /// Return the "atomic" primitive.  This is the base GT primitive and it
     /// will be one of:
@@ -109,11 +118,12 @@ private:
     }
     void		 updateCache(const GT_RefineParms *parms);
 
-    const GABC_GEOPrim	*myPrimitive;
-    GT_PrimitiveHandle	 myCache;
-    fpreal		 myCacheFrame;
-    GABC_AnimationType	 myAnimation;
-    QLOD		 myCacheLOD;
+    GT_PrimitiveHandle		 myCache;
+    const GABC_GEOPrim		*myPrimitive;
+    GABC_VisibilityCache	*myVisibilityCache;
+    fpreal			 myCacheFrame;
+    GABC_AnimationType		 myAnimation;
+    QLOD			 myCacheLOD;
 };
 
 /// Hook to handle tesselation of Alembic primitives

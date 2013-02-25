@@ -22,9 +22,11 @@
 #include "GABC_NameMap.h"
 #include "GABC_Util.h"
 #include "GABC_GTUtil.h"
+#include "GABC_ChannelCache.h"
 #include <GU/GU_Detail.h>
 #include <GT/GT_DANumeric.h>
 #include <GT/GT_DAIndirect.h>
+#include <GT/GT_DABool.h>
 #include <GT/GT_PrimitiveBuilder.h>
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_Util.h>
@@ -89,6 +91,7 @@ namespace
     typedef Alembic::AbcGeom::IN3fGeomParam	IN3fGeomParam;
     typedef Alembic::AbcGeom::IV2fGeomParam	IV2fGeomParam;
     typedef Alembic::AbcGeom::IFloatGeomParam	IFloatGeomParam;
+    typedef Alembic::AbcGeom::IVisibilityProperty IVisibilityProperty;
     typedef Alembic::AbcMaterial::IMaterial	IMaterial;
 
     const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
@@ -1734,6 +1737,88 @@ GABC_IObject::isMayaLocator() const
 	return false;
     UT_ASSERT(IXform::matches(myObject.getHeader()));
     return myObject.getProperties().getPropertyHeader("locator") != NULL;
+}
+
+GABC_VisibilityType
+GABC_IObject::visibility(bool &animated, fpreal t, bool check_parent) const
+{
+    if (!myObject.valid())
+    {
+	animated = false;
+	return GABC_VISIBLE_DEFER;
+    }
+
+    GABC_AutoLock	lock(archive());
+    IVisibilityProperty	vprop = Alembic::AbcGeom::GetVisibilityProperty(
+				    const_cast<IObject &>(myObject));
+    if (vprop.valid())
+    {
+	animated = !vprop.isConstant();
+	return vprop.getValue(ISampleSelector(t))
+		    ? GABC_VISIBLE_VISIBLE
+		    : GABC_VISIBLE_HIDDEN;
+    }
+    if (check_parent)
+    {
+	GABC_IObject	parent(getParent());
+	if (!parent.valid())
+	{
+	    animated = false;
+	    return GABC_VISIBLE_VISIBLE;
+	}
+	return parent.visibility(animated, t, true);
+    }
+    return GABC_VISIBLE_DEFER;
+}
+
+GABC_VisibilityCache *
+GABC_IObject::visibilityCache() const
+{
+    // TODO: This reqires lots of traversal of the hierarchy, so it might be a
+    // good idea to have a cache.
+    if (!myObject.valid())
+	return new GABC_VisibilityCache();
+
+    GABC_AutoLock	lock(archive());
+    IVisibilityProperty	vprop = Alembic::AbcGeom::GetVisibilityProperty(
+				    const_cast<IObject &>(myObject));
+    if (vprop.valid())
+    {
+	GABC_VisibilityType	vis;
+	vis = vprop.getValue(ISampleSelector((index_t)0))
+		    ? GABC_VISIBLE_VISIBLE : GABC_VISIBLE_HIDDEN;
+	if (vprop.isConstant())
+	{
+	    return new GABC_VisibilityCache(vis, NULL);
+	}
+
+	// Create a data array for the visibility cache
+	exint		 nsamples = vprop.getNumSamples();
+	exint		 ntrue;
+	GT_DABool	*bits = new GT_DABool(nsamples);
+	bits->setAllBits(false);
+	for (exint i = 0; i < nsamples; ++i)
+	{
+	    if (vprop.getValue(ISampleSelector((index_t)i)))
+	    {
+		bits->setBit(i, true);
+		ntrue++;
+	    }
+	}
+	if (ntrue == nsamples || ntrue == 0)
+	{
+	    if (ntrue)
+		UT_ASSERT(vis == GABC_VISIBLE_VISIBLE);
+	    return new GABC_VisibilityCache(vis, NULL);
+	}
+	return new GABC_VisibilityCache(vis,
+			new GABC_ChannelCache(GT_DataArrayHandle(bits),
+						vprop.getTimeSampling()));
+    }
+    GABC_IObject	parent(getParent());
+    if (!parent.valid())
+	return new GABC_VisibilityCache(GABC_VISIBLE_VISIBLE, NULL);
+    return parent.visibilityCache();
 }
 
 GABC_AnimationType

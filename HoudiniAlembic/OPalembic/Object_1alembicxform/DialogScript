@@ -156,19 +156,6 @@
 	    export	dialog
 	}
 	parm {
-	    name	"tdisplay"
-	    baseparm
-	    invisible
-	    joinnext
-	    export	none
-	}
-	parm {
-	    name	"display"
-	    baseparm
-	    invisible
-	    export	none
-	}
-	parm {
 	    name	"outputobj"
 	    baseparm
 	    invisible
@@ -213,6 +200,17 @@
     }
 
     parm {
+	name	"tdisplay"
+	baseparm
+	joinnext
+	export	none
+    }
+    parm {
+	name	"display"
+	baseparm
+	export	none
+    }
+    parm {
 	name	"fileName"
 	label	"File Name"
 	type	file
@@ -236,7 +234,7 @@
 	name	"frame"
 	label	"Frame"
 	type	float
-	default	{ 1 }
+	default	{ "1" }
 	range	{ 0 10 }
 	export	none
     }
@@ -252,8 +250,9 @@
 	name	"abcConstant"
 	label	"Constant Alembic Transform"
 	type	toggle
-	default	{ 0 }
-	export	none
 	invisible
+	default	{ "0" }
+	range	{ 0 1 }
+	export	none
     }
 }

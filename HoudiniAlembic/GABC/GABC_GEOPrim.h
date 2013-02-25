@@ -142,6 +142,14 @@ public:
     GABC_NodeType	 abcNodeType() const
 			    { return myObject.nodeType(); }
     GABC_AnimationType	 animation() const	{ return myGTPrimitive->animation(); }
+    bool		 visible() const	{ return myGTPrimitive->visible(); }
+    /// @{
+    /// Whether the GT primitive should check visibility
+    bool		 checkVisibility() const
+				{ return myCheckVisibility; }
+    void		 setCheckVisibility(bool v);
+    /// @}
+
     bool		 isConstant() const
 			 {
 			     return animation() == GABC_ANIMATION_CONSTANT;
@@ -151,11 +159,13 @@ public:
     void		 init(const std::string &filename,
 				const std::string &objectpath,
 				fpreal frame,
-				bool use_transform);
+				bool use_transform,
+				bool check_visibility);
     void		 init(const std::string &filename,
 				const GABC_IObject &objectpath,
 				fpreal frame,
-				bool use_transform);
+				bool use_transform,
+				bool check_visibility);
     void		 setFilename(const std::string &filename);
     void		 setObjectPath(const std::string &path);
     void		 setFrame(fpreal f);
@@ -232,6 +242,7 @@ private:
     GABC_GTPrimitive	*myGTPrimitive;
     GA_Offset		 myVertex;
     bool		 myUseTransform;
+    bool		 myCheckVisibility;
 
 };
 

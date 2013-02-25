@@ -17,12 +17,14 @@
 
 #include "GABC_GTPrim.h"
 #include "GABC_GEOPrim.h"
+#include "GABC_Visibility.h"
 #include <UT/UT_JSONWriter.h>
 #include <GT/GT_Refine.h>
 #include <GT/GT_RefineParms.h>
 
 GABC_GTPrimitive::~GABC_GTPrimitive()
 {
+    setVisibilityCache(NULL);
 }
 
 const char *
@@ -64,9 +66,41 @@ GABC_GTPrimitive::updateTransform(const UT_Matrix4D &xform)
 }
 
 void
-GABC_GTPrimitive::updateAnimation(bool consider_transform)
+GABC_GTPrimitive::updateAnimation(bool consider_transform,
+		    bool consider_visibility)
 {
     myAnimation = myPrimitive->object().getAnimationType(consider_transform);
+    if (consider_visibility)
+    {
+	setVisibilityCache(myPrimitive->object().visibilityCache());
+	if (myAnimation == GABC_ANIMATION_CONSTANT &&
+		myVisibilityCache->animated())
+	{
+	    // Mark that we're dependent on "transform" for lack of a better
+	    // flag
+	    myAnimation = GABC_ANIMATION_TRANSFORM;
+	}
+    }
+    else
+    {
+	if (myVisibilityCache)
+	    setVisibilityCache(NULL);
+    }
+}
+
+bool
+GABC_GTPrimitive::visible() const
+{
+    return myVisibilityCache ? myVisibilityCache->visible() : true;
+}
+
+void
+GABC_GTPrimitive::setVisibilityCache(const GABC_VisibilityCache *src)
+{
+    delete myVisibilityCache;
+    myVisibilityCache = NULL;
+    if (src)
+	myVisibilityCache = new GABC_VisibilityCache(*src);
 }
 
 void
@@ -76,6 +110,8 @@ GABC_GTPrimitive::updateCache(const GT_RefineParms *parms)
     QLOD		 lod = getLOD(parms);
     fpreal		 frame = myPrimitive->frame();
 
+    if (myVisibilityCache)
+	myVisibilityCache->update(frame);
     if (!myCache || lod != myCacheLOD || myAnimation == GABC_ANIMATION_TOPOLOGY)
     {
 	myCacheLOD = lod;

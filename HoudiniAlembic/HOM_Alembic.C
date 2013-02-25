@@ -244,7 +244,6 @@ namespace
 	double				 sampleTime;
 	Alembic::AbcGeom::GeometryScope	 scope;
 	GABC_AnimationType		 atype;
-	bool				 ok;
 	GT_DataArrayHandle		 data;
 
         if (!PY_PyArg_ParseTuple(args, "sssd", &filename, &objectPath,
@@ -254,7 +253,6 @@ namespace
 	}
 
 	GABC_IObject	obj = GABC_Util::findObject(filename, objectPath);
-	ok = obj.valid();
 	if (!obj.valid())
 	{
 	    PY_Py_RETURN_NONE;
@@ -283,7 +281,6 @@ namespace
 	const char			*name;
 	double				 sampleTime;
 	GABC_AnimationType		 atype;
-	bool				 ok;
 	GT_DataArrayHandle		 data;
 
         if (!PY_PyArg_ParseTuple(args, "sssd", &filename, &objectPath,
@@ -293,7 +290,6 @@ namespace
 	}
 
 	GABC_IObject	obj = GABC_Util::findObject(filename, objectPath);
-	ok = obj.valid();
 	if (!obj.valid())
 	{
 	    PY_Py_RETURN_NONE;
@@ -305,6 +301,49 @@ namespace
 	PY_Py_INCREF(rcode);
 	return rcode;
     }
+
+    static const char	*Doc_Visibility =
+	"(value, isConstant) = alembicVisibility(abcPath, objectPath, sampleTime, [check_ancestor=False])\n"
+	"\n"
+	"Returns None or a tuple (value,isConstant).  The tuple contains the\n"
+	"visibility for the object, and a boolean flag indicating whether\n"
+	"visibility is constant over the animation.  The visibility returned\n"
+	"is an integer where 0 := hidden, 1 := visible, and -1 is deferred\n"
+	"(dependent on parent visibility).\n";
+
+    PY_PyObject *
+    Py_AlembicVisibility(PY_PyObject *self, PY_PyObject *args)
+    {
+	const char			*filename;
+	const char			*objectPath;
+	double				 sampleTime;
+	int				 check_parent;
+	GT_DataArrayHandle		 data;
+
+	// Usage: alembicVisiblity(file, object, time, [checkparent=False])
+	check_parent = 0;
+        if (!PY_PyArg_ParseTuple(args, "ssd|i", &filename, &objectPath,
+                &sampleTime, &check_parent))
+	{
+	    return NULL;
+	}
+
+	GABC_IObject	obj = GABC_Util::findObject(filename, objectPath);
+	if (!obj.valid())
+	{
+	    PY_Py_RETURN_NONE;
+	}
+	bool	animated = false;
+	int	result = obj.visibility(animated, sampleTime,
+					check_parent != 0);
+
+	PY_PyObject	*rcode = PY_PyTuple_New(2);
+	PY_PyTuple_SetItem(rcode, 0, PY_PyInt_FromLong(result));
+	PY_PyTuple_SetItem(rcode, 1, animated ? PY_Py_False() : PY_Py_True());
+	PY_Py_INCREF(rcode);
+	return rcode;
+    }
+
 
     class PyWalker : public GABC_Util::Walker
     {
@@ -505,7 +544,6 @@ namespace
 	const char	*archivePath = NULL;
 	const char	*objectPath = NULL;
 	double		 sampleTime = 0.0;
-	bool		 isConstant = true;
 	PY_PyObject	*resultDict = PY_PyDict_New();
 
         if (!PY_PyArg_ParseTuple(args, "ssd", &archivePath, &objectPath,
@@ -516,7 +554,6 @@ namespace
 	if (obj.valid() && ICamera::matches(obj.getHeader()))
 	{
 	    ICamera camera(obj.object(), Alembic::Abc::kWrapExisting);
-	    isConstant = camera.getSchema().isConstant();
 	    CameraSample cameraSample = camera.getSchema().getValue(
 		    ISampleSelector(sampleTime));
 
@@ -627,6 +664,9 @@ HOMextendLibrary()
 		PY_METH_VARARGS(), Doc_ArbGeometry },
 	{ "alembicUserProperty", Py_AlembicUserProperty,
 		PY_METH_VARARGS(), Doc_UserProperty },
+
+	{ "alembicVisibility",	Py_AlembicVisibility,
+		PY_METH_VARARGS(), Doc_Visibility },
 
         { NULL, NULL, 0, NULL }
     };

@@ -1,5 +1,6 @@
 import string
 import time
+import _alembic_hom_extensions as _ahe
 try:
     from hou import ui
 except:
@@ -30,7 +31,9 @@ def BuildHierarchyRoot(rootNode):
     pathList = [x for x in rootNode.evalParm('objectPath').strip('/').split('/') if x]
     
     for entry in tree[2]:
-        WalkHierarchy(rootNode, rootNode,
+        WalkHierarchy(fileName,
+                        rootNode,
+                        rootNode,
                         '',
                         entry,
                         pathList,
@@ -67,12 +70,24 @@ def _sanitizeName(name):
         name = '_' + name
     return name
 
+def _setParmValue(node, parmname, value):
+    parm = node.parm(parmname)
+    if parm:
+        parm.set(value)
+
 def _setNodeName(node, name):
     try:
         node.setName(name, True)
     except:
         node.setName(_sanitizeName(name), True)
-        
+
+def _setVisibility(node, filename, objectpath):
+    vis = _ahe.alembicVisibility(filename, objectpath, 0)
+    # TODO: Animated status is in vis[1]
+    if vis[0] == 0:
+        _setParmValue(node, 'tdisplay', 1)
+        _setParmValue(node, 'display', 0)
+
 def ExpressionToParm(srcParm, dstParm, isString=False):
     relPath = dstParm.node().relativePathTo(srcParm.node())
     dstParm.setExpression('ch%s("%s/%s")' % (
@@ -92,7 +107,7 @@ def _setupAbcGeo(geo, issubd):
             'shop_geometrypath'])
     hou.hscript('opproperty -f -F Render %s mantra,prman* %s' % (geo.path(), parms))
 
-def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
+def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 pathList, buildSubnet, channelRefs):
     name, typeName, children = childEntry
     if pathList:
@@ -108,9 +123,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
         currentNode.setInput(0, parentNode.indirectInputs()[0])
         if subd:
             for parmname in ('vm_rendersubd', 'ri_rendersubd'):
-                subdParm = currentNode.parm(parmname)
-                if subdParm:
-                    subdParm.set(1)
+                _setParmValue(currentNode, parmname, 1)
         _setNodeName(currentNode, name)
 
         sopNode = currentNode.createNode('alembic')
@@ -144,6 +157,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
             else:
                 currentNode.setInput(0, parentNode.indirectInputs()[0])
         _setNodeName(currentNode, name)
+        _setVisibility(currentNode, fileName, currentPath)
         
         if channelRefs:
             ExpressionToParm(rootNode.parm('fileName'),
@@ -160,7 +174,7 @@ def WalkHierarchy(rootNode, parentNode, parentPath, childEntry,
             currentNode.parm('abcConstant').set(1)
 
         for entry in children:
-            WalkHierarchy(rootNode, currentNode, currentPath,
+            WalkHierarchy(fileName, rootNode, currentNode, currentPath,
                         entry, pathList, buildSubnet, channelRefs)
         currentNode.layoutChildren()
     elif typeName == 'camera':
