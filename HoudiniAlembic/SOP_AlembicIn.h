@@ -112,6 +112,7 @@ private:
 	UT_String			mySubdGroupName;
 	UT_String			myAttributePatterns[GA_ATTRIB_OWNER_N];
 	bool				myIncludeXform;
+	bool				myUseVisibility;
 	bool				myBuildLocator;
 	UT_String			myPathAttribute;
 	UT_String			myFilenameAttribute;

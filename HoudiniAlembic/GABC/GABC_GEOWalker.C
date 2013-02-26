@@ -770,7 +770,8 @@ namespace {
 				walk.filename(),
 				obj,
 				walk.time(),
-				walk.includeXform());
+				walk.includeXform(),
+				walk.useVisibility());
 	GA_Offset	pt = walk.getPointForAbcPrim();
 	if (GAisValid(pt))
 	    abc->setVertexPoint(pt);
@@ -1416,6 +1417,21 @@ bool
 GABC_GEOWalker::process(const GABC_IObject &obj)
 {
     const ObjectHeader	&ohead = obj.getHeader();
+
+    if (useVisibility() && myLoadMode != LOAD_ABC_PRIMITIVES)
+    {
+	bool			animated;
+	GABC_VisibilityType	vtype;
+	vtype =obj.visibility(animated, time(), false);
+	if (animated)
+	{
+	    // Since visibility is animated, the topology will change
+	    setNonConstant();
+	    setNonConstantTopology();
+	}
+	if (vtype == GABC_VISIBLE_HIDDEN)
+	    return false;	// Don't process children
+    }
 
     //fprintf(stderr, "Process: %s\n", (const char *)obj.getFullName().c_str());
     if (IXform::matches(ohead))

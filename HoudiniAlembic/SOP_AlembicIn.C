@@ -96,6 +96,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myObjectPattern()
     , mySubdGroupName()
     , myIncludeXform(true)
+    , myUseVisibility(true)
     , myBuildLocator(false)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
@@ -116,6 +117,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myObjectPattern()
     , mySubdGroupName()
     , myIncludeXform(true)
+    , myUseVisibility(true)
     , myBuildLocator(false)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
@@ -137,6 +139,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myBoundBox = src.myBoundBox;
     myBuildAbcXform = src.myBuildAbcXform;
     myIncludeXform = src.myIncludeXform;
+    myUseVisibility = src.myUseVisibility;
     myBuildLocator = src.myBuildLocator;
     myGroupMode = src.myGroupMode;
     myAnimationFilter = src.myAnimationFilter;
@@ -194,6 +197,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	    return true;
     }
     // myIncludeXform can change
+    if (myUseVisibility != src.myUseVisibility)
+	return true;
     if (myBuildLocator != src.myBuildLocator)
 	return true;
     // myPathAttribute can change
@@ -235,6 +240,7 @@ static PRM_Name prm_fpsName("fps", "Frames Per Second");
 static PRM_Name prm_objectPathName("objectPath", "Object Path");
 static PRM_Name	prm_pickObjectPathName("pickobjectPath", "Pick");
 static PRM_Name prm_includeXformName("includeXform", "Transform Geometry To World Space");
+static PRM_Name prm_useVisibilityName("useVisibility", "Use Visibility");
 static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
 static PRM_Name prm_animationfilter("animationfilter", "Animating Objects");
 static PRM_Name prm_boxcull("boxcull", "Box Culling");
@@ -252,6 +258,7 @@ static PRM_Default prm_frameDefault(1, "$FF");
 static PRM_Default prm_objectPathDefault(0, "");
 static PRM_Default prm_fpsDefault(24, "$FPS");
 static PRM_Default prm_includeXformDefault(true);
+static PRM_Default prm_useVisibilityDefault(true);
 static PRM_Default prm_pathattribDefault(0, "abcPath");
 static PRM_Default prm_fileattribDefault(0, "abcFileName");
 
@@ -355,6 +362,7 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 	    &menu_pointMode),
     PRM_Template(PRM_TOGGLE, 1, &prm_abcxformName, PRMzeroDefaults),
     PRM_Template(PRM_TOGGLE, 1, &prm_includeXformName, &prm_includeXformDefault),
+    PRM_Template(PRM_TOGGLE, 1, &prm_useVisibilityName, &prm_useVisibilityDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_loadLocatorName, &prm_loadLocatorDefault),
     PRM_Template(PRM_ORD, 1, &prm_groupnames, &prm_groupnamesDefault,
 	    &menu_groupnames),
@@ -547,6 +555,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 		theAttributePatternNames[i].getToken(), 0, now);
     }
     parms.myIncludeXform = evalInt("includeXform", 0, now) != 0;
+    parms.myUseVisibility = evalInt("useVisibility", 0, now) != 0;
     if (evalInt("addpath", 0, now))
 	evalString(parms.myPathAttribute, "pathattrib", 0, now);
     if (evalInt("addfile", 0, now))
@@ -675,6 +684,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	walk.setFrame(evalFloat("frame", 0, now), evalFloat("fps", 0, now));
     }
     walk.setIncludeXform(parms.myIncludeXform);
+    walk.setUseVisibility(parms.myUseVisibility);
     walk.setBuildLocator(parms.myBuildLocator);
     walk.setLoadMode(parms.myLoadMode);
     walk.setBuildAbcXform(parms.myBuildAbcXform);

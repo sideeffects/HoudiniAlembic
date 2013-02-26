@@ -114,6 +114,7 @@ public:
 
     fpreal	time() const		{ return myTime; }
     bool	includeXform() const	{ return myIncludeXform; }
+    bool	useVisibility() const	{ return myUseVisibility; }
     bool	reusePrimitives() const	{ return myReusePrimitives; }
     bool	buildLocator() const	{ return myBuildLocator; }
     LoadMode	loadMode() const	{ return myLoadMode; }
@@ -165,6 +166,7 @@ public:
     void	setTime(fpreal t)		{ myTime = t; }
     void	setFrame(fpreal f, fpreal fps)	{ myTime = f/fps; }
     void	setIncludeXform(bool v)		{ myIncludeXform = v; }
+    void	setUseVisibility(bool v)	{ myUseVisibility = v; }
     void	setReusePrimitives(bool v);
     void	setBuildLocator(bool v)		{ myBuildLocator = v; }
     void	setLoadMode(LoadMode mode)	{ myLoadMode = mode; }
@@ -285,6 +287,7 @@ private:
     BoxCullMode	myBoxCullMode;
     AFilter	myAnimationFilter;	// Animating object filter
     bool	myIncludeXform;		// Transform geometry
+    bool	myUseVisibility;	// Use visibility
     bool	myBuildLocator;		// Whether to build Maya locators
     bool	myPathAttributeChanged;	// Whether path attrib name changed
     LoadMode	myLoadMode;		// Build Alembic primitives
