@@ -27,7 +27,7 @@ Frames Per Second:
 Use Visibility:
     #id: usevisibility
 
-    Controls whether Alembic primitives will use the visibility properties defined in the Alembic file.  The default behaviour is to leave the visibility setting unchanged.
+    Controls whether Alembic primitives will use the visibility properties defined in the Alembic file.  The default behavior is to leave the visibility setting unchanged.
 
     Ignoring visibility will cause the primitive to be displayed regardless of the settings in the file.  Enabling visibility checks will hide the primitive if it's not visible in the file.  The primitive will still exist, but not generate any visible geometry.
 
