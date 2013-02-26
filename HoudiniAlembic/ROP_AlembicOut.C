@@ -51,6 +51,8 @@ namespace
     static PRM_Name	theCollapseName("collapse", "Collapse identity transforms");
     static PRM_Name	theSaveAttributesName("save_attributes",
 				"Save Attributes");
+    static PRM_Name	theDisplaySOPName("displaysop",
+				"Use Display SOP");
     static PRM_Name	theFullBoundsName("full_bounds",
 				"Full Bounding Box Tree");
     static PRM_Name	thePartitionModeName("partition_mode",
@@ -69,6 +71,7 @@ namespace
     static PRM_Default	theCollapseDefault(1, "yes");
     static PRM_Default	theSaveAttributesDefault(1, "yes");
     static PRM_Default	theFullBoundsDefault(0, "no");
+    static PRM_Default	theDisplaySOPDefault(0, "no");
     static PRM_Default	thePartitionModeDefault(0, "no");
     static PRM_Default	thePartitionAttributeDefault(0, "");
     static PRM_Default	theVerboseDefault(0);
@@ -191,6 +194,8 @@ namespace
 	PRM_Template(PRM_TOGGLE, 1, &theCollapseName, &theCollapseDefault),
 	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName,
 				    &theFullBoundsDefault),
+	PRM_Template(PRM_TOGGLE, 1, &theDisplaySOPName,
+				    &theDisplaySOPDefault),
 	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
 				    &theSaveAttributesDefault),
 	PRM_Template(PRM_STRING, 1,
@@ -350,6 +355,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 
     myContext->setCollapseIdentity(COLLAPSE(start));
     myContext->setSaveAttributes(SAVE_ATTRIBUTES(start));
+    myContext->setUseDisplaySOP(DISPLAYSOP(start));
     myContext->setFullBounds(FULL_BOUNDS(start));
 
     UT_String	partition_mode;

@@ -49,6 +49,8 @@ protected:
 		    { return evalInt("collapse", 0, time) != 0; }
     bool	SAVE_ATTRIBUTES(fpreal time)
 		    { return evalInt("save_attributes", 0, time) != 0; }
+    bool	DISPLAYSOP(fpreal time)
+		    { return evalInt("displaysop", 0, time) != 0; }
     bool	FULL_BOUNDS(fpreal time)
 		    { return evalInt("full_bounds", 0, time) != 0; }
     void	FACESET_MODE(UT_String &sval, fpreal time)
