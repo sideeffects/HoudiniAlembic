@@ -241,7 +241,7 @@ static PRM_Name prm_fpsName("fps", "Frames Per Second");
 static PRM_Name prm_objectPathName("objectPath", "Object Path");
 static PRM_Name	prm_pickObjectPathName("pickobjectPath", "Pick");
 static PRM_Name prm_includeXformName("includeXform", "Transform Geometry To World Space");
-static PRM_Name prm_useVisibilityName("useVisibility", "Use Visibility");
+static PRM_Name prm_useVisibilityName("usevisibility", "Use Visibility");
 static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
 static PRM_Name prm_animationfilter("animationfilter", "Animating Objects");
 static PRM_Name prm_boxcull("boxcull", "Box Culling");
@@ -556,7 +556,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 		theAttributePatternNames[i].getToken(), 0, now);
     }
     parms.myIncludeXform = evalInt("includeXform", 0, now) != 0;
-    parms.myUseVisibility = evalInt("useVisibility", 0, now) != 0;
+    parms.myUseVisibility = evalInt("usevisibility", 0, now) != 0;
     if (evalInt("addpath", 0, now))
 	evalString(parms.myPathAttribute, "pathattrib", 0, now);
     if (evalInt("addfile", 0, now))

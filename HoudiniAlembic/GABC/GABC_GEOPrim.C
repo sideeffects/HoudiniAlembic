@@ -64,7 +64,7 @@ GABC_GEOPrim::GABC_GEOPrim(GEO_Detail *d, GA_Offset offset)
     , myGTPrimitive(new GABC_GTPrimitive(this))
     , myVertex(GA_INVALID_OFFSET)
     , myUseTransform(true)
-    , myCheckVisibility(true)
+    , myUseVisibility(true)
 {
     myGTPrimitive->incref();	// Old-school
     myGeoTransform = GT_Transform::identity();
@@ -80,7 +80,7 @@ GABC_GEOPrim::copyMemberDataFrom(const GABC_GEOPrim &src)
     myGeoTransform = src.myGeoTransform;
     myAttributeNameMap = src.myAttributeNameMap;
     myUseTransform = src.myUseTransform;
-    myCheckVisibility = src.myCheckVisibility;
+    myUseVisibility = src.myUseVisibility;
     myGTPrimitive->copyFrom(*src.myGTPrimitive);
 
     // TODO: NEED TO CLEAR THE TRANSFORM on the cache!
@@ -258,7 +258,7 @@ public:
 	geo_TRANSFORM,
 	geo_VERTEX,
 	geo_USETRANSFORM,
-	geo_CHECKVISIBILITY,
+	geo_USEVISIBILITY,
 	geo_ATTRIBUTEMAP,
 	geo_ENTRIES
     };
@@ -278,7 +278,7 @@ public:
 	    case geo_FRAME:		return "frame";
 	    case geo_TRANSFORM:		return "ltransform";
 	    case geo_USETRANSFORM:	return "usetransform";
-	    case geo_CHECKVISIBILITY:	return "checkvisibility";
+	    case geo_USEVISIBILITY:	return "usevisibility";
 	    case geo_ATTRIBUTEMAP:	return "attributemap";
 	    case geo_VERTEX:		return "vertex";
 	    case geo_ENTRIES:		break;
@@ -325,8 +325,8 @@ public:
 	    case geo_USETRANSFORM:
 		return w.jsonBool(abc(pr)->useTransform());
 
-	    case geo_CHECKVISIBILITY:
-		return w.jsonBool(abc(pr)->checkVisibility());
+	    case geo_USEVISIBILITY:
+		return w.jsonBool(abc(pr)->useVisibility());
 
 	    case geo_ATTRIBUTEMAP:
 	    {
@@ -389,10 +389,10 @@ public:
 		    return false;
 		abc(pr)->setUseTransform(bval);
 		return true;
-	    case geo_CHECKVISIBILITY:
+	    case geo_USEVISIBILITY:
 		if (!p.parseBool(bval))
 		    return false;
-		abc(pr)->setCheckVisibility(bval);
+		abc(pr)->setUseVisibility(bval);
 		return true;
 	    case geo_ATTRIBUTEMAP:
 		if (!GABC_NameMap::load(amap, p))
@@ -435,9 +435,9 @@ public:
 	    case geo_USETRANSFORM:
 		return abc(a)->useTransform() ==
 			abc(b)->useTransform();
-	    case geo_CHECKVISIBILITY:
-		return abc(a)->checkVisibility() ==
-			abc(b)->checkVisibility();
+	    case geo_USEVISIBILITY:
+		return abc(a)->useVisibility() ==
+			abc(b)->useVisibility();
 	    case geo_ATTRIBUTEMAP:
 		// Just compare pointers directly
 		return abc(a)->attributeNameMap().get() ==
@@ -498,7 +498,7 @@ GABC_GEOPrim::updateAnimation()
     // We initialize based on the shape topology, but if the shape topology is
     // constant, there are still various factors which can make the primitive
     // non-constant (i.e. Homogeneous).
-    myGTPrimitive->updateAnimation(myUseTransform, myCheckVisibility);
+    myGTPrimitive->updateAnimation(myUseTransform, myUseVisibility);
 }
 
 int
@@ -812,7 +812,7 @@ enum
     geo_INTRINSIC_ABC_PATH,	// Object path
     geo_INTRINSIC_ABC_FRAME,	// Time
     geo_INTRINSIC_ABC_ANIMATION,	// Animation type
-    geo_INTRINSIC_ABC_CHECKVISIBILITY,	// Whether prim respects visibility
+    geo_INTRINSIC_ABC_USEVISIBILITY,	// Whether prim respects visibility
     geo_INTRINSIC_ABC_VISIBILITY,	// Visibility (on node)
     geo_INTRINSIC_ABC_FULLVISIBILITY,	// Full visibility (including parent)
     geo_INTRINSIC_ABC_LOCALXFORM,	// Alembic file local transform
@@ -911,9 +911,9 @@ namespace
 	return 16;
     }
     static GA_Size
-    intrinsicSetCheckVisibility(GABC_GEOPrim *p, const int64 v)
+    intrinsicSetUseVisibility(GABC_GEOPrim *p, const int64 v)
     {
-	p->setCheckVisibility(v != 0);
+	p->setUseVisibility(v != 0);
 	return 1;
     }
 }
@@ -930,8 +930,8 @@ GA_START_INTRINSIC_DEF(GABC_GEOPrim, geo_NUM_INTRINISCS)
 	    "abcframe", frame)
     GA_INTRINSIC_S(GABC_GEOPrim, geo_INTRINSIC_ABC_ANIMATION,
 	    "abcanimation", intrinsicAnimation)
-    GA_INTRINSIC_METHOD_I(GABC_GEOPrim, geo_INTRINSIC_ABC_CHECKVISIBILITY,
-	    "abccheckvisibility", checkVisibility)
+    GA_INTRINSIC_METHOD_I(GABC_GEOPrim, geo_INTRINSIC_ABC_USEVISIBILITY,
+	    "abcusevisibility", useVisibility)
     GA_INTRINSIC_I(GABC_GEOPrim, geo_INTRINSIC_ABC_VISIBILITY,
 	    "abcvisibility", intrinsicNodeVisibility)
     GA_INTRINSIC_I(GABC_GEOPrim, geo_INTRINSIC_ABC_FULLVISIBILITY,
@@ -947,8 +947,8 @@ GA_START_INTRINSIC_DEF(GABC_GEOPrim, geo_NUM_INTRINISCS)
 
     GA_INTRINSIC_SET_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_GEOXFORM,
 		    intrinsicSetGeoTransform);
-    GA_INTRINSIC_SET_I(GABC_GEOPrim, geo_INTRINSIC_ABC_CHECKVISIBILITY,
-		    intrinsicSetCheckVisibility)
+    GA_INTRINSIC_SET_I(GABC_GEOPrim, geo_INTRINSIC_ABC_USEVISIBILITY,
+		    intrinsicSetUseVisibility)
     GA_INTRINSIC_SET_METHOD_F(GABC_GEOPrim, geo_INTRINSIC_ABC_FRAME, setFrame)
 
 GA_END_INTRINSIC_DEF(GABC_GEOPrim, GEO_Primitive)
@@ -962,12 +962,12 @@ GABC_GEOPrim::setUseTransform(bool v)
 }
 
 void
-GABC_GEOPrim::setCheckVisibility(bool v)
+GABC_GEOPrim::setUseVisibility(bool v)
 {
-    if (v != myCheckVisibility)
+    if (v != myUseVisibility)
     {
-	myCheckVisibility = v;
-	if (!myCheckVisibility)
+	myUseVisibility = v;
+	if (!myUseVisibility)
 	    myGTPrimitive->setVisibilityCache(NULL);
 	updateAnimation();
     }
@@ -978,14 +978,14 @@ GABC_GEOPrim::init(const std::string &filename,
 	    const std::string &objectpath,
 	    fpreal frame,
 	    bool use_transform,
-	    bool check_visibility)
+	    bool use_visibility)
 {
     myFilename = filename;
     myObjectPath = objectpath;
     myFrame = frame;
     myUseTransform = use_transform;
     setUseTransform(use_transform);
-    setCheckVisibility(check_visibility);
+    setUseVisibility(use_visibility);
     resolveObject();
 }
 
@@ -994,14 +994,14 @@ GABC_GEOPrim::init(const std::string &filename,
 		const GABC_IObject &object,
 		fpreal frame,
 		bool use_transform,
-		bool check_visibility)
+		bool use_visibility)
 {
     myFilename = filename;
     myObject = object;
     myObjectPath = object.getFullName();
     myUseTransform = use_transform;
     setUseTransform(use_transform);
-    setCheckVisibility(check_visibility);
+    setUseVisibility(use_visibility);
     myFrame = frame;
     updateAnimation();
 }
@@ -1041,7 +1041,7 @@ GABC_GEOPrim::setFrame(fpreal f)
 	}
 	myFrame = f;
 	if (update)
-	    myGTPrimitive->updateAnimation(myUseTransform, myCheckVisibility);
+	    myGTPrimitive->updateAnimation(myUseTransform, myUseVisibility);
     }
 }
 
