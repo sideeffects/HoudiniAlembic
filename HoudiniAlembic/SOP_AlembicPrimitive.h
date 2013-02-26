@@ -55,6 +55,8 @@ protected:
 		    { return evalFloat("frame", 0, t); }
     fpreal	FPS(fpreal t)
 		    { return evalFloat("fps", 0, t); }
+    int		VISIBILITY(fpreal t)
+		    { return evalFloat("visibility", 0, t); }
 
 private:
     GU_DetailGroupPair		 myDetailGroupPair;

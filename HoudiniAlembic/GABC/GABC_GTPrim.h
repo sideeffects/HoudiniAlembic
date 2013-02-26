@@ -56,8 +56,9 @@ public:
 			}
     void		copyFrom(const GABC_GTPrimitive &src)
 			{
-			    // We do *not* copy the primitive
 			    myCache = src.myCache;
+			    // We do *not* copy myPrimitive
+			    setVisibilityCache(src.myVisibilityCache);
 			    myCacheFrame = src.myCacheFrame;
 			    myAnimation = src.myAnimation;
 			    myCacheLOD = src.myCacheLOD;

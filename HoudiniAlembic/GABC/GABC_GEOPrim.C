@@ -80,18 +80,23 @@ GABC_GEOPrim::copyMemberDataFrom(const GABC_GEOPrim &src)
     myGeoTransform = src.myGeoTransform;
     myAttributeNameMap = src.myAttributeNameMap;
     myUseTransform = src.myUseTransform;
+    myCheckVisibility = src.myCheckVisibility;
     myGTPrimitive->copyFrom(*src.myGTPrimitive);
+
+    // TODO: NEED TO CLEAR THE TRANSFORM on the cache!
 
     if (!myUseTransform)
     {
 	// Should be an identity
+	UT_Matrix4D	xform;
 	myGTTransform = src.myGTTransform;
+	myGTTransform->getMatrix(xform);
+	myGTPrimitive->updateTransform(xform);
     }
     else
     {
 	myGTTransform = GT_TransformHandle();
     }
-
 }
 
 GABC_GEOPrim::~GABC_GEOPrim()
@@ -494,7 +499,6 @@ GABC_GEOPrim::updateAnimation()
     // constant, there are still various factors which can make the primitive
     // non-constant (i.e. Homogeneous).
     myGTPrimitive->updateAnimation(myUseTransform, myCheckVisibility);
-    //myAnimation = myObject.getAnimationType(myUseTransform);
 }
 
 int
@@ -564,9 +568,13 @@ bool
 GABC_GEOPrim::needTransform() const
 {
     if (myUseTransform)			// If we us abc transforms
+    {
 	return true;
+    }
     if (!myGeoTransform->isIdentity())	// check if there's a local xform
+    {
 	return true;
+    }
     if (GAisValid(myVertex))
     {
 	const GA_Detail	&gdp = getDetail();
@@ -575,7 +583,9 @@ GABC_GEOPrim::needTransform() const
 	{
 	    UT_Vector3	P = gdp.getPos3(pt);
 	    if (!P.equalZero())
+	    {
 		return true;
+	    }
 	}
     }
     return false;

@@ -28,8 +28,19 @@ namespace
 static PRM_Name		prm_groupName("group", "Group Name");
 static PRM_Name		prm_frameName("frame", "Frame");
 static PRM_Name		prm_fpsName("fps", "Frames Per Second");
+static PRM_Name		prm_visibilityName("visibility", "Visibility");
 static PRM_Default	prm_frameDefault(1, "$FF");
 static PRM_Default	prm_fpsDefault(1, "$FPS");
+static PRM_Default	prm_visibilityDefault(2);
+
+static PRM_Name	prm_visibilityChoices[] = {
+    PRM_Name("off",		"Don't Consider Alembic Visibility"),
+    PRM_Name("on",		"Use Alembic Visibility"),
+    PRM_Name("unchanged",	"Leave Visibility Unchanged"),
+    PRM_Name()
+};
+static PRM_ChoiceList	prm_visibilityMenu(PRM_CHOICELIST_SINGLE,
+				    prm_visibilityChoices);
 
 enum
 {
@@ -37,6 +48,7 @@ enum
     VAR_ABCOBJECT,
     VAR_ABCFILENAME,
     VAR_ABCTYPE,
+    VAR_ABCVISIBLE,
 };
 
 }
@@ -46,7 +58,8 @@ PRM_Template	SOP_AlembicPrimitive::myTemplateList[] =
     PRM_Template(PRM_STRING,	1, &PRMgroupName, 0, &SOP_Node::primGroupMenu),
     PRM_Template(PRM_FLT,	1, &prm_frameName, &prm_frameDefault),
     PRM_Template(PRM_FLT,	1, &prm_fpsName, &prm_fpsDefault),
-
+    PRM_Template(PRM_INT,	1, &prm_visibilityName, &prm_visibilityDefault,
+				    &prm_visibilityMenu),
     PRM_Template()
 };
 
@@ -56,6 +69,7 @@ CH_LocalVariable	SOP_AlembicPrimitive::myVariables[] =
     { "ABCOBJECT",	VAR_ABCOBJECT,		CH_VARIABLE_STRVAL },
     { "ABCFILENAME",	VAR_ABCFILENAME,	CH_VARIABLE_STRVAL },
     { "ABCTYPE",	VAR_ABCTYPE,		CH_VARIABLE_STRVAL },
+    { "ABCVISIBILE",	VAR_ABCVISIBLE,		0 },
     { 0, 0, 0 },
 };
 
@@ -82,17 +96,18 @@ SOP_AlembicPrimitive::evalVariableValue(fpreal &v, int index, int thread)
 {
     if (myCurrPrim)
     {
-	const GABC_GEOPrim	*abc;
-	abc = UTverify_cast<const GABC_GEOPrim *>(myCurrPrim);
 	switch (index)
 	{
 	    case VAR_ABCFRAME:
-		v = abc->frame();
+		v = myCurrPrim->frame();
 		return true;
 	    case VAR_ABCOBJECT:
 	    case VAR_ABCFILENAME:
 	    case VAR_ABCTYPE:
 		v = 0;
+		return true;
+	    case VAR_ABCVISIBLE:
+		v = myCurrPrim->checkVisibility();
 		return true;
 	}
     }
@@ -120,6 +135,10 @@ SOP_AlembicPrimitive::evalVariableValue(UT_String &v, int index, int thread)
 	    case VAR_ABCTYPE:
 		v = GABCnodeType(myCurrPrim->abcNodeType());
 		return true;
+	    case VAR_ABCVISIBLE:
+		wbuf.sprintf("%d", myCurrPrim->checkVisibility());
+		v.harden(wbuf.buffer());
+		return true;
 	}
     }
     return SOP_Node::evalVariableValue(v, index, thread);
@@ -131,6 +150,15 @@ SOP_AlembicPrimitive::setProperties(GABC_GEOPrim *prim, OP_Context &ctx)
     fpreal	t = ctx.getTime();
     fpreal	fps = SYSmax(1e-6, FPS(t));
     prim->setFrame(FRAME(t)/fps);
+    switch (VISIBILITY(t))
+    {
+	case 0:
+	    prim->setCheckVisibility(false);
+	    break;
+	case 1:
+	    prim->setCheckVisibility(true);
+	    break;
+    }
     return error() < UT_ERROR_ABORT;
 }
 
