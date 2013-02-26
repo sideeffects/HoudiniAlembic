@@ -34,7 +34,7 @@ static PRM_Default	prm_fpsDefault(1, "$FPS");
 static PRM_Default	prm_visibilityDefault(2);
 
 static PRM_Name	prm_visibilityChoices[] = {
-    PRM_Name("off",		"Don't Consider Alembic Visibility"),
+    PRM_Name("off",		"Ignore Alembic Visibility"),
     PRM_Name("on",		"Use Alembic Visibility"),
     PRM_Name("unchanged",	"Leave Visibility Unchanged"),
     PRM_Name()
