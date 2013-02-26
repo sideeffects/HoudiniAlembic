@@ -21,8 +21,6 @@
 #include "GABC_API.h"
 #include "GABC_ChannelCache.h"
 
-class GABC_IObject;
-
 enum GABC_VisibilityType
 {
     GABC_VISIBLE_DEFER		= -1,
@@ -45,13 +43,6 @@ public:
     {
 	if (cache)
 	    set(vtype, cache);
-    }
-    GABC_VisibilityCache(const GABC_IObject &obj, bool check_parent)
-	: myVisible(GABC_VISIBLE_DEFER)
-	, myCache(NULL)
-    {
-	// Initialize to the object's state (possibly deferred)
-	set(obj, check_parent);
     }
     GABC_VisibilityCache(const GABC_VisibilityCache &src)
 	: myVisible(src.myVisible)
@@ -96,12 +87,6 @@ public:
 
     // Set visibility to a specific value (whether animated or static)
     void	set(GABC_VisibilityType vtype, const GABC_ChannelCache *vcache=NULL);
-
-    /// Set visibility based on the object's value.  If the object doesn't have
-    /// visibility defined, this will set the type to GABC_VISIBLE_DEFER and the
-    /// method will return false.  If @c check_parent is set, the tree will be
-    /// walked to compute the inherited visibility.
-    bool	set(const GABC_IObject &obj, bool check_parent);
 
 private:
     GABC_ChannelCache	*myCache;
