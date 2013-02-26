@@ -30,8 +30,10 @@ namespace
     typedef Alembic::Abc::ISampleSelector		ISampleSelector;
     typedef Alembic::AbcGeom::IVisibilityProperty	IVisibilityProperty;
 
+#if 0
     GT_DataArrayHandle	theTrue(new GT_IntConstant(1, 1));
     GT_DataArrayHandle	theFalse(new GT_IntConstant(1, 0));
+#endif
 }
 
 void
