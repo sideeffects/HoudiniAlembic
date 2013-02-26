@@ -1794,7 +1794,7 @@ GABC_IObject::visibilityCache() const
 
 	// Create a data array for the visibility cache
 	exint		 nsamples = vprop.getNumSamples();
-	exint		 ntrue;
+	exint		 ntrue = 0;
 	GT_DABool	*bits = new GT_DABool(nsamples);
 	bits->setAllBits(false);
 	for (exint i = 0; i < nsamples; ++i)
