@@ -196,7 +196,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	if (myAttributePatterns[i] != src.myAttributePatterns[i])
 	    return true;
     }
-    // myIncludeXform can change
+    if (myIncludeXform != src.myIncludeXform)
+	return true;
     if (myUseVisibility != src.myUseVisibility)
 	return true;
     if (myBuildLocator != src.myBuildLocator)
