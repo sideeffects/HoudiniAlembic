@@ -71,6 +71,15 @@ Transform Geometry To World Space:
         Bake each object's world space transformation (relative to the root of the
         archive) into the primitives of the object.
 
+Use Visibility:
+        #id: usevisibility
+        
+	Use the visibility settings defined in the Alembic file to determine
+	whether to load geometry.  When loading Alembic Delayed Load
+	primitives, hidden primitives will still be loaded, but will not create
+	any visible geometry.  There may be additional cost to using visibility
+	with Alembic Delayed Load primitives.
+
 Load Maya Locator:
         #id: loadLocator
         

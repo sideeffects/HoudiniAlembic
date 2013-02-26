@@ -110,6 +110,10 @@ Full Bounding Box Tree:
         This will cause all Alembic nodes to have proper bounding boxes written.
         Computing bounds for only the shape nodes is more efficient.
 
+Use Display SOP:
+	If this checkbox is turned on, the geometry in the Display SOP will be
+	saved instead of the geometry from the Render SOP.
+
 Save Attributes:
         If this checkbox is turned on, geometry attributes will be saved to the
         Alembic file as arbitrary geometry parameters.

@@ -24,6 +24,15 @@ Frames Per Second:
 
     Combined with the __Frame__ parameter, this is used to convert from Houdini's frame values to the Alembic time base.
 
+Use Visibility:
+    #id: usevisibility
+
+    Controls whether Alembic primitives will use the visibility properties defined in the Alembic file.  The default behaviour is to leave the visibility setting unchanged.
+
+    Ignoring visibility will cause the primitive to be displayed regardless of the settings in the file.  Enabling visibility checks will hide the primitive if it's not visible in the file.  The primitive will still exist, but not generate any visible geometry.
+
+    Enabling visibility may increase load time since more Alembic properties need to be loaded from the Alembic file.
+
 @locals
 ABCFRAME:
         The frame value for the current Alembic primitive (in the Alembic time base).
@@ -36,3 +45,6 @@ ABCOBJECT:
 
 ABCTYPE:
         The type of the Alembic primitive.
+
+ABCUSEVISIBLE:
+        Whether the Alembic primitive uses visibility defined in the file.
