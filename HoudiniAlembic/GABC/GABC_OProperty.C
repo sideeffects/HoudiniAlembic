@@ -60,8 +60,14 @@ namespace
 	if (!num)
 	    return false;
 
+	// Get extent of the Alembic type
+	int	type_extent = prop.getDataType().getExtent();
+	// Compute the number of Alembic elements for the array
+	int	array_size = tuple_size / type_extent;
+	UT_ASSERT(tuple_size%type_extent == 0);
+
 	ArraySample	sample(num->data(), prop.getDataType(),
-				Dimensions(num->entries()));
+				Dimensions(num->entries()*array_size));
 
 	prop.set(sample);
 	return true;
@@ -212,93 +218,22 @@ GABC_OProperty::start(OCompoundProperty &parent,
 	switch (array->getStorage())
 	{
 	    case GT_STORE_UINT8:
-		myTupleSize = 1;	// Clamp to a scalar
 		DECL_PARAM(OUcharGeomParam)
 		break;
 	    case GT_STORE_INT32:
-		switch (myTupleSize)
-		{
-		    case 1:
-			DECL_PARAM(OInt32GeomParam);
-			break;
-		    case 2:
-			DECL_PARAM(OV2iGeomParam);
-			break;
-		    default:
-			UT_ASSERT(myTupleSize >= 3);
-			myTupleSize = 3;	// Clamp @ 3
-			DECL_PARAM(OV3iGeomParam);
-			break;
-		}
+		DECL_PARAM(OInt32GeomParam);
 		break;
 	    case GT_STORE_INT64:
-		myTupleSize = 1;	// Clamp to scalar
 		DECL_PARAM(OInt64GeomParam);
 		break;
 	    case GT_STORE_REAL16:
-		switch (myTupleSize)
-		{
-		    case 1:
-		    case 2:
-			myTupleSize = 1;	// Clamp to 1
-			DECL_PARAM(OHalfGeomParam);
-			break;
-		    case 3:
-			// Fake as a color
-			DECL_PARAM(OC3hGeomParam);
-			break;
-		    default:
-			// Fake as a color
-			myTupleSize = 4;	// Clamp to 4
-			DECL_PARAM(OC4hGeomParam);
-			break;
-		}
+		DECL_PARAM(OHalfGeomParam);
 		break;
 	    case GT_STORE_REAL32:
-		switch (myTupleSize)
-		{
-		    case 1:
-			DECL_PARAM(OFloatGeomParam);
-			break;
-		    case 2:
-			DECL_PARAM(OV2fGeomParam);
-			break;
-		    case 3:
-			DECL_PARAM(OV3fGeomParam);
-			break;
-		    case 4:
-			DECL_PARAM(OQuatfGeomParam);
-			break;
-		    case 9:
-			DECL_PARAM(OM33fGeomParam);
-			break;
-		    case 16:
-			DECL_PARAM(OM44fGeomParam);
-			break;
-		}
+		DECL_PARAM(OFloatGeomParam);
 		break;
 	    case GT_STORE_REAL64:
-		switch (myTupleSize)
-		{
-		    case 1:
-			DECL_PARAM(ODoubleGeomParam);
-			break;
-		    case 2:
-			DECL_PARAM(OV2dGeomParam);
-			break;
-		    case 3:
-			DECL_PARAM(OV3dGeomParam);
-			break;
-		    case 4:
-			DECL_PARAM(OQuatdGeomParam);
-			break;
-		    case 9:
-			DECL_PARAM(OM33dGeomParam);
-			break;
-		    case 16:
-			DECL_PARAM(OM44dGeomParam);
-			break;
-		}
+		DECL_PARAM(ODoubleGeomParam);
 		break;
 	    case GT_STORE_STRING:
 		DECL_PARAM(OStringGeomParam);
