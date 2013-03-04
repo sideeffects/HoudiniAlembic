@@ -68,14 +68,14 @@ Create Primitives For Transform Nodes:
 Poly Soup Primitives:
 	#id: polysoup
 
-	When loading Houdini geometry, this option determines whether Alembic Polygon Meshes will be converted to Houdini Poly Soup primitives.  Houdini Poly Soup primitives use less resources to store and render.  At the current time, Polygon Soups cannot be rendered as subdivision surfaces by Mantra.
+	When loading Houdini geometry, this option determines whether Alembic Polygon Meshes will be converted to Houdini Poly Soup primitives.  Houdini Poly Soup primitives use less resources to store and render.  At the current time Poly Soups cannot be rendered as subdivision surfaces by Mantra.
 
 	No Poly Soup Primitives:
 		No polygon soup primitives will be created.  Each face in a mesh will have a unique Houdini polygon primitive.
 	Use Poly Soups For Polygon Meshes:
 		Create polygon soup primitives for Alembic Polygon Meshes where possible.  This will currently not be done if there are uniform attributes on the mesh or if there are face sets.
 	Use Poly Soups Wherever Possible:
-		Create polygon soup primitives for both Alembic Polygon Meshes and Alembic Subdivision Surface primitives.
+		Create Poly Soup primitives for both Alembic Polygon Meshes and Alembic Subdivision Surface primitives.
 
 Transform Geometry To World Space:
         #id: includeXform
