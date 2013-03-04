@@ -91,6 +91,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myBuildLocator(false)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
+    , myPolySoup(GABC_GEOWalker::ABC_POLYSOUP_POLYMESH)
     , myPathAttribute("")
     , myFilenameAttribute("")
     , myNameMapPtr()
@@ -112,6 +113,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myBuildLocator(false)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
+    , myPolySoup(GABC_GEOWalker::ABC_POLYSOUP_POLYMESH)
     , myPathAttribute("")
     , myFilenameAttribute("")
     , myNameMapPtr()
@@ -134,6 +136,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myBuildLocator = src.myBuildLocator;
     myGroupMode = src.myGroupMode;
     myAnimationFilter = src.myAnimationFilter;
+    myPolySoup = src.myPolySoup;
     myNameMapPtr = src.myNameMapPtr;
     myObjectPath.harden(src.myObjectPath);
     myObjectPattern.harden(src.myObjectPattern);
@@ -176,6 +179,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
     if (myGroupMode != src.myGroupMode)
 	return true;
     if (myAnimationFilter != src.myAnimationFilter)
+	return true;
+    if (myPolySoup != src.myPolySoup)
 	return true;
     if (myObjectPath != src.myObjectPath ||
 	    src.myObjectPattern != src.myObjectPattern)
@@ -235,6 +240,7 @@ static PRM_Name prm_includeXformName("includeXform", "Transform Geometry To Worl
 static PRM_Name prm_useVisibilityName("usevisibility", "Use Visibility");
 static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
 static PRM_Name prm_animationfilter("animationfilter", "Animating Objects");
+static PRM_Name prm_polysoup("polysoup", "Poly Soup Primitives");
 static PRM_Name prm_boxcull("boxcull", "Box Culling");
 static PRM_Name prm_addfile("addfile", "Add Filename Attribute");
 static PRM_Name prm_fileattrib("fileattrib", "Filename Attribute");
@@ -310,6 +316,15 @@ static PRM_Name animationFilterOptions[] = {
 static PRM_Default prm_animationfilterDefault(1, "all");
 static PRM_ChoiceList menu_animationfilter(PRM_CHOICELIST_SINGLE, animationFilterOptions);
 
+static PRM_Name polysoupOptions[] = {
+    PRM_Name("none",		"No Poly Soup Primitives"),
+    PRM_Name("polymesh",	"Use Poly Soups For Polygon Meshes"),
+    PRM_Name("subd",		"Use Poly Soups Wherever Possible"),
+    PRM_Name()
+};
+static PRM_Default prm_polysoupDefault(1, "polymesh");
+static PRM_ChoiceList menu_polysoup(PRM_CHOICELIST_SINGLE, polysoupOptions);
+
 static PRM_Name prm_loadLocatorName("loadLocator", "Load Maya Locator");
 static PRM_Name prm_objecPatternName("objectPattern", "Object Pattern");
 static PRM_Name prm_subdgroupName("subdgroup", "Subdivision Group");
@@ -331,7 +346,7 @@ static PRM_SpareData	theAbcPattern(
 
 static PRM_Default	mainSwitcher[] =
 {
-    PRM_Default(7, "Geometry"),
+    PRM_Default(9, "Geometry"),
     PRM_Default(8, "Selection"),
     PRM_Default(9, "Attributes"),
 };
@@ -353,6 +368,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_ORD, 1, &prm_pointModeName, &prm_pointModeDefault,
 	    &menu_pointMode),
     PRM_Template(PRM_TOGGLE, 1, &prm_abcxformName, PRMzeroDefaults),
+    PRM_Template(PRM_ORD, 1, &prm_polysoup, &prm_polysoupDefault,
+	    &menu_polysoup),
     PRM_Template(PRM_TOGGLE, 1, &prm_includeXformName, &prm_includeXformDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_useVisibilityName, &prm_useVisibilityDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_loadLocatorName, &prm_loadLocatorDefault),
@@ -490,6 +507,7 @@ SOP_AlembicIn2::updateParmsFlags()
     changed |= enableParm("abcxform", loadmode == 0);
     changed |= enableParm("pointmode", loadmode == 0);
     changed |= enableParm("subdgroup", loadmode == 1);
+    changed |= enableParm("polysoup", loadmode == 1);
     changed |= setVisibleState("boxsource", hasbox && boxcull != "none");
     changed |= setVisibleState("boxsize", enablebox);
     changed |= setVisibleState("boxcenter", enablebox);
@@ -569,6 +587,15 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     else
 	parms.myAnimationFilter = GABC_GEOWalker::ABC_AFILTER_ANIMATING;
 
+    evalString(sval, "polysoup", 0, now);
+    if (sval == "none")
+	parms.myPolySoup = GABC_GEOWalker::ABC_POLYSOUP_NONE;
+    else if (sval == "polymesh")
+	parms.myPolySoup = GABC_GEOWalker::ABC_POLYSOUP_POLYMESH;
+    else if (sval == "subd")
+	parms.myPolySoup = GABC_GEOWalker::ABC_POLYSOUP_SUBD;
+    else
+	UT_ASSERT(0 && "Bad value for polysoup");
 
     int	nmapSize = evalInt("remapAttributes", 0, now);
     parms.myNameMapPtr = new GABC_NameMap();
@@ -700,6 +727,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     }
     walk.setGroupMode(parms.myGroupMode);
     walk.setAnimationFilter(parms.myAnimationFilter);
+    walk.setPolySoup(parms.myPolySoup);
     walk.setBounds(parms.myBoundMode, parms.myBoundBox);
 
     bool	needwalk = true;
@@ -807,6 +835,7 @@ SOP_AlembicIn2::syncNodeVersion(const char *old_version,
     if (UT_String::compareVersionString(old_version, "12.5.0") < 0)
     {
 	setInt("loadmode", 0, 0, 1);
+	setInt("polysoup", 0, 0, 0);
     }
     SOP_Node::syncNodeVersion(old_version, current_version, node_deleted);
 }

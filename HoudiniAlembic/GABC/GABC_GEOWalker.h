@@ -100,6 +100,15 @@ public:
 	ABCPRIM_UNIQUE_POINT,		// Each prim has its own point
     };
 
+    /// Whether to build polysoup primitives when it's possible
+    enum AbcPolySoup
+    {
+	ABC_POLYSOUP_NONE,	// Build polygons only
+	ABC_POLYSOUP_POLYMESH,	// Polygon Mesh primitives only
+	ABC_POLYSOUP_SUBD,	// Polygon soups & subdivision primitives
+    };
+
+
     GABC_GEOWalker(GU_Detail &gdp);
     virtual ~GABC_GEOWalker();
 
@@ -154,7 +163,6 @@ public:
     /// True if *all* transforms are constant
     bool	allTransformConstant() const { return myAllTransformConstant; }
     bool	rebuiltNURBS() const	{ return myRebuiltNURBS; }
-    /// @}
 
     /// @{
     /// Set state
@@ -187,7 +195,11 @@ public:
     void	setBounds(BoxCullMode mode, const UT_BoundingBox &box);
     void	setPointMode(AbcPrimPointMode mode,
 			GA_Offset shared_point = GA_INVALID_OFFSET);
+    void	setPolySoup(AbcPolySoup soup)	{ myPolySoup = soup; }
     /// @}
+
+    /// Query poly soup mode
+    AbcPolySoup	polySoup() const	{ return myPolySoup; }
 
     /// @{
     /// Primitive group to store subdivision primitives
@@ -291,6 +303,7 @@ private:
     GA_Offset		 myLastFaceStart;	// Start of faces in last mash
     GA_Offset		 myAbcSharedPoint;	
     AbcPrimPointMode	 myAbcPrimPointMode;
+    AbcPolySoup		 myPolySoup;
 
     fpreal	myTime;			// Alembic evaluation time
     GroupMode	myGroupMode;		// How to construct group names

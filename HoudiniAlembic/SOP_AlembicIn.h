@@ -95,6 +95,7 @@ private:
 	GABC_GEOWalker::AbcPrimPointMode	myPointMode;
 	GABC_GEOWalker::GroupMode	myGroupMode;
 	GABC_GEOWalker::AFilter		myAnimationFilter;
+	GABC_GEOWalker::AbcPolySoup	myPolySoup;
 	UT_BoundingBox			myBoundBox;
 	bool				myBuildAbcXform;
 	std::string			myFilename;

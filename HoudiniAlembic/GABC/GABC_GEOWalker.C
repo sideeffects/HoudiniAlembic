@@ -565,7 +565,8 @@ namespace {
     void
     appendFaces(GABC_GEOWalker &walk, exint npoint,
 		    Int32ArraySamplePtr counts,
-		    Int32ArraySamplePtr indices)
+		    Int32ArraySamplePtr indices,
+		    bool polysoup)
     {
 	// First, append points
 	GU_Detail	&gdp = walk.detail();
@@ -574,8 +575,16 @@ namespace {
 	GEO_PolyCounts	 pcounts;
 	for (exint i = 0; i < nfaces; ++i)
 	    pcounts.append((*counts)[i]);
-	GU_PrimPoly::buildBlock(&gdp, GA_Offset(startpoint), npoint,
-			pcounts, indices->get());
+	if (!polysoup)
+	{
+	    GU_PrimPoly::buildBlock(&gdp, GA_Offset(startpoint), npoint,
+			    pcounts, indices->get());
+	}
+	else
+	{
+	    GU_PrimPolySoup::build(&gdp, GA_Offset(startpoint), npoint,
+			    pcounts, indices->get(), false);
+	}
     }
 
     static void
@@ -807,6 +816,51 @@ namespace {
 	return atype;
     }
 
+    bool
+    hasUniformAttributes(const ICompoundProperty &arb)
+    {
+	exint	narb = arb ? arb.getNumProperties() : 0;
+	for (exint i = 0; i < narb; ++i)
+	{
+	    const PropertyHeader	&head = arb.getPropertyHeader(i);
+	    GeometryScope		 scope;
+	    scope = Alembic::AbcGeom::GetGeometryScope(head.getMetaData());
+	    if (scope == Alembic::AbcGeom::kUnknownScope ||
+		scope == Alembic::AbcGeom::kUniformScope)
+		return true;
+	}
+	return false;
+    }
+
+    bool
+    hasFaceSets(const GABC_IObject &obj)
+    {
+	// We assume that if there are any child objects, they are face sets
+	exint	nkids = obj.getNumChildren();
+	for (exint i = 0; i < nkids; ++i)
+	{
+	    GABC_IObject	kid(obj.getChild(i));
+	    if (kid.nodeType() == GABC_FACESET)
+		return true;
+	}
+	return false;
+    }
+
+    bool
+    reusePolySoup(GABC_GEOWalker &walk)
+    {
+	// We're reusing primitives
+	const GU_Detail		&gdp = walk.detail();
+	exint			 nprim = walk.primitiveCount();
+	if (gdp.getNumPrimitives() <= nprim)
+	{
+	    UT_ASSERT(0 && "Big problems here!");
+	    return false;	// Not enough primitives - much bigger problem
+	}
+	const GEO_Primitive	*prim = gdp.getGEOPrimitive(GA_Offset(nprim));
+	return prim->getTypeId() == GA_PRIMPOLYSOUP;
+    }
+
     void
     makeSubD(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
@@ -829,6 +883,8 @@ namespace {
 	}
 	else if (walk.reusePrimitives())
 	{
+	    if (reusePolySoup(walk))
+		nprim = 1;
 	    if (!walk.includeXform() || walk.transformConstant())
 	    {
 		walk.trackLastFace(nprim);
@@ -838,10 +894,24 @@ namespace {
 	}
 	if (!walk.reusePrimitives())
 	{
+	    bool	soup;
+	    soup = (walk.polySoup() == GABC_GEOWalker::ABC_POLYSOUP_SUBD);
+	    // If there are uniform attributes
+	    if (soup && hasUniformAttributes(ps.getArbGeomParams()))
+		soup = false;
+	    if (soup && hasFaceSets(obj))
+		soup = false;
 	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
-	    appendFaces(walk, npoint, counts, indices);
+	    if (soup)
+		nprim = 1;
+	    appendFaces(walk, npoint, counts, indices, soup);
+	}
+	else
+	{
+	    if (reusePolySoup(walk))
+		nprim = 1;
 	}
 
 	// Set properties
@@ -914,6 +984,8 @@ namespace {
 	}
 	else if (walk.reusePrimitives())
 	{
+	    if (reusePolySoup(walk))
+		nprim = 1;
 	    if (!walk.includeXform() || walk.transformConstant())
 	    {
 		walk.trackLastFace(nprim);
@@ -923,10 +995,24 @@ namespace {
 	}
 	if (!walk.reusePrimitives())
 	{
+	    bool	soup;
+	    soup = (walk.polySoup() != GABC_GEOWalker::ABC_POLYSOUP_NONE);
+	    // If there are uniform attributes
+	    if (soup && hasUniformAttributes(ps.getArbGeomParams()))
+		soup = false;
+	    if (soup && hasFaceSets(obj))
+		soup = false;
 	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
-	    appendFaces(walk, npoint, counts, indices);
+	    if (soup)
+		nprim = 1;
+	    appendFaces(walk, npoint, counts, indices, soup);
+	}
+	else
+	{
+	    if (reusePolySoup(walk))
+		nprim = 1;
 	}
 
 	// Set properties
@@ -1308,6 +1394,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
     , myLastFaceCount(0)
     , myLastFaceStart(0)
     , myAbcPrimPointMode(ABCPRIM_UNIQUE_POINT)
+    , myPolySoup(ABC_POLYSOUP_POLYMESH)
     , myAbcSharedPoint(GA_INVALID_OFFSET)
     , myTime(0)
     , myPointCount(0)
