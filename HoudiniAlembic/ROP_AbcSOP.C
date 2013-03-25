@@ -395,7 +395,8 @@ ROP_AbcSOP::update(GABC_OError &err,
     }
     if (myShapes.entries() <= prims.entries())
     {
-	for (int i = 0; i < prims.entries(); ++i)
+	int	num = SYSmin(myShapes.entries(), prims.entries());
+	for (int i = 0; i < num; ++i)
 	{
 	    if (!myShapes(i)->nextFrame(prims(i), err, ctx))
 	    {
