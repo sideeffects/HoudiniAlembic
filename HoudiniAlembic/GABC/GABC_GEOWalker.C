@@ -230,11 +230,8 @@ namespace {
 				getDefaults(name, tsize, interp));
 	    if (attrib.isValid() && abcname)
 		attrib.getAttribute()->setExportName(abcname);
-	    if (attrib.isValid() && interp)
-	    {
-		attrib.getAttribute()->setTypeInfo(getGATypeInfo(interp, tsize));
-	    }
-
+	    // Do *not* mark this as a "vector" since we don't want to
+	    // transform as a vector.
 	}
 	return attrib;
     }
