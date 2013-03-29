@@ -793,6 +793,7 @@ namespace {
 	    abc->setVertexPoint(pt);
 	abc->setAttributeNameMap(walk.nameMapPtr());
 	abc->setUseTransform(walk.includeXform());
+	abc->setViewportLOD(walk.viewportLOD());
 	if (!abc->isConstant())
 	{
 	    walk.setNonConstant();
@@ -1392,6 +1393,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
     , myLastFaceStart(0)
     , myAbcPrimPointMode(ABCPRIM_UNIQUE_POINT)
     , myPolySoup(ABC_POLYSOUP_POLYMESH)
+    , myViewportLOD(GABC_VIEWPORT_FULL)
     , myAbcSharedPoint(GA_INVALID_OFFSET)
     , myTime(0)
     , myPointCount(0)

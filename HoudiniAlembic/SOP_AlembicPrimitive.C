@@ -39,9 +39,22 @@ static PRM_Name		prm_groupName("group", "Group Name");
 static PRM_Name		prm_frameName("frame", "Frame");
 static PRM_Name		prm_fpsName("fps", "Frames Per Second");
 static PRM_Name		prm_visibilityName("usevisibility", "Use Visibility");
+static PRM_Name		prm_lodName("viewportlod", "Display As");
 static PRM_Default	prm_frameDefault(1, "$FF");
 static PRM_Default	prm_fpsDefault(1, "$FPS");
 static PRM_Default	prm_visibilityDefault(2);
+
+static PRM_Name	prm_lodChoices[] = {
+    PRM_Name("unchanged",	"Leave Unchanged"),
+    PRM_Name("full",		"Full Geometry"),
+    PRM_Name("points",		"Point Cloud"),
+    PRM_Name("box",		"Bounding Box"),
+    PRM_Name("centroid",	"Centroid"),
+    PRM_Name("hidden",		"Hidden"),
+    PRM_Name()
+};
+static PRM_ChoiceList	prm_lodMenu(PRM_CHOICELIST_SINGLE, prm_lodChoices);
+static PRM_Default	prm_lodDefault(0, "unchanged");
 
 static PRM_Name	prm_visibilityChoices[] = {
     PRM_Name("off",		"Ignore Alembic Visibility"),
@@ -59,6 +72,7 @@ enum
     VAR_ABCFILENAME,
     VAR_ABCTYPE,
     VAR_ABCUSEVISIBLE,
+    VAR_ABCVIEWPORTLOD,
 };
 
 }
@@ -70,6 +84,7 @@ PRM_Template	SOP_AlembicPrimitive::myTemplateList[] =
     PRM_Template(PRM_FLT,	1, &prm_fpsName, &prm_fpsDefault),
     PRM_Template(PRM_INT,	1, &prm_visibilityName, &prm_visibilityDefault,
 				    &prm_visibilityMenu),
+    PRM_Template(PRM_ORD,	1, &prm_lodName, &prm_lodDefault, &prm_lodMenu),
     PRM_Template()
 };
 
@@ -79,7 +94,8 @@ CH_LocalVariable	SOP_AlembicPrimitive::myVariables[] =
     { "ABCOBJECT",	VAR_ABCOBJECT,		CH_VARIABLE_STRVAL },
     { "ABCFILENAME",	VAR_ABCFILENAME,	CH_VARIABLE_STRVAL },
     { "ABCTYPE",	VAR_ABCTYPE,		CH_VARIABLE_STRVAL },
-    { "ABCUSEVISIBILE",	VAR_ABCUSEVISIBLE,		0 },
+    { "ABCUSEVISIBILE",	VAR_ABCUSEVISIBLE,	0 },
+    { "ABCVIEWPORTLOD",	VAR_ABCVIEWPORTLOD,	CH_VARIABLE_STRVAL },
     { 0, 0, 0 },
 };
 
@@ -119,6 +135,9 @@ SOP_AlembicPrimitive::evalVariableValue(fpreal &v, int index, int thread)
 	    case VAR_ABCUSEVISIBLE:
 		v = myCurrPrim->useVisibility();
 		return true;
+	    case VAR_ABCVIEWPORTLOD:
+		v = myCurrPrim->viewportLOD();
+		return true;
 	}
     }
     return SOP_Node::evalVariableValue(v, index, thread);
@@ -149,6 +168,9 @@ SOP_AlembicPrimitive::evalVariableValue(UT_String &v, int index, int thread)
 		wbuf.sprintf("%d", myCurrPrim->useVisibility());
 		v.harden(wbuf.buffer());
 		return true;
+	    case VAR_ABCVIEWPORTLOD:
+		
+		return true;
 	}
     }
     return SOP_Node::evalVariableValue(v, index, thread);
@@ -159,6 +181,7 @@ SOP_AlembicPrimitive::setProperties(GABC_GEOPrim *prim, OP_Context &ctx)
 {
     fpreal	t = ctx.getTime();
     fpreal	fps = SYSmax(1e-6, FPS(t));
+    UT_String	lod;
     prim->setFrame(FRAME(t)/fps);
     switch (VISIBILITY(t))
     {
@@ -169,6 +192,12 @@ SOP_AlembicPrimitive::setProperties(GABC_GEOPrim *prim, OP_Context &ctx)
 	    prim->setUseVisibility(true);
 	    break;
     }
+    VIEWPORTLOD(lod, t);
+    if (lod != "unchanged")
+    {
+	prim->setViewportLOD((GABC_ViewportLOD)GABCviewportLOD(lod));
+    }
+
     return error() < UT_ERROR_ABORT;
 }
 

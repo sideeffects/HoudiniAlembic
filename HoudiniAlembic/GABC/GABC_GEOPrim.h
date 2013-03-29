@@ -190,6 +190,9 @@ public:
     bool		 useTransform() const
 			    { return myUseTransform; }
     void		 setUseTransform(bool v);
+    /// Accessors for viewport LOD
+    GABC_ViewportLOD	 viewportLOD() const	{ return myViewportLOD; }
+    void		 setViewportLOD(GABC_ViewportLOD vlod);
     /// @}
 
     /// Return the GT representation of the primitive
@@ -251,6 +254,7 @@ private:
     GABC_NameMapPtr	 myAttributeNameMap;
     GABC_GTPrimitive	*myGTPrimitive;
     GA_Offset		 myVertex;
+    GABC_ViewportLOD	 myViewportLOD;
     bool		 myUseTransform;
     bool		 myUseVisibility;
 

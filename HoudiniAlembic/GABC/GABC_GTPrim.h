@@ -41,14 +41,6 @@ class GABC_GTPrimitive : public GT_Primitive
 {
 public:
     // Quantized LOD
-    enum QLOD
-    {
-	LOD_SURFACE,
-	LOD_POINTS,
-	LOD_BOXES,
-	LOD_CENTROID
-    };
-
     GABC_GTPrimitive(const GABC_GEOPrim *prim)
 	: GT_Primitive()
 	, myCache()
@@ -56,7 +48,7 @@ public:
 	, myVisibilityCache(NULL)
 	, myCacheFrame(0)
 	, myAnimation(GABC_ANIMATION_TOPOLOGY)
-	, myCacheLOD(LOD_SURFACE)
+	, myCacheLOD(GABC_VIEWPORT_FULL)
     {
     }
     GABC_GTPrimitive	&operator=(const GABC_GTPrimitive &src)
@@ -87,7 +79,8 @@ public:
     virtual const GT_ViewportRefineOptions	&viewportRefineOptions() const;
     /// @}
 
-    static QLOD		 getLOD(const GT_RefineParms *parms);
+    static GABC_ViewportLOD		 getLOD(const GABC_GEOPrim &prim,
+				const GT_RefineParms *parms);
 
     void			 clear()
 				 {
@@ -97,7 +90,7 @@ public:
     const GT_PrimitiveHandle	&cache() const		{ return myCache; }
     fpreal			 cacheFrame() const	{ return myCacheFrame; }
     GABC_AnimationType		 animation() const	{ return myAnimation; }
-    QLOD			 cacheLOD() const	{ return myCacheLOD; }
+    GABC_ViewportLOD			 cacheLOD() const	{ return myCacheLOD; }
     bool			 visible() const;
     const GABC_VisibilityCache	*visibilityCache() const
 					{ return myVisibilityCache; }
@@ -134,7 +127,7 @@ private:
     GABC_VisibilityCache	*myVisibilityCache;
     fpreal			 myCacheFrame;
     GABC_AnimationType		 myAnimation;
-    QLOD			 myCacheLOD;
+    GABC_ViewportLOD		 myCacheLOD;
 };
 
 /// Hook to handle tesselation of Alembic primitives

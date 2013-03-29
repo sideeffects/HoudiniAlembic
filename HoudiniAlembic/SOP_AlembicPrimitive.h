@@ -66,7 +66,9 @@ protected:
     fpreal	FPS(fpreal t)
 		    { return evalFloat("fps", 0, t); }
     int		VISIBILITY(fpreal t)
-		    { return evalFloat("usevisibility", 0, t); }
+		    { return evalInt("usevisibility", 0, t); }
+    void	VIEWPORTLOD(UT_String &str, fpreal t)
+		    { evalString(str, "viewportlod", 0, t); }
 
 private:
     GU_DetailGroupPair		 myDetailGroupPair;

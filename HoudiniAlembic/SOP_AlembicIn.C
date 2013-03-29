@@ -92,6 +92,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
     , myPolySoup(GABC_GEOWalker::ABC_POLYSOUP_POLYMESH)
+    , myViewportLOD(GABC_VIEWPORT_FULL)
     , myPathAttribute("")
     , myFilenameAttribute("")
     , myNameMapPtr()
@@ -114,6 +115,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
     , myPolySoup(GABC_GEOWalker::ABC_POLYSOUP_POLYMESH)
+    , myViewportLOD(GABC_VIEWPORT_FULL)
     , myPathAttribute("")
     , myFilenameAttribute("")
     , myNameMapPtr()
@@ -137,6 +139,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myGroupMode = src.myGroupMode;
     myAnimationFilter = src.myAnimationFilter;
     myPolySoup = src.myPolySoup;
+    myViewportLOD = src.myViewportLOD;
     myNameMapPtr = src.myNameMapPtr;
     myObjectPath.harden(src.myObjectPath);
     myObjectPattern.harden(src.myObjectPattern);
@@ -181,6 +184,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
     if (myAnimationFilter != src.myAnimationFilter)
 	return true;
     if (myPolySoup != src.myPolySoup)
+	return true;
+    if (myViewportLOD != src.myViewportLOD)
 	return true;
     if (myObjectPath != src.myObjectPath ||
 	    src.myObjectPattern != src.myObjectPattern)
@@ -241,6 +246,7 @@ static PRM_Name prm_useVisibilityName("usevisibility", "Use Visibility");
 static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
 static PRM_Name prm_animationfilter("animationfilter", "Animating Objects");
 static PRM_Name prm_polysoup("polysoup", "Poly Soup Primitives");
+static PRM_Name prm_viewportlod("viewportlod", "Display As");
 static PRM_Name prm_boxcull("boxcull", "Box Culling");
 static PRM_Name prm_addfile("addfile", "Add Filename Attribute");
 static PRM_Name prm_fileattrib("fileattrib", "Filename Attribute");
@@ -325,6 +331,17 @@ static PRM_Name polysoupOptions[] = {
 static PRM_Default prm_polysoupDefault(1, "polymesh");
 static PRM_ChoiceList menu_polysoup(PRM_CHOICELIST_SINGLE, polysoupOptions);
 
+static PRM_Name viewportlodOptions[] = {
+    PRM_Name("full",		"Full Geometry"),
+    PRM_Name("points",		"Point Cloud"),
+    PRM_Name("box",		"Bounding Box"),
+    PRM_Name("centroid",	"Centroid"),
+    PRM_Name("hidden",		"Hidden"),
+    PRM_Name()
+};
+static PRM_Default prm_viewportlodDefault(0, "full");
+static PRM_ChoiceList menu_viewportlod(PRM_CHOICELIST_SINGLE, viewportlodOptions);
+
 static PRM_Name prm_loadLocatorName("loadLocator", "Load Maya Locator");
 static PRM_Name prm_objecPatternName("objectPattern", "Object Pattern");
 static PRM_Name prm_subdgroupName("subdgroup", "Subdivision Group");
@@ -365,6 +382,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     // Geometry tab
     PRM_Template(PRM_ORD, 1, &prm_loadmodeName, &prm_loadmodeDefault,
 	    &menu_loadmode),
+    PRM_Template(PRM_ORD, 1, &prm_viewportlod, &prm_viewportlodDefault,
+	    &menu_viewportlod),
     PRM_Template(PRM_ORD, 1, &prm_pointModeName, &prm_pointModeDefault,
 	    &menu_pointMode),
     PRM_Template(PRM_TOGGLE, 1, &prm_abcxformName, PRMzeroDefaults),
@@ -507,6 +526,7 @@ SOP_AlembicIn2::updateParmsFlags()
     changed |= enableParm("abcxform", loadmode == 0);
     changed |= enableParm("pointmode", loadmode == 0);
     changed |= enableParm("subdgroup", loadmode == 1);
+    changed |= enableParm("viewportlod", loadmode == 0);
     changed |= enableParm("polysoup", loadmode == 1);
     changed |= setVisibleState("boxsource", hasbox && boxcull != "none");
     changed |= setVisibleState("boxsize", enablebox);
@@ -596,6 +616,14 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	parms.myPolySoup = GABC_GEOWalker::ABC_POLYSOUP_SUBD;
     else
 	UT_ASSERT(0 && "Bad value for polysoup");
+
+    evalString(sval, "viewportlod", 0, now);
+    parms.myViewportLOD = GABCviewportLOD(sval);
+    if (parms.myViewportLOD < 0)
+    {
+	// TODO: Add warning about impossible case
+	parms.myViewportLOD = GABC_VIEWPORT_FULL;
+    }
 
     int	nmapSize = evalInt("remapAttributes", 0, now);
     parms.myNameMapPtr = new GABC_NameMap();
@@ -728,6 +756,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     walk.setGroupMode(parms.myGroupMode);
     walk.setAnimationFilter(parms.myAnimationFilter);
     walk.setPolySoup(parms.myPolySoup);
+    walk.setViewportLOD(parms.myViewportLOD);
     walk.setBounds(parms.myBoundMode, parms.myBoundBox);
 
     bool	needwalk = true;

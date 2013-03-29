@@ -1502,11 +1502,12 @@ namespace
 
     template <typename ABC_T, typename SCHEMA_T>
     static bool
-    abcBounds(const IObject &obj, UT_BoundingBox &box, fpreal t)
+    abcBounds(const IObject &obj, UT_BoundingBox &box, fpreal t, bool &isconst)
     {
 	ABC_T		 prim(obj, gabcWrapExisting);
 	const SCHEMA_T	&ss = prim.getSchema();
 	typename SCHEMA_T::Sample	s0 = ss.getValue(ISampleSelector(t));
+	isconst = ss.getNumSamples() == 1;
 	box = GABC_Util::getBox(s0.getSelfBounds());
 	return box.isValid();
     }
@@ -1902,15 +1903,15 @@ GABC_IObject::getBoundingBox(UT_BoundingBox &box, fpreal t, bool &isconst) const
 	switch (nodeType())
 	{
 	    case GABC_POLYMESH:
-		return abcBounds<IPolyMesh, IPolyMeshSchema>(object(), box, t);
+		return abcBounds<IPolyMesh, IPolyMeshSchema>(object(), box, t, isconst);
 	    case GABC_SUBD:
-		return abcBounds<ISubD, ISubDSchema>(object(), box, t);
+		return abcBounds<ISubD, ISubDSchema>(object(), box, t, isconst);
 	    case GABC_CURVES:
-		return abcBounds<ICurves, ICurvesSchema>(object(), box, t);
+		return abcBounds<ICurves, ICurvesSchema>(object(), box, t, isconst);
 	    case GABC_POINTS:
-		return abcBounds<IPoints, IPointsSchema>(object(), box, t);
+		return abcBounds<IPoints, IPointsSchema>(object(), box, t, isconst);
 	    case GABC_NUPATCH:
-		return abcBounds<INuPatch, INuPatchSchema>(object(), box, t);
+		return abcBounds<INuPatch, INuPatchSchema>(object(), box, t, isconst);
 	    case GABC_XFORM:
 		box.initBounds(0, 0, 0);
 		return true;

@@ -53,17 +53,12 @@ GABC_GTPrimitive::enlargeBounds(UT_BoundingBox boxes[], int nseg) const
 	boxes[i].enlargeBounds(box);
 }
 
-GABC_GTPrimitive::QLOD
-GABC_GTPrimitive::getLOD(const GT_RefineParms *parms)
+GABC_ViewportLOD
+GABC_GTPrimitive::getLOD(const GABC_GEOPrim &prim, const GT_RefineParms *parms)
 {
-    fpreal	lod = GT_RefineParms::getLOD(parms);
-    if (lod > 0.75)
-	return LOD_SURFACE;
-    if (lod > 0.49)
-	return LOD_POINTS;
-    if (lod > 0.24)
-	return LOD_BOXES;
-    return LOD_CENTROID;
+    if (!GT_RefineParms::getDelayedLoadViewportLOD(parms))
+	return GABC_VIEWPORT_FULL;
+    return prim.viewportLOD();
 }
 
 void
@@ -117,7 +112,7 @@ void
 GABC_GTPrimitive::updateCache(const GT_RefineParms *parms)
 {
     const GABC_IObject	&obj = myPrimitive->object();
-    QLOD		 lod = getLOD(parms);
+    GABC_ViewportLOD	 lod = getLOD(*myPrimitive, parms);
     fpreal		 frame = myPrimitive->frame();
 
     if (myVisibilityCache)
@@ -128,18 +123,18 @@ GABC_GTPrimitive::updateCache(const GT_RefineParms *parms)
 	myCacheFrame = frame;
 	switch (lod)
 	{
-	    default:
-	    case LOD_SURFACE:
+	    case GABC_VIEWPORT_FULL:
 		myCache = obj.getPrimitive(myPrimitive, frame,
 				myAnimation, myPrimitive->attributeNameMap());
 		break;
-	    case LOD_POINTS:
+	    case GABC_VIEWPORT_POINTS:
 		myCache = obj.getPointCloud(frame, myAnimation);
 		break;
-	    case LOD_BOXES:
+	    case GABC_VIEWPORT_BOX:
 		myCache = obj.getBoxGeometry(frame, myAnimation);
 		break;
-	    case LOD_CENTROID:
+	    case GABC_VIEWPORT_HIDDEN:
+	    case GABC_VIEWPORT_CENTROID:
 		myCache = obj.getCentroidGeometry(frame, myAnimation);
 		break;
 	}
@@ -152,17 +147,18 @@ GABC_GTPrimitive::updateCache(const GT_RefineParms *parms)
 	myCacheFrame = frame;
 	switch (myCacheLOD)
 	{
-	    case LOD_SURFACE:
+	    case GABC_VIEWPORT_FULL:
 		myCache = obj.updatePrimitive(myCache, myPrimitive, frame,
 			myPrimitive->attributeNameMap());
 		break;
-	    case LOD_POINTS:
+	    case GABC_VIEWPORT_POINTS:
 		myCache = obj.getPointCloud(frame, myAnimation);
 		break;
-	    case LOD_BOXES:
+	    case GABC_VIEWPORT_BOX:
 		myCache = obj.getBoxGeometry(frame, myAnimation);
 		break;
-	    case LOD_CENTROID:
+	    case GABC_VIEWPORT_HIDDEN:
+	    case GABC_VIEWPORT_CENTROID:
 		myCache = obj.getCentroidGeometry(frame, myAnimation);
 		break;
 	}

@@ -196,10 +196,14 @@ public:
     void	setPointMode(AbcPrimPointMode mode,
 			GA_Offset shared_point = GA_INVALID_OFFSET);
     void	setPolySoup(AbcPolySoup soup)	{ myPolySoup = soup; }
+    void	setViewportLOD(GABC_ViewportLOD v)	{ myViewportLOD = v; }
     /// @}
 
-    /// Query poly soup mode
-    AbcPolySoup	polySoup() const	{ return myPolySoup; }
+    /// @{
+    /// State accessors
+    AbcPolySoup		polySoup() const	{ return myPolySoup; }
+    GABC_ViewportLOD	viewportLOD() const	{ return myViewportLOD; }
+    /// @}
 
     /// @{
     /// Primitive group to store subdivision primitives
@@ -304,6 +308,7 @@ private:
     GA_Offset		 myAbcSharedPoint;	
     AbcPrimPointMode	 myAbcPrimPointMode;
     AbcPolySoup		 myPolySoup;
+    GABC_ViewportLOD	 myViewportLOD;
 
     fpreal	myTime;			// Alembic evaluation time
     GroupMode	myGroupMode;		// How to construct group names

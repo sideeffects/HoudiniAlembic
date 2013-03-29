@@ -96,6 +96,7 @@ private:
 	GABC_GEOWalker::GroupMode	myGroupMode;
 	GABC_GEOWalker::AFilter		myAnimationFilter;
 	GABC_GEOWalker::AbcPolySoup	myPolySoup;
+	GABC_ViewportLOD		myViewportLOD;
 	UT_BoundingBox			myBoundBox;
 	bool				myBuildAbcXform;
 	std::string			myFilename;

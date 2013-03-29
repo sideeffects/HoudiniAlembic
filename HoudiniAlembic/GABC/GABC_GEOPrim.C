@@ -51,7 +51,8 @@ namespace
 	return ok && w.jsonEndMap();
     }
 
-    bool
+#if 0
+    static bool
     setPrimitiveWorldTransform(const GABC_IObject &obj, GT_Primitive *prim,
 		    fpreal t, GABC_AnimationType &atype)
     {
@@ -63,6 +64,7 @@ namespace
 		GT_TransformHandle(new GT_Transform(&xform, 1)));
 	return true;
     }
+#endif
 }
 
 GABC_GEOPrim::GABC_GEOPrim(GEO_Detail *d, GA_Offset offset)
@@ -73,6 +75,7 @@ GABC_GEOPrim::GABC_GEOPrim(GEO_Detail *d, GA_Offset offset)
     , myFrame(0)
     , myGTPrimitive(new GABC_GTPrimitive(this))
     , myVertex(GA_INVALID_OFFSET)
+    , myViewportLOD(GABC_VIEWPORT_FULL)
     , myUseTransform(true)
     , myUseVisibility(true)
 {
@@ -92,6 +95,8 @@ GABC_GEOPrim::copyMemberDataFrom(const GABC_GEOPrim &src)
     myUseTransform = src.myUseTransform;
     myUseVisibility = src.myUseVisibility;
     myGTPrimitive->copyFrom(*src.myGTPrimitive);
+
+    setViewportLOD(src.viewportLOD());
 
     // TODO: NEED TO CLEAR THE TRANSFORM on the cache!
 
@@ -829,6 +834,7 @@ enum
     geo_INTRINSIC_ABC_WORLDXFORM,	// Alembic file world transform
     geo_INTRINSIC_ABC_GEOXFORM,		// Geometry transform
     geo_INTRINSIC_ABC_TRANSFORM,	// Combined transform
+    geo_INTRINSIC_ABC_VIEWPORTLOD,	// Viewport LOD
 
     geo_NUM_INTRINISCS
 };
@@ -849,6 +855,11 @@ namespace
     intrinsicObjectPath(const GABC_GEOPrim *p)
     {
 	return p->objectPath().c_str();
+    }
+    static const char *
+    intrinsicViewportLOD(const GABC_GEOPrim *p)
+    {
+	return GABCviewportLOD(p->viewportLOD());
     }
     static bool
     intrinsicNodeVisibility(const GABC_GEOPrim *p)
@@ -926,6 +937,17 @@ namespace
 	p->setUseVisibility(v != 0);
 	return 1;
     }
+    static GA_Size
+    intrinsicSetViewportLOD(GABC_GEOPrim *prim, const char *lod)
+    {
+	GABC_ViewportLOD	val = GABCviewportLOD(lod);
+	if (val >= 0)
+	{
+	    prim->setViewportLOD(val);
+	    return 1;
+	}
+	return 0;
+    }
 }
 
 GA_START_INTRINSIC_DEF(GABC_GEOPrim, geo_NUM_INTRINISCS)
@@ -954,12 +976,16 @@ GA_START_INTRINSIC_DEF(GABC_GEOPrim, geo_NUM_INTRINISCS)
 	    "abcgeotransform", 16, intrinsicGeoTransform)
     GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_TRANSFORM,
 	    "transform", 16, intrinsicTransform)
+    GA_INTRINSIC_S(GABC_GEOPrim, geo_INTRINSIC_ABC_VIEWPORTLOD,
+	    "abcviewportlod", intrinsicViewportLOD)
 
     GA_INTRINSIC_SET_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_GEOXFORM,
 		    intrinsicSetGeoTransform);
     GA_INTRINSIC_SET_I(GABC_GEOPrim, geo_INTRINSIC_ABC_USEVISIBILITY,
 		    intrinsicSetUseVisibility)
     GA_INTRINSIC_SET_METHOD_F(GABC_GEOPrim, geo_INTRINSIC_ABC_FRAME, setFrame)
+    GA_INTRINSIC_SET_S(GABC_GEOPrim, geo_INTRINSIC_ABC_VIEWPORTLOD,
+		    intrinsicSetViewportLOD)
 
 GA_END_INTRINSIC_DEF(GABC_GEOPrim, GEO_Primitive)
 
@@ -984,6 +1010,16 @@ GABC_GEOPrim::setUseVisibility(bool v)
 }
 
 void
+GABC_GEOPrim::setViewportLOD(GABC_ViewportLOD vlod)
+{
+    if (vlod >= 0 && vlod != myViewportLOD)
+    {
+	myViewportLOD = vlod;
+	myGTPrimitive->clear();	// Clear cache
+    }
+}
+
+void
 GABC_GEOPrim::init(const std::string &filename,
 	    const std::string &objectpath,
 	    fpreal frame,
@@ -996,6 +1032,7 @@ GABC_GEOPrim::init(const std::string &filename,
     myUseTransform = use_transform;
     setUseTransform(use_transform);
     setUseVisibility(use_visibility);
+    setViewportLOD(GABC_VIEWPORT_FULL);
     resolveObject();
 }
 
@@ -1009,9 +1046,9 @@ GABC_GEOPrim::init(const std::string &filename,
     myFilename = filename;
     myObject = object;
     myObjectPath = object.getFullName();
-    myUseTransform = use_transform;
     setUseTransform(use_transform);
     setUseVisibility(use_visibility);
+    setViewportLOD(GABC_VIEWPORT_FULL);
     myFrame = frame;
     updateAnimation();
 }

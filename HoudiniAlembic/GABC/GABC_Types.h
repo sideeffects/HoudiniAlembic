@@ -57,6 +57,16 @@ enum GABC_AnimationType
     GABC_ANIMATION_TOPOLOGY,	// Topology is animated (changes)
 };
 
+enum GABC_ViewportLOD
+{
+    GABC_VIEWPORT_HIDDEN,
+    GABC_VIEWPORT_CENTROID,
+    GABC_VIEWPORT_BOX,
+    GABC_VIEWPORT_POINTS,
+    GABC_VIEWPORT_FULL,
+};
+
+
 class GABC_NameMap;
 class GABC_IArchive;
 typedef UT_IntrusivePtr<GABC_NameMap>	GABC_NameMapPtr;
@@ -66,5 +76,7 @@ GABC_API extern const char	*GABCnodeType(GABC_NodeType type);
 GABC_API extern GABC_NodeType	 GABCnodeType(const char *type);
 GABC_API extern const char	*GABCanimationType(GABC_AnimationType type);
 GABC_API extern GABC_AnimationType	 GABCanimationType(const char *type);
+GABC_API extern const char	*GABCviewportLOD(GABC_ViewportLOD type);
+GABC_API extern GABC_ViewportLOD	 GABCviewportLOD(const char *type);
 
 #endif
