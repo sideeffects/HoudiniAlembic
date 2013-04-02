@@ -185,7 +185,7 @@ namespace
 	    return true;
 	for (exint i = 0; i < attribs->entries(); ++i)
 	{
-	    const char			*name = attribs->getName(i);
+	    const char			*name = attribs->getExportName(i);
 	    const GT_DataArrayHandle	&data = attribs->get(i);
 	    if (!data || skips.contains(name)
 			|| !ctx.matchAttribute(scope, name))
@@ -222,7 +222,7 @@ namespace
 
 	for (int i = 0; i < attribs->entries(); ++i)
 	{
-	    const char		*name = attribs->getName(i);
+	    const char		*name = attribs->getExportName(i);
 	    GABC_OProperty	*prop;
 	    if (table.findSymbol(name, &prop))
 		prop->update(attribs->get(i), ctx);
