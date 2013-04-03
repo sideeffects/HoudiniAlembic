@@ -1,0 +1,117 @@
+= Alembic extension functions =
+
+"""Contains utility functions for extracting information from Alembic files."""
+
+These functions are not part of "HOM proper". They are not under the `hou` package and are not integrated into the object model. Future versions of Houdini may have better integrated support for working with Alembic data in Python.
+
+To use the functions in this module, launch `hython` and import `_alembic_hom_extensions`.
+
+{{{
+#!pycon
+>>> import _alembic_hom_extensions as abc
+>>> print abc.alembicGetSceneHierarchy("panda.abc", "/")
+('ABC', 'unknown', (('Geo', 'cxform', ...
+}}}
+
+== Tips ==
+
+* Importing this module _does not_ use a Houdini license.
+
+* While the functions work with file paths, they don't open and close the files every time a function is called. The code keeps an internal cache of open Alembic files to make repeated calls on the same file efficient.
+
+== Common arguments ==
+
+`abcPath`:
+        A file path to the Alembic file.
+    
+`objectPath`:
+    The path within the alembic file to the object.
+    
+`name`:
+    The name of the attribute to read.
+    
+`sampleTime`:
+    The animation time at which to compute the value. This is a fractional value in seconds. If you have a frame number you must divide by the frames-per-second before passing it to the function.
+
+== Functions ==
+
+::`alembicArbGeometry(abcPath, objectPath, name, sampleTime)` -> `(value, isConstant, scope)`:
+    Gets the value of an object attribute. Returns `None` or a tuple of the value of the attribute; a boolean indicating whether the attribute is constant over time; and a string indicating the scope of the attribute: `varying`, `vertex`, `facevarying`, `uniform`, `constant`, or `unknown`.
+
+::`alembicClearArchiveCache()`:
+    Clears the internal cache of open Alembic files.
+
+::`alembicGetArchiveMaxCacheSize()` -> `int`:
+    Returns the maximum number of Alembic files to keep open in the cache. You can set this limit using [alembicSetArchiveMaxCacheSize|#alembicSetArchiveMaxCacheSize].
+
+::`alembicGetCameraDict(abcPath, objectPath, sampleTime)` -> `dict`:
+    Returns a dictionary of camera parameters for the given object.
+
+::`alembicGetObjectPathListForMenu(abcPath, objectPath, sampleTime)` -> `tuple`:
+    Returns a tuple of strings in the form expected for menu callbacks, where each object is represented as a token/label pair.
+
+::`alembicGetSceneHierarchy(abcPath, objectPath)` -> `(object_name, object_type, children)`:
+    Returns a hierarchy of tuples, where each tuple is in the form
+    
+    {{{
+    #!python
+    item = ("object_name", "object_type", (item, ...))
+    }}}
+    
+    The `object_type` may be one of:
+    
+    `cxform`:
+        A constant transform node.
+    `xform`:
+        An animated transform node.
+    `camera`:
+        A camera node.
+    `polymesh`:
+        A polygonal mesh shape node.
+    `subdmesh`:
+        A subdivision surface shape node.
+    `faceset`:
+        A face set shape node.
+    `curves`:
+        A curves shape node.
+    `points`:
+        A points shape node.
+    `nupatch`:
+        A NuPatch shape node.
+    `unknown`:
+        An unknown node type.
+
+::`alembicSetArchiveMaxCacheSize(number_of_files)`:
+    Sets the maximum number of files to keep open in the cache.
+
+::`alembicUserProperty(abcPath, objectPath, name, sampleTime)` -> `(value, isConstant)`:
+    Gets the value of a user property. Returns `None` or a tuple of the value of the attribute and a boolean indicating whether the attribute is constant over time.
+
+::`alembicVisibility(abcPath, objectPath, sampleTime, check_ancestor=False)` -> `(value, isConstant)`:
+    Gets the visibility of an object. Returns `None` or a tuple of an integer and a boolean:
+    
+    * The first item is `0` for hidden, `1` for visible, or `-1` for "use the parent object's visibility".
+    * The second item is `True` if the visibility is constant over time.
+    
+    If you pass `check_ancestor=True`, the function will check the visibility of ancestor objects to return a known value (`0` or `1`) instead of `-1` as the first item.
+
+::`getLocalXform(abcPath, objectPath, sampleTime)` -> `(xform, isConstant, inherits)`:
+    Gets the local transform of an object. Returns a tuple of:
+    
+    * The transform as a tuple of 16 floats.
+    * A boolean indicating whether the attribute is constant over time.
+    * A boolean indicating whether the object inherits its transform from its parent. If this is `False`, the object is disconnected from the transform hierarchy.
+
+::`getWorldXform(abcPath, objectPath, sampleTime)` -> `(xform, isConstant, inherits)`:
+    Gets the world transform of an object. Returns a tuple of:
+    
+    * The transform as a tuple of 16 floats.
+    * A boolean indicating whether the attribute is constant over time.
+    * A boolean indicating whether the object inherits its transform from its parent. If this is `False`, the object is disconnected from the transform hierarchy.
+
+
+
+
+
+
+
