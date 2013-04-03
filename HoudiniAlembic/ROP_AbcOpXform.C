@@ -112,7 +112,8 @@ ROP_AbcOpXform::start(const OObject &parent,
     if (!myTimeDependent
 	    && myGeometryContainer
 	    && ctx.collapseIdentity()
-	    && myMatrix.isIdentity())
+	    && myMatrix.isIdentity()
+	    && const_cast<OObject &>(parent).getParent().valid())
     {
 	myIdentity = true;
 	if (!startChildren(parent, err, ctx, myBox))
