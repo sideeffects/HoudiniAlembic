@@ -163,6 +163,16 @@ namespace
 	    else
 		changeSetting(name, size*tsize, values);
 	}
+	void	setObjectName(const GABC_GEOPrim *prim)
+	{
+	    GABC_IObject	iobj = prim->object();
+	    if (!iobj.valid())
+		return;
+	    UT_WorkBuffer	fullpath;
+	    fullpath.strcpy(queryRootName());
+	    fullpath.strcat(iobj.getFullName().c_str());
+	    changeSetting("name", fullpath.buffer());
+	}
 	void	applyProperties(const GABC_GEOPrim *prim)
 	{
 	    GABC_IObject	iobj = prim->object();
@@ -213,6 +223,7 @@ namespace
 		    gtlist(i) = myList(i)->gtPrimitive();
 	    }
 	    openProceduralObject();
+		setObjectName(myList(0));
 		if (myPropertyMap)
 		{
 		    applyProperties(myList(0));
