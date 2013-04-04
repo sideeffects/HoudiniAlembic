@@ -75,7 +75,8 @@ namespace
     static PRM_Name	theFilenameName("filename", "Alembic File");
     static PRM_Name	theRootName("root", "Root Object");
     static PRM_Name	theObjectsName("objects", "Objects");
-    static PRM_Name	theCollapseName("collapse", "Collapse identity transforms");
+    static PRM_Name	theCollapseName("collapse",
+				"Collapse Identity Transforms");
     static PRM_Name	theSaveAttributesName("save_attributes",
 				"Save Attributes");
     static PRM_Name	theDisplaySOPName("displaysop",
@@ -95,7 +96,7 @@ namespace
     static PRM_Default	theFilenameDefault(0, "$HIP/output.abc");
     static PRM_Default	theRootDefault(0, "/obj");
     static PRM_Default	theStarDefault(0, "*");
-    static PRM_Default	theCollapseDefault(1, "yes");
+    static PRM_Default	theCollapseDefault(0, "no");
     static PRM_Default	theSaveAttributesDefault(1, "yes");
     static PRM_Default	theFullBoundsDefault(0, "no");
     static PRM_Default	theDisplaySOPDefault(0, "no");

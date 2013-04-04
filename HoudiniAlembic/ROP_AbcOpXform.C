@@ -110,9 +110,9 @@ ROP_AbcOpXform::start(const OObject &parent,
     }
     myTimeDependent = node->isTimeDependent(ctx.cookContext());
     if (!myTimeDependent
+	    && myMatrix.isIdentity()
 	    && myGeometryContainer
 	    && ctx.collapseIdentity()
-	    && myMatrix.isIdentity()
 	    && const_cast<OObject &>(parent).getParent().valid())
     {
 	myIdentity = true;
