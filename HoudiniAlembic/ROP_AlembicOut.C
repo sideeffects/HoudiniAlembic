@@ -405,63 +405,72 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 	myContext->setAttributePattern((GA_AttributeOwner)i, pattern);
     }
 
-    UT_String	subdgroup;
-    SUBDGROUP(subdgroup, start);
-    myContext->setSubdGroup(subdgroup);
+    try
+    {
+	UT_String	subdgroup;
+	SUBDGROUP(subdgroup, start);
+	myContext->setSubdGroup(subdgroup);
 
-    if (MOTIONBLUR(start))
-    {
-	mb_samples = SYSmax(SAMPLES(start), 1);
-	shutter_open = SHUTTEROPEN(start);
-	shutter_close = SHUTTERCLOSE(start);
-    }
-    myContext->setTimeSampling(start, tstep,
-		mb_samples, shutter_open, shutter_close);
-
-    myArchive = new ROP_AbcArchive();
-    if (!myArchive->open(*myError, filename))
-    {
-	close();
-	return 0;
-    }
-
-    if (INITSIM(start))
-    {
-	initSimulationOPs();
-	OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
-    }
-
-    if (sop)
-    {
-	UT_ASSERT(rootnode && sop_parent);
-	ROP_AbcOpBuilder	builder(rootnode);
-	builder.addChild(*myError, sop_parent);
-	builder.buildTree(*myArchive, *myContext);
-    }
-    else
-    {
-	// Now, build the tree
-	OP_Bundle	*bundle = getParmBundle("objects", 0, objects,
-			    OPgetDirector()->getManager("obj"), "!!OBJ!!");
-	if (bundle)
+	if (MOTIONBLUR(start))
 	{
-	    UT_WorkBuffer	message;
-	    message.sprintf("Alembic file %s created with %d objects",
-		    (const char *)filename, bundle->entries());
-	    abcInfo(-1, message.buffer());
+	    mb_samples = SYSmax(SAMPLES(start), 1);
+	    shutter_open = SHUTTEROPEN(start);
+	    shutter_close = SHUTTERCLOSE(start);
+	}
+	myContext->setTimeSampling(start, tstep,
+		    mb_samples, shutter_open, shutter_close);
+
+	myArchive = new ROP_AbcArchive();
+	if (!myArchive->open(*myError, filename))
+	{
+	    close();
+	    return 0;
+	}
+
+	if (INITSIM(start))
+	{
+	    initSimulationOPs();
+	    OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
+	}
+
+	if (sop)
+	{
+	    UT_ASSERT(rootnode && sop_parent);
 	    ROP_AbcOpBuilder	builder(rootnode);
-	    for (exint i = 0; i < bundle->entries(); ++i)
-	    {
-		OP_Node	*node = bundle->getNode(i);
-		if (filterNode(node, start))
-		    builder.addChild(*myError, node);
-	    }
-	    //builder.ls();
+	    builder.addChild(*myError, sop_parent);
 	    builder.buildTree(*myArchive, *myContext);
 	}
+	else
+	{
+	    // Now, build the tree
+	    OP_Bundle	*bundle = getParmBundle("objects", 0, objects,
+				OPgetDirector()->getManager("obj"), "!!OBJ!!");
+	    if (bundle)
+	    {
+		UT_WorkBuffer	message;
+		message.sprintf("Alembic file %s created with %d objects",
+			(const char *)filename, bundle->entries());
+		abcInfo(-1, message.buffer());
+		ROP_AbcOpBuilder	builder(rootnode);
+		for (exint i = 0; i < bundle->entries(); ++i)
+		{
+		    OP_Node	*node = bundle->getNode(i);
+		    if (filterNode(node, start))
+			builder.addChild(*myError, node);
+		}
+		//builder.ls();
+		builder.buildTree(*myArchive, *myContext);
+	    }
+	}
+	if (!myArchive->childCount())
+	    abcWarning("No objects selected for writing");
     }
-    if (!myArchive->childCount())
-	abcWarning("No objects selected for writing");
+    catch (const std::exception &err)
+    {
+	UT_WorkBuffer	msg;
+	msg.sprintf("Alembic exception: %s", err.what());
+	abcError(msg.buffer());
+    }
 
     if (error() >= UT_ERROR_ABORT)
     {
@@ -519,30 +528,39 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 
     if (myArchive)
     {
-	int		start = 0;
-	//UT_StopWatch	timer; timer.start();
-	if (myFirstFrame)
+	try
 	{
-	    myFirstFrame = false;
-	    myContext->setTime(time, 0);
-	    if (!myArchive->firstFrame(*myError, *myContext))
-		return ROP_ABORT_RENDER;
-	    start = 1;
+	    int		start = 0;
+	    //UT_StopWatch	timer; timer.start();
+	    if (myFirstFrame)
+	    {
+		myFirstFrame = false;
+		myContext->setTime(time, 0);
+		if (!myArchive->firstFrame(*myError, *myContext))
+		    return ROP_ABORT_RENDER;
+		start = 1;
 #if 0
-	    fprintf(stderr, "First frame: %g\n", timer.lap());
-	    int stdep = 0;
-	    int tdep = 0;
-	    int total = 0;
-	    countObjects(myArchive, total, tdep, stdep);
-	    fprintf(stderr, "Nodes: %d %d/%d\n", total, stdep, tdep);
+		fprintf(stderr, "First frame: %g\n", timer.lap());
+		int stdep = 0;
+		int tdep = 0;
+		int total = 0;
+		countObjects(myArchive, total, tdep, stdep);
+		fprintf(stderr, "Nodes: %d %d/%d\n", total, stdep, tdep);
 #endif
+	    }
+	    for (int i = start; i < myContext->samplesPerFrame(); ++i)
+	    {
+		myContext->setTime(time, i);
+		if (!myArchive->nextFrame(*myError, *myContext))
+		    return ROP_ABORT_RENDER;
+		//fprintf(stderr, "Next frame: %g\n", timer.lap());
+	    }
 	}
-	for (int i = start; i < myContext->samplesPerFrame(); ++i)
+	catch (std::exception &err)
 	{
-	    myContext->setTime(time, i);
-	    if (!myArchive->nextFrame(*myError, *myContext))
-		return ROP_ABORT_RENDER;
-	    //fprintf(stderr, "Next frame: %g\n", timer.lap());
+	    UT_WorkBuffer	msg;
+	    msg.sprintf("Alembic exception: %s", err.what());
+	    abcError(msg.buffer());
 	}
     }
 
