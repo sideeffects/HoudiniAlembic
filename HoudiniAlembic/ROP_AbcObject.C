@@ -123,7 +123,8 @@ private:
 }
 
 ROP_AbcObject::ROP_AbcObject()
-    : myKids()
+    : myParent(NULL)
+    , myKids()
     , myName()
     , myTimeDependentKids(false)
 {
@@ -163,22 +164,53 @@ ROP_AbcObject::updateTimeDependentKids()
 }
 
 bool
+ROP_AbcObject::checkDuplicateName(const char *name) const
+{
+    return myKidNames.count(name) > 0;
+}
+
+void
+ROP_AbcObject::fakeParent(ROP_AbcObject *kid)
+{
+    std::string	name = kid->getName();
+    if (checkDuplicateName(name.c_str()))
+    {
+	UT_WorkBuffer	storage;
+	const char	*newname;
+
+	for (int i = 0; i < 100000; ++i)
+	{
+	    newname = renameChild(name.c_str(), kid, storage, i);
+	    if (!checkDuplicateName(newname))
+	    {
+		kid->setName(newname);
+		myKidNames.insert(newname);
+		return;
+	    }
+	}
+	UT_ASSERT(0 && "Renaming child failed");
+    }
+    myKidNames.insert(name);
+}
+
+bool
 ROP_AbcObject::addChild(const char *name, ROP_AbcObject *kid, bool rename)
 {
-    if (myKids.count(name) > 0)
+    if (checkDuplicateName(name))
     {
 	if (rename)
 	{
-	    UT_WorkBuffer	storage;
-	    const char	*newname;
+	    UT_WorkBuffer	 storage;
+	    const char		*newname;
 
-	    for (int i = 0; i < 10000; ++i)
+	    for (int i = 0; i < 100000; ++i)
 	    {
 		newname = renameChild(name, kid, storage, i);
-		if (myKids.count(newname) == 0)
+		if (!checkDuplicateName(newname))
 		{
 		    kid->setName(newname);
 		    myKids[newname] = kid;
+		    myKidNames.insert(newname);
 		    return true;
 		}
 	    }
@@ -186,7 +218,9 @@ ROP_AbcObject::addChild(const char *name, ROP_AbcObject *kid, bool rename)
 	return false;
     }
     kid->setName(name);
+    kid->myParent = this;
     myKids[name] = kid;
+    myKidNames.insert(kid->getName());	// Share the std::string data
     return true;
 }
 

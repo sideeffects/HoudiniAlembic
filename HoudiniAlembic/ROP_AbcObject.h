@@ -31,6 +31,7 @@
 #include <GABC/GABC_Include.h>
 #include <Alembic/Abc/OObject.h>
 #include <UT/UT_StringMap.h>
+#include <UT/UT_Set.h>
 #include <UT/UT_BoundingBox.h>
 
 class GABC_OError;
@@ -42,6 +43,7 @@ class ROP_AbcObject
 {
 public:
     typedef UT_StringMap<ROP_AbcObject *>	ChildContainer;
+    typedef UT_Set<std::string>			NameSet;
     typedef Alembic::Abc::OObject		OObject;
 
     ROP_AbcObject();
@@ -50,8 +52,13 @@ public:
     /// Return the class name
     virtual const char	*className() const = 0;
 
+    /// Return the parent object
+    ROP_AbcObject	*getParent()		{ return myParent; }
+    /// Return the parent object
+    const ROP_AbcObject	*getParent() const	{ return myParent; }
+
     /// Return the name of the node
-    const std::string	&name() const { return myName; }
+    const std::string	&getName() const { return myName; }
     /// Names should only be set when added to the parent object.  This
     /// guarantees that the names are unique.
     void		 setName(const std::string &name) { myName = name; }
@@ -89,8 +96,20 @@ public:
     bool	addChild(const char *name, ROP_AbcObject *kid,
 			    bool rename_duplicate=true);
 
+    /// Since transform nodes can be dropped in the tree for optimization, we
+    /// want a way to fix the names of their children in case there are
+    /// duplicates.
+    void	fakeParent(ROP_AbcObject *kid);
+
     /// Access to the children
     const ChildContainer	&getChildren() const	{ return myKids; }
+
+    /// Check whether there's already a node with the given name
+    bool	checkDuplicateName(const char *name) const;
+
+    /// Iterate over children
+    ChildContainer::const_iterator	begin() const	{ return myKids.begin(); }
+    ChildContainer::const_iterator	end() const	{ return myKids.end(); }
 
 protected:
     /// Clear out children
@@ -117,9 +136,11 @@ protected:
 				    UT_WorkBuffer &storage,
 				    int retries) const;
 private:
-    ChildContainer	myKids;
-    std::string		myName;
-    bool		myTimeDependentKids;
+    ROP_AbcObject	*myParent;
+    ChildContainer	 myKids;
+    NameSet		 myKidNames;
+    std::string		 myName;
+    bool		 myTimeDependentKids;
 };
 
 #endif

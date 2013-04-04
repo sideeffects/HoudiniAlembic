@@ -302,7 +302,7 @@ ROP_AbcSOP::start(const OObject &parent,
 	return err.error("Unable to find SOP: %d", mySopId);
     myParent = parent;
 
-    std::string		 name = sop->getName().toStdString();
+    std::string		 name = getName();
     GU_DetailHandle	 gdh = sop->getCookedGeoHandle(ctx.cookContext());
     GU_DetailHandleAutoReadLock	gdl(gdh);
     const GU_Detail	*gdp = gdl.getGdp();
@@ -381,7 +381,7 @@ ROP_AbcSOP::update(GABC_OError &err,
 
     PrimitiveList	prims;
     NameList		names;
-    std::string		name = sop->getName().toStdString();
+    std::string		name = getName();
 
     if (ctx.fullBounds())
     {

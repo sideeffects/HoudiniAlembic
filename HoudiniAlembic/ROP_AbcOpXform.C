@@ -85,7 +85,7 @@ ROP_AbcOpXform::ROP_AbcOpXform(OBJ_Node *node, const ROP_AbcContext &ctx)
 	}
 	if (sop)
 	{
-	    addChild(node->getName(), new ROP_AbcSOP(sop));
+	    addChild(sop->getName(), new ROP_AbcSOP(sop));
 	    myGeometryContainer = true;
 	}
     }
@@ -116,13 +116,19 @@ ROP_AbcOpXform::start(const OObject &parent,
 	    && const_cast<OObject &>(parent).getParent().valid())
     {
 	myIdentity = true;
+	// Now, we have to adjust the names of the children so they don't
+	// collide with any of the parent's children.
+	ROP_AbcObject	*owner = getParent();
+	for (ChildContainer::const_iterator it = begin(); it != end(); ++it)
+	    owner->fakeParent(it->second);
+
 	if (!startChildren(parent, err, ctx, myBox))
 	    return false;
     }
     else
     {
 	// Process children, computing their bounding box
-	myOXform = OXform(parent, name(), ctx.timeSampling());
+	myOXform = OXform(parent, getName(), ctx.timeSampling());
 	if (!startChildren(myOXform, err, ctx, myBox))
 	    return false;
     }

@@ -159,7 +159,7 @@ ROP_AbcOpCamera::start(const OObject &parent,
 	GABC_OError &err, const ROP_AbcContext &ctx, UT_BoundingBox &box)
 {
     OBJ_Camera	*cam = getCamera(myCameraId);
-    myOCamera = OCamera(parent, name(), ctx.timeSampling());
+    myOCamera = OCamera(parent, getName(), ctx.timeSampling());
     if (!cam || !myOCamera)
     {
 	UT_WorkBuffer	fullpath;
