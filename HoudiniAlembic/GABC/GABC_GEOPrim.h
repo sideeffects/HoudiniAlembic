@@ -132,8 +132,8 @@ public:
     virtual fpreal	calcVolume(const UT_Vector3 &refpt) const;
     virtual fpreal	calcArea() const;
     virtual fpreal	calcPerimeter() const;
-    virtual void	getLocalTransform(UT_Matrix4D &matrix) const;
-    virtual void	setLocalTransform(const UT_Matrix4D &matrix);
+    virtual void	getLocalTransform(UT_Matrix3D &matrix) const;
+    virtual void	setLocalTransform(const UT_Matrix3D &matrix);
     /// @}
 
     /// Ensure the Alembic primitive has a vertex

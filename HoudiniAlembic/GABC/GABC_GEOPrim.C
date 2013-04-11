@@ -740,15 +740,19 @@ GABC_GEOPrim::transform(const UT_Matrix4 &xform)
 }
 
 void
-GABC_GEOPrim::getLocalTransform(UT_Matrix4D &matrix) const
+GABC_GEOPrim::getLocalTransform(UT_Matrix3D &matrix) const
 {
-    myGeoTransform->getMatrix(matrix);
+    UT_Matrix4D	m4;
+    myGeoTransform->getMatrix(m4);
+    matrix = m4;
 }
 
 void
-GABC_GEOPrim::setLocalTransform(const UT_Matrix4D &matrix)
+GABC_GEOPrim::setLocalTransform(const UT_Matrix3D &matrix)
 {
-    setGeoTransform(GT_TransformHandle(new GT_Transform(&matrix, 1)));
+    UT_Matrix4D	m4;
+    m4 = matrix;
+    setGeoTransform(GT_TransformHandle(new GT_Transform(&m4, 1)));
 }
 
 UT_Vector3
@@ -881,10 +885,9 @@ namespace
     static GA_Size
     intrinsicGeoTransform(const GABC_GEOPrim *p, fpreal64 *v, GA_Size size)
     {
-	size = SYSmin(size, 16);
-	UT_Matrix4D	xform;
-	const GT_TransformHandle	gx = p->geoTransform();
-	gx->getMatrix(xform, 0);
+	size = SYSmin(size, 9);
+	UT_Matrix3D	xform;
+	p->getLocalTransform(xform);
 	for (int i = 0; i < size; ++i)
 	    v[i] = xform.data()[i];
 	return size;
@@ -922,13 +925,12 @@ namespace
     static GA_Size
     intrinsicSetGeoTransform(GABC_GEOPrim *p, const fpreal64 *v, GA_Size size)
     {
-	if (size < 16)
+	if (size < 9)
 	    return 0;
-	UT_Matrix4D	m(v[0], v[1], v[2], v[3],
-			  v[4], v[5], v[6], v[7],
-			  v[8], v[9], v[10], v[11],
-			  v[12], v[13], v[14], v[15]);
-	p->setGeoTransform(GT_TransformHandle(new GT_Transform(&m, 1)));
+	UT_Matrix3D	m(v[0], v[1], v[2],
+			  v[3], v[4], v[5],
+			  v[6], v[7], v[8]);
+	p->setLocalTransform(m);
 	return 16;
     }
     static GA_Size
@@ -973,7 +975,7 @@ GA_START_INTRINSIC_DEF(GABC_GEOPrim, geo_NUM_INTRINISCS)
     GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_WORLDXFORM,
 	    "abcworldtransform", 16, intrinsicWorldTransform)
     GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_GEOXFORM,
-	    "abcgeotransform", 16, intrinsicGeoTransform)
+	    "abcgeotransform", 9, intrinsicGeoTransform)
     GA_INTRINSIC_TUPLE_F(GABC_GEOPrim, geo_INTRINSIC_ABC_TRANSFORM,
 	    "transform", 16, intrinsicTransform)
     GA_INTRINSIC_S(GABC_GEOPrim, geo_INTRINSIC_ABC_VIEWPORTLOD,
