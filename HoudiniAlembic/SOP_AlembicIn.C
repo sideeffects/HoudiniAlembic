@@ -728,7 +728,13 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     }
     else
     {
-	walk.setFrame(evalFloat("frame", 0, now), evalFloat("fps", 0, now));
+	double	fps = evalFloat("fps", 0, now);
+	if (SYSequalZero(fps))
+	{
+	    addWarning(SOP_MESSAGE, "FPS evaluates to 0");
+	    fps = 1;
+	}
+	walk.setFrame(evalFloat("frame", 0, now), fps);
     }
     walk.setIncludeXform(parms.myIncludeXform);
     walk.setUseVisibility(parms.myUseVisibility);
