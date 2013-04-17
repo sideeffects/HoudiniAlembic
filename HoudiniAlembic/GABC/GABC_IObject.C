@@ -116,11 +116,18 @@ namespace
 
     static GT_DataArrayHandle
     arrayFromSample(GABC_IArchive &arch, const ArraySamplePtr &param,
-		GT_Type gttype=GT_TYPE_NONE)
+		int array_extent,
+		GT_Type gttype)
     {
 	if (!param)
 	    return GT_DataArrayHandle();
-	return GABCarray(GABC_IArray::getSample(arch, param, gttype));
+	return GABCarray(GABC_IArray::getSample(arch, param,
+			    gttype, array_extent));
+    }
+    static GT_DataArrayHandle
+    simpleArrayFromSample(GABC_IArchive &arch, const ArraySamplePtr &param)
+    {
+	return arrayFromSample(arch, param, 1, GT_TYPE_NONE);
     }
 
     static bool
@@ -412,12 +419,14 @@ namespace
 				gparam.getNumSamples(), i0, i1);
 	typename T::sample_type	v0;
 	gparam.getExpanded(v0, i0);
-	GT_DataArrayHandle	s0 = arrayFromSample(arch, v0.getVals(), tinfo);
+	GT_DataArrayHandle	s0 = arrayFromSample(arch, v0.getVals(),
+					gparam.getArrayExtent(), tinfo);
 	if (i0 == i1 || !GTisFloat(s0->getStorage()))
 	    return s0;
 	typename T::sample_type	v1;
 	gparam.getExpanded(v1, i1);
-	GT_DataArrayHandle	s1 = arrayFromSample(arch, v1.getVals(), tinfo);
+	GT_DataArrayHandle	s1 = arrayFromSample(arch, v1.getVals(),
+					gparam.getArrayExtent(), tinfo);
 	return blendArrays(s0, s1, bias);
     }
 
@@ -1025,8 +1034,8 @@ namespace
 	GT_DataArrayHandle	 counts;
 	GT_DataArrayHandle	 indices;
 
-	counts = arrayFromSample(*obj.archive(), sample.getFaceCounts());
-	indices = arrayFromSample(*obj.archive(), sample.getFaceIndices());
+	counts = simpleArrayFromSample(*obj.archive(), sample.getFaceCounts());
+	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices());
 
 	GT_AttributeListHandle	 point;
 	GT_AttributeListHandle	 vertex;
@@ -1139,8 +1148,8 @@ namespace
 	GT_DataArrayHandle	 counts;
 	GT_DataArrayHandle	 indices;
 
-	counts = arrayFromSample(*obj.archive(), sample.getFaceCounts());
-	indices = arrayFromSample(*obj.archive(), sample.getFaceIndices());
+	counts = simpleArrayFromSample(*obj.archive(), sample.getFaceCounts());
+	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices());
 
 	GT_AttributeListHandle	 point;
 	GT_AttributeListHandle	 vertex;
@@ -1195,7 +1204,7 @@ namespace
 	ICurvesSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	GT_DataArrayHandle	 counts;
 
-	counts = arrayFromSample(*obj.archive(), sample.getCurvesNumVertices());
+	counts = simpleArrayFromSample(*obj.archive(), sample.getCurvesNumVertices());
 
 	GT_AttributeListHandle	 vertex;
 	GT_AttributeListHandle	 uniform;
@@ -1387,8 +1396,8 @@ namespace
 	GT_DataArrayHandle	 uknots;
 	GT_DataArrayHandle	 vknots;
 
-	uknots = arrayFromSample(*obj.archive(), sample.getUKnot());
-	vknots = arrayFromSample(*obj.archive(), sample.getVKnot());
+	uknots = simpleArrayFromSample(*obj.archive(), sample.getUKnot());
+	vknots = simpleArrayFromSample(*obj.archive(), sample.getVKnot());
 
 	GT_AttributeListHandle	 vertex;
 	GT_AttributeListHandle	 uniform;
@@ -1435,15 +1444,15 @@ namespace
 	    GT_DataArrayHandle	curveMin;
 	    GT_DataArrayHandle	curveMax;
 	    GT_DataArrayHandle	curveU, curveV, curveW, curveUVW;
-	    loopCount = arrayFromSample(*obj.archive(), sample.getTrimNumCurves());
-	    curveCount = arrayFromSample(*obj.archive(), sample.getTrimNumVertices());
-	    curveOrders = arrayFromSample(*obj.archive(), sample.getTrimOrders());
-	    curveKnots = arrayFromSample(*obj.archive(), sample.getTrimKnots());
-	    curveMin = arrayFromSample(*obj.archive(), sample.getTrimMins());
-	    curveMax = arrayFromSample(*obj.archive(), sample.getTrimMaxes());
-	    curveU = arrayFromSample(*obj.archive(), sample.getTrimU());
-	    curveV = arrayFromSample(*obj.archive(), sample.getTrimV());
-	    curveW = arrayFromSample(*obj.archive(), sample.getTrimW());
+	    loopCount = simpleArrayFromSample(*obj.archive(), sample.getTrimNumCurves());
+	    curveCount = simpleArrayFromSample(*obj.archive(), sample.getTrimNumVertices());
+	    curveOrders = simpleArrayFromSample(*obj.archive(), sample.getTrimOrders());
+	    curveKnots = simpleArrayFromSample(*obj.archive(), sample.getTrimKnots());
+	    curveMin = simpleArrayFromSample(*obj.archive(), sample.getTrimMins());
+	    curveMax = simpleArrayFromSample(*obj.archive(), sample.getTrimMaxes());
+	    curveU = simpleArrayFromSample(*obj.archive(), sample.getTrimU());
+	    curveV = simpleArrayFromSample(*obj.archive(), sample.getTrimV());
+	    curveW = simpleArrayFromSample(*obj.archive(), sample.getTrimW());
 	    curveUVW = joinVector3Array(curveU, curveV, curveW);
 
 	    GT_TrimNuCurves	*trims = new GT_TrimNuCurves(loopCount,

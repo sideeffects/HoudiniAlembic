@@ -584,6 +584,13 @@ namespace {
 	}
     }
 
+    static int
+    arrayExtent(const IArrayProperty &prop)
+    {
+	std::string	 extent_s = prop.getMetaData().get("arrayExtent");
+	return (extent_s == "") ? 1 : atoi(extent_s.c_str());
+    }
+
     static void
     copyArrayToAttribute(GABC_GEOWalker &walk,
 	    ICompoundProperty parent,
@@ -630,9 +637,9 @@ namespace {
 	if (!sample->valid())
 	    return;
 	GU_Detail	&gdp = walk.detail();
-	const DataType	dtype = prop.getDataType();
-	GA_Storage	store = getGAStorage(dtype);
-	int		tsize = getGATupleSize(dtype);
+	const DataType	 dtype = prop.getDataType();
+	GA_Storage	 store = getGAStorage(dtype);
+	int		 tsize = getGATupleSize(dtype) * arrayExtent(prop);
 	bool		extend_array = len > sample->size();
 	std::string	interp = head.getMetaData().get("interpretation");
 	GA_TypeInfo	tinfo = getGATypeInfo(interp.c_str(), tsize);

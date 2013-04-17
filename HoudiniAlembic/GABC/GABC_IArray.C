@@ -30,7 +30,15 @@
 
 namespace
 {
-    typedef Alembic::Abc::DataType	DataType;
+    typedef Alembic::Abc::DataType		DataType;
+    typedef Alembic::Abc::IArrayProperty	IArrayProperty;
+
+    static int
+    arrayExtent(const IArrayProperty &prop)
+    {
+	std::string	 extent_s = prop.getMetaData().get("arrayExtent");
+	return (extent_s == "") ? 1 : atoi(extent_s.c_str());
+    }
 }
 
 GABC_IArray::~GABC_IArray()
@@ -64,38 +72,42 @@ GABC_IArray::getSample(GABC_IArchive &arch, const IArrayProperty &prop,
 	    return GABC_IArray();
     }
 
+    int	array_extent = arrayExtent(prop);
     if (override_type != GT_TYPE_NONE)
     {
-	return getSample(arch, sample, override_type);
+	return getSample(arch, sample, override_type, array_extent);
     }
     return getSample(arch, sample,
-	    prop.getMetaData().get("interpretation").c_str());
+	    prop.getMetaData().get("interpretation").c_str(),
+	    array_extent);
 }
 
 GABC_IArray
 GABC_IArray::getSample(GABC_IArchive &arch, const ArraySamplePtr &sample,
-	const char *interp)
+	const char *interp, int array_extent)
 {
     if (!sample->valid())
 	return GABC_IArray();
 
     const DataType	&dtype = sample->getDataType();
     return getSample(arch, sample,
-		GABC_GTUtil::getGTTypeInfo(interp, dtype.getExtent()));
+		GABC_GTUtil::getGTTypeInfo(interp, dtype.getExtent()),
+		array_extent);
 }
 
 GABC_IArray
 GABC_IArray::getSample(GABC_IArchive &arch, const ArraySamplePtr &sample,
-	GT_Type tinfo)
+	GT_Type tinfo, int array_extent)
 {
     if (!sample->valid())
 	return GABC_IArray();
 
     UT_ASSERT(sample && sample->getData());
 
+    UT_ASSERT(array_extent == 1 || sample->size() % array_extent == 0);
     const DataType	&dtype = sample->getDataType();
-    GT_Size		 size = sample->size();
-    GT_Size		 tsize = GABC_GTUtil::getGTTupleSize(dtype);
+    GT_Size		 size = sample->size()/array_extent;
+    GT_Size		 tsize = GABC_GTUtil::getGTTupleSize(dtype)*array_extent;
     GT_Storage		 store = GABC_GTUtil::getGTStorage(dtype);
     return GABC_IArray(arch, sample, size, tsize, store, tinfo);
 }

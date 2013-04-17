@@ -61,11 +61,12 @@ public:
     ///	 - "quat"
     /// (see Abc/TypedPropertyTraits.h)
     static GABC_IArray getSample(GABC_IArchive &arch,
-		const ArraySamplePtr &sample, const char *interp);
+		const ArraySamplePtr &sample, const char *interp,
+		int array_extent);
     /// Create an array wrapper for the given array sample with the specified
     /// GT_Type as the interpretation.
     static GABC_IArray getSample(GABC_IArchive &arch,
-		const ArraySamplePtr &sample, GT_Type type);
+		const ArraySamplePtr &sample, GT_Type type, int array_extent);
 
     static GABC_IArray getSample(GABC_IArchive &arch,
 		const IArrayProperty &prop, index_t index,
@@ -157,23 +158,15 @@ public:
 			    UT_ASSERT(myArray && myArray->getData());
 			    return myArray->getDataType().getPod();
 			}
-	int		extent() const
-			{
-			    UT_ASSERT(myArray && myArray->getData());
-			    return myArray->getDataType().getExtent();
-			}
-	exint		size() const
-			{
-			    return myArray->size();
-			}
     private:
 	ArraySamplePtr	 myArray;
     };
 
     const void		*data() const		{ return myContainer.data(); }
     PlainOldDataType	 abcType() const	{ return myContainer.abcType(); }
-    int			 tupleSize() const	{ return myContainer.extent(); }
-    GT_Size		 entries() const	{ return myContainer.size(); }
+    int			 tupleSize() const
+			    { return myTupleSize; }
+    GT_Size		 entries() const	{ return mySize; }
     GT_Type		 gtType() const		{ return myType; }
 
     /// {

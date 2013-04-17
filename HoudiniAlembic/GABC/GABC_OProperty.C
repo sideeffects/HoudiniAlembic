@@ -225,6 +225,7 @@ GABC_OProperty::start(OCompoundProperty &parent,
     }
     if (!valid)
     {
+	array_size = myTupleSize;
 	switch (array->getStorage())
 	{
 	    case GT_STORE_UINT8:
