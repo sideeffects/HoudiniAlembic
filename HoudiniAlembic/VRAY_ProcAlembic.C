@@ -403,7 +403,7 @@ loadDetail(UT_Array<GU_Detail *> &details,
 	const UT_String &objectpattern)
 {
     GABC_GEOWalker	walk(*details(0));
-    bool		success;
+    bool		success = false;
     fpreal		fstart = frame, finc = 1;
     if (details.entries() > 1)
     {
