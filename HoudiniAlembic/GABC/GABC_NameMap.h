@@ -32,6 +32,7 @@
 #include "GABC_Types.h"
 #include <SYS/SYS_AtomicInt.h>
 #include <UT/UT_SymbolTable.h>
+#include <GA/GA_SharedLoadData.h>
 
 class UT_JSONWriter;
 class UT_JSONParser;
@@ -41,6 +42,14 @@ class GABC_API GABC_NameMap
 {
 public:
     typedef UT_SymbolMap<UT_String>	MapType;
+
+    class LoadContainer : public GA_SharedLoadData
+    {
+    public:
+	LoadContainer() {}
+	virtual ~LoadContainer() {}
+	GABC_NameMapPtr	myNameMap;
+    };
 
      GABC_NameMap();
     ~GABC_NameMap();

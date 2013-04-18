@@ -257,6 +257,20 @@ GABC_GEOPrim::dereferencePoints(const GA_RangeMemberQuery &pq, bool)
 namespace
 {
 
+/// Return true of the attribute name map needs to be saved
+static bool
+nameMapSharedKey(UT_WorkBuffer &key, const GABC_GEOPrim *prim)
+{
+    const GABC_NameMapPtr	&map = prim->attributeNameMap();
+    if (!map || !map->entries())
+    {
+	key.clear();
+	return false;
+    }
+    key.sprintf("amap:%p", prim->attributeNameMap().get());
+    return true;
+}
+
 class geo_PrimABCJSON : public GA_PrimitiveJSON
 {
 public:
@@ -274,13 +288,14 @@ public:
 	geo_VERTEX,
 	geo_USETRANSFORM,
 	geo_USEVISIBILITY,
-	geo_ATTRIBUTEMAP,
+	geo_ATTRIBUTEMAP_SHARED,
+	geo_ATTRIBUTEMAP_UNIQUE,
 	geo_ENTRIES
     };
 
     const GABC_GEOPrim	*abc(const GA_Primitive *p) const
 			    { return UTverify_cast<const GABC_GEOPrim *>(p); }
-    GABC_GEOPrim		*abc(GA_Primitive *p) const
+    GABC_GEOPrim	*abc(GA_Primitive *p) const
 			    { return UTverify_cast<GABC_GEOPrim *>(p); }
 
     virtual int		getEntries() const	{ return geo_ENTRIES; }
@@ -288,15 +303,16 @@ public:
     {
 	switch (i)
 	{
-	    case geo_FILENAME:		return "filename";
-	    case geo_OBJECTPATH:	return "object";
-	    case geo_FRAME:		return "frame";
-	    case geo_TRANSFORM:		return "ltransform";
-	    case geo_USETRANSFORM:	return "usetransform";
-	    case geo_USEVISIBILITY:	return "usevisibility";
-	    case geo_ATTRIBUTEMAP:	return "attributemap";
-	    case geo_VERTEX:		return "vertex";
-	    case geo_ENTRIES:		break;
+	    case geo_FILENAME:			return "filename";
+	    case geo_OBJECTPATH:		return "object";
+	    case geo_FRAME:			return "frame";
+	    case geo_TRANSFORM:			return "ltransform";
+	    case geo_USETRANSFORM:		return "usetransform";
+	    case geo_USEVISIBILITY:		return "usevisibility";
+	    case geo_ATTRIBUTEMAP_UNIQUE:	return "attributemap";
+	    case geo_ATTRIBUTEMAP_SHARED:	return "sharedattributemap";
+	    case geo_VERTEX:			return "vertex";
+	    case geo_ENTRIES:			break;
 	}
 	UT_ASSERT(0);
 	return NULL;
@@ -304,13 +320,19 @@ public:
     virtual bool shouldSaveField(const GA_Primitive *pr, int i,
 			    const GA_SaveMap &map) const
     {
+	UT_WorkBuffer	nmapkey;
 	switch (i)
 	{
 	    case geo_TRANSFORM:
 		return !abc(pr)->geoTransform()->isIdentity();
-	    case geo_ATTRIBUTEMAP:
-		return abc(pr)->attributeNameMap() &&
-			abc(pr)->attributeNameMap()->entries();
+	    case geo_ATTRIBUTEMAP_UNIQUE:
+		if (!nameMapSharedKey(nmapkey, abc(pr)))
+		    return false;
+		return !map.hasSavedSharedData(nmapkey.buffer());
+	    case geo_ATTRIBUTEMAP_SHARED:
+		if (!nameMapSharedKey(nmapkey, abc(pr)))
+		    return false;
+		return map.hasSavedSharedData(nmapkey.buffer());
 	    default:
 		break;
 	}
@@ -343,13 +365,18 @@ public:
 	    case geo_USEVISIBILITY:
 		return w.jsonBool(abc(pr)->useVisibility());
 
-	    case geo_ATTRIBUTEMAP:
+	    case geo_ATTRIBUTEMAP_UNIQUE:
 	    {
 		if (abc(pr)->attributeNameMap())
 		    return abc(pr)->attributeNameMap()->save(w);
 		return saveEmptyNameMap(w);
 	    }
-
+	    case geo_ATTRIBUTEMAP_SHARED:
+	    {
+		UT_WorkBuffer	nmapkey;
+		nameMapSharedKey(nmapkey, abc(pr));
+		return w.jsonString(nmapkey.buffer());
+	    }
 	    case geo_VERTEX:
 	    {
 		GA_Offset	vtx = abc(pr)->getVertexOffset(0);
@@ -409,11 +436,30 @@ public:
 		    return false;
 		abc(pr)->setUseVisibility(bval);
 		return true;
-	    case geo_ATTRIBUTEMAP:
+	    case geo_ATTRIBUTEMAP_UNIQUE:
 		if (!GABC_NameMap::load(amap, p))
 		    return false;
 		abc(pr)->setAttributeNameMap(amap);
 		return true;
+	    case geo_ATTRIBUTEMAP_SHARED:
+	    {
+		UT_WorkBuffer	key;
+		if (!p.parseString(key))
+		    return false;
+		const GABC_NameMap::LoadContainer	*v = NULL;
+		if (key.length())
+		    v = map.sharedLoadDataAs<GABC_NameMap::LoadContainer>(key.buffer());
+		if (v)
+		{
+		    abc(pr)->setAttributeNameMap(v->myNameMap);
+		}
+		else if (key.length())
+		{
+		    p.addWarning("Alembic missing shared name map: %s",
+			    key.buffer());
+		}
+		return true;
+	    }
 	    case geo_VERTEX:
 		if (!p.parseInt(ival))
 		    return false;
@@ -453,7 +499,8 @@ public:
 	    case geo_USEVISIBILITY:
 		return abc(a)->useVisibility() ==
 			abc(b)->useVisibility();
-	    case geo_ATTRIBUTEMAP:
+	    case geo_ATTRIBUTEMAP_UNIQUE:
+	    case geo_ATTRIBUTEMAP_SHARED:
 		// Just compare pointers directly
 		return abc(a)->attributeNameMap().get() ==
 			abc(b)->attributeNameMap().get();
@@ -481,6 +528,28 @@ const GA_PrimitiveJSON *
 GABC_GEOPrim::getJSON() const
 {
     return abcJSON();
+}
+
+bool
+GABC_GEOPrim::saveSharedLoadData(UT_JSONWriter &w, GA_SaveMap &save) const
+{
+    UT_WorkBuffer	key;
+    bool		ok = true;
+    if (nameMapSharedKey(key, this))
+    {
+	if (!save.hasSavedSharedData(key.buffer()))
+	{
+	    save.setSavedSharedData(key.buffer());
+	    UT_ASSERT(attributeNameMap());
+	    ok = ok && w.jsonStringToken(getTypeName());
+	    ok = ok && w.jsonBeginArray();
+	    ok = ok && w.jsonStringToken("namemap");
+	    ok = ok && w.jsonStringToken(key.buffer());
+	    ok = ok && attributeNameMap()->save(w);
+	    ok = ok && w.jsonEndArray();
+	}
+    }
+    return ok;
 }
 
 namespace

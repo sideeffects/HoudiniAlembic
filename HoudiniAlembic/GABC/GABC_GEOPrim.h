@@ -82,6 +82,8 @@ public:
 						const GA_RangeMemberQuery &pt_q,
 						bool dry_run=false);
     virtual const GA_PrimitiveJSON	*getJSON() const;
+    virtual bool	saveSharedLoadData(UT_JSONWriter &w,
+				GA_SaveMap &save) const;
 
     /// Defragmentation
     virtual void	swapVertexOffsets(const GA_Defragment &defrag);

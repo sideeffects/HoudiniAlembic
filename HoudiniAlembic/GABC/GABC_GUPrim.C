@@ -27,7 +27,11 @@
 
 #include "GABC_GUPrim.h"
 #include "GABC_GTPrim.h"
+#include "GABC_NameMap.h"
+#include <UT/UT_WorkBuffer.h>
+#include <UT/UT_JSONParser.h>
 #include <GA/GA_GBAttributeMath.h>
+#include <GA/GA_SaveMap.h>
 #include <GEO/GEO_AttributeHandleList.h>
 #include <GEO/GEO_WorkVertexBuffer.h>
 #include <GU/GU_PrimPoly.h>
@@ -80,12 +84,57 @@ GABC_GUPrim::~GABC_GUPrim()
 }
 
 
+namespace
+{
 // Static callback for our factory.
 static GA_Primitive *
 gu_newPrimABC(GA_Detail &detail, GA_Offset offset)
 {
     return new GABC_GUPrim(UTverify_cast<GU_Detail *>(&detail), offset);
 }
+
+class AbcSharedDataLoader : public GA_PrimitiveDefinition::SharedDataLoader
+{
+public:
+    AbcSharedDataLoader() {}
+    virtual ~AbcSharedDataLoader() {}
+    virtual bool	load(UT_JSONParser &p, GA_LoadMap &m) const;
+};
+
+bool
+AbcSharedDataLoader::load(UT_JSONParser &p, GA_LoadMap &load) const
+{
+    typedef GABC_NameMap::LoadContainer		NameMapContainer;
+    UT_WorkBuffer	key;
+    UT_WorkBuffer	type;
+    for (UT_JSONParser::iterator it = p.beginArray(); !it.atEnd(); ++it)
+    {
+	if (!p.parseString(type))
+	    return false;
+	if (!p.parseString(key))
+	    return false;
+
+	if (!strcmp(type.buffer(), "namemap"))
+	{
+	    NameMapContainer	*data = new NameMapContainer();
+	    if (!GABC_NameMap::load(data->myNameMap, p))
+	    {
+		delete data;
+		return false;
+	    }
+	    load.addSharedLoadData(key.buffer(), data);
+	}
+	else
+	{
+	    p.addWarning("Unknown Alembic Shared Data: %s", type.buffer());
+	    if (!p.skipNextObject())
+		return false;
+	}
+    }
+    return true;
+}
+
+}	// End namespace
 
 void
 GABC_GUPrim::registerMyself(GA_PrimitiveFactory *factory)
@@ -100,6 +149,7 @@ GABC_GUPrim::registerMyself(GA_PrimitiveFactory *factory)
     
     theDef->setLabel("Alembic Delayed Load");
     theDef->setHasLocalTransform(true);
+    theDef->setSharedDataLoader(new AbcSharedDataLoader());
     registerIntrinsics(*theDef);
 
     // Register the GT tesselation too (now we know what type id we have)
