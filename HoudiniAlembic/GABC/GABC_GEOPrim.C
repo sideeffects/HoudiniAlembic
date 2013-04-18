@@ -42,6 +42,8 @@
 
 #include <Alembic/AbcGeom/All.h>
 
+#define GABC_SHARED_DATA_NAMEMAP	0
+
 namespace
 {
     static bool
@@ -325,14 +327,12 @@ public:
 	{
 	    case geo_TRANSFORM:
 		return !abc(pr)->geoTransform()->isIdentity();
-	    case geo_ATTRIBUTEMAP_UNIQUE:
-		if (!nameMapSharedKey(nmapkey, abc(pr)))
-		    return false;
-		return !map.hasSavedSharedData(nmapkey.buffer());
 	    case geo_ATTRIBUTEMAP_SHARED:
 		if (!nameMapSharedKey(nmapkey, abc(pr)))
 		    return false;
-		return map.hasSavedSharedData(nmapkey.buffer());
+		return true;
+	    case geo_ATTRIBUTEMAP_UNIQUE:
+		return false;
 	    default:
 		break;
 	}
@@ -446,17 +446,10 @@ public:
 		UT_WorkBuffer	key;
 		if (!p.parseString(key))
 		    return false;
-		const GABC_NameMap::LoadContainer	*v = NULL;
 		if (key.length())
-		    v = map.sharedLoadDataAs<GABC_NameMap::LoadContainer>(key.buffer());
-		if (v)
 		{
-		    abc(pr)->setAttributeNameMap(v->myNameMap);
-		}
-		else if (key.length())
-		{
-		    p.addWarning("Alembic missing shared name map: %s",
-			    key.buffer());
+		    map.needSharedData(key.buffer(), pr,
+				    GABC_SHARED_DATA_NAMEMAP);
 		}
 		return true;
 	    }
@@ -499,11 +492,11 @@ public:
 	    case geo_USEVISIBILITY:
 		return abc(a)->useVisibility() ==
 			abc(b)->useVisibility();
-	    case geo_ATTRIBUTEMAP_UNIQUE:
 	    case geo_ATTRIBUTEMAP_SHARED:
 		// Just compare pointers directly
 		return abc(a)->attributeNameMap().get() ==
 			abc(b)->attributeNameMap().get();
+	    case geo_ATTRIBUTEMAP_UNIQUE:
 	    case geo_ENTRIES:
 	    case geo_VERTEX:
 		break;
@@ -550,6 +543,17 @@ GABC_GEOPrim::saveSharedLoadData(UT_JSONWriter &w, GA_SaveMap &save) const
 	}
     }
     return ok;
+}
+
+bool
+GABC_GEOPrim::loadSharedLoadData(int dtype, const GA_SharedLoadData *vitem)
+{
+    UT_ASSERT(dtype == GABC_SHARED_DATA_NAMEMAP);
+    const GABC_NameMap::LoadContainer	*item;
+    item = UTverify_cast<const GABC_NameMap::LoadContainer *>(vitem);
+    if (item)
+	setAttributeNameMap(item->myNameMap);
+    return true;
 }
 
 namespace

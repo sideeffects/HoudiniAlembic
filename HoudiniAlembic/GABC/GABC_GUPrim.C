@@ -116,13 +116,10 @@ AbcSharedDataLoader::load(UT_JSONParser &p, GA_LoadMap &load) const
 
 	if (!strcmp(type.buffer(), "namemap"))
 	{
-	    NameMapContainer	*data = new NameMapContainer();
-	    if (!GABC_NameMap::load(data->myNameMap, p))
-	    {
-		delete data;
+	    NameMapContainer	data;
+	    if (!GABC_NameMap::load(data.myNameMap, p))
 		return false;
-	    }
-	    load.addSharedLoadData(key.buffer(), data);
+	    load.resolveSharedData(key.buffer(), &data);
 	}
 	else
 	{

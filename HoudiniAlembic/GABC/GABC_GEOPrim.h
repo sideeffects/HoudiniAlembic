@@ -84,6 +84,8 @@ public:
     virtual const GA_PrimitiveJSON	*getJSON() const;
     virtual bool	saveSharedLoadData(UT_JSONWriter &w,
 				GA_SaveMap &save) const;
+    virtual bool	loadSharedLoadData(int load_data_type,
+				const GA_SharedLoadData *item);
 
     /// Defragmentation
     virtual void	swapVertexOffsets(const GA_Defragment &defrag);
