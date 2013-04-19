@@ -1559,6 +1559,11 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	    walkChildren(obj);
 	    return false;	// Since we walked manually, return false
 	}
+	else if (buildAbcPrim() && buildAbcXform())
+	{
+	    makeAbcPrim(*this, obj, ohead);
+	    // Fall through to process children
+	}
 	// Let the walker just process children naturally
 	return true;
     }
