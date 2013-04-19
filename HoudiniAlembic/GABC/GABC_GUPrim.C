@@ -88,7 +88,8 @@ namespace
 {
 // Static callback for our factory.
 static GA_Primitive *
-gu_newPrimABC(GA_Detail &detail, GA_Offset offset)
+gu_newPrimABC(GA_Detail &detail, GA_Offset offset,
+	const GA_PrimitiveDefinition &)
 {
     return new GABC_GUPrim(UTverify_cast<GU_Detail *>(&detail), offset);
 }
