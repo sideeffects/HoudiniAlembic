@@ -1004,7 +1004,7 @@ namespace
 			  v[3], v[4], v[5],
 			  v[6], v[7], v[8]);
 	p->setLocalTransform(m);
-	return 16;
+	return 9;
     }
     static GA_Size
     intrinsicSetUseVisibility(GABC_GEOPrim *p, const int64 v)
