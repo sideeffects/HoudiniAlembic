@@ -363,7 +363,7 @@ static PRM_SpareData	theAbcPattern(
 
 static PRM_Default	mainSwitcher[] =
 {
-    PRM_Default(9, "Geometry"),
+    PRM_Default(10, "Geometry"),
     PRM_Default(8, "Selection"),
     PRM_Default(9, "Attributes"),
 };
