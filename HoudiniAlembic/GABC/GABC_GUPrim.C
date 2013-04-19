@@ -162,7 +162,7 @@ GABC_GUPrim::getMemoryUsage() const
 }
 
 static void
-addGroupToDetails(UT_PtrArray<GU_Detail *> &details,
+addGroupToDetails(UT_Array<GU_Detail *> &details,
 	const GA_PrimitiveGroup *group)
 {
     const char	*name = group->getName();
@@ -190,7 +190,7 @@ GABC_GUPrim::doConvert(const GU_ConvertParms &parms) const
     if (!prim)
 	return false;
 
-    UT_PtrArray<GU_Detail *>	details;
+    UT_Array<GU_Detail *>	details;
     GT_RefineParms		rparms;
 
     if (parms.toType == GEO_PrimTypeCompat::GEOPRIMPOLY)
