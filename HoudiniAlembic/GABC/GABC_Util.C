@@ -538,7 +538,11 @@ namespace
 	const GABC_IArchivePtr	&archive()	{ return myArchive; }
 
     private:
-	GABC_IObject		root()	{ return myArchive->getTop(); }
+	GABC_IObject		root()
+				{
+				    return myArchive ? myArchive->getTop()
+						     : GABC_IObject();
+				}
 	GABC_IArchivePtr	myArchive;
 	std::string		error;
 	PathList		myObjectList;
