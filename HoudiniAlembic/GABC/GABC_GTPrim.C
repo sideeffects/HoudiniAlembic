@@ -119,25 +119,28 @@ GABC_GTPrimitive::updateCache(const GT_RefineParms *parms)
 	myVisibilityCache->update(frame);
     if (!myCache || lod != myCacheLOD || myAnimation == GABC_ANIMATION_TOPOLOGY)
     {
+	GABC_AnimationType		 atype;
 	myCacheLOD = lod;
 	myCacheFrame = frame;
 	switch (lod)
 	{
 	    case GABC_VIEWPORT_FULL:
 		myCache = obj.getPrimitive(myPrimitive, frame,
-				myAnimation, myPrimitive->attributeNameMap());
+				atype, myPrimitive->attributeNameMap());
 		break;
 	    case GABC_VIEWPORT_POINTS:
-		myCache = obj.getPointCloud(frame, myAnimation);
+		myCache = obj.getPointCloud(frame, atype);
 		break;
 	    case GABC_VIEWPORT_BOX:
-		myCache = obj.getBoxGeometry(frame, myAnimation);
+		myCache = obj.getBoxGeometry(frame, atype);
 		break;
 	    case GABC_VIEWPORT_HIDDEN:
 	    case GABC_VIEWPORT_CENTROID:
-		myCache = obj.getCentroidGeometry(frame, myAnimation);
+		myCache = obj.getCentroidGeometry(frame, atype);
 		break;
 	}
+	if (atype > myAnimation)
+	    myAnimation = atype;
 	if (myCache)
 	    myCache->setPrimitiveTransform(getPrimitiveTransform());
     }
