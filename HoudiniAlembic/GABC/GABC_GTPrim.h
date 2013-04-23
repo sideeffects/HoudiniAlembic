@@ -77,6 +77,8 @@ public:
     virtual int64	 getMemoryUsage() const;
     virtual bool	 save(UT_JSONWriter &w) const;
     virtual const GT_ViewportRefineOptions	&viewportRefineOptions() const;
+    virtual GT_PrimitiveHandle	doSoftCopy() const
+				    { return new GABC_GTPrimitive(*this); }
     /// @}
 
     static GABC_ViewportLOD		 getLOD(const GABC_GEOPrim &prim,
@@ -113,12 +115,15 @@ public:
 private:
     GABC_GTPrimitive(const GABC_GTPrimitive &src)
 	: GT_Primitive(src)
-	, myPrimitive(NULL)
-	, myCacheLOD(src.myCacheLOD)
-	, myCache(src.myCache)
-	, myAnimation(src.myAnimation)
+	, myCache()
+	, myPrimitive(src.myPrimitive)
+	, myVisibilityCache(NULL)
+	, myCacheFrame(0)
+	, myAnimation(GABC_ANIMATION_TOPOLOGY)
+	, myCacheLOD(GABC_VIEWPORT_FULL)
     {
-	UT_ASSERT(0 && "Copy c-tor");
+	UT_ASSERT(0 && "Copy c-tor -- should be a soft copy");
+	copyFrom(src);
     }
     void		 updateCache(const GT_RefineParms *parms);
 
