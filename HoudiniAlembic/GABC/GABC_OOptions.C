@@ -27,6 +27,8 @@
 
 #include "GABC_OOptions.h"
 
+using namespace GABC_NAMESPACE;
+
 GABC_OOptions::GABC_OOptions()
     : myOptimizeSpace(OPTIMIZE_DEFAULT)
     , myFaceSetMode(FACESET_DEFAULT)

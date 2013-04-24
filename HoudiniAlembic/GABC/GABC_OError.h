@@ -33,6 +33,8 @@
 
 class UT_Interrupt;
 
+namespace GABC_NAMESPACE
+{
 /// Class to handle error messages for output of Alembic geometry
 class GABC_API GABC_OError
 {
@@ -75,5 +77,6 @@ private:
     UT_Interrupt	*myInterrupt;
     bool		 mySuccess;
 };
+}
 
 #endif

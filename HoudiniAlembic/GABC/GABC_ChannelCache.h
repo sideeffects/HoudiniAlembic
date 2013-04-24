@@ -33,6 +33,8 @@
 #include <GT/GT_DataArray.h>
 #include <Alembic/Abc/IObject.h>
 
+namespace GABC_NAMESPACE
+{
 /// Alembic will return arrays or scalars for a given time sample.  This class
 /// will "cache" these samples over time.  Each item in the array represents a
 /// time sample.  This class requires the size of the array/scalar to remain
@@ -92,5 +94,6 @@ private:
     GT_DataArrayHandle	myData;
     TimeSamplingPtr	myTime;
 };
+}
 
 #endif

@@ -33,6 +33,8 @@
 #include <GT/GT_DAIndexedString.h>
 #include "GABC_IArray.h"
 
+namespace GABC_NAMESPACE
+{
 template <typename POD_T, GT_Storage STORE_T>
 class GABC_API GABC_IGTArray : public GT_DataArray
 {
@@ -304,5 +306,6 @@ typedef GABC_IGTArray<fpreal32, GT_STORE_REAL32>	GABC_GTReal32Array;
 typedef GABC_IGTArray<fpreal64, GT_STORE_REAL64>	GABC_GTReal64Array;
 
 GABC_API extern GT_DataArrayHandle GABCarray(const GABC_IArray &iarray);
+}
 
 #endif

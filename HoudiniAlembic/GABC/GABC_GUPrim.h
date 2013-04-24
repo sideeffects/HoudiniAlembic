@@ -34,6 +34,9 @@
 #include <GU/GU_Detail.h>
 #include <GU/GU_Prim.h>
 
+namespace GABC_NAMESPACE
+{
+
 class GABC_API GABC_GUPrim : public GABC_GEOPrim, public GU_Primitive
 {
 public:
@@ -107,5 +110,6 @@ protected:
 private:
     static GA_PrimitiveDefinition	 *theDef;
 };
+}
 
 #endif

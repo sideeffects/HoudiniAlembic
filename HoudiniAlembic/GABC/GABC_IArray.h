@@ -37,6 +37,8 @@
 #include <GT/GT_Types.h>
 #include <Alembic/Abc/IArchive.h>
 
+namespace GABC_NAMESPACE
+{
 /// This class wraps an Alembic data array and provides convenience methods
 /// that allow thread-safe access to its data.
 ///
@@ -179,5 +181,6 @@ private:
     GT_Type		myType;
     PlainOldDataType	myAbcType;
 };
+}
 
 #endif

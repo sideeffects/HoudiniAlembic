@@ -36,6 +36,8 @@
 #include <UT/UT_ShowCounts.h>
 UT_COUNTER(theCount, "ROP_AbcObject")
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
 typedef Alembic::Abc::OObject		OObject;

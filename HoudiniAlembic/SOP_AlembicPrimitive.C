@@ -33,6 +33,8 @@
 #include <OP/OP_OperatorTable.h>
 #include <GABC/GABC_GUPrim.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
 static PRM_Name		prm_groupName("group", "Group Name");

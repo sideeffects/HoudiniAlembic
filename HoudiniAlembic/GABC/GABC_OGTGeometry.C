@@ -47,6 +47,8 @@
 // For simple refinement
 #include <GT/GT_GEOPrimTPSurf.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     typedef GABC_OGTGeometry::IntrinsicCache	IntrinsicCache;

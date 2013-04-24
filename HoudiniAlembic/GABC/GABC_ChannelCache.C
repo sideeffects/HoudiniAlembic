@@ -27,6 +27,8 @@
 
 #include "GABC_ChannelCache.h"
 
+using namespace GABC_NAMESPACE;
+
 GABC_ChannelCache::GABC_ChannelCache()
     : myData()
     , myTime()

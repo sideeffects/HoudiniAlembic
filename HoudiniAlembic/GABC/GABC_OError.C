@@ -30,6 +30,8 @@
 #include <UT/UT_Interrupt.h>
 #include <stdarg.h>
 
+using namespace GABC_NAMESPACE;
+
 static UT_Lock	theLock;
 
 GABC_OError::~GABC_OError()

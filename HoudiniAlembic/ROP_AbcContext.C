@@ -29,6 +29,8 @@
 #include <CH/CH_Manager.h>
 #include <UT/UT_WorkBuffer.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     typedef Alembic::Abc::chrono_t		chrono_t;

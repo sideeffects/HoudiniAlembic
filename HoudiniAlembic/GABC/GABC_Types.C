@@ -28,6 +28,8 @@
 #include "GABC_Types.h"
 #include <UT/UT_FSA.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     static UT_FSATable	theNodeTypeTable(
@@ -60,6 +62,8 @@ namespace
     );
 }
 
+namespace GABC_NAMESPACE
+{
 const char *
 GABCnodeType(GABC_NodeType type)
 {
@@ -97,4 +101,5 @@ GABC_ViewportLOD
 GABCviewportLOD(const char *type)
 {
     return static_cast<GABC_ViewportLOD>(theViewportLODTable.findSymbol(type));
+}
 }

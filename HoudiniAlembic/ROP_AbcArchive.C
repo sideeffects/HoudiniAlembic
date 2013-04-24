@@ -34,6 +34,8 @@
 #include <UT/UT_Version.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     typedef Alembic::Abc::OArchive	OArchive;

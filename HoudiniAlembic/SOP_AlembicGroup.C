@@ -34,6 +34,8 @@
 #include <GU/GU_PrimSelection.h>
 #include <GABC/GABC_GUPrim.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
 typedef SOP_AlembicGroup::PathList	PathList;

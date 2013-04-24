@@ -32,8 +32,8 @@
 #include <UT/UT_Set.h>
 #include <UT/UT_SharedPtr.h>
 #include <OP/OP_Node.h>
+#include <GABC/GABC_OError.h>
 
-class GABC_OError;
 class ROP_AbcObject;
 class ROP_AbcArchive;
 class ROP_AbcContext;
@@ -41,6 +41,7 @@ class ROP_AbcContext;
 class ROP_AbcOpBuilder
 {
 public:
+    typedef GABC_NAMESPACE::GABC_OError	GABC_OError;
     class	InternalNode;
 
     ROP_AbcOpBuilder(OP_Node *root)

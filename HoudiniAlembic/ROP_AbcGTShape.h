@@ -31,13 +31,14 @@
 #include "ROP_AbcObject.h"
 #include "ROP_AbcContext.h"
 #include <GT/GT_Handles.h>
-
-class GABC_OGTGeometry;
+#include <GABC/GABC_OGTGeometry.h>
 
 /// A shape node representation for a single GT primitive
 class ROP_AbcGTShape : public ROP_AbcObject
 {
 public:
+    typedef GABC_NAMESPACE::GABC_OGTGeometry	GABC_OGTGeometry;
+    typedef GABC_NAMESPACE::GABC_OError		GABC_OError;
     ROP_AbcGTShape(const std::string &name);
     virtual ~ROP_AbcGTShape();
 

@@ -34,6 +34,8 @@
 #include <GT/GT_RefineParms.h>
 #include <GABC/GABC_OError.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     typedef UT_Array<GT_PrimitiveHandle>	PrimitiveList;

@@ -37,6 +37,8 @@
 #include <GU/GU_PrimNURBSurf.h>
 #include <GA/GA_Handle.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace {
     typedef Imath::M44d				M44d;
     typedef Imath::V3d				V3d;

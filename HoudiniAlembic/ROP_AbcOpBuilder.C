@@ -33,6 +33,8 @@
 #include "ROP_AbcOpXform.h"
 #include "ROP_AbcArchive.h"
 
+using namespace GABC_NAMESPACE;
+
 bool
 ROP_AbcOpBuilder::addChild(GABC_OError &err, OP_Node *child)
 {

@@ -33,6 +33,8 @@
 #include <UT/UT_WorkArgs.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 
+using namespace GABC_NAMESPACE;
+
 //#define SHOW_COUNTS
 #include <UT/UT_ShowCounts.h>
 UT_COUNTER(theCount, "GABC_IArchive")

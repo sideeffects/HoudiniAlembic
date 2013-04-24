@@ -33,6 +33,9 @@
 #include <GT/GT_GEOPrimCollect.h>
 #include "GABC_Types.h"
 
+namespace GABC_NAMESPACE
+{
+
 class GABC_GEOPrim;
 class GABC_VisibilityCache;
 
@@ -167,5 +170,6 @@ public:
 private:
     GA_PrimitiveTypeId	myId;	// Primitive ID of the GA_PrimABC type
 };
+}
 
 #endif

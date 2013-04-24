@@ -28,6 +28,8 @@
 #include "GABC_IArray.h"
 #include <UT/UT_StackBuffer.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     typedef Alembic::Abc::DataType		DataType;

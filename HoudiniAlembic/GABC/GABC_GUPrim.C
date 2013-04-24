@@ -42,6 +42,8 @@
 #include <GT/GT_RefineParms.h>
 #include <GT/GT_Util.h>
 
+using namespace GABC_NAMESPACE;
+
 GA_PrimitiveDefinition *GABC_GUPrim::theDef = 0;
 
 GABC_GUPrim *

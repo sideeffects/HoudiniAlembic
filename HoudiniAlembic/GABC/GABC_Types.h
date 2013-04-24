@@ -31,6 +31,9 @@
 #include "GABC_API.h"
 #include <UT/UT_IntrusivePtr.h>
 
+namespace GABC_NAMESPACE
+{
+
 enum GABC_NodeType
 {
     GABC_UNKNOWN=-1,
@@ -78,5 +81,6 @@ GABC_API extern const char	*GABCanimationType(GABC_AnimationType type);
 GABC_API extern GABC_AnimationType	 GABCanimationType(const char *type);
 GABC_API extern const char	*GABCviewportLOD(GABC_ViewportLOD type);
 GABC_API extern GABC_ViewportLOD	 GABCviewportLOD(const char *type);
+}
 
 #endif

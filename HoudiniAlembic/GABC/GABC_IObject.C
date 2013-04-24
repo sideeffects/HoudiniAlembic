@@ -52,6 +52,8 @@
 #include <UT/UT_StackBuffer.h>
 #include <UT/UT_DoubleLock.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     typedef Alembic::Abc::index_t		index_t;
@@ -121,7 +123,7 @@ namespace
     {
 	if (!param)
 	    return GT_DataArrayHandle();
-	return GABCarray(GABC_IArray::getSample(arch, param,
+	return GABC_NAMESPACE::GABCarray(GABC_IArray::getSample(arch, param,
 			    gttype, array_extent));
     }
     static GT_DataArrayHandle
@@ -203,7 +205,7 @@ namespace
 	    index_t idx, GT_Type tinfo)
     {
 	GABC_IArray	iarray = GABC_IArray::getSample(arch, prop, idx, tinfo);
-	return GABCarray(iarray);
+	return GABC_NAMESPACE::GABCarray(iarray);
     }
 
     template <typename ABC_POD, typename GT_POD, GT_Storage GT_STORAGE>

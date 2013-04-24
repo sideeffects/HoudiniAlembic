@@ -28,6 +28,8 @@
 #include "ROP_AbcGTShape.h"
 #include <GABC/GABC_OGTGeometry.h>
 
+using namespace GABC_NAMESPACE;
+
 ROP_AbcGTShape::ROP_AbcGTShape(const std::string &name)
     : myShape(NULL)
     , myName(name)

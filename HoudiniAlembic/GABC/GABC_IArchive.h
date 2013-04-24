@@ -36,6 +36,8 @@
 #include <UT/UT_Set.h>
 #include <Alembic/Abc/IArchive.h>
 
+namespace GABC_NAMESPACE
+{
 class GABC_IItem;
 
 /// Wrapper around an Alembic archive.  This provides thread-safe access to
@@ -138,5 +140,6 @@ public:
 private:
     UT_Lock	*myLock;
 };
+}
 
 #endif

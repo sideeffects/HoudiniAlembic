@@ -32,6 +32,8 @@
 #include <GABC/GABC_OError.h>
 #include "ROP_AbcContext.h"
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     typedef Alembic::AbcGeom::OCamera		OCamera;

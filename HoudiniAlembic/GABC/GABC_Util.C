@@ -37,6 +37,8 @@
 #include <UT/UT_SymbolTable.h>
 #include <boost/tokenizer.hpp>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     typedef Alembic::Abc::M44d			M44d;

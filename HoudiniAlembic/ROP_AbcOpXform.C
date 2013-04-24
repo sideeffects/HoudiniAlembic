@@ -34,6 +34,8 @@
 #include <GABC/GABC_Util.h>
 #include <GABC/GABC_OError.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     typedef Alembic::AbcGeom::OXform		OXform;

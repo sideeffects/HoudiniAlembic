@@ -29,6 +29,8 @@
 #include <GT/GT_DANumeric.h>
 #include <UT/UT_Assert.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     // Compile time asserts need to be declared in a function
@@ -75,7 +77,7 @@ GABC_IGTStringArray::GABC_IGTStringArray(const GABC_IArray &array)
 }
 
 GT_DataArrayHandle
-GABCarray(const GABC_IArray &iarray)
+GABC_NAMESPACE::GABCarray(const GABC_IArray &iarray)
 {
     if (!iarray.valid())
 	return GT_DataArrayHandle();

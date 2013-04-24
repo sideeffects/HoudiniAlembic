@@ -38,4 +38,8 @@
 #define GABC_API_TINST SYS_VISIBILITY_IMPORT_TINST
 #endif
 
+#ifndef GABC_NAMESPACE
+    #define GABC_NAMESPACE	GABC_Houdini
+#endif
+
 #endif

@@ -32,6 +32,8 @@
 #include <UT/UT_JSONParser.h>
 #include <UT/UT_JSONWriter.h>
 
+using namespace GABC_NAMESPACE;
+
 GABC_NameMap::GABC_NameMap()
     : myMap()
     , myRefCount(0)

@@ -76,6 +76,7 @@
 #include <UT/UT_StackBuffer.h>
 #include <GT/GT_DataArray.h>
 
+using namespace GABC_NAMESPACE;
 namespace
 {
     typedef GABC_IObject			IObject;
@@ -270,7 +271,7 @@ namespace
 	const char			*name;
 	double				 sampleTime;
 	Alembic::AbcGeom::GeometryScope	 scope;
-	GABC_AnimationType		 atype;
+	GABC_NAMESPACE::GABC_AnimationType		 atype;
 	GT_DataArrayHandle		 data;
 
         if (!PY_PyArg_ParseTuple(args, "sssd", &filename, &objectPath,

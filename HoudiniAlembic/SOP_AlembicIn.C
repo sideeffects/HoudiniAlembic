@@ -37,6 +37,8 @@
 #include <OP/OP_OperatorTable.h>
 #include <OP/OP_Director.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     typedef GABC_Util::PathList		PathList;

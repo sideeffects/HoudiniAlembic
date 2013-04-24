@@ -35,6 +35,8 @@
 #include <GA/GA_Handle.h>
 #include <GU/GU_Detail.h>
 
+namespace GABC_NAMESPACE
+{
 /// @brief Walk an Alembic tree to create Houdini geometry
 ///
 /// To convert an Alembic file to Houdini geometry, the code would look
@@ -333,5 +335,6 @@ private:
     bool	myAllTransformConstant;	// All transforms in scene are const
     bool	myRebuiltNURBS;		// Whether NURBS were rebuilt
 };
+}
 
 #endif

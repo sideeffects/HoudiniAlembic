@@ -34,6 +34,9 @@
 #include <GT/GT_Types.h>
 #include <Alembic/AbcGeom/All.h>
 
+namespace GABC_NAMESPACE
+{
+
 class GABC_OOptions;
 
 /// Class to store a generic GT data array in an Alembic compound property
@@ -70,5 +73,6 @@ private:
     GT_Storage				myStorage;
     GT_Size				myTupleSize;
 };
+}
 
 #endif

@@ -44,9 +44,11 @@
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_DSOVersion.h>
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
-    class rop_AlembicOutError : public GABC_OError
+    class rop_AlembicOutError : public GABC_NAMESPACE::GABC_OError
     {
     public:
 	rop_AlembicOutError(ROP_AlembicOut &node, UT_Interrupt *interrupt)

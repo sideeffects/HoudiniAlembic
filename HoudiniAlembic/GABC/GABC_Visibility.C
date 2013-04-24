@@ -27,6 +27,8 @@
 
 #include "GABC_Visibility.h"
 
+using namespace GABC_NAMESPACE;
+
 void
 GABC_VisibilityCache::clear()
 {

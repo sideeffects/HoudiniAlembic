@@ -37,6 +37,8 @@
 class UT_JSONWriter;
 class UT_JSONParser;
 
+namespace GABC_NAMESPACE
+{
 /// Map to translate from Alembic attribute names to Houdini names
 class GABC_API GABC_NameMap
 {
@@ -105,5 +107,6 @@ private:
 
 static inline void intrusive_ptr_add_ref(GABC_NameMap *m) { m->incref(); }
 static inline void intrusive_ptr_release(GABC_NameMap *m) { m->decref(); }
+}
 
 #endif

@@ -43,6 +43,8 @@
 #include <UT/UT_ShowCounts.h>
 UT_COUNTER(thePrimCount, "Alembic Primitives");
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     typedef UT_SymbolMap<std::string>			vray_PropertyMap;

@@ -33,6 +33,9 @@
 #include <GT/GT_Primitive.h>
 #include <Alembic/AbcGeom/All.h>
 
+namespace GABC_NAMESPACE
+{
+
 class GABC_OError;
 class GABC_OOptions;
 class GABC_OProperty;
@@ -265,5 +268,6 @@ private:
     UT_Array<std::string>	 myFaceSetNames;
     int				 myType;
 };
+}
 
 #endif

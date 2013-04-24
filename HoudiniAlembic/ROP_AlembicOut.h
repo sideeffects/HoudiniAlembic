@@ -30,14 +30,15 @@
 
 #include <ROP/ROP_Node.h>
 #include <ROP/ROP_Error.h>
+#include <GABC/GABC_OError.h>
 
-class GABC_OError;
 class ROP_AbcContext;
 class ROP_AbcArchive;
 
 class ROP_AlembicOut : public ROP_Node
 {
 public:
+    typedef GABC_NAMESPACE::GABC_OError	GABC_OError;
     ROP_AlembicOut(OP_Network *net, const char *name, OP_Operator *op);
     virtual ~ROP_AlembicOut();
 

@@ -39,7 +39,7 @@ class UT_WorkBuffer;
 class SOP_Node;
 
 /// Alembic evaluation context
-class ROP_AbcContext : public GABC_OOptions
+class ROP_AbcContext : public GABC_NAMESPACE::GABC_OOptions
 {
 public:
     typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;

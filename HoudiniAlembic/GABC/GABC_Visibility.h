@@ -31,6 +31,8 @@
 #include "GABC_API.h"
 #include "GABC_ChannelCache.h"
 
+namespace GABC_NAMESPACE
+{
 enum GABC_VisibilityType
 {
     GABC_VISIBLE_DEFER		= -1,
@@ -102,5 +104,6 @@ private:
     GABC_ChannelCache	*myCache;
     GABC_VisibilityType	 myVisible;
 };
+}
 
 #endif

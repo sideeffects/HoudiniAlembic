@@ -32,6 +32,8 @@
 #include <GT/GT_Refine.h>
 #include <GT/GT_RefineParms.h>
 
+using namespace GABC_NAMESPACE;
+
 GABC_GTPrimitive::~GABC_GTPrimitive()
 {
     setVisibilityCache(NULL);

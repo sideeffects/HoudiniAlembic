@@ -35,6 +35,8 @@
 #include <Alembic/AbcCoreAbstract/TimeSampling.h>
 #include <Alembic/AbcGeom/GeometryScope.h>
 
+namespace GABC_NAMESPACE
+{
 /// Class to specify options for output of Alembic geometry
 class GABC_API GABC_OOptions
 {
@@ -126,6 +128,7 @@ private:
     bool		myUseDisplaySOP;
     bool		myFullBounds;
 };
+}
 
 #endif
 

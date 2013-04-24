@@ -29,12 +29,12 @@
 #define __ROP_AbcObject__
 
 #include <GABC/GABC_Include.h>
+#include <GABC/GABC_OError.h>
 #include <Alembic/Abc/OObject.h>
 #include <UT/UT_StringMap.h>
 #include <UT/UT_Set.h>
 #include <UT/UT_BoundingBox.h>
 
-class GABC_OError;
 class ROP_AbcContext;
 class UT_WorkBuffer;
 
@@ -42,6 +42,7 @@ class UT_WorkBuffer;
 class ROP_AbcObject
 {
 public:
+    typedef GABC_NAMESPACE::GABC_OError		GABC_OError;
     typedef UT_StringMap<ROP_AbcObject *>	ChildContainer;
     typedef UT_Set<std::string>			NameSet;
     typedef Alembic::Abc::OObject		OObject;

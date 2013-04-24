@@ -31,6 +31,8 @@
 #include <UT/UT_StackBuffer.h>
 #include "GABC_OOptions.h"
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     typedef Alembic::Abc::OCompoundProperty		OCompoundProperty;

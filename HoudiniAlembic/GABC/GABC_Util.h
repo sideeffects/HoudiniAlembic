@@ -42,6 +42,9 @@
 
 class UT_StringArray;
 
+namespace GABC_NAMESPACE
+{
+
 class GABC_API GABC_Util
 {
 public:
@@ -229,5 +232,6 @@ public:
     static const PathList	&getObjectList(const std::string &filename,
 					bool include_face_sets=false);
 };
+}
 
 #endif

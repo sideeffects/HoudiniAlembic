@@ -32,5 +32,5 @@
 void
 newGeometryPrim(GA_PrimitiveFactory *factory)
 {
-    GABC_GUPrim::registerMyself(factory);
+    GABC_NAMESPACE::GABC_GUPrim::registerMyself(factory);
 }

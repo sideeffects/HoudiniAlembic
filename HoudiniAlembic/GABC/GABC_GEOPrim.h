@@ -44,6 +44,8 @@
 
 class GEO_Detail;
 
+namespace GABC_NAMESPACE
+{
 class GABC_API GABC_GEOPrim : public GEO_Primitive
 {
 public:
@@ -263,5 +265,6 @@ private:
     bool		 myUseVisibility;
 
 };
+}
 
 #endif

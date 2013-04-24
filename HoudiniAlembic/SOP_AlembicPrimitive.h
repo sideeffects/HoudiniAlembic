@@ -31,13 +31,14 @@
 #include <UT/UT_Version.h>
 #include <UT/UT_Interrupt.h>
 #include <SOP/SOP_Node.h>
-
-class GABC_GEOPrim;
+#include <GABC/GABC_GEOPrim.h>
 
 /// SOP to change intrinsic properties on Alembic primitives
 class SOP_AlembicPrimitive : public SOP_Node
 {
 public:
+    typedef GABC_NAMESPACE::GABC_GEOPrim	GABC_GEOPrim;
+
     static OP_Node *myConstructor(OP_Network *net, const char *name,
 		    OP_Operator *entry);
     static PRM_Template		myTemplateList[];

@@ -34,6 +34,8 @@
 #include <UT/UT_IntrusivePtr.h>
 #include <UT/UT_String.h>
 
+namespace GABC_NAMESPACE
+{
 /// Objects stored in GABC_IArchives
 ///
 /// Since IArchives keep references to objects, holding onto a reference will
@@ -69,5 +71,6 @@ public:
 private:
     GABC_IArchivePtr	myArchive;
 };
+}
 
 #endif

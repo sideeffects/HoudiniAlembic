@@ -44,6 +44,8 @@
 
 #define GABC_SHARED_DATA_NAMEMAP	0
 
+using namespace GABC_NAMESPACE;
+
 namespace
 {
     static bool

@@ -33,6 +33,9 @@
 #include <GT/GT_Types.h>
 #include <Alembic/AbcGeom/All.h>
 
+namespace GABC_NAMESPACE
+{
+
 namespace GABC_GTUtil
 {
     /// Given an Alembic DataType, determine the corresponding GT_Storage
@@ -97,5 +100,6 @@ namespace GABC_GTUtil
 	return GT_TYPE_NONE;
     }
 };
+}
 
 #endif
