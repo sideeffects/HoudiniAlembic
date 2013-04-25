@@ -637,6 +637,14 @@ GABC_Util::Walker::~Walker()
 {
 }
 
+#define YSTR(X)	#X		// Stringize
+#define XSTR(X)	YSTR(X)		// Expand the stringized version
+const char *
+GABC_Util::getAlembicCompileNamespace()
+{
+    return XSTR(ALEMBIC_VERSION_NS);
+}
+
 bool
 GABC_Util::Walker::preProcess(const GABC_IObject &)
 {

@@ -54,6 +54,8 @@ public:
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef std::vector<std::string>		PathList;
 
+    static const char	*getAlembicCompileNamespace();
+
     /// Create a Box3d from a UT_BoundingBox
     static Box3d	getBox(const UT_BoundingBox &box)
     {
