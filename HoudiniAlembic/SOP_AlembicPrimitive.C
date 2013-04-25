@@ -33,6 +33,11 @@
 #include <OP/OP_OperatorTable.h>
 #include <GABC/GABC_GUPrim.h>
 
+#if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
+    #define CUSTOM_ALEMBIC_TOKEN_PREFIX	""
+    #define CUSTOM_ALEMBIC_LABEL_PREFIX	""
+#endif
+
 using namespace GABC_NAMESPACE;
 
 namespace
@@ -265,12 +270,12 @@ void
 SOP_AlembicPrimitive::installSOP(OP_OperatorTable *table)
 {
     OP_Operator	*abcPrimitive = new OP_Operator(
-	    "alembicprimitive",
-	    "Alembic Primitive",
-	    SOP_AlembicPrimitive::myConstructor,
-	    SOP_AlembicPrimitive::myTemplateList,
-	    1, 1,
-	    SOP_AlembicPrimitive::myVariables);
+        CUSTOM_ALEMBIC_TOKEN_PREFIX "alembicprimitive",
+        CUSTOM_ALEMBIC_LABEL_PREFIX "Alembic Primitive",
+	SOP_AlembicPrimitive::myConstructor,
+	SOP_AlembicPrimitive::myTemplateList,
+	1, 1,
+	SOP_AlembicPrimitive::myVariables);
     abcPrimitive->setIconName("SOP_alembic");
     table->addOperator(abcPrimitive);
 }

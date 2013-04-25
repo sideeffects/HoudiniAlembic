@@ -34,6 +34,11 @@
 #include <GU/GU_PrimSelection.h>
 #include <GABC/GABC_GUPrim.h>
 
+#if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
+    #define CUSTOM_ALEMBIC_TOKEN_PREFIX	""
+    #define CUSTOM_ALEMBIC_LABEL_PREFIX	""
+#endif
+
 using namespace GABC_NAMESPACE;
 
 namespace
@@ -364,12 +369,12 @@ void
 SOP_AlembicGroup::installSOP(OP_OperatorTable *table)
 {
     OP_Operator	*abcGroup = new OP_Operator(
-	    "alembicgroup",
-	    "Alembic Group",
-	    SOP_AlembicGroup::myConstructor,
-	    SOP_AlembicGroup::myTemplateList,
-	    1, 1,
-	    0);
+        CUSTOM_ALEMBIC_TOKEN_PREFIX "alembicgroup",
+        CUSTOM_ALEMBIC_LABEL_PREFIX "Alembic Group",
+	SOP_AlembicGroup::myConstructor,
+	SOP_AlembicGroup::myTemplateList,
+	1, 1,
+	0);
     abcGroup->setIconName("SOP_alembic");
     table->addOperator(abcGroup);
 }

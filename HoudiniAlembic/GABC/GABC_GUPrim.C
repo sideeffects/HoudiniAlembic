@@ -42,6 +42,11 @@
 #include <GT/GT_RefineParms.h>
 #include <GT/GT_Util.h>
 
+#if !defined(GABC_PRIMITIVE_TOKEN)
+    #define GABC_PRIMITIVE_TOKEN	"AlembicRef"
+    #define GABC_PRIMITIVE_LABEL	"Alembic Delayed Load"
+#endif
+
 using namespace GABC_NAMESPACE;
 
 GA_PrimitiveDefinition *GABC_GUPrim::theDef = 0;
@@ -143,11 +148,11 @@ GABC_GUPrim::registerMyself(GA_PrimitiveFactory *factory)
     if (theDef)
 	return;
 
-    theDef = factory->registerDefinition("AlembicRef", 
+    theDef = factory->registerDefinition(GABC_PRIMITIVE_TOKEN, 
 			gu_newPrimABC,
 			GA_FAMILY_NONE);
     
-    theDef->setLabel("Alembic Delayed Load");
+    theDef->setLabel(GABC_PRIMITIVE_LABEL);
     theDef->setHasLocalTransform(true);
     theDef->setSharedDataLoader(new AbcSharedDataLoader());
     registerIntrinsics(*theDef);

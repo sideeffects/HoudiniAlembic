@@ -37,6 +37,11 @@
 #include <OP/OP_OperatorTable.h>
 #include <OP/OP_Director.h>
 
+#if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
+    #define CUSTOM_ALEMBIC_TOKEN_PREFIX	""
+    #define CUSTOM_ALEMBIC_LABEL_PREFIX	""
+#endif
+
 using namespace GABC_NAMESPACE;
 
 namespace
@@ -883,8 +888,8 @@ void
 SOP_AlembicIn2::installSOP(OP_OperatorTable *table)
 {
     OP_Operator *alembic_op = new OP_Operator(
-        "alembic",			// Internal name
-        "Alembic",			// GUI name
+        CUSTOM_ALEMBIC_TOKEN_PREFIX "alembic",		// Internal name
+        CUSTOM_ALEMBIC_LABEL_PREFIX "Alembic",		// GUI name
         SOP_AlembicIn2::myConstructor,	// Op Constructr
         SOP_AlembicIn2::myTemplateList,	// Parameter Definition
         0, 1,				// Min/Max # of Inputs

@@ -44,6 +44,11 @@
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_DSOVersion.h>
 
+#if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
+    #define CUSTOM_ALEMBIC_TOKEN_PREFIX	""
+    #define CUSTOM_ALEMBIC_LABEL_PREFIX	""
+#endif
+
 using namespace GABC_NAMESPACE;
 
 namespace
@@ -609,24 +614,24 @@ void
 newDriverOperator(OP_OperatorTable *table)
 {
     OP_Operator	*alembic_op = new OP_Operator(
-		"alembic",
-		"Alembic",
-		createAlembicOut,
-		getTemplatePair(),
-		0, 9999,
-		getVariablePair(),
-		OP_FLAG_GENERATOR);
+        CUSTOM_ALEMBIC_TOKEN_PREFIX "alembic",		// Internal name
+        CUSTOM_ALEMBIC_LABEL_PREFIX "Alembic",		// GUI name
+	createAlembicOut,
+	getTemplatePair(),
+	0, 9999,
+	getVariablePair(),
+	OP_FLAG_GENERATOR);
     alembic_op->setIconName("ROP_alembic");
     table->addOperator(alembic_op);
 
     OP_Operator	*alembic_sop = new OP_Operator(
-		"rop_alembic",
-		"ROP Alembic Output",
-		createAlembicOut,
-		getTemplatePair(),
-		0, 1,
-		getVariablePair(),
-		OP_FLAG_GENERATOR|OP_FLAG_MANAGER);
+        CUSTOM_ALEMBIC_TOKEN_PREFIX "rop_alembic",
+        CUSTOM_ALEMBIC_LABEL_PREFIX "ROP Alembic Output",
+	createAlembicOut,
+	getTemplatePair(),
+	0, 1,
+	getVariablePair(),
+	OP_FLAG_GENERATOR|OP_FLAG_MANAGER);
     alembic_sop->setIconName("ROP_alembic");
 
     // Note:  This is reliant on the order of operator table construction and
