@@ -1,0 +1,151 @@
+## This document is under CC-3.0 Attribution-Share Alike 3.0
+##       http://creativecommons.org/licenses/by-sa/3.0/
+##  Attribution:  There is no requirement to attribute the author.
+# 
+# This will build a "huge" library containing all the Alembic .o
+# files.  It uses the .o files which you build when you build your
+# custom version of Alembic.
+#
+# With the BUILD_DIR set to the proper path, you should be able to
+# run:
+#    make -f MakeHuge
+#
+
+# BUILD_DIR: The path to the "lib/Alembic" in the build directory
+BUILD_DIR	= PATH_TO_ALEMBIC_BUILD/alembic_build/lib/Alembic
+
+# Convenience variables for the different components
+ABC		= Abc/CMakeFiles/AlembicAbc.dir
+ABCCOLLECTION	= AbcCollection/CMakeFiles/AlembicAbcCollection.dir
+ABCABSTRACT	= AbcCoreAbstract/CMakeFiles/AlembicAbcCoreAbstract.dir
+ABCHDF5		= AbcCoreHDF5/CMakeFiles/AlembicAbcCoreHDF5.dir
+ABCGEOM		= AbcGeom/CMakeFiles/AlembicAbcGeom.dir
+ABCMAT		= AbcMaterial/CMakeFiles/AlembicAbcMaterial.dir
+ABCUTIL		= Util/CMakeFiles/AlembicUtil.dir
+
+# The resulting "huge" library
+FULL_LIB	= libAbcHuge.so
+
+OFILES =  \
+	$(BUILD_DIR)/$(ABC)/ArchiveInfo.cpp.o \
+	$(BUILD_DIR)/$(ABC)/ErrorHandler.cpp.o \
+	$(BUILD_DIR)/$(ABC)/IArchive.cpp.o \
+	$(BUILD_DIR)/$(ABC)/IArrayProperty.cpp.o \
+	$(BUILD_DIR)/$(ABC)/ICompoundProperty.cpp.o \
+	$(BUILD_DIR)/$(ABC)/IObject.cpp.o \
+	$(BUILD_DIR)/$(ABC)/ISampleSelector.cpp.o \
+	$(BUILD_DIR)/$(ABC)/IScalarProperty.cpp.o \
+	$(BUILD_DIR)/$(ABC)/OArchive.cpp.o \
+	$(BUILD_DIR)/$(ABC)/OArrayProperty.cpp.o \
+	$(BUILD_DIR)/$(ABC)/OCompoundProperty.cpp.o \
+	$(BUILD_DIR)/$(ABC)/OObject.cpp.o \
+	$(BUILD_DIR)/$(ABC)/OScalarProperty.cpp.o \
+	$(BUILD_DIR)/$(ABCCOLLECTION)/ICollections.cpp.o \
+	$(BUILD_DIR)/$(ABCCOLLECTION)/OCollections.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/ArchiveReader.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/ArchiveWriter.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/ArrayPropertyReader.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/ArrayPropertyWriter.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/ArraySample.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/BasePropertyReader.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/BasePropertyWriter.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/CompoundPropertyReader.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/CompoundPropertyWriter.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/Foundation.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/ObjectReader.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/ObjectWriter.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/ReadArraySampleCache.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/ScalarPropertyReader.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/ScalarPropertyWriter.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/ScalarSample.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/TimeSampling.cpp.o \
+	$(BUILD_DIR)/$(ABCABSTRACT)/TimeSamplingType.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/AprImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/ApwImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/ArImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/AwImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/CacheImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/CprData.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/CprImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/CpwData.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/CpwImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/DataTypeRegistry.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/HDF5Hierarchy.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/HDF5HierarchyReader.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/HDF5HierarchyWriter.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/HDF5Util.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/OrData.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/OrImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/OwData.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/OwImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/ReadUtil.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/ReadWrite.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/SprImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/SpwImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/StringReadUtil.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/StringWriteUtil.cpp.o \
+	$(BUILD_DIR)/$(ABCHDF5)/WriteUtil.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/ArchiveBounds.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/Basis.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/CameraSample.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/FilmBackXformOp.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/GeometryScope.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/ICamera.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/ICurves.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/IFaceSet.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/ILight.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/INuPatch.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/IPoints.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/IPolyMesh.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/ISubD.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/IXform.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/OCamera.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/OCurves.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/OFaceSet.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/OLight.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/ONuPatch.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/OPoints.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/OPolyMesh.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/OSubD.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/OXform.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/Visibility.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/XformOp.cpp.o \
+	$(BUILD_DIR)/$(ABCGEOM)/XformSample.cpp.o \
+	$(BUILD_DIR)/$(ABCMAT)/IMaterial.cpp.o \
+	$(BUILD_DIR)/$(ABCMAT)/InternalUtil.cpp.o \
+	$(BUILD_DIR)/$(ABCMAT)/MaterialAssignment.cpp.o \
+	$(BUILD_DIR)/$(ABCMAT)/MaterialFlatten.cpp.o \
+	$(BUILD_DIR)/$(ABCMAT)/OMaterial.cpp.o \
+	$(BUILD_DIR)/$(ABCUTIL)/Murmur3.cpp.o \
+	$(BUILD_DIR)/$(ABCUTIL)/Naming.cpp.o \
+	$(BUILD_DIR)/$(ABCUTIL)/TokenMap.cpp.o
+
+$(FULL_LIB):	$(OFILES)
+	g++ -shared -fno-strict-aliasing \
+	    -Wl,-soname,$(FULL_LIB) \
+	    -Wl,--exclude-libs,ALL  \
+	    -o $@ $(OFILES)
+
+#---------------------------------------------------------------------
+# Testing rule
+#
+# Build a test application using the installed custom version of the
+# Alembic libraries, and the shipped Houdini libraries.
+#
+ABCINSTALL	= /usr/local/alembic-1.1.5
+ABCINC		= $(ABCINSTALL)/include
+ABCLIB		= $(ABCINSTALL)/lib
+HALFINC		= -I$(HFS)/custom/include/OpenEXR
+HLIB		= -L$(HFS)/dsolib
+LIBRARIES	= \
+	-lhdf5 \
+	-lhdf5_hl \
+	-lIex \
+	-lImath \
+	-lHalf
+
+test:	test.C $(FULL_LIB)
+	g++ -o test test.C -I$(ABCINC) $(HALFINC) \
+		$(HLIB) -L. -lAbcHuge $(LIBRARIES)
+
+install:	test
