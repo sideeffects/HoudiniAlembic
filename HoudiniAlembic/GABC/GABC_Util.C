@@ -360,7 +360,7 @@ namespace
 			id.makeIdentity();
 			buildTransformCache(root(), "", id);
 		    }
-		    AbcTransformMap::const_iterator	it;
+		    AbcTransformMap::const_map_iterator it;
 		    it = myStaticXforms.find(fullpath);
 		    if (it != myStaticXforms.map_end())
 		    {
@@ -378,7 +378,7 @@ namespace
 			id.makeIdentity();
 			buildTransformCache(root(), "", id);
 		    }
-		    AbcTransformMap::const_iterator	it;
+		    AbcTransformMap::const_map_iterator it;
 		    it = myStaticXforms.find(fullpath);
 		    if (it != myStaticXforms.map_end())
 		    {
