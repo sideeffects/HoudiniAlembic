@@ -280,6 +280,7 @@ namespace
         ArchiveCacheEntry()
 	    : myCache("abcObjects", 2)
 	    , myDynamicXforms("abxTransforms", 4)
+	    , myXformCacheBuilt(false)
         {
         }
 
@@ -323,6 +324,7 @@ namespace
 	void	buildTransformCache(const GABC_IObject &root, const char *path,
 				    const M44d &parent)
 	{
+	    myXformCacheBuilt = true;
 	    UT_WorkBuffer	fullpath;
 	    for (size_t i = 0; i < root.getNumChildren(); ++i)
 	    {
@@ -354,7 +356,7 @@ namespace
 	/// Check to see if there's a const local transform cached
 	bool	staticLocalTransform(const char *fullpath, M44d &xform)
 		{
-		    if (myStaticXforms.size() == 0)
+		    if (!myXformCacheBuilt)
 		    {
 			M44d	id;
 			id.makeIdentity();
@@ -372,7 +374,7 @@ namespace
 	/// Check to see if there's a const world transform cached
 	bool	staticWorldTransform(const char *fullpath, M44d &xform)
 		{
-		    if (myStaticXforms.size() == 0)
+		    if (!myXformCacheBuilt)
 		    {
 			M44d	id;
 			id.makeIdentity();
@@ -549,6 +551,7 @@ namespace
 	std::string		error;
 	PathList		myObjectList;
 	PathList		myFullObjectList;
+	bool			myXformCacheBuilt;
 	AbcTransformMap		myStaticXforms;
 	UT_CappedCache		myCache;
 	UT_CappedCache		myDynamicXforms;
