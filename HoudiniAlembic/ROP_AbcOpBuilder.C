@@ -66,14 +66,14 @@ ROP_AbcOpBuilder::addChild(GABC_OError &err, OP_Node *child)
 }
 
 static bool
-validObjectType(OBJ_Node *obj)
+validObjectType(fpreal t, OBJ_Node *obj)
 {
     if (!obj)
 	return false;
 
     if (obj->getObjectType() == OBJ_CAMERA || obj->getObjectType() == OBJ_SUBNET)
 	return true;
-    if (obj->castToOBJGeometry() && obj->isObjectRenderable())
+    if (obj->castToOBJGeometry() && obj->isObjectRenderable(t))
 	return true;
     return false;
 }
@@ -88,7 +88,7 @@ addNodesToTree(const ROP_AbcContext &ctx,
     {
 	const InternalNode	&ikid = it->second;
 	OBJ_Node		*obj = CAST_OBJNODE(ikid.node());
-	if (validObjectType(obj))
+	if (validObjectType(ctx.cookTime(), obj))
 	{
 	    ROP_AbcObject		*kid = new ROP_AbcOpXform(obj, ctx);
 	    node->addChild(obj->getName(), kid);
