@@ -624,7 +624,7 @@ GABC_GEOPrim::getVelocityRange(UT_Vector3 &vmin, UT_Vector3 &vmax) const
 {
     vmin = 0;
     vmax = 0;
-    if (myObject.valid())
+    if (!myObject.valid())
 	return;
 
     GABC_AnimationType	atype;
