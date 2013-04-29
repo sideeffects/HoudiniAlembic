@@ -29,6 +29,7 @@
 #define __GABC_GUPrim__
 
 #include "GABC_API.h"
+#if !defined(GABC_PACKED)
 #include <GA/GA_PrimitiveDefinition.h>
 #include "GABC_GEOPrim.h"
 #include <GU/GU_Detail.h>
@@ -111,5 +112,20 @@ private:
     static GA_PrimitiveDefinition	 *theDef;
 };
 }
+
+#else
+
+#include "GABC_PackedImpl.h"
+#include <GU/GU_PrimPacked.h>
+class GA_PrimitiveFactory;
+namespace GABC_NAMESPACE
+{
+    namespace GABC_GUPrim
+    {
+	GABC_API void	registerMyself(GA_PrimitiveFactory *factory);
+    }
+}
+#endif
+
 
 #endif

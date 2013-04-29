@@ -26,6 +26,7 @@
  */
 
 #include "GABC_GEOPrim.h"
+#if !defined(GABC_PACKED)
 #include "GABC_Util.h"
 #include <GA/GA_IntrinsicMacros.h>
 #include <GA/GA_PrimitiveJSON.h>
@@ -1236,3 +1237,4 @@ GABC_GEOPrim::resolveObject()
     myObject = GABC_Util::findObject(myFilename, myObjectPath);
     updateAnimation();
 }
+#endif

@@ -110,6 +110,10 @@ SOP_AlembicPrimitive::SOP_AlembicPrimitive(OP_Network *net,
 	const char *name, OP_Operator *op)
     : SOP_Node(net, name, op)
     , myCurrPrim(NULL)
+#if !defined(GABC_PACKED)
+#else
+    , myCurrAbc(NULL)
+#endif
 {
 }
 
@@ -127,6 +131,7 @@ SOP_AlembicPrimitive::updateParmsFlags()
 bool
 SOP_AlembicPrimitive::evalVariableValue(fpreal &v, int index, int thread)
 {
+#if !defined(GABC_PACKED)
     if (myCurrPrim)
     {
 	switch (index)
@@ -147,12 +152,36 @@ SOP_AlembicPrimitive::evalVariableValue(fpreal &v, int index, int thread)
 		return true;
 	}
     }
+#else
+    if (myCurrAbc)
+    {
+	UT_ASSERT(myCurrPrim);
+	switch (index)
+	{
+	    case VAR_ABCFRAME:
+		v = myCurrAbc->frame();
+		return true;
+	    case VAR_ABCOBJECT:
+	    case VAR_ABCFILENAME:
+	    case VAR_ABCTYPE:
+		v = 0;
+		return true;
+	    case VAR_ABCUSEVISIBLE:
+		v = myCurrAbc->useVisibility();
+		return true;
+	    case VAR_ABCVIEWPORTLOD:
+		v = myCurrPrim->viewportLOD();
+		return true;
+	}
+    }
+#endif
     return SOP_Node::evalVariableValue(v, index, thread);
 }
 
 bool
 SOP_AlembicPrimitive::evalVariableValue(UT_String &v, int index, int thread)
 {
+#if !defined(GABC_PACKED)
     if (myCurrPrim)
     {
 	UT_WorkBuffer		 wbuf;
@@ -176,15 +205,51 @@ SOP_AlembicPrimitive::evalVariableValue(UT_String &v, int index, int thread)
 		v.harden(wbuf.buffer());
 		return true;
 	    case VAR_ABCVIEWPORTLOD:
-		
+
 		return true;
 	}
     }
+#else
+    if (myCurrAbc)
+    {
+	UT_ASSERT(myCurrPrim);
+	UT_WorkBuffer		 wbuf;
+	switch (index)
+	{
+	    case VAR_ABCFRAME:
+		wbuf.sprintf("%g", myCurrAbc->frame());
+		v.harden(wbuf.buffer());
+		return true;
+	    case VAR_ABCOBJECT:
+		v = myCurrAbc->objectPath();
+		return true;
+	    case VAR_ABCFILENAME:
+		v = myCurrAbc->filename();
+		return true;
+	    case VAR_ABCTYPE:
+		v = GABCnodeType(myCurrAbc->nodeType());
+		return true;
+	    case VAR_ABCUSEVISIBLE:
+		wbuf.sprintf("%d", myCurrAbc->useVisibility());
+		v.harden(wbuf.buffer());
+		return true;
+	    case VAR_ABCVIEWPORTLOD:
+		wbuf.sprintf("%d", myCurrAbc->useVisibility());
+		v.harden(wbuf.buffer());
+		return true;
+	}
+    }
+#endif
     return SOP_Node::evalVariableValue(v, index, thread);
 }
 
 bool
+#if !defined(GABC_PACKED)
 SOP_AlembicPrimitive::setProperties(GABC_GEOPrim *prim, OP_Context &ctx)
+#else
+SOP_AlembicPrimitive::setProperties(GU_PrimPacked *pack,
+	GABC_PackedImpl *prim, OP_Context &ctx)
+#endif
 {
     fpreal	t = ctx.getTime();
     fpreal	fps = SYSmax(1e-6, FPS(t));
@@ -200,10 +265,12 @@ SOP_AlembicPrimitive::setProperties(GABC_GEOPrim *prim, OP_Context &ctx)
 	    break;
     }
     VIEWPORTLOD(lod, t);
+#if !defined(GABC_PACKED)
     if (lod != "unchanged")
     {
 	prim->setViewportLOD((GABC_ViewportLOD)GABCviewportLOD(lod));
     }
+#endif
 
     return error() < UT_ERROR_ABORT;
 }
@@ -227,7 +294,11 @@ SOP_AlembicPrimitive::cookMySop(OP_Context &context)
     setVariableOrder(3, 0, 2, 1);
     setupLocalVars();
 
+#if !defined(GABC_PACKED)
     GA_PrimitiveTypeId	abctype = GABC_GUPrim::theTypeId();
+#else
+    const GA_PrimitiveTypeId	&abctype = GABC_PackedImpl::typeId();
+#endif
     if (error() < UT_ERROR_ABORT && cookInputGroups(context) < UT_ERROR_ABORT)
     {
 	for (GA_Iterator it(gdp->getPrimitiveRange(myGroup)); !it.atEnd(); ++it)
@@ -238,12 +309,23 @@ SOP_AlembicPrimitive::cookMySop(OP_Context &context)
 
 	    // Set up local variable
 	    myCurPrimOff[0] = p->getMapOffset();
+#if !defined(GABC_PACKED)
 	    myCurrPrim = UTverify_cast<GABC_GEOPrim *>(p);
 	    if (!setProperties(myCurrPrim, context))
 		break;
+#else
+	    myCurrPrim = UTverify_cast<GU_PrimPacked *>(p);
+	    myCurrAbc = UTverify_cast<GABC_PackedImpl *>(myCurrPrim->implementation());
+	    if (!setProperties(myCurrPrim, myCurrAbc, context))
+		break;
+#endif
 	}
     }
     myCurrPrim = NULL;
+#if !defined(GABC_PACKED)
+#else
+    myCurrAbc = NULL;
+#endif
     resetLocalVarRefs();
 
     unlockInputs();

@@ -29,6 +29,7 @@
 #define __GABC_GEOPrim__
 
 #include "GABC_API.h"
+#if !defined(GABC_PACKED)
 #include "GABC_Util.h"
 #include "GABC_NameMap.h"
 #include "GABC_IArchive.h"
@@ -267,4 +268,5 @@ private:
 };
 }
 
+#endif
 #endif

@@ -791,6 +791,7 @@ namespace {
 	    default:
 		return;	// Invalid primitive type
 	}
+#if !defined(GABC_PACKED)
 	GABC_GUPrim *abc = GABC_GUPrim::build(&walk.detail(),
 				walk.filename(),
 				obj,
@@ -803,6 +804,22 @@ namespace {
 	abc->setAttributeNameMap(walk.nameMapPtr());
 	abc->setUseTransform(walk.includeXform());
 	abc->setViewportLOD(walk.viewportLOD());
+#else
+	GU_PrimPacked	*packed = GABC_PackedImpl::build(walk.detail(),
+				walk.filename(),
+				obj,
+				walk.time(),
+				walk.includeXform(),
+				walk.useVisibility());
+	GABC_PackedImpl	*abc;
+	abc = UTverify_cast<GABC_PackedImpl *>(packed->implementation());
+	GA_Offset	pt = walk.getPointForAbcPrim();
+	if (GAisValid(pt))
+	    packed->setVertexPoint(pt);
+	//packed->setAttributeNameMap(walk.nameMapPtr());
+	//packed->setViewportLOD(walk.viewportLOD());
+	abc->setUseTransform(walk.includeXform());
+#endif
 	if (!abc->isConstant())
 	{
 	    walk.setNonConstant();
@@ -1481,6 +1498,7 @@ GABC_GEOWalker::updateAbcPrims()
     for (GA_Iterator it(detail().getPrimitiveRange()); !it.atEnd(); ++it)
     {
 	GEO_Primitive	*prim = detail().getGEOPrimitive(*it);
+#if !defined(GABC_PACKED)
 	GABC_GUPrim	*abc = UTverify_cast<GABC_GUPrim *>(prim);
 	if (!abc->isConstant())
 	{
@@ -1490,6 +1508,13 @@ GABC_GEOWalker::updateAbcPrims()
 	// change.
 	// A change in the attribute map will cause an entire rebuild.
 	abc->setFrame(time());
+#else
+	GU_PrimPacked	*pack = UTverify_cast<GU_PrimPacked *>(prim);
+	GABC_PackedImpl	*abc = UTverify_cast<GABC_PackedImpl *>(pack->implementation());
+	if (!abc->isConstant())
+	    setNonConstant();
+	abc->setFrame(time());
+#endif
 	if (setPath)
 	    myPathAttribute.set(prim->getMapOffset(), abc->objectPath().c_str());
     }

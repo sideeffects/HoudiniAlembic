@@ -26,6 +26,7 @@
  */
 
 #include "GABC_GUPrim.h"
+#if !defined(GABC_PACKED)
 #include "GABC_GTPrim.h"
 #include "GABC_NameMap.h"
 #include <UT/UT_WorkBuffer.h>
@@ -319,3 +320,18 @@ GABC_GUPrim::intersectRay(const UT_Vector3 &org, const UT_Vector3 &dir,
     }
     return result;
 }
+#else
+#include "GABC_PackedImpl.h"
+
+namespace GABC_NAMESPACE
+{
+    namespace GABC_GUPrim
+    {
+	void
+	registerMyself(GA_PrimitiveFactory *pfact)
+	{
+	    GABC_PackedImpl::install(pfact);
+	}
+    }
+}
+#endif

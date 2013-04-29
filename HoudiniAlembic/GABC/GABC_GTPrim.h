@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+#if !defined(GABC_PACKED)
+
 #ifndef __GABC_GTPrim__
 #define __GABC_GTPrim__
 
@@ -172,4 +174,5 @@ private:
 };
 }
 
+#endif
 #endif

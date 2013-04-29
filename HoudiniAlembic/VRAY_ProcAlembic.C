@@ -24,10 +24,10 @@
  *
  *----------------------------------------------------------------------------
  */
-
 #include <GABC/GABC_Include.h>	// For Windows linking
 
 #include "VRAY_ProcAlembic.h"
+#if !defined(GABC_PACKED)
 #include <GABC/GABC_GEOWalker.h>
 #include <GABC/GABC_GUPrim.h>
 #include <GABC/GABC_IObject.h>
@@ -853,3 +853,4 @@ VRAY_ProcAlembic::render()
 	}
     }
 }
+#endif

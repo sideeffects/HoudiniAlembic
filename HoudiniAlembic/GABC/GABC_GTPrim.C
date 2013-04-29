@@ -26,6 +26,7 @@
  */
 
 #include "GABC_GTPrim.h"
+#if !defined(GABC_PACKED)
 #include "GABC_GEOPrim.h"
 #include "GABC_Visibility.h"
 #include <UT/UT_JSONWriter.h>
@@ -299,3 +300,4 @@ GABC_GTPrimCollect::endCollecting(const GT_GEODetailListHandle &,
 {
     return GT_PrimitiveHandle();
 }
+#endif
