@@ -53,7 +53,7 @@ GABC_PackedGT::getPointCloud(const GT_RefineParms *) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    GABC_AnimationType	atype;
+    GEO_AnimationType	atype;
     return impl->object().getPointCloud(impl->frame(), atype);
 }
 
@@ -62,9 +62,9 @@ GABC_PackedGT::getFullGeometry(const GT_RefineParms *) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    GABC_AnimationType	atype;
+    GEO_AnimationType	atype;
     return impl->object().getPrimitive(getPrim(), impl->frame(), atype,
-	    GABC_NameMapPtr());
+	    getPrim()->attributeNameMap());
 }
 
 }

@@ -117,8 +117,8 @@ public:
     void	setUseVisibility(bool v)		{ myUseVisibility = v; }
 
     bool	isConstant() const
-		    { return animationType() == GABC_ANIMATION_CONSTANT; }
-    GABC_AnimationType	animationType() const;
+		    { return animationType() == GEO_ANIMATION_CONSTANT; }
+    GEO_AnimationType	animationType() const;
 protected:
 #if 0
     /// Optional method to compute centroid (default uses bounding box)

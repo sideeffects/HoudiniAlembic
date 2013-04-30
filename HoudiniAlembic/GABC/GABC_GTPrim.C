@@ -56,11 +56,11 @@ GABC_GTPrimitive::enlargeBounds(UT_BoundingBox boxes[], int nseg) const
 	boxes[i].enlargeBounds(box);
 }
 
-GABC_ViewportLOD
+GEO_ViewportLOD
 GABC_GTPrimitive::getLOD(const GABC_GEOPrim &prim, const GT_RefineParms *parms)
 {
     if (!GT_RefineParms::getDelayedLoadViewportLOD(parms))
-	return GABC_VIEWPORT_FULL;
+	return GEO_VIEWPORT_FULL;
     return prim.viewportLOD();
 }
 
@@ -81,12 +81,12 @@ GABC_GTPrimitive::updateAnimation(bool consider_transform,
     if (consider_visibility)
     {
 	setVisibilityCache(myPrimitive->object().visibilityCache());
-	if (myAnimation == GABC_ANIMATION_CONSTANT &&
+	if (myAnimation == GEO_ANIMATION_CONSTANT &&
 		myVisibilityCache->animated())
 	{
 	    // Mark that we're dependent on "transform" for lack of a better
 	    // flag
-	    myAnimation = GABC_ANIMATION_TRANSFORM;
+	    myAnimation = GEO_ANIMATION_TRANSFORM;
 	}
     }
     else
@@ -115,30 +115,30 @@ void
 GABC_GTPrimitive::updateCache(const GT_RefineParms *parms)
 {
     const GABC_IObject	&obj = myPrimitive->object();
-    GABC_ViewportLOD	 lod = getLOD(*myPrimitive, parms);
+    GEO_ViewportLOD	 lod = getLOD(*myPrimitive, parms);
     fpreal		 frame = myPrimitive->frame();
 
     if (myVisibilityCache)
 	myVisibilityCache->update(frame);
-    if (!myCache || lod != myCacheLOD || myAnimation == GABC_ANIMATION_TOPOLOGY)
+    if (!myCache || lod != myCacheLOD || myAnimation == GEO_ANIMATION_TOPOLOGY)
     {
-	GABC_AnimationType		 atype;
+	GEO_AnimationType		 atype;
 	myCacheLOD = lod;
 	myCacheFrame = frame;
 	switch (lod)
 	{
-	    case GABC_VIEWPORT_FULL:
+	    case GEO_VIEWPORT_FULL:
 		myCache = obj.getPrimitive(myPrimitive, frame,
 				atype, myPrimitive->attributeNameMap());
 		break;
-	    case GABC_VIEWPORT_POINTS:
+	    case GEO_VIEWPORT_POINTS:
 		myCache = obj.getPointCloud(frame, atype);
 		break;
-	    case GABC_VIEWPORT_BOX:
+	    case GEO_VIEWPORT_BOX:
 		myCache = obj.getBoxGeometry(frame, atype);
 		break;
-	    case GABC_VIEWPORT_HIDDEN:
-	    case GABC_VIEWPORT_CENTROID:
+	    case GEO_VIEWPORT_HIDDEN:
+	    case GEO_VIEWPORT_CENTROID:
 		myCache = obj.getCentroidGeometry(frame, atype);
 		break;
 	}
@@ -147,24 +147,24 @@ GABC_GTPrimitive::updateCache(const GT_RefineParms *parms)
 	if (myCache)
 	    myCache->setPrimitiveTransform(getPrimitiveTransform());
     }
-    else if (myAnimation == GABC_ANIMATION_ATTRIBUTE && myCacheFrame != frame)
+    else if (myAnimation == GEO_ANIMATION_ATTRIBUTE && myCacheFrame != frame)
     {
 	UT_ASSERT(myCache);
 	myCacheFrame = frame;
 	switch (myCacheLOD)
 	{
-	    case GABC_VIEWPORT_FULL:
+	    case GEO_VIEWPORT_FULL:
 		myCache = obj.updatePrimitive(myCache, myPrimitive, frame,
 			myPrimitive->attributeNameMap());
 		break;
-	    case GABC_VIEWPORT_POINTS:
+	    case GEO_VIEWPORT_POINTS:
 		myCache = obj.getPointCloud(frame, myAnimation);
 		break;
-	    case GABC_VIEWPORT_BOX:
+	    case GEO_VIEWPORT_BOX:
 		myCache = obj.getBoxGeometry(frame, myAnimation);
 		break;
-	    case GABC_VIEWPORT_HIDDEN:
-	    case GABC_VIEWPORT_CENTROID:
+	    case GEO_VIEWPORT_HIDDEN:
+	    case GEO_VIEWPORT_CENTROID:
 		myCache = obj.getCentroidGeometry(frame, myAnimation);
 		break;
 	}

@@ -28,7 +28,7 @@
 #include "GABC_GUPrim.h"
 #if !defined(GABC_PACKED)
 #include "GABC_GTPrim.h"
-#include "GABC_NameMap.h"
+#include <GEO/GEO_PackedNameMap.h>
 #include <UT/UT_WorkBuffer.h>
 #include <UT/UT_JSONParser.h>
 #include <GA/GA_GBAttributeMath.h>
@@ -113,7 +113,7 @@ public:
 bool
 AbcSharedDataLoader::load(UT_JSONParser &p, GA_LoadMap &load) const
 {
-    typedef GABC_NameMap::LoadContainer		NameMapContainer;
+    typedef GEO_PackedNameMap::LoadContainer		NameMapContainer;
     UT_WorkBuffer	key;
     UT_WorkBuffer	type;
     for (UT_JSONParser::iterator it = p.beginArray(); !it.atEnd(); ++it)
@@ -126,7 +126,7 @@ AbcSharedDataLoader::load(UT_JSONParser &p, GA_LoadMap &load) const
 	if (!strcmp(type.buffer(), "namemap"))
 	{
 	    NameMapContainer	data;
-	    if (!GABC_NameMap::load(data.myNameMap, p))
+	    if (!GEO_PackedNameMap::load(data.myNameMap, p))
 		return false;
 	    load.resolveSharedData(key.buffer(), &data);
 	}

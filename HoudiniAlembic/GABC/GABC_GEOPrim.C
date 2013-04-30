@@ -59,10 +59,10 @@ namespace
 #if 0
     static bool
     setPrimitiveWorldTransform(const GABC_IObject &obj, GT_Primitive *prim,
-		    fpreal t, GABC_AnimationType &atype)
+		    fpreal t, GEO_AnimationType &atype)
     {
 	UT_Matrix4D		xform;
-	GABC_AnimationType	xtype;
+	GEO_AnimationType	xtype;
 	if (!obj.getWorldTransform(xform, t, xtype))
 	    return false;
 	prim->setPrimitiveTransform(
@@ -80,7 +80,7 @@ GABC_GEOPrim::GABC_GEOPrim(GEO_Detail *d, GA_Offset offset)
     , myFrame(0)
     , myGTPrimitive(new GABC_GTPrimitive(this))
     , myVertex(GA_INVALID_OFFSET)
-    , myViewportLOD(GABC_VIEWPORT_FULL)
+    , myViewportLOD(GEO_VIEWPORT_FULL)
     , myUseTransform(true)
     , myUseVisibility(true)
 {
@@ -266,7 +266,7 @@ namespace
 static bool
 nameMapSharedKey(UT_WorkBuffer &key, const GABC_GEOPrim *prim)
 {
-    const GABC_NameMapPtr	&map = prim->attributeNameMap();
+    const GEO_PackedNameMapPtr	&map = prim->attributeNameMap();
     if (!map || !map->entries())
     {
 	key.clear();
@@ -406,7 +406,7 @@ public:
 	int64		ival;
 	bool		bval;
 	GT_TransformHandle	xform;
-	GABC_NameMapPtr	amap;
+	GEO_PackedNameMapPtr	amap;
 	switch (i)
 	{
 	    case geo_FILENAME:
@@ -440,7 +440,7 @@ public:
 		abc(pr)->setUseVisibility(bval);
 		return true;
 	    case geo_ATTRIBUTEMAP_UNIQUE:
-		if (!GABC_NameMap::load(amap, p))
+		if (!GEO_PackedNameMap::load(amap, p))
 		    return false;
 		abc(pr)->setAttributeNameMap(amap);
 		return true;
@@ -552,8 +552,8 @@ bool
 GABC_GEOPrim::loadSharedLoadData(int dtype, const GA_SharedLoadData *vitem)
 {
     UT_ASSERT(dtype == GABC_SHARED_DATA_NAMEMAP);
-    const GABC_NameMap::LoadContainer	*item;
-    item = UTverify_cast<const GABC_NameMap::LoadContainer *>(vitem);
+    const GEO_PackedNameMap::LoadContainer	*item;
+    item = UTverify_cast<const GEO_PackedNameMap::LoadContainer *>(vitem);
     if (item)
 	setAttributeNameMap(item->myNameMap);
     return true;
@@ -628,7 +628,7 @@ GABC_GEOPrim::getVelocityRange(UT_Vector3 &vmin, UT_Vector3 &vmax) const
     if (!myObject.valid())
 	return;
 
-    GABC_AnimationType	atype;
+    GEO_AnimationType	atype;
     GT_DataArrayHandle	v = myObject.getVelocity(myFrame, atype);
     if (v)
     {
@@ -685,7 +685,7 @@ GABC_GEOPrim::needTransform() const
 GT_PrimitiveHandle
 GABC_GEOPrim::gtPointCloud() const
 {
-    GABC_AnimationType	atype;
+    GEO_AnimationType	atype;
     GT_PrimitiveHandle	result;
 
     result = myObject.getPointCloud(myFrame, atype);
@@ -705,7 +705,7 @@ GABC_GEOPrim::gtPointCloud() const
 GT_PrimitiveHandle
 GABC_GEOPrim::gtBox() const
 {
-    GABC_AnimationType	atype;
+    GEO_AnimationType	atype;
     GT_PrimitiveHandle	result;
 
     result = myObject.getBoxGeometry(myFrame, atype);
@@ -784,7 +784,7 @@ GABC_GEOPrim::setGeoTransform(const GT_TransformHandle &x)
 }
 
 void
-GABC_GEOPrim::setAttributeNameMap(const GABC_NameMapPtr &m)
+GABC_GEOPrim::setAttributeNameMap(const GEO_PackedNameMapPtr &m)
 {
     myAttributeNameMap = m;
     myGTPrimitive->clear();
@@ -939,7 +939,7 @@ namespace
     static const char *
     intrinsicViewportLOD(const GABC_GEOPrim *p)
     {
-	return GABCviewportLOD(p->viewportLOD());
+	return GEOviewportLOD(p->viewportLOD());
     }
     static bool
     intrinsicNodeVisibility(const GABC_GEOPrim *p)
@@ -956,7 +956,7 @@ namespace
     static const char *
     intrinsicAnimation(const GABC_GEOPrim *p)
     {
-	return GABCanimationType(p->animation());
+	return GEOanimationType(p->animation());
     }
     static GA_Size
     intrinsicGeoTransform(const GABC_GEOPrim *p, fpreal64 *v, GA_Size size)
@@ -1018,7 +1018,7 @@ namespace
     static GA_Size
     intrinsicSetViewportLOD(GABC_GEOPrim *prim, const char *lod)
     {
-	GABC_ViewportLOD	val = GABCviewportLOD(lod);
+	GEO_ViewportLOD	val = GEOviewportLOD(lod);
 	if (val >= 0)
 	{
 	    prim->setViewportLOD(val);
@@ -1088,7 +1088,7 @@ GABC_GEOPrim::setUseVisibility(bool v)
 }
 
 void
-GABC_GEOPrim::setViewportLOD(GABC_ViewportLOD vlod)
+GABC_GEOPrim::setViewportLOD(GEO_ViewportLOD vlod)
 {
     if (vlod >= 0 && vlod != myViewportLOD)
     {
@@ -1110,7 +1110,7 @@ GABC_GEOPrim::init(const std::string &filename,
     myUseTransform = use_transform;
     setUseTransform(use_transform);
     setUseVisibility(use_visibility);
-    setViewportLOD(GABC_VIEWPORT_FULL);
+    setViewportLOD(GEO_VIEWPORT_FULL);
     resolveObject();
 }
 
@@ -1126,7 +1126,7 @@ GABC_GEOPrim::init(const std::string &filename,
     myObjectPath = object.getFullName();
     setUseTransform(use_transform);
     setUseVisibility(use_visibility);
-    setViewportLOD(GABC_VIEWPORT_FULL);
+    setViewportLOD(GEO_VIEWPORT_FULL);
     myFrame = frame;
     updateAnimation();
 }

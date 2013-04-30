@@ -205,7 +205,7 @@ SOP_AlembicPrimitive::evalVariableValue(UT_String &v, int index, int thread)
 		v.harden(wbuf.buffer());
 		return true;
 	    case VAR_ABCVIEWPORTLOD:
-
+		// TODO??
 		return true;
 	}
     }
@@ -234,7 +234,7 @@ SOP_AlembicPrimitive::evalVariableValue(UT_String &v, int index, int thread)
 		v.harden(wbuf.buffer());
 		return true;
 	    case VAR_ABCVIEWPORTLOD:
-		wbuf.sprintf("%d", myCurrAbc->useVisibility());
+		wbuf.sprintf("%s", GEOviewportLOD(myCurrPrim->viewportLOD()));
 		v.harden(wbuf.buffer());
 		return true;
 	}
@@ -263,14 +263,17 @@ SOP_AlembicPrimitive::setProperties(GU_PrimPacked *pack,
 	case 1:
 	    prim->setUseVisibility(true);
 	    break;
+	// case 2: unchanged
     }
     VIEWPORTLOD(lod, t);
-#if !defined(GABC_PACKED)
     if (lod != "unchanged")
     {
-	prim->setViewportLOD((GABC_ViewportLOD)GABCviewportLOD(lod));
-    }
+#if !defined(GABC_PACKED)
+	prim->setViewportLOD(GEOviewportLOD(lod));
+#else
+	pack->setViewportLOD(GEOviewportLOD(lod));
 #endif
+    }
 
     return error() < UT_ERROR_ABORT;
 }

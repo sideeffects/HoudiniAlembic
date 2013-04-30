@@ -41,7 +41,6 @@ class SOP_AlembicIn2 : public SOP_Node
 public:
     typedef GABC_NAMESPACE::GABC_Util		GABC_Util;
     typedef GABC_NAMESPACE::GABC_GEOWalker	GABC_GEOWalker;
-    typedef GABC_NAMESPACE::GABC_NameMapPtr	GABC_NameMapPtr;
     typedef GABC_Util::ArchiveEventHandler	ArchiveEventHandler;
     typedef GABC_Util::ArchiveEventHandlerPtr	ArchiveEventHandlerPtr;
     //--------------------------------------------------------------------------
@@ -100,7 +99,7 @@ private:
 	GABC_GEOWalker::GroupMode	myGroupMode;
 	GABC_GEOWalker::AFilter		myAnimationFilter;
 	GABC_GEOWalker::AbcPolySoup	myPolySoup;
-	GABC_NAMESPACE::GABC_ViewportLOD		myViewportLOD;
+	GEO_ViewportLOD			myViewportLOD;
 	UT_BoundingBox			myBoundBox;
 	bool				myBuildAbcXform;
 	std::string			myFilename;
@@ -113,7 +112,7 @@ private:
 	bool				myBuildLocator;
 	UT_String			myPathAttribute;
 	UT_String			myFilenameAttribute;
-	GABC_NameMapPtr			myNameMapPtr;
+	GEO_PackedNameMapPtr		myNameMapPtr;
     };
 
     class EventHandler : public ArchiveEventHandler

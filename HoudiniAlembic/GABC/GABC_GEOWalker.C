@@ -26,11 +26,11 @@
  */
 
 #include "GABC_GEOWalker.h"
-#include "GABC_NameMap.h"
 #include "GABC_GUPrim.h"
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_StackBuffer.h>
 #include <Alembic/AbcGeom/All.h>
+#include <GEO/GEO_PackedNameMap.h>
 #include <GU/GU_PrimPoly.h>
 #include <GU/GU_PrimPolySoup.h>
 #include <GU/GU_PrimPart.h>
@@ -802,7 +802,6 @@ namespace {
 	if (GAisValid(pt))
 	    abc->setVertexPoint(pt);
 	abc->setAttributeNameMap(walk.nameMapPtr());
-	abc->setUseTransform(walk.includeXform());
 	abc->setViewportLOD(walk.viewportLOD());
 #else
 	GU_PrimPacked	*packed = GABC_PackedImpl::build(walk.detail(),
@@ -816,24 +815,23 @@ namespace {
 	GA_Offset	pt = walk.getPointForAbcPrim();
 	if (GAisValid(pt))
 	    packed->setVertexPoint(pt);
-	//packed->setAttributeNameMap(walk.nameMapPtr());
-	//packed->setViewportLOD(walk.viewportLOD());
-	abc->setUseTransform(walk.includeXform());
+	packed->setAttributeNameMap(walk.nameMapPtr());
+	packed->setViewportLOD(walk.viewportLOD());
 #endif
+	abc->setUseTransform(walk.includeXform());
 	if (!abc->isConstant())
 	{
 	    walk.setNonConstant();
 	}
 	walk.trackPtVtxPrim(obj, 0, 0, 1, false);
-
     }
 
-    GABC_AnimationType
+    GEO_AnimationType
     getAnimationType(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
-	GABC_AnimationType	atype;
+	GEO_AnimationType	atype;
 	atype = obj.getAnimationType(false);
-	if (atype == GABC_ANIMATION_TOPOLOGY)
+	if (atype == GEO_ANIMATION_TOPOLOGY)
 	{
 	    walk.setNonConstantTopology();
 	}
@@ -900,8 +898,8 @@ namespace {
 
 	//fprintf(stderr, "SubD: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
 
-	GABC_AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GABC_ANIMATION_CONSTANT)
+	GEO_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GEO_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -1001,8 +999,8 @@ namespace {
 
 	//fprintf(stderr, "PolyMesh %s: %d %d %d\n", obj.getFullName().c_str(), int(npoint), int(nvertex), int(nprim));
 
-	GABC_AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GABC_ANIMATION_CONSTANT)
+	GEO_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GEO_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -1069,8 +1067,8 @@ namespace {
 	exint			nvertex = npoint;
 	exint			nprim = nvtx->size();
 
-	GABC_AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GABC_ANIMATION_CONSTANT)
+	GEO_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GEO_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -1136,8 +1134,8 @@ namespace {
 	const int			nvertex = 1;
 	const int			nprim = 1;
 
-	GABC_AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GABC_ANIMATION_CONSTANT)
+	GEO_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GEO_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -1193,8 +1191,8 @@ namespace {
 
 	//fprintf(stderr, "Points: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
 
-	GABC_AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GABC_ANIMATION_CONSTANT)
+	GEO_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GEO_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -1255,8 +1253,8 @@ namespace {
 
 	//fprintf(stderr, "NuPatch: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
 
-	GABC_AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GABC_ANIMATION_CONSTANT)
+	GEO_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GEO_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -1323,7 +1321,7 @@ namespace {
 	    for (exint i = 0; i < npoint; ++i)
 		g->addOffset(GA_Offset(startpoint+i));
 	}
-	if (getAnimationType(walk, obj) != GABC_ANIMATION_CONSTANT)
+	if (getAnimationType(walk, obj) != GEO_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -1398,7 +1396,7 @@ namespace {
 	if (!walk.reusePrimitives())
 	    makeBox(gdp);
 	setBoxPositions(gdp, box, walk.pointCount());
-	if (getAnimationType(walk, obj) != GABC_ANIMATION_CONSTANT)
+	if (getAnimationType(walk, obj) != GEO_ANIMATION_CONSTANT)
 	{
 	    walk.setNonConstant();
 	}
@@ -1419,7 +1417,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
     , myLastFaceStart(0)
     , myAbcPrimPointMode(ABCPRIM_UNIQUE_POINT)
     , myPolySoup(ABC_POLYSOUP_POLYMESH)
-    , myViewportLOD(GABC_VIEWPORT_FULL)
+    , myViewportLOD(GEO_VIEWPORT_FULL)
     , myAbcSharedPoint(GA_INVALID_OFFSET)
     , myTime(0)
     , myPointCount(0)

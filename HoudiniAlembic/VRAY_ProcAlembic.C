@@ -182,7 +182,7 @@ namespace
 		return;
 
 	    fpreal		frame = prim->frame();
-	    GABC_AnimationType	atype;
+	    GEO_AnimationType	atype;
 
 	    for (vray_PropertyMap::iterator it = myPropertyMap->begin();
 		    !it.atEnd(); ++it)

@@ -32,8 +32,8 @@
 #include "GABC_Include.h"
 #include "GABC_Types.h"
 #include "GABC_IItem.h"
-#include "GABC_NameMap.h"
 #include "GABC_Visibility.h"
+#include <GEO/GEO_PackedNameMap.h>
 #include <UT/UT_Matrix4.h>
 #include <UT/UT_BoundingBox.h>
 #include <GT/GT_Handles.h>
@@ -125,7 +125,7 @@ public:
 
     /// Get animation type for this node.
     /// @note This only checks animation types of intrinsic properties
-    GABC_AnimationType	getAnimationType(bool include_transform) const;
+    GEO_AnimationType	getAnimationType(bool include_transform) const;
 
     /// Get the bounding box.  Returns false if there are no bounds defined
     bool		getBoundingBox(UT_BoundingBox &box, fpreal t,
@@ -140,27 +140,27 @@ public:
     /// non-NULL, the primitive attributes will be added as GT arrays.
     GT_PrimitiveHandle	getPrimitive(const GEO_Primitive *prim,
 				fpreal t,
-				GABC_AnimationType &atype,
-				const GABC_NameMapPtr &namemap) const;
+				GEO_AnimationType &atype,
+				const GEO_PackedNameMapPtr &namemap) const;
 
     /// Update primitive time.  Given a primitive created by @c getPrimitive(),
     /// update the transform/attribute arrays with values from the new time.
     GT_PrimitiveHandle	updatePrimitive(const GT_PrimitiveHandle &src,
 				const GEO_Primitive *prim,
 				fpreal new_time,
-				const GABC_NameMapPtr &namemap) const;
+				const GEO_PackedNameMapPtr &namemap) const;
 
     /// Get a representation of the point cloud.  This doesn't include any
     /// attributes.
-    GT_PrimitiveHandle	getPointCloud(fpreal t, GABC_AnimationType &a) const;
+    GT_PrimitiveHandle	getPointCloud(fpreal t, GEO_AnimationType &a) const;
 
     /// Get a representation of the bounding box.  This doesn't include any
     /// attributes.
-    GT_PrimitiveHandle	getBoxGeometry(fpreal t, GABC_AnimationType &a) const;
+    GT_PrimitiveHandle	getBoxGeometry(fpreal t, GEO_AnimationType &a) const;
 
     /// Get a point for the centroid of the bounding box.  This doesn't include
     /// any attributes.
-    GT_PrimitiveHandle	getCentroidGeometry(fpreal t, GABC_AnimationType &a) const;
+    GT_PrimitiveHandle	getCentroidGeometry(fpreal t, GEO_AnimationType &a) const;
 
     /// Get local transform for the object.  For shape objects, this will
     /// return an identity transform.  The animation type only considers the
@@ -169,7 +169,7 @@ public:
     /// The transform will be blended between samples if the time doesn't align
     /// perfectly with a sample point.
     bool		getLocalTransform(UT_Matrix4D &xform, fpreal t,
-				GABC_AnimationType &atype,
+				GEO_AnimationType &atype,
 				bool &inherits) const;
 
     /// Get world transform for the object.  The animation type includes all
@@ -178,7 +178,7 @@ public:
     /// The transform will be blended between samples if the time doesn't align
     /// perfectly with a sample point.
     bool		getWorldTransform(UT_Matrix4D &xform, fpreal t,
-				GABC_AnimationType &atype) const;
+				GEO_AnimationType &atype) const;
 
     /// Query the number of geometry properties
     exint		 getNumGeometryProperties() const;
@@ -189,19 +189,19 @@ public:
     GT_DataArrayHandle	 getGeometryProperty(exint index, fpreal t,
 				std::string &name,
 				GeometryScope &scope,
-				GABC_AnimationType &atype) const;
+				GEO_AnimationType &atype) const;
 
     /// Get position property from shape node
-    GT_DataArrayHandle	getPosition(fpreal t, GABC_AnimationType &atype) const;
+    GT_DataArrayHandle	getPosition(fpreal t, GEO_AnimationType &atype) const;
     /// Get velocity property from shape node
-    GT_DataArrayHandle	getVelocity(fpreal t, GABC_AnimationType &atype) const;
+    GT_DataArrayHandle	getVelocity(fpreal t, GEO_AnimationType &atype) const;
 
     /// Lookup the data array for the named geometry property at the given time.
     ///  - The @c scope parameter is filled out with the property scope
     ///  - The @c atype parameter is filled out with the animation type
     GT_DataArrayHandle	 getGeometryProperty(const std::string &name, fpreal t,
 				GeometryScope &scope,
-				GABC_AnimationType &atype) const;
+				GEO_AnimationType &atype) const;
 
     /// Get number of user properties for this node
     exint		getNumUserProperties() const;
@@ -210,12 +210,12 @@ public:
     ///  - The @c atype parameter is filled out with the animation type
     GT_DataArrayHandle	getUserProperty(exint index, fpreal t,
 				std::string &name,
-				GABC_AnimationType &atype) const;
+				GEO_AnimationType &atype) const;
     /// Lookup the data array for the Nth geometry property at the given time.
     ///  - The @c name parameter is filled out with the property name
     ///  - The @c atype parameter is filled out with the animation type
     GT_DataArrayHandle	getUserProperty(const std::string &name, fpreal t,
-				GABC_AnimationType &atype) const;
+				GEO_AnimationType &atype) const;
 
     /// Access the time sampling pointer
     TimeSamplingPtr	timeSampling();

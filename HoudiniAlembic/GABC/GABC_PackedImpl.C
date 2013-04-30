@@ -297,7 +297,7 @@ GABC_PackedImpl::getVelocityRange(UT_Vector3 &vmin, UT_Vector3 &vmax) const
     if (!myObject.valid())
 	return;
 
-    GABC_AnimationType	atype;
+    GEO_AnimationType	atype;
     GT_DataArrayHandle	v = myObject.getVelocity(myFrame, atype);
     if (v)
     {
@@ -324,7 +324,7 @@ GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
     if (!myUseTransform || !myObject.valid())
 	return false;
 
-    GABC_AnimationType	atype;
+    GEO_AnimationType	atype;
     myObject.getWorldTransform(m, myFrame, atype);
     return true;
 }
@@ -350,15 +350,15 @@ GABC_PackedImpl::setObject(const GABC_IObject &v)
     myObjectPath = v.getFullName();
 }
 
-GABC_AnimationType
+GEO_AnimationType
 GABC_PackedImpl::animationType() const
 {
-    GABC_AnimationType	atype;
+    GEO_AnimationType	atype;
     atype = object().getAnimationType(myUseTransform);
-    if (atype == GABC_ANIMATION_CONSTANT && myUseVisibility)
+    if (atype == GEO_ANIMATION_CONSTANT && myUseVisibility)
     {
 	if (object().visibilityCache()->animated())
-	    atype = GABC_ANIMATION_TRANSFORM;
+	    atype = GEO_ANIMATION_TRANSFORM;
     }
     return atype;
 }

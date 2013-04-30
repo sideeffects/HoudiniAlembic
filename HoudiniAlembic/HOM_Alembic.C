@@ -68,7 +68,6 @@
 #include <PY/PY_Python.h>
 #include <PY/PY_InterpreterAutoLock.h>
 #include <GABC/GABC_IArchive.h>
-#include <GABC/GABC_NameMap.h>
 #include <GABC/GABC_Util.h>
 #include <Alembic/AbcGeom/All.h>
 #include <HOM/HOM_Module.h>
@@ -271,7 +270,7 @@ namespace
 	const char			*name;
 	double				 sampleTime;
 	Alembic::AbcGeom::GeometryScope	 scope;
-	GABC_NAMESPACE::GABC_AnimationType		 atype;
+	GEO_AnimationType		 atype;
 	GT_DataArrayHandle		 data;
 
         if (!PY_PyArg_ParseTuple(args, "sssd", &filename, &objectPath,
@@ -288,7 +287,7 @@ namespace
 	data = obj.getGeometryProperty(name, sampleTime, scope, atype);
 	PY_PyObject	*rcode = PY_PyTuple_New(3);
 	PY_PyTuple_SetItem(rcode, 0, dataFromArray(data));
-	PY_PyTuple_SetItem(rcode, 1, atype == GABC_ANIMATION_CONSTANT ? PY_Py_True() : PY_Py_False());
+	PY_PyTuple_SetItem(rcode, 1, atype == GEO_ANIMATION_CONSTANT ? PY_Py_True() : PY_Py_False());
 	PY_PyTuple_SetItem(rcode, 2, PY_PyString_FromString(scopeName(scope)));
 	PY_Py_INCREF(rcode);
 	return rcode;
@@ -308,7 +307,7 @@ namespace
 	const char			*objectPath;
 	const char			*name;
 	double				 sampleTime;
-	GABC_AnimationType		 atype;
+	GEO_AnimationType		 atype;
 	GT_DataArrayHandle		 data;
 
         if (!PY_PyArg_ParseTuple(args, "sssd", &filename, &objectPath,
@@ -325,7 +324,7 @@ namespace
 	data = obj.getUserProperty(name, sampleTime, atype);
 	PY_PyObject	*rcode = PY_PyTuple_New(2);
 	PY_PyTuple_SetItem(rcode, 0, dataFromArray(data));
-	PY_PyTuple_SetItem(rcode, 1, atype == GABC_ANIMATION_CONSTANT ? PY_Py_True() : PY_Py_False());
+	PY_PyTuple_SetItem(rcode, 1, atype == GEO_ANIMATION_CONSTANT ? PY_Py_True() : PY_Py_False());
 	PY_Py_INCREF(rcode);
 	return rcode;
     }

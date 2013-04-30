@@ -99,7 +99,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
     , myPolySoup(GABC_GEOWalker::ABC_POLYSOUP_POLYMESH)
-    , myViewportLOD(GABC_VIEWPORT_FULL)
+    , myViewportLOD(GEO_VIEWPORT_FULL)
     , myPathAttribute("")
     , myFilenameAttribute("")
     , myNameMapPtr()
@@ -122,7 +122,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
     , myPolySoup(GABC_GEOWalker::ABC_POLYSOUP_POLYMESH)
-    , myViewportLOD(GABC_VIEWPORT_FULL)
+    , myViewportLOD(GEO_VIEWPORT_FULL)
     , myPathAttribute("")
     , myFilenameAttribute("")
     , myNameMapPtr()
@@ -625,15 +625,15 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	UT_ASSERT(0 && "Bad value for polysoup");
 
     evalString(sval, "viewportlod", 0, now);
-    parms.myViewportLOD = GABCviewportLOD(sval);
+    parms.myViewportLOD = GEOviewportLOD(sval);
     if (parms.myViewportLOD < 0)
     {
 	// TODO: Add warning about impossible case
-	parms.myViewportLOD = GABC_VIEWPORT_FULL;
+	parms.myViewportLOD = GEO_VIEWPORT_FULL;
     }
 
     int	nmapSize = evalInt("remapAttributes", 0, now);
-    parms.myNameMapPtr = new GABC_NameMap();
+    parms.myNameMapPtr = new GEO_PackedNameMap();
     for (int i = 1; i <= nmapSize; ++i)
     {
 	UT_String	abcName, hName;

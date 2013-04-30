@@ -30,6 +30,7 @@
 
 #include "GABC_API.h"
 #include <UT/UT_IntrusivePtr.h>
+#include <GEO/GEO_PackedTypes.h>
 
 namespace GABC_NAMESPACE
 {
@@ -51,36 +52,11 @@ enum GABC_NodeType
     GABC_NUM_NODE_TYPES	// Sentinal
 };
 
-enum GABC_AnimationType
-{
-    GABC_ANIMATION_INVALID = -1,
-    GABC_ANIMATION_CONSTANT,	// Constant animation (i.e. no animation)
-    GABC_ANIMATION_TRANSFORM,	// Only transform is animated
-    GABC_ANIMATION_ATTRIBUTE,	// Attribute or transform are animated
-    GABC_ANIMATION_TOPOLOGY,	// Topology is animated (changes)
-};
-
-enum GABC_ViewportLOD
-{
-    GABC_VIEWPORT_HIDDEN,
-    GABC_VIEWPORT_CENTROID,
-    GABC_VIEWPORT_BOX,
-    GABC_VIEWPORT_POINTS,
-    GABC_VIEWPORT_FULL,
-};
-
-
-class GABC_NameMap;
 class GABC_IArchive;
-typedef UT_IntrusivePtr<GABC_NameMap>	GABC_NameMapPtr;
 typedef UT_IntrusivePtr<GABC_IArchive>	GABC_IArchivePtr;
 
 GABC_API extern const char	*GABCnodeType(GABC_NodeType type);
 GABC_API extern GABC_NodeType	 GABCnodeType(const char *type);
-GABC_API extern const char	*GABCanimationType(GABC_AnimationType type);
-GABC_API extern GABC_AnimationType	 GABCanimationType(const char *type);
-GABC_API extern const char	*GABCviewportLOD(GABC_ViewportLOD type);
-GABC_API extern GABC_ViewportLOD	 GABCviewportLOD(const char *type);
 }
 
 #endif

@@ -31,7 +31,7 @@
 #include "GABC_API.h"
 #if !defined(GABC_PACKED)
 #include "GABC_Util.h"
-#include "GABC_NameMap.h"
+#include <GEO/GEO_PackedNameMap.h>
 #include "GABC_IArchive.h"
 #include "GABC_GTPrim.h"
 #include <Alembic/AbcGeom/Foundation.h>		// For topology enum
@@ -158,7 +158,7 @@ public:
     const GABC_IObject	&object() const	{ return myObject; }
     GABC_NodeType	 abcNodeType() const
 			    { return myObject.nodeType(); }
-    GABC_AnimationType	 animation() const	{ return myGTPrimitive->animation(); }
+    GEO_AnimationType	 animation() const	{ return myGTPrimitive->animation(); }
     bool		 visible() const	{ return myGTPrimitive->visible(); }
     /// @{
     /// Whether the GT primitive should check visibility
@@ -169,7 +169,7 @@ public:
 
     bool		 isConstant() const
 			 {
-			     return animation() == GABC_ANIMATION_CONSTANT;
+			     return animation() == GEO_ANIMATION_CONSTANT;
 			 }
     fpreal		 frame() const	{ return myFrame; }
 
@@ -198,8 +198,8 @@ public:
 			    { return myUseTransform; }
     void		 setUseTransform(bool v);
     /// Accessors for viewport LOD
-    GABC_ViewportLOD	 viewportLOD() const	{ return myViewportLOD; }
-    void		 setViewportLOD(GABC_ViewportLOD vlod);
+    GEO_ViewportLOD	 viewportLOD() const	{ return myViewportLOD; }
+    void		 setViewportLOD(GEO_ViewportLOD vlod);
     /// @}
 
     /// Return the GT representation of the primitive
@@ -228,8 +228,8 @@ public:
 
     /// @{
     /// Attribute name mappings
-    void			setAttributeNameMap(const GABC_NameMapPtr &m);
-    const GABC_NameMapPtr	&attributeNameMap() const
+    void			setAttributeNameMap(const GEO_PackedNameMapPtr &m);
+    const GEO_PackedNameMapPtr	&attributeNameMap() const
 				    { return myAttributeNameMap; }
     /// @}
 
@@ -252,18 +252,18 @@ private:
 
     void	copyMemberDataFrom(const GABC_GEOPrim &src);
 
-    std::string		 myFilename;
-    std::string		 myObjectPath;
-    GABC_IObject	 myObject;
-    fpreal		 myFrame;
-    GT_TransformHandle	 myGeoTransform;
-    GT_TransformHandle	 myGTTransform;
-    GABC_NameMapPtr	 myAttributeNameMap;
-    GABC_GTPrimitive	*myGTPrimitive;
-    GA_Offset		 myVertex;
-    GABC_ViewportLOD	 myViewportLOD;
-    bool		 myUseTransform;
-    bool		 myUseVisibility;
+    std::string			 myFilename;
+    std::string			 myObjectPath;
+    GABC_IObject		 myObject;
+    fpreal			 myFrame;
+    GT_TransformHandle		 myGeoTransform;
+    GT_TransformHandle		 myGTTransform;
+    GEO_PackedNameMapPtr	 myAttributeNameMap;
+    GABC_GTPrimitive		*myGTPrimitive;
+    GA_Offset			 myVertex;
+    GEO_ViewportLOD		 myViewportLOD;
+    bool			 myUseTransform;
+    bool			 myUseVisibility;
 
 };
 }

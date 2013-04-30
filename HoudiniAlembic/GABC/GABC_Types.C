@@ -45,21 +45,6 @@ namespace
 	GABC_MATERIAL,		"Material",
 	-1, NULL
     );
-    static UT_FSATable	theAnimationTypeTable(
-	GABC_ANIMATION_CONSTANT,	"constant",
-	GABC_ANIMATION_TRANSFORM,	"transform",
-	GABC_ANIMATION_ATTRIBUTE,	"attribute",
-	GABC_ANIMATION_TOPOLOGY,	"topology",
-	-1, NULL
-    );
-    static UT_FSATable	theViewportLODTable(
-	GABC_VIEWPORT_HIDDEN,	"hidden",
-	GABC_VIEWPORT_CENTROID,	"centroid",
-	GABC_VIEWPORT_BOX,	"box",
-	GABC_VIEWPORT_POINTS,	"points",
-	GABC_VIEWPORT_FULL,	"full",
-	-1, NULL
-    );
 }
 
 namespace GABC_NAMESPACE
@@ -77,29 +62,4 @@ GABCnodeType(const char *type)
     return static_cast<GABC_NodeType>(theNodeTypeTable.findSymbol(type));
 }
 
-const char *
-GABCanimationType(GABC_AnimationType type)
-{
-    const char	*name = theAnimationTypeTable.getToken(type);
-    return name ? name : "<invalid>";
-}
-
-GABC_AnimationType
-GABCanimationType(const char *type)
-{
-    return static_cast<GABC_AnimationType>(theAnimationTypeTable.findSymbol(type));
-}
-
-const char *
-GABCviewportLOD(GABC_ViewportLOD type)
-{
-    const char	*name = theViewportLODTable.getToken(type);
-    return name ? name : "<invalid>";
-}
-
-GABC_ViewportLOD
-GABCviewportLOD(const char *type)
-{
-    return static_cast<GABC_ViewportLOD>(theViewportLODTable.findSymbol(type));
-}
 }

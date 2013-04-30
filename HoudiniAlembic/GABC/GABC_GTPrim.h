@@ -52,8 +52,8 @@ public:
 	, myPrimitive(prim)
 	, myVisibilityCache(NULL)
 	, myCacheFrame(0)
-	, myAnimation(GABC_ANIMATION_TOPOLOGY)
-	, myCacheLOD(GABC_VIEWPORT_FULL)
+	, myAnimation(GEO_ANIMATION_TOPOLOGY)
+	, myCacheLOD(GEO_VIEWPORT_FULL)
     {
     }
     GABC_GTPrimitive	&operator=(const GABC_GTPrimitive &src)
@@ -86,7 +86,7 @@ public:
 				    { return new GABC_GTPrimitive(*this); }
     /// @}
 
-    static GABC_ViewportLOD		 getLOD(const GABC_GEOPrim &prim,
+    static GEO_ViewportLOD		 getLOD(const GABC_GEOPrim &prim,
 				const GT_RefineParms *parms);
 
     void			 clear()
@@ -96,8 +96,8 @@ public:
     const GABC_GEOPrim		*primitive() const	{ return myPrimitive; }
     const GT_PrimitiveHandle	&cache() const		{ return myCache; }
     fpreal			 cacheFrame() const	{ return myCacheFrame; }
-    GABC_AnimationType		 animation() const	{ return myAnimation; }
-    GABC_ViewportLOD			 cacheLOD() const	{ return myCacheLOD; }
+    GEO_AnimationType		 animation() const	{ return myAnimation; }
+    GEO_ViewportLOD			 cacheLOD() const	{ return myCacheLOD; }
     bool			 visible() const;
     const GABC_VisibilityCache	*visibilityCache() const
 					{ return myVisibilityCache; }
@@ -124,8 +124,8 @@ private:
 	, myPrimitive(src.myPrimitive)
 	, myVisibilityCache(NULL)
 	, myCacheFrame(0)
-	, myAnimation(GABC_ANIMATION_TOPOLOGY)
-	, myCacheLOD(GABC_VIEWPORT_FULL)
+	, myAnimation(GEO_ANIMATION_TOPOLOGY)
+	, myCacheLOD(GEO_VIEWPORT_FULL)
     {
 	UT_ASSERT(0 && "Copy c-tor -- should be a soft copy");
 	copyFrom(src);
@@ -136,8 +136,8 @@ private:
     const GABC_GEOPrim		*myPrimitive;
     GABC_VisibilityCache	*myVisibilityCache;
     fpreal			 myCacheFrame;
-    GABC_AnimationType		 myAnimation;
-    GABC_ViewportLOD		 myCacheLOD;
+    GEO_AnimationType		 myAnimation;
+    GEO_ViewportLOD		 myCacheLOD;
 };
 
 /// Hook to handle tesselation of Alembic primitives

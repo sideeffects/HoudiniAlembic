@@ -55,7 +55,6 @@ GABCCFILES = \
 	HoudiniAlembic/GABC/GABC_IGTArray.C \
 	HoudiniAlembic/GABC/GABC_IItem.C \
 	HoudiniAlembic/GABC/GABC_IObject.C \
-	HoudiniAlembic/GABC/GABC_NameMap.C \
 	HoudiniAlembic/GABC/GABC_OError.C \
 	HoudiniAlembic/GABC/GABC_OGTGeometry.C \
 	HoudiniAlembic/GABC/GABC_OOptions.C \

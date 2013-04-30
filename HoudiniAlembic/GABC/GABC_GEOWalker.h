@@ -130,7 +130,7 @@ public:
 				    { return myObjectPattern; }
     const UT_String		*attributePatterns() const
 				    { return myAttributePatterns; }
-    const GABC_NameMapPtr	&nameMapPtr() const
+    const GEO_PackedNameMapPtr	&nameMapPtr() const
 				    { return myNameMapPtr; }
 
     fpreal	time() const		{ return myTime; }
@@ -180,7 +180,7 @@ public:
 		    { setAttributePattern(GA_ATTRIB_PRIMITIVE, s); }
     void	setDetailPattern(const char *s)
 		    { setAttributePattern(GA_ATTRIB_DETAIL, s); }
-    void	setNameMapPtr(const GABC_NameMapPtr &ptr)
+    void	setNameMapPtr(const GEO_PackedNameMapPtr &ptr)
 		    { myNameMapPtr = ptr; }
     void	setPathAttribute(const GA_RWAttributeRef &a);
     void	setTime(fpreal t)		{ myTime = t; }
@@ -198,13 +198,13 @@ public:
     void	setPointMode(AbcPrimPointMode mode,
 			GA_Offset shared_point = GA_INVALID_OFFSET);
     void	setPolySoup(AbcPolySoup soup)	{ myPolySoup = soup; }
-    void	setViewportLOD(GABC_ViewportLOD v)	{ myViewportLOD = v; }
+    void	setViewportLOD(GEO_ViewportLOD v)	{ myViewportLOD = v; }
     /// @}
 
     /// @{
     /// State accessors
     AbcPolySoup		polySoup() const	{ return myPolySoup; }
-    GABC_ViewportLOD	viewportLOD() const	{ return myViewportLOD; }
+    GEO_ViewportLOD	viewportLOD() const	{ return myViewportLOD; }
     /// @}
 
     /// @{
@@ -299,7 +299,7 @@ private:
     GA_PrimitiveGroup	*mySubdGroup;
     UT_String		 myObjectPattern;
     UT_String		 myAttributePatterns[GA_ATTRIB_OWNER_N];
-    GABC_NameMapPtr	 myNameMapPtr;	// Attribute map for ABC primitives
+    GEO_PackedNameMapPtr myNameMapPtr;	// Attribute map for ABC primitives
     GA_RWHandleS	 myPathAttribute;
     UT_BoundingBox	 myCullBox;
     UT_Interrupt	*myBoss;
@@ -310,7 +310,7 @@ private:
     GA_Offset		 myAbcSharedPoint;	
     AbcPrimPointMode	 myAbcPrimPointMode;
     AbcPolySoup		 myPolySoup;
-    GABC_ViewportLOD	 myViewportLOD;
+    GEO_ViewportLOD	 myViewportLOD;
 
     fpreal	myTime;			// Alembic evaluation time
     GroupMode	myGroupMode;		// How to construct group names

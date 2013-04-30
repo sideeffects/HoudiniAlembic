@@ -29,10 +29,10 @@
 #include "GABC_IArray.h"
 #include "GABC_IGTArray.h"
 #include "GABC_IArchive.h"
-#include "GABC_NameMap.h"
 #include "GABC_Util.h"
 #include "GABC_GTUtil.h"
 #include "GABC_ChannelCache.h"
+#include <GEO/GEO_PackedNameMap.h>
 #include <GU/GU_Detail.h>
 #include <GT/GT_DANumeric.h>
 #include <GT/GT_DAIndirect.h>
@@ -475,15 +475,15 @@ namespace
 		    ICompoundProperty parent,
 		    const PropertyHeader &header,
 		    fpreal t,
-		    GABC_AnimationType *atype=NULL)
+		    GEO_AnimationType *atype=NULL)
     {
 	if (header.isArray())
 	{
 	    IArrayProperty	prop(parent, header.getName());
 	    if (atype)
 	    {
-		*atype = prop.isConstant() ? GABC_ANIMATION_CONSTANT
-					: GABC_ANIMATION_ATTRIBUTE;
+		*atype = prop.isConstant() ? GEO_ANIMATION_CONSTANT
+					: GEO_ANIMATION_ATTRIBUTE;
 	    }
 	    // Pick up the type from the property interpretation
 	    return readArrayProperty(arch, prop, t, GT_TYPE_NONE);
@@ -493,8 +493,8 @@ namespace
 	    IScalarProperty	prop(parent, header.getName());
 	    if (atype)
 	    {
-		*atype = prop.isConstant() ? GABC_ANIMATION_CONSTANT
-					: GABC_ANIMATION_ATTRIBUTE;
+		*atype = prop.isConstant() ? GEO_ANIMATION_CONSTANT
+					: GEO_ANIMATION_ATTRIBUTE;
 	    }
 	    return readScalarProperty(arch, prop, t);
 	}
@@ -506,7 +506,7 @@ namespace
 	    if (hidx && hval)
 	    {
 		GT_DataArrayHandle	gtidx, gtval;
-		GABC_AnimationType	atidx, atval;
+		GEO_AnimationType	atidx, atval;
 		gtidx = convertArbitraryProperty(arch, comp, *hidx, t, &atidx);
 		gtval = convertArbitraryProperty(arch, comp, *hval, t, &atval);
 		if (gtidx && gtval)
@@ -522,14 +522,14 @@ namespace
 
     template <typename PRIM_T, typename SCHEMA_T>
     static GT_DataArrayHandle
-    gabcGetPosition(const GABC_IObject &obj, fpreal t, GABC_AnimationType &atype)
+    gabcGetPosition(const GABC_IObject &obj, fpreal t, GEO_AnimationType &atype)
     {
 	PRIM_T			 prim(obj.object(), gabcWrapExisting);
 	SCHEMA_T		&ss = prim.getSchema();
 	IP3fArrayProperty	 P = ss.getPositionsProperty();
 	UT_ASSERT(P.valid());
-	atype = P.isConstant() ? GABC_ANIMATION_CONSTANT
-				: GABC_ANIMATION_ATTRIBUTE;
+	atype = P.isConstant() ? GEO_ANIMATION_CONSTANT
+				: GEO_ANIMATION_ATTRIBUTE;
 	return readArrayProperty(*obj.archive(), P, t, GT_TYPE_POINT);
     }
 
@@ -624,7 +624,7 @@ namespace
     template <bool ONLY_ANIMATING>
     static void
     fillAttributeList(GT_AttributeList &alist,
-	    const GABC_NameMapPtr &namemap,
+	    const GEO_PackedNameMapPtr &namemap,
 	    const GEO_Primitive *prim,
 	    const GABC_IObject &obj,
 	    fpreal t,
@@ -733,7 +733,7 @@ namespace
     static GT_AttributeListHandle
     initializeAttributeList(const GEO_Primitive *prim,
 			const GABC_IObject &obj,
-			const GABC_NameMapPtr &namemap,
+			const GEO_PackedNameMapPtr &namemap,
 			fpreal t, 
 			const GeometryScope *scope,
 			int scope_size,
@@ -810,7 +810,7 @@ namespace
     updateAttributeList(const GT_AttributeListHandle &src,
 			const GEO_Primitive *prim,
 			const GABC_IObject &obj,
-			const GABC_NameMapPtr &namemap,
+			const GEO_PackedNameMapPtr &namemap,
 			fpreal t, 
 			const GeometryScope *scope,
 			int scope_size,
@@ -849,7 +849,7 @@ namespace
 			    GT_Owner,
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
-			    const GABC_NameMapPtr &namemap,
+			    const GEO_PackedNameMapPtr &namemap,
 			    fpreal t,
 			    const GeometryScope *scope,
 			    int scope_size,
@@ -869,7 +869,7 @@ namespace
 			    GT_Owner,
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
-			    const GABC_NameMapPtr &namemap,
+			    const GEO_PackedNameMapPtr &namemap,
 			    fpreal t,
 			    GeometryScope scope,
 			    ICompoundProperty arb,
@@ -913,7 +913,7 @@ namespace
 			    GT_Owner owner,
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
-			    const GABC_NameMapPtr &namemap,
+			    const GEO_PackedNameMapPtr &namemap,
 			    fpreal t,
 			    const GeometryScope *scope,
 			    int scope_size,
@@ -933,7 +933,7 @@ namespace
 			    GT_Owner owner,
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
-			    const GABC_NameMapPtr &namemap,
+			    const GEO_PackedNameMapPtr &namemap,
 			    fpreal t,
 			    GeometryScope scope,
 			    ICompoundProperty arb,
@@ -997,7 +997,7 @@ namespace
 	    const GEO_Primitive *prim,
 	    const GABC_IObject &obj,
 	    fpreal t,
-	    const GABC_NameMapPtr &namemap)
+	    const GEO_PackedNameMapPtr &namemap)
     {
 	IPoints			 shape(obj.object(), gabcWrapExisting);
 	IPointsSchema		&ss = shape.getSchema();
@@ -1028,7 +1028,7 @@ namespace
 			const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
-			const GABC_NameMapPtr &namemap)
+			const GEO_PackedNameMapPtr &namemap)
     {
 	ISubD			 shape(obj.object(), gabcWrapExisting);
 	ISubDSchema		&ss = shape.getSchema();
@@ -1142,7 +1142,7 @@ namespace
 			const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
-			const GABC_NameMapPtr &namemap)
+			const GEO_PackedNameMapPtr &namemap)
     {
 	IPolyMesh		 shape(obj.object(), gabcWrapExisting);
 	IPolyMeshSchema		&ss = shape.getSchema();
@@ -1199,7 +1199,7 @@ namespace
     buildCurveMesh(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
-			const GABC_NameMapPtr &namemap)
+			const GEO_PackedNameMapPtr &namemap)
     {
 	ICurves			 shape(obj.object(), gabcWrapExisting);
 	ICurvesSchema		&ss = shape.getSchema();
@@ -1388,7 +1388,7 @@ namespace
     buildNuPatch(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
-			const GABC_NameMapPtr &namemap)
+			const GEO_PackedNameMapPtr &namemap)
     {
 	INuPatch		 shape(obj.object(), gabcWrapExisting);
 	INuPatchSchema		&ss = shape.getSchema();
@@ -1566,63 +1566,63 @@ namespace
     }
 
     template <typename ABC_T, typename SCHEMA_T>
-    static GABC_AnimationType
+    static GEO_AnimationType
     getAnimation(const GABC_IObject &obj)
     {
 	ABC_T			 prim(obj.object(), gabcWrapExisting);
 	SCHEMA_T		&schema = prim.getSchema();
-	GABC_AnimationType	 atype;
+	GEO_AnimationType	 atype;
 	
 	switch (schema.getTopologyVariance())
 	{
 	    case Alembic::AbcGeom::kConstantTopology:
-		atype = GABC_ANIMATION_CONSTANT;
+		atype = GEO_ANIMATION_CONSTANT;
 		if (abcArbsAreAnimated(schema.getArbGeomParams()))
-		    atype = GABC_ANIMATION_ATTRIBUTE;
+		    atype = GEO_ANIMATION_ATTRIBUTE;
 		else if (abcArbsAreAnimated(schema.getUserProperties()))
-		    atype = GABC_ANIMATION_ATTRIBUTE;
+		    atype = GEO_ANIMATION_ATTRIBUTE;
 		break;
 	    case Alembic::AbcGeom::kHomogenousTopology:
-		atype = GABC_ANIMATION_ATTRIBUTE;
+		atype = GEO_ANIMATION_ATTRIBUTE;
 		break;
 	    case Alembic::AbcGeom::kHeterogenousTopology:
-		atype = GABC_ANIMATION_TOPOLOGY;
+		atype = GEO_ANIMATION_TOPOLOGY;
 		break;
 	}
 	return atype;
     }
 
     template <>
-    GABC_AnimationType
+    GEO_AnimationType
     getAnimation<IXform, IXformSchema>(const GABC_IObject &obj)
     {
 	IXform		 prim(obj.object(), gabcWrapExisting);
 	IXformSchema	&schema = prim.getSchema();
 	if (!schema.isConstant())
-	    return GABC_ANIMATION_TRANSFORM;
-	return GABC_ANIMATION_CONSTANT;
+	    return GEO_ANIMATION_TRANSFORM;
+	return GEO_ANIMATION_CONSTANT;
     }
 
     template <>
-    GABC_AnimationType
+    GEO_AnimationType
     getAnimation<IPoints, IPointsSchema>(const GABC_IObject &obj)
     {
 	IPoints		 prim(obj.object(), gabcWrapExisting);
 	IPointsSchema	&schema = prim.getSchema();
 	if (!schema.isConstant())
-	    return GABC_ANIMATION_TOPOLOGY;
+	    return GEO_ANIMATION_TOPOLOGY;
 	if (abcArbsAreAnimated(schema.getArbGeomParams()))
-	    return GABC_ANIMATION_ATTRIBUTE;
-	return GABC_ANIMATION_CONSTANT;
+	    return GEO_ANIMATION_ATTRIBUTE;
+	return GEO_ANIMATION_CONSTANT;
     }
 
-    static GABC_AnimationType
+    static GEO_AnimationType
     getLocatorAnimation(const GABC_IObject &obj)
     {
 	IXform				prim(obj.object(), gabcWrapExisting);
 	Alembic::Abc::IScalarProperty	loc(prim.getProperties(), "locator");
-	return loc.isConstant() ? GABC_ANIMATION_CONSTANT
-				: GABC_ANIMATION_ATTRIBUTE;
+	return loc.isConstant() ? GEO_ANIMATION_CONSTANT
+				: GEO_ANIMATION_ATTRIBUTE;
     }
 };
 
@@ -1843,13 +1843,13 @@ GABC_IObject::visibilityCache() const
     return parent.visibilityCache();
 }
 
-GABC_AnimationType
+GEO_AnimationType
 GABC_IObject::getAnimationType(bool include_transform) const
 {
     if (!valid())
-	return GABC_ANIMATION_INVALID;
+	return GEO_ANIMATION_INVALID;
     GABC_AutoLock	lock(archive());
-    GABC_AnimationType	atype = GABC_ANIMATION_CONSTANT;
+    GEO_AnimationType	atype = GEO_ANIMATION_CONSTANT;
 
     try
     {
@@ -1881,10 +1881,10 @@ GABC_IObject::getAnimationType(bool include_transform) const
 		    atype = getAnimation<IXform, IXformSchema>(*this);
 		break;
 	    default:
-		atype = GABC_ANIMATION_TOPOLOGY;
+		atype = GEO_ANIMATION_TOPOLOGY;
 		break;
 	}
-	if (atype == GABC_ANIMATION_CONSTANT && include_transform)
+	if (atype == GEO_ANIMATION_CONSTANT && include_transform)
 	{
 	    GABC_IObject	parent = getParent();
 	    if (parent.valid())
@@ -1897,7 +1897,7 @@ GABC_IObject::getAnimationType(bool include_transform) const
     }
     catch (const std::exception &)
     {
-	atype = GABC_ANIMATION_INVALID;
+	atype = GEO_ANIMATION_INVALID;
 	UT_ASSERT(0 && "Alembic exception");
     }
     return atype;
@@ -2004,12 +2004,12 @@ GABC_IObject::clampTime(fpreal input_time)
 
 GT_PrimitiveHandle
 GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
-	fpreal t, GABC_AnimationType &atype,
-	const GABC_NameMapPtr &namemap) const
+	fpreal t, GEO_AnimationType &atype,
+	const GEO_PackedNameMapPtr &namemap) const
 {
     GABC_AutoLock	lock(archive());
     GT_PrimitiveHandle	prim;
-    atype = GABC_ANIMATION_CONSTANT;
+    atype = GEO_ANIMATION_CONSTANT;
     try
     {
 	switch (nodeType())
@@ -2048,7 +2048,7 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 	UT_ASSERT(0 && "Alembic exception");
 	prim = GT_PrimitiveHandle();
     }
-    atype = (prim) ? getAnimationType(false) : GABC_ANIMATION_CONSTANT;
+    atype = (prim) ? getAnimationType(false) : GEO_ANIMATION_CONSTANT;
     return prim;
 }
 
@@ -2056,7 +2056,7 @@ GT_PrimitiveHandle
 GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
 				const GEO_Primitive *gprim,
 				fpreal new_time,
-				const GABC_NameMapPtr &namemap) const
+				const GEO_PackedNameMapPtr &namemap) const
 {
     UT_ASSERT(src);
     GT_PrimitiveHandle	prim;
@@ -2100,7 +2100,7 @@ GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
 
 GT_PrimitiveHandle
 GABC_IObject::getPointCloud(fpreal t,
-	GABC_AnimationType &atype) const
+	GEO_AnimationType &atype) const
 {
     GT_DataArrayHandle	P = getPosition(t, atype);
     if (!P && nodeType() == GABC_XFORM)
@@ -2122,25 +2122,25 @@ GABC_IObject::getPointCloud(fpreal t,
 }
 
 GT_PrimitiveHandle
-GABC_IObject::getBoxGeometry(fpreal t, GABC_AnimationType &atype) const
+GABC_IObject::getBoxGeometry(fpreal t, GEO_AnimationType &atype) const
 {
     bool		isconst;
     UT_BoundingBox	box;
     if (!getBoundingBox(box, t, isconst))
 	return GT_PrimitiveHandle();
-    atype = isconst ? GABC_ANIMATION_CONSTANT : GABC_ANIMATION_ATTRIBUTE;
+    atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_ATTRIBUTE;
     GT_BuilderStatus	err;
     return GT_PrimitiveBuilder::wireBox(err, box, NULL);
 }
 
 GT_PrimitiveHandle
-GABC_IObject::getCentroidGeometry(fpreal t, GABC_AnimationType &atype) const
+GABC_IObject::getCentroidGeometry(fpreal t, GEO_AnimationType &atype) const
 {
     bool		isconst;
     UT_BoundingBox	box;
     if (!getBoundingBox(box, t, isconst))
 	return GT_PrimitiveHandle();
-    atype = isconst ? GABC_ANIMATION_CONSTANT : GABC_ANIMATION_ATTRIBUTE;
+    atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_ATTRIBUTE;
     fpreal64	pos[3];
     pos[0] = box.xcenter();
     pos[1] = box.ycenter();
@@ -2154,19 +2154,19 @@ GABC_IObject::getCentroidGeometry(fpreal t, GABC_AnimationType &atype) const
 
 bool
 GABC_IObject::getLocalTransform(UT_Matrix4D &xform, fpreal t,
-				GABC_AnimationType &atype,
+				GEO_AnimationType &atype,
 				bool &inherits) const
 {
     bool	isconst = true;
     if (!localTransform(t, xform, isconst, inherits))
 	return false;
-    atype = isconst ? GABC_ANIMATION_CONSTANT : GABC_ANIMATION_TRANSFORM;
+    atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_TRANSFORM;
     return true;
 }
 
 bool
 GABC_IObject::getWorldTransform(UT_Matrix4D &xform, fpreal t,
-					GABC_AnimationType &atype) const
+					GEO_AnimationType &atype) const
 {
     if (!valid())
 	return false;
@@ -2174,13 +2174,13 @@ GABC_IObject::getWorldTransform(UT_Matrix4D &xform, fpreal t,
     bool	isconst, inherits;
     if (!worldTransform(t, xform, isconst, inherits))
 	return false;
-    atype = isconst ? GABC_ANIMATION_CONSTANT : GABC_ANIMATION_TRANSFORM;
+    atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_TRANSFORM;
 
     return false;
 }
 
 GT_DataArrayHandle
-GABC_IObject::getPosition(fpreal t, GABC_AnimationType &atype) const
+GABC_IObject::getPosition(fpreal t, GEO_AnimationType &atype) const
 {
     if (valid())
     {
@@ -2213,12 +2213,12 @@ GABC_IObject::getPosition(fpreal t, GABC_AnimationType &atype) const
 	    UT_ASSERT(0 && "Alembic exception");
 	}
     }
-    atype = GABC_ANIMATION_CONSTANT;
+    atype = GEO_ANIMATION_CONSTANT;
     return GT_DataArrayHandle();
 }
 
 GT_DataArrayHandle
-GABC_IObject::getVelocity(fpreal t, GABC_AnimationType &atype) const
+GABC_IObject::getVelocity(fpreal t, GEO_AnimationType &atype) const
 {
     if (valid())
     {
@@ -2344,7 +2344,7 @@ GABC_IObject::getNumGeometryProperties() const
 GT_DataArrayHandle
 GABC_IObject::getGeometryProperty(exint index, fpreal t,
 	std::string &name, GeometryScope &scope,
-	GABC_AnimationType &atype) const
+	GEO_AnimationType &atype) const
 {
     GABC_AutoLock	lock(archive());
     GT_DataArrayHandle	data;
@@ -2368,7 +2368,7 @@ GABC_IObject::getGeometryProperty(exint index, fpreal t,
 
 GT_DataArrayHandle
 GABC_IObject::getGeometryProperty(const std::string &name, fpreal t,
-	GeometryScope &scope, GABC_AnimationType &atype) const
+	GeometryScope &scope, GEO_AnimationType &atype) const
 {
     GABC_AutoLock	lock(archive());
     GT_DataArrayHandle	data;
@@ -2402,7 +2402,7 @@ GABC_IObject::getNumUserProperties() const
 
 GT_DataArrayHandle
 GABC_IObject::getUserProperty(exint index, fpreal t,
-	std::string &name, GABC_AnimationType &atype) const
+	std::string &name, GEO_AnimationType &atype) const
 {
     GABC_AutoLock	lock(archive());
     GT_DataArrayHandle	data;
@@ -2425,7 +2425,7 @@ GABC_IObject::getUserProperty(exint index, fpreal t,
 
 GT_DataArrayHandle
 GABC_IObject::getUserProperty(const std::string &name, fpreal t,
-	GABC_AnimationType &atype) const
+	GEO_AnimationType &atype) const
 {
     GABC_AutoLock	lock(archive());
     GT_DataArrayHandle	data;
