@@ -27,10 +27,15 @@
 #include <GABC/GABC_Include.h>	// For Windows linking
 
 #include "VRAY_ProcAlembic.h"
-#if !defined(GABC_PACKED)
 #include <GABC/GABC_GEOWalker.h>
-#include <GABC/GABC_GUPrim.h>
+#if !defined(GABC_PACKED)
+    #include <GABC/GABC_GUPrim.h>
+#else
+    #include <GU/GU_PrimPacked.h>
+    #include <GABC/GABC_PackedImpl.h>
+#endif
 #include <GABC/GABC_IObject.h>
+#include <GT/GT_Primitive.h>
 #include <UT/UT_WorkArgs.h>
 #include <UT/UT_EnvControl.h>
 #include <UT/UT_StringMMPattern.h>
@@ -50,6 +55,28 @@ namespace
     typedef UT_SymbolMap<std::string>			vray_PropertyMap;
     typedef UT_SharedPtr<vray_PropertyMap>		vray_PropertyMapPtr;
     typedef VRAY_ProcAlembic::vray_MergePatternPtr	vray_MergePatternPtr;
+
+#if !defined(GABC_PACKED)
+    inline static GA_PrimitiveTypeId
+    alembicTypeId()
+    {
+	return GABC_GUPrim::theTypeId();
+    }
+#else
+    inline static const GA_PrimitiveTypeId &
+    alembicTypeId()
+    {
+	return GABC_PackedImpl::typeId();
+    }
+#endif
+
+#if !defined(GABC_PACKED)
+#else
+    static const GABC_PackedImpl *implementation(const GU_PrimPacked *prim)
+    {
+	return UTverify_cast<const GABC_PackedImpl *>(prim->implementation());
+    }
+#endif
 
     static void
     enlargeVelocityBox(UT_BoundingBox &box,
@@ -80,9 +107,17 @@ namespace
     class vray_ProcAlembicPrim : public VRAY_Procedural
     {
     public:
+#if !defined(GABC_PACKED)
 	vray_ProcAlembicPrim(const UT_Array<const GABC_GEOPrim *> &list,
+#else
+	vray_ProcAlembicPrim(const UT_Array<const GU_PrimPacked *> &list,
+#endif
 		fpreal preblur, fpreal postblur,
+#if !defined(GABC_PACKED)
 		const GABC_GEOPrim *aprim,
+#else
+		const GU_PrimPacked *aprim,
+#endif
 		const vray_MergePatternPtr &merge,
 		const vray_PropertyMapPtr &propertymap)
 	    : myList(list)
@@ -165,8 +200,16 @@ namespace
 	    else
 		changeSetting(name, size*tsize, values);
 	}
+#if !defined(GABC_PACKED)
 	void	setObjectName(const GABC_GEOPrim *prim)
+#else
+	void	setObjectName(const GU_PrimPacked *pack)
+#endif
 	{
+#if !defined(GABC_PACKED)
+#else
+	    const GABC_PackedImpl	*prim = implementation(pack);
+#endif
 	    GABC_IObject	iobj = prim->object();
 	    if (!iobj.valid())
 		return;
@@ -175,8 +218,16 @@ namespace
 	    fullpath.strcat(iobj.getFullName().c_str());
 	    changeSetting("name", fullpath.buffer());
 	}
+#if !defined(GABC_PACKED)
 	void	applyProperties(const GABC_GEOPrim *prim)
+#else
+	void	applyProperties(const GU_PrimPacked *pack)
+#endif
 	{
+#if !defined(GABC_PACKED)
+#else
+	    const GABC_PackedImpl	*prim = implementation(pack);
+#endif
 	    GABC_IObject	iobj = prim->object();
 	    if (!iobj.valid())
 		return;
@@ -206,23 +257,33 @@ namespace
 	{
 	    exint				nsegs = myList.entries();
 	    UT_Array<GT_PrimitiveHandle>	gtlist(nsegs, nsegs);
+#if !defined(GABC_PACKED)
+	    for (exint i = 0; i < nsegs; ++i)
+		gtlist(i) = myList(i)->gtPrimitive();
+#else
+	    for (exint i = 0; i < nsegs; ++i)
+		gtlist(i) = implementation(myList(i))->fullGT();
+#endif
+
 	    if (myMergeInfo && myMergePrim)
 	    {
+#if !defined(GABC_PACKED)
 		GT_PrimitiveHandle	aprim = myMergePrim->gtPrimitive();
-		for (exint i = 0; i < nsegs; ++i)
+#else
+		GT_PrimitiveHandle	aprim = implementation(myMergePrim)->fullGT();
+#endif
+		if (aprim)
 		{
-		    // Merge attributes
-		    gtlist(i) = myList(i)->gtPrimitive(aprim,
-					myMergeInfo->vertex(),
-					myMergeInfo->point(),
-					myMergeInfo->uniform(),
-					myMergeInfo->detail(), NULL);
+		    for (exint i = 0; i < nsegs; ++i)
+		    {
+			// Merge attributes
+			gtlist(i) = gtlist(i)->attributeMerge(*aprim,
+					    myMergeInfo->vertex(),
+					    myMergeInfo->point(),
+					    myMergeInfo->uniform(),
+					    myMergeInfo->detail());
+		    }
 		}
-	    }
-	    else
-	    {
-		for (exint i = 0; i < nsegs; ++i)
-		    gtlist(i) = myList(i)->gtPrimitive();
 	    }
 	    openProceduralObject();
 		setObjectName(myList(0));
@@ -240,12 +301,21 @@ namespace
 	    closeObject();
 	    for (exint i = 0; i < nsegs; ++i)
 	    {
+#if !defined(GABC_PACKED)
 		const_cast<GABC_GEOPrim *>(myList(i))->clearGT();
+#else
+		const_cast<GU_PrimPacked *>(myList(i))->implementation()->clearData();
+#endif
 	    }
 	}
     private:
+#if !defined(GABC_PACKED)
 	UT_Array<const GABC_GEOPrim *>	 myList;
 	const GABC_GEOPrim		*myMergePrim;
+#else
+	UT_Array<const GU_PrimPacked *>	 myList;
+	const GU_PrimPacked		*myMergePrim;
+#endif
 	vray_MergePatternPtr		 myMergeInfo;
 	vray_PropertyMapPtr		 myPropertyMap;
 	fpreal				 myPreBlur, myPostBlur;
@@ -383,15 +453,21 @@ VRAY_ProcAlembic::getClassName()
 static void
 moveAlembicTime(GU_Detail &gdp, fpreal finc)
 {
-    const GA_PrimitiveTypeId	abctype = GABC_GUPrim::theTypeId();
+    const GA_PrimitiveTypeId	&abctype = alembicTypeId();
 
     for (GA_Iterator it(gdp.getPrimitiveRange()); !it.atEnd(); ++it)
     {
 	GEO_Primitive	*prim = gdp.getGEOPrimitive(*it);
 	if (prim->getTypeId() != abctype)
 	    continue;
+#if !defined(GABC_PACKED)
 	GABC_GEOPrim	*abcprim = UTverify_cast<GABC_GEOPrim *>(prim);
-	abcprim->setFrame(abcprim->frame() + finc);
+#else
+	GU_PrimPacked	*packed = UTverify_cast<GU_PrimPacked *>(prim);
+	GABC_PackedImpl	*abcprim = UTverify_cast<GABC_PackedImpl *>(packed->implementation());
+#endif
+	if (abcprim)
+	    abcprim->setFrame(abcprim->frame() + finc);
     }
 }
 
@@ -493,7 +569,11 @@ VRAY_ProcAlembic::vray_MergePatterns::init(const char *vpattern,
 int
 VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 {
+#if !defined(GABC_PACKED)
     if (!GABC_GUPrim::isInstalled())
+#else
+    if (!GABC_PackedImpl::isInstalled())
+#endif
     {
 	VRAYerror("Alembic primitive support is not installed");
 	return 0;
@@ -721,8 +801,8 @@ getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic,
     }
     else
     {
-	const GA_PrimitiveTypeId	abctype = GABC_GUPrim::theTypeId();
-	bool				dogeo = false;
+	const GA_PrimitiveTypeId	&abctype = alembicTypeId();
+	bool				 dogeo = false;
 
 	box.initBounds();
 	for (GA_Iterator it(gdp.getPrimitiveRange()); !it.atEnd(); ++it)
@@ -733,9 +813,14 @@ getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic,
 		dogeo = true;
 		continue;
 	    }
-	    const GABC_GEOPrim	*abcprim;
 	    UT_BoundingBox	 primbox;
+#if !defined(GABC_PACKED)
+	    const GABC_GEOPrim	*abcprim;
 	    abcprim = UTverify_cast<const GABC_GEOPrim *>(prim);
+#else
+	    const GU_PrimPacked	*abcprim;
+	    abcprim = UTverify_cast<const GU_PrimPacked *>(prim);
+#endif
 	    abcprim->getRenderingBounds(primbox);
 	    if (preblur != 0|| postblur != 0)
 	    {
@@ -783,7 +868,7 @@ VRAY_ProcAlembic::render()
 {
     const UT_Array<GU_Detail *>	&details = getDetailList();
     const GU_Detail		*gdp, *agdp;
-    const GA_PrimitiveTypeId	 abctype = GABC_GUPrim::theTypeId();
+    const GA_PrimitiveTypeId	&abctype = alembicTypeId();
     bool			 warned = false;
     bool			 addgeo = false;
 
@@ -800,7 +885,11 @@ VRAY_ProcAlembic::render()
     }
     else
     {
+#if !defined(GABC_PACKED)
 	UT_Array<const GABC_GEOPrim *>	abclist(nsegments, nsegments);
+#else
+	UT_Array<const GU_PrimPacked *>	abclist(nsegments, nsegments);
+#endif
 
 	for (GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
 	{
@@ -808,15 +897,26 @@ VRAY_ProcAlembic::render()
 	    const GEO_Primitive	*aprim = agdp ? agdp->getGEOPrimitive(*it):NULL;
 	    if (prim->getTypeId() == abctype)
 	    {
+#if !defined(GABC_PACKED)
 		const GABC_GEOPrim		*abc_attrib = NULL;
 		if (aprim && aprim->getTypeId() == abctype)
 		    abc_attrib = UTverify_cast<const GABC_GEOPrim *>(aprim);
 		abclist(0) = UTverify_cast<const GABC_GEOPrim *>(prim);
+#else
+		const GU_PrimPacked		*abc_attrib = NULL;
+		if (aprim && aprim->getTypeId() == abctype)
+		    abc_attrib = UTverify_cast<const GU_PrimPacked *>(aprim);
+		abclist(0) = UTverify_cast<const GU_PrimPacked *>(prim);
+#endif
 		for (int i = 1; i < nsegments; ++i)
 		{
 		    const GEO_Primitive	*seg;
 		    seg = details(i)->primitives()(prim->getNum());
+#if !defined(GABC_PACKED)
 		    abclist(i) = UTverify_cast<const GABC_GEOPrim *>(seg);
+#else
+		    abclist(i) = UTverify_cast<const GU_PrimPacked *>(seg);
+#endif
 		}
 		openProceduralObject();
 		    addProcedural(new vray_ProcAlembicPrim(abclist,
@@ -853,4 +953,3 @@ VRAY_ProcAlembic::render()
 	}
     }
 }
-#endif

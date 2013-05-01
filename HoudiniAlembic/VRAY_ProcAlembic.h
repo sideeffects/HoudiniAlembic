@@ -29,7 +29,6 @@
 #define __VRAY_ProcAlembic__
 
 #include <GABC/GABC_API.h>
-#if !defined(GABC_PACKED)
 
 #include "VRAY_Procedural.h"
 #include <UT/UT_Array.h>
@@ -110,5 +109,4 @@ private:
     bool			myNonAlembic;
 };
 
-#endif
 #endif
