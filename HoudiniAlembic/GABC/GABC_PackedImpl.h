@@ -101,6 +101,9 @@ public:
     /// getGTFull() and converts the GT geometry to a GU_Detail.
     virtual bool	unpack(GU_Detail &destgdp) const;
 
+    /// Return full geometry
+    GT_PrimitiveHandle	fullGT() const;
+
     const GABC_IObject	 object() const;
     const std::string	&filename() const	{ return myFilename; }
     const std::string	&objectPath() const	{ return myObjectPath; }

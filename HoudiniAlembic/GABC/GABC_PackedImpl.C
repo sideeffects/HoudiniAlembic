@@ -20,6 +20,9 @@
 #include <UT/UT_JSONParser.h>
 #include <GU/GU_PackedFactory.h>
 #include <GU/GU_PrimPacked.h>
+#include <GT/GT_Primitive.h>
+#include <GT/GT_Util.h>
+#include <GT/GT_RefineParms.h>
 
 #if !defined(GABC_PRIMITIVE_TOKEN)
     #define GABC_PRIMITIVE_TOKEN	"AlembicRef"
@@ -332,7 +335,40 @@ GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
 bool
 GABC_PackedImpl::unpack(GU_Detail &destgdp) const
 {
-    return false;
+    GT_PrimitiveHandle	prim = fullGT();
+    if (prim)
+    {
+	UT_Array<GU_Detail *>	details;
+	GT_RefineParms		rparms;
+
+	GT_Util::makeGEO(details, prim, &rparms);
+	for (exint i = 0; i < details.entries(); ++i)
+	{
+	    copyPrimitiveGroups(*details(i), false);
+	    unpackToDetail(destgdp, details(i));
+	    delete details(i);
+	}
+    }
+    return true;
+}
+
+GT_PrimitiveHandle
+GABC_PackedImpl::fullGT() const
+{
+    const GABC_IObject	&o = object();
+    if (!o.valid())
+	return GT_PrimitiveHandle();
+
+    GEO_AnimationType	atype;
+    GT_PrimitiveHandle	prim =  o.getPrimitive(getPrim(), frame(), atype,
+					getPrim()->attributeNameMap());
+    if (prim)
+    {
+	UT_Matrix4D		xform;
+	getPrim()->getTransform(xform);
+	prim->setPrimitiveTransform(new GT_Transform(&xform, 1));
+    }
+    return prim;
 }
 
 const GABC_IObject

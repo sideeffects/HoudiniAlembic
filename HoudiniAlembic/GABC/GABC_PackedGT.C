@@ -62,9 +62,7 @@ GABC_PackedGT::getFullGeometry(const GT_RefineParms *) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    GEO_AnimationType	atype;
-    return impl->object().getPrimitive(getPrim(), impl->frame(), atype,
-	    getPrim()->attributeNameMap());
+    return impl->fullGT();
 }
 
 }
