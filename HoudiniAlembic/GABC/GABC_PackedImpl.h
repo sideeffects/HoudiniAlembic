@@ -104,7 +104,7 @@ public:
     /// Return full geometry
     GT_PrimitiveHandle	fullGT() const;
 
-    const GABC_IObject	 object() const;
+    const GABC_IObject	&object() const;
     const std::string	&filename() const	{ return myFilename; }
     const std::string	&objectPath() const	{ return myObjectPath; }
     fpreal		 frame() const		{ return myFrame; }

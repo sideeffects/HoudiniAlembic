@@ -18,6 +18,7 @@
 #include "GABC_PackedImpl.h"
 #include "GABC_PackedGT.h"
 #include <UT/UT_JSONParser.h>
+#include <UT/UT_Debug.h>
 #include <GU/GU_PackedFactory.h>
 #include <GU/GU_PrimPacked.h>
 #include <GT/GT_Primitive.h>
@@ -112,7 +113,7 @@ GABC_PackedImpl::build(GU_Detail &gdp,
 void
 GABC_PackedImpl::install(GA_PrimitiveFactory *gafactory)
 {
-    fprintf(stderr, "== Using Alembic Packed Primitives == \n");
+    UT_DBGOUT(("== Using Alembic Packed Primitives == \n"));
     UT_ASSERT(!theFactory);
     if (theFactory)
 	return;
@@ -371,7 +372,7 @@ GABC_PackedImpl::fullGT() const
     return prim;
 }
 
-const GABC_IObject
+const GABC_IObject &
 GABC_PackedImpl::object() const
 {
     if (!myObject.valid())
