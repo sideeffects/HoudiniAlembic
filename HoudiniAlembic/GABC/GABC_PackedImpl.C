@@ -141,6 +141,7 @@ GABC_PackedImpl::typeId()
 GABC_PackedImpl::GABC_PackedImpl()
     : GU_PackedImpl()
     , myObject()
+    , myCache()
     , myFilename()
     , myObjectPath()
     , myFrame(0)
@@ -152,6 +153,7 @@ GABC_PackedImpl::GABC_PackedImpl()
 GABC_PackedImpl::GABC_PackedImpl(const GABC_PackedImpl &src)
     : GU_PackedImpl(src)
     , myObject(src.myObject)
+    , myCache()
     , myFilename(src.myFilename)
     , myObjectPath(src.myObjectPath)
     , myFrame(src.myFrame)
@@ -191,22 +193,26 @@ GABC_PackedImpl::clearData()
     myFrame = 0;
     myUseTransform = true;
     myUseVisibility = true;
+    myCache.clear();
 }
 
 bool
 GABC_PackedImpl::load(const UT_Options &options, const GA_LoadMap &map)
 {
     clearData();
+    bool	bval;
     if (!options.importOption("filename", myFilename))
 	myFilename = "";
     if (!options.importOption("object", myObjectPath))
 	myObjectPath = "";
     if (!options.importOption("frame", myFrame))
 	myFrame = 0;
-    if (!options.importOption("usetransform", myUseTransform))
-	myUseTransform = true;
-    if (!options.importOption("usevisibility", myUseVisibility))
-	myUseVisibility = true;
+    if (!options.importOption("usetransform", bval))
+	bval = true;
+    setUseTransform(bval);
+    if (!options.importOption("usevisibility", bval))
+	bval = true;
+    setUseVisibility(bval);
     return true;
 }
 
@@ -214,11 +220,14 @@ void
 GABC_PackedImpl::update(const UT_Options &options)
 {
     bool	changed = false;
+    bool	bval;
     changed |= options.importOption("filename", myFilename);
     changed |= options.importOption("object", myObjectPath);
     changed |= options.importOption("frame", myFrame);
-    changed |= options.importOption("usetransform", myUseTransform);
-    changed |= options.importOption("usevisibility", myUseVisibility);
+    changed |= options.importOption("usetransform", bval);
+    setUseTransform(bval);
+    changed |= options.importOption("usevisibility", bval);
+    setUseVisibility(bval);
 }
 
 bool
@@ -322,6 +331,15 @@ GABC_PackedImpl::getVelocityRange(UT_Vector3 &vmin, UT_Vector3 &vmax) const
     }
 }
 
+void
+GABC_PackedImpl::getPrimitiveName(UT_WorkBuffer &wbuf) const
+{
+    if (UTisstring(objectPath().c_str()))
+	wbuf.strcpy(objectPath().c_str());
+    else
+	GU_PackedImpl::getPrimitiveName(wbuf);
+}
+
 bool
 GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
 {
@@ -360,16 +378,17 @@ GABC_PackedImpl::fullGT() const
     if (!o.valid())
 	return GT_PrimitiveHandle();
 
-    GEO_AnimationType	atype;
-    GT_PrimitiveHandle	prim =  o.getPrimitive(getPrim(), frame(), atype,
-					getPrim()->attributeNameMap());
-    if (prim)
-    {
-	UT_Matrix4D		xform;
-	getPrim()->getTransform(xform);
-	prim->setPrimitiveTransform(new GT_Transform(&xform, 1));
-    }
-    return prim;
+    return myCache.full(this);
+}
+
+GT_PrimitiveHandle
+GABC_PackedImpl::pointGT() const
+{
+    const GABC_IObject	&o = object();
+    if (!o.valid())
+	return GT_PrimitiveHandle();
+
+    return myCache.points(this);
 }
 
 const GABC_IObject &
@@ -384,18 +403,169 @@ void
 GABC_PackedImpl::setObject(const GABC_IObject &v)
 {
     myObject = v;
-    myObjectPath = v.getFullName();
+    myObjectPath = myObject.objectPath();
+    myCache.clear();
+}
+
+void
+GABC_PackedImpl::setFilename(const std::string &v)
+{
+    if (myFilename != v)
+    {
+	myFilename = v;
+	myCache.clear();
+    }
+}
+
+void
+GABC_PackedImpl::setObjectPath(const std::string &v)
+{
+    if (myObjectPath != v)
+    {
+	myObjectPath = v;
+	myCache.clear();
+    }
+}
+
+void
+GABC_PackedImpl::setFrame(fpreal f)
+{
+    myFrame = f;
+    myCache.updateFrame(f);
+}
+
+void
+GABC_PackedImpl::setUseTransform(bool v)
+{
+    if (v != myUseTransform)
+    {
+	myUseTransform = v;
+	// This can affect animation type
+	myCache.clear();
+    }
+}
+
+void
+GABC_PackedImpl::setUseVisibility(bool v)
+{
+    if (v != myUseVisibility)
+    {
+	myUseVisibility = v;
+	// This can affect animation type
+	myCache.clear();
+    }
 }
 
 GEO_AnimationType
 GABC_PackedImpl::animationType() const
 {
-    GEO_AnimationType	atype;
-    atype = object().getAnimationType(myUseTransform);
-    if (atype == GEO_ANIMATION_CONSTANT && myUseVisibility)
+    return myCache.animationType(this);
+}
+
+void
+GABC_PackedImpl::GTCache::clear()
+{
+    myFull = GT_PrimitiveHandle();
+    myPoints = GT_PrimitiveHandle();
+    myTransform = GT_TransformHandle();
+    myAnimationType = GEO_ANIMATION_INVALID;
+    myFrame = 0;
+}
+
+void
+GABC_PackedImpl::GTCache::updateFrame(fpreal frame)
+{
+    if (frame == myFrame)
+	return;
+    myFrame = frame;
+    switch (myAnimationType)
     {
-	if (object().visibilityCache()->animated())
-	    atype = GEO_ANIMATION_TRANSFORM;
+	case GEO_ANIMATION_ATTRIBUTE:
+	case GEO_ANIMATION_TOPOLOGY:
+	    myFull = GT_PrimitiveHandle();
+	    myPoints = GT_PrimitiveHandle();
+	case GEO_ANIMATION_TRANSFORM:
+	    myTransform = GT_TransformHandle();
+	case GEO_ANIMATION_CONSTANT:
+	case GEO_ANIMATION_INVALID:
+	    break;
     }
-    return atype;
+}
+
+const GT_PrimitiveHandle &
+GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc)
+{
+    if (!myFull)
+    {
+	const GABC_IObject	&o = abc->object();
+	if (o.valid())
+	{
+	    GEO_AnimationType	atype;
+	    myFull = o.getPrimitive(abc->getPrim(), myFrame, atype,
+		    abc->getPrim()->attributeNameMap());
+	    if (atype > myAnimationType)
+		myAnimationType = atype;
+	}
+    }
+    if (myFull)
+	updateTransform(abc, myFull);
+    return myFull;
+}
+
+const GT_PrimitiveHandle &
+GABC_PackedImpl::GTCache::points(const GABC_PackedImpl *abc)
+{
+    if (!myPoints)
+    {
+	const GABC_IObject	&o = abc->object();
+	if (o.valid())
+	{
+	    GEO_AnimationType	atype;
+	    myPoints = o.getPointCloud(myFrame, atype);
+	    if (atype > myAnimationType)
+		myAnimationType = atype;
+	}
+    }
+    if (myPoints)
+	updateTransform(abc, myPoints);
+    return myPoints;
+}
+
+GEO_AnimationType
+GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
+{
+    if (myAnimationType == GEO_ANIMATION_INVALID)
+    {
+	points(abc);	// Update lightest weight cache
+    }
+    return myAnimationType;
+}
+
+void
+GABC_PackedImpl::GTCache::updateTransform(const GABC_PackedImpl *abc,
+	GT_PrimitiveHandle &prim)
+{
+    UT_ASSERT(prim);
+    if (!myTransform)
+    {
+	const GABC_IObject	&o = abc->object();
+	if (myAnimationType == GEO_ANIMATION_CONSTANT
+		&& abc->useVisibility()
+		&& o.visibilityCache()->animated())
+	{
+	    // Mark animated visibility as animated transforms
+	    myAnimationType = GEO_ANIMATION_TRANSFORM;
+	}
+
+	UT_Matrix4D		xform;
+	abc->getPrim()->getTransform(xform);
+	myTransform.reset(new GT_Transform(&xform, 1));
+	if (myAnimationType == GEO_ANIMATION_CONSTANT
+		&& abc->useTransform()
+		&& abc->object().isTransformAnimated())
+	{
+	    myAnimationType = GEO_ANIMATION_TRANSFORM;
+	}
+    }
+    prim->setPrimitiveTransform(myTransform);
 }

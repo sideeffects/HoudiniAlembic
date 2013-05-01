@@ -53,8 +53,7 @@ GABC_PackedGT::getPointCloud(const GT_RefineParms *) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    GEO_AnimationType	atype;
-    return impl->object().getPointCloud(impl->frame(), atype);
+    return impl->pointGT();
 }
 
 GT_PrimitiveHandle

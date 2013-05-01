@@ -230,6 +230,11 @@ public:
 				bool &isConstant,
 				bool &inheritsXform);
 
+    /// Test whether an object is static or has an animated transform
+    static bool		isTransformAnimated(
+				const std::string &filename,
+				const GABC_IObject &object);
+
     /// Return a list of all the objects in an Alembic file
     static const PathList	&getObjectList(const std::string &filename,
 					bool include_face_sets=false);

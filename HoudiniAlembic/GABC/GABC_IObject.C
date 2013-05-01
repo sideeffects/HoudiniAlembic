@@ -1884,15 +1884,10 @@ GABC_IObject::getAnimationType(bool include_transform) const
 		atype = GEO_ANIMATION_TOPOLOGY;
 		break;
 	}
-	if (atype == GEO_ANIMATION_CONSTANT && include_transform)
+	if (atype == GEO_ANIMATION_CONSTANT && include_transform
+		&& isTransformAnimated())
 	{
-	    GABC_IObject	parent = getParent();
-	    if (parent.valid())
-	    {
-		// Check to see if transform is non-constant
-		UT_Matrix4D	xform;
-		getWorldTransform(xform, 0, atype);
-	    }
+	    atype = GEO_ANIMATION_TRANSFORM;
 	}
     }
     catch (const std::exception &)
@@ -2177,6 +2172,18 @@ GABC_IObject::getWorldTransform(UT_Matrix4D &xform, fpreal t,
     atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_TRANSFORM;
 
     return false;
+}
+
+bool
+GABC_IObject::isTransformAnimated() const
+{
+    GABC_IObject	xform = *this;
+    while (xform.valid() && xform.nodeType() != GABC_XFORM)
+	xform = xform.getParent();
+    if (!xform.valid())
+	return false;
+
+    return GABC_Util::isTransformAnimated(archive()->filename(), xform);
 }
 
 GT_DataArrayHandle

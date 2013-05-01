@@ -21,6 +21,7 @@
 #include "GABC_API.h"
 #include "GABC_Util.h"
 #include <GU/GU_PackedImpl.h>
+#include <GT/GT_Primitive.h>
 
 namespace GABC_NAMESPACE
 {
@@ -91,6 +92,11 @@ public:
     virtual void	getVelocityRange(UT_Vector3 &min,
 				UT_Vector3 &max) const;
 
+    /// Return the primitive's "description".  This should be a unique
+    /// identifier for the primitive and defaults to:
+    ///	  <tt>"%s.%d" % (getFactory()->name(), getPrim()->getNum()) </tt>
+    virtual void	getPrimitiveName(UT_WorkBuffer &wbuf) const;
+
     /// Some procedurals have an "intrinsic" transform.  These are combined
     /// with the local transform on the geometry primitive.
     ///
@@ -104,6 +110,9 @@ public:
     /// Return full geometry
     GT_PrimitiveHandle	fullGT() const;
 
+    /// Return the point cloud
+    GT_PrimitiveHandle	pointGT() const;
+
     const GABC_IObject	&object() const;
     const std::string	&filename() const	{ return myFilename; }
     const std::string	&objectPath() const	{ return myObjectPath; }
@@ -113,11 +122,11 @@ public:
     GABC_NodeType	 nodeType() const	{ return object().nodeType(); }
 
     void	setObject(const GABC_IObject &v);
-    void	setFilename(const std::string &v)	{ myFilename = v; }
-    void	setObjectPath(const std::string &v)	{ myObjectPath = v; }
-    void	setFrame(fpreal f)			{ myFrame = f; }
-    void	setUseTransform(bool v)			{ myUseTransform = v; }
-    void	setUseVisibility(bool v)		{ myUseVisibility = v; }
+    void	setFilename(const std::string &v);
+    void	setObjectPath(const std::string &v);
+    void	setFrame(fpreal f);
+    void	setUseTransform(bool v);
+    void	setUseVisibility(bool v);
 
     bool	isConstant() const
 		    { return animationType() == GEO_ANIMATION_CONSTANT; }
@@ -134,7 +143,41 @@ protected:
     virtual fpreal	computePerimeter() const;
 #endif
 
+    class GTCache
+    {
+    public:
+	GTCache()
+	{
+	    clear();
+	}
+	~GTCache()
+	{
+	    clear();
+	}
+
+	void	clear();		// Clear all values
+	void	updateFrame(fpreal frame);
+
+	const GT_PrimitiveHandle	&full(const GABC_PackedImpl *abc);
+	const GT_PrimitiveHandle	&points(const GABC_PackedImpl *abc);
+	GEO_AnimationType	 animationType(const GABC_PackedImpl *abc);
+
+    private:
+	void	updateTransform(const GABC_PackedImpl *abc,
+				GT_PrimitiveHandle &prim);
+
+	GT_PrimitiveHandle	myFull;
+	GT_PrimitiveHandle	myPoints;
+	GT_TransformHandle	myTransform;
+	GEO_AnimationType	myAnimationType;
+	fpreal			myFrame;
+    };
+
+private:
+    void	clearGT();
+
     mutable GABC_IObject	 myObject;
+    mutable GTCache		 myCache;
     std::string			 myFilename;
     std::string			 myObjectPath;
     fpreal			 myFrame;

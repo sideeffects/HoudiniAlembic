@@ -87,7 +87,7 @@ namespace {
 	{
 	    IXformSchema	&xs = xform.getSchema();
 	    XformSample		 sample = xs.getValue(walk.timeSample());
-	    if (!xs.isConstant())
+	    if (walk.isConstant() && !xs.isConstant())
 	    {
 		walk.setNonConstant();
 	    }

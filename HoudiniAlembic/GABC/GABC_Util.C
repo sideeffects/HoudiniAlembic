@@ -402,6 +402,20 @@ namespace
 		    }
 		}
 
+	bool	isObjectAnimated(const GABC_IObject &obj)
+	{
+	    if (!myXformCacheBuilt)
+	    {
+		M44d	id;
+		id.makeIdentity();
+		buildTransformCache(root(), "", id);
+	    }
+	    std::string	path = obj.getFullName();
+	    AbcTransformMap::const_map_iterator it;
+	    it = myStaticXforms.find(path.c_str());
+	    return it == myStaticXforms.map_end();
+	}
+
 	/// Find the full world transform for an object
 	bool	getWorldTransform(M44d &x, const GABC_IObject &obj, fpreal now,
 			bool &isConstant, bool &inheritsXform)
@@ -819,6 +833,27 @@ GABC_Util::getWorldTransform(const std::string &filename,
     if (success)
 	xform = UT_Matrix4D(wxform.x);
     return success;
+}
+
+bool
+GABC_Util::isTransformAnimated(const std::string &filename,
+	const GABC_IObject &obj)
+{
+    bool	animated = false;
+    if (obj.valid())
+    {
+	try
+	{
+	    ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
+	    UT_ASSERT(cacheEntry->getObject(obj.getFullName()).valid());
+	    animated = cacheEntry->isObjectAnimated(obj);
+	}
+	catch (const std::exception &)
+	{
+	    animated = false;
+	}
+    }
+    return animated;
 }
 
 GABC_Util::ArchiveEventHandler::~ArchiveEventHandler()

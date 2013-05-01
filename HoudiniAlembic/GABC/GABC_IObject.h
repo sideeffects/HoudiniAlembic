@@ -180,6 +180,9 @@ public:
     bool		getWorldTransform(UT_Matrix4D &xform, fpreal t,
 				GEO_AnimationType &atype) const;
 
+    /// Check whether the transform (or parent transforms) is animated
+    bool		isTransformAnimated() const;
+
     /// Query the number of geometry properties
     exint		 getNumGeometryProperties() const;
     /// Lookup the data array for the Nth geometry property at the given time.
