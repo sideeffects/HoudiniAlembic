@@ -45,6 +45,8 @@ public:
 
     virtual GT_PrimitiveHandle	getPointCloud(const GT_RefineParms *p) const;
     virtual GT_PrimitiveHandle	getFullGeometry(const GT_RefineParms *p) const;
+    virtual GT_PrimitiveHandle	getBoxGeometry(const GT_RefineParms *p) const;
+    virtual GT_PrimitiveHandle	getCentroidGeometry(const GT_RefineParms *p) const;
 private:
 };
 
@@ -62,6 +64,22 @@ GABC_PackedGT::getFullGeometry(const GT_RefineParms *) const
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
     return impl->fullGT();
+}
+
+GT_PrimitiveHandle
+GABC_PackedGT::getBoxGeometry(const GT_RefineParms *) const
+{
+    const GABC_PackedImpl	*impl;
+    impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+    return impl->boxGT();
+}
+
+GT_PrimitiveHandle
+GABC_PackedGT::getCentroidGeometry(const GT_RefineParms *) const
+{
+    const GABC_PackedImpl	*impl;
+    impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+    return impl->centroidGT();
 }
 
 }

@@ -107,11 +107,13 @@ public:
     /// getGTFull() and converts the GT geometry to a GU_Detail.
     virtual bool	unpack(GU_Detail &destgdp) const;
 
-    /// Return full geometry
+    /// @{
+    /// Return GT representations of geometry
     GT_PrimitiveHandle	fullGT() const;
-
-    /// Return the point cloud
     GT_PrimitiveHandle	pointGT() const;
+    GT_PrimitiveHandle	boxGT() const;
+    GT_PrimitiveHandle	centroidGT() const;
+    /// @}
 
     const GABC_IObject	&object() const;
     const std::string	&filename() const	{ return myFilename; }
@@ -150,9 +152,18 @@ protected:
 	{
 	    clear();
 	}
+	GTCache(const GTCache &)
+	{
+	    clear();	// Just clear
+	}
 	~GTCache()
 	{
 	    clear();
+	}
+	GTCache	&operator=(const GTCache &src)
+	{
+	    clear();	// Don't copy, just clear
+	    return *this;
 	}
 
 	void	clear();		// Clear all values
@@ -160,16 +171,17 @@ protected:
 
 	const GT_PrimitiveHandle	&full(const GABC_PackedImpl *abc);
 	const GT_PrimitiveHandle	&points(const GABC_PackedImpl *abc);
+	const GT_PrimitiveHandle	&box(const GABC_PackedImpl *abc);
+	const GT_PrimitiveHandle	&centroid(const GABC_PackedImpl *abc);
 	GEO_AnimationType	 animationType(const GABC_PackedImpl *abc);
 
     private:
-	void	updateTransform(const GABC_PackedImpl *abc,
-				GT_PrimitiveHandle &prim);
+	void	updateTransform(const GABC_PackedImpl *abc);
 
-	GT_PrimitiveHandle	myFull;
-	GT_PrimitiveHandle	myPoints;
+	GT_PrimitiveHandle	myPrim;
 	GT_TransformHandle	myTransform;
 	GEO_AnimationType	myAnimationType;
+	GEO_ViewportLOD		myRep;
 	fpreal			myFrame;
     };
 

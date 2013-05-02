@@ -24,6 +24,9 @@
 #include <GT/GT_Primitive.h>
 #include <GT/GT_Util.h>
 #include <GT/GT_RefineParms.h>
+#include <GT/GT_DAConstantValue.h>
+#include <GT/GT_PrimPointMesh.h>
+#include <GT/GT_PrimitiveBuilder.h>
 
 #if !defined(GABC_PRIMITIVE_TOKEN)
     #define GABC_PRIMITIVE_TOKEN	"AlembicRef"
@@ -374,21 +377,33 @@ GABC_PackedImpl::unpack(GU_Detail &destgdp) const
 GT_PrimitiveHandle
 GABC_PackedImpl::fullGT() const
 {
-    const GABC_IObject	&o = object();
-    if (!o.valid())
+    if (!object().valid())
 	return GT_PrimitiveHandle();
-
     return myCache.full(this);
 }
 
 GT_PrimitiveHandle
 GABC_PackedImpl::pointGT() const
 {
-    const GABC_IObject	&o = object();
-    if (!o.valid())
+    if (!object().valid())
 	return GT_PrimitiveHandle();
-
     return myCache.points(this);
+}
+
+GT_PrimitiveHandle
+GABC_PackedImpl::boxGT() const
+{
+    if (!object().valid())
+	return GT_PrimitiveHandle();
+    return myCache.box(this);
+}
+
+GT_PrimitiveHandle
+GABC_PackedImpl::centroidGT() const
+{
+    if (!object().valid())
+	return GT_PrimitiveHandle();
+    return myCache.centroid(this);
 }
 
 const GABC_IObject &
@@ -465,9 +480,9 @@ GABC_PackedImpl::animationType() const
 void
 GABC_PackedImpl::GTCache::clear()
 {
-    myFull = GT_PrimitiveHandle();
-    myPoints = GT_PrimitiveHandle();
+    myPrim = GT_PrimitiveHandle();
     myTransform = GT_TransformHandle();
+    myRep = GEO_VIEWPORT_INVALID_MODE;
     myAnimationType = GEO_ANIMATION_INVALID;
     myFrame = 0;
 }
@@ -482,8 +497,7 @@ GABC_PackedImpl::GTCache::updateFrame(fpreal frame)
     {
 	case GEO_ANIMATION_ATTRIBUTE:
 	case GEO_ANIMATION_TOPOLOGY:
-	    myFull = GT_PrimitiveHandle();
-	    myPoints = GT_PrimitiveHandle();
+	    myPrim = GT_PrimitiveHandle();
 	case GEO_ANIMATION_TRANSFORM:
 	    myTransform = GT_TransformHandle();
 	case GEO_ANIMATION_CONSTANT:
@@ -495,57 +509,117 @@ GABC_PackedImpl::GTCache::updateFrame(fpreal frame)
 const GT_PrimitiveHandle &
 GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc)
 {
-    if (!myFull)
+    if (!myPrim || myRep != GEO_VIEWPORT_FULL || myFrame != abc->frame())
     {
 	const GABC_IObject	&o = abc->object();
 	if (o.valid())
 	{
 	    GEO_AnimationType	atype;
-	    myFull = o.getPrimitive(abc->getPrim(), myFrame, atype,
+	    myFrame = abc->frame();
+	    myRep = GEO_VIEWPORT_FULL;
+	    myPrim = o.getPrimitive(abc->getPrim(), myFrame, atype,
 		    abc->getPrim()->attributeNameMap());
 	    if (atype > myAnimationType)
 		myAnimationType = atype;
 	}
     }
-    if (myFull)
-	updateTransform(abc, myFull);
-    return myFull;
+    if (myPrim)
+	updateTransform(abc);
+    return myPrim;
 }
 
 const GT_PrimitiveHandle &
 GABC_PackedImpl::GTCache::points(const GABC_PackedImpl *abc)
 {
-    if (!myPoints)
+    if (!myPrim || myRep != GEO_VIEWPORT_POINTS || myFrame != abc->frame())
     {
 	const GABC_IObject	&o = abc->object();
 	if (o.valid())
 	{
 	    GEO_AnimationType	atype;
-	    myPoints = o.getPointCloud(myFrame, atype);
+	    myFrame = abc->frame();
+	    myRep = GEO_VIEWPORT_POINTS;
+	    myPrim = o.getPointCloud(myFrame, atype);
 	    if (atype > myAnimationType)
 		myAnimationType = atype;
 	}
     }
-    if (myPoints)
-	updateTransform(abc, myPoints);
-    return myPoints;
+    if (myPrim)
+	updateTransform(abc);
+    return myPrim;
+}
+
+const GT_PrimitiveHandle &
+GABC_PackedImpl::GTCache::box(const GABC_PackedImpl *abc)
+{
+    if (!myPrim || myRep != GEO_VIEWPORT_BOX || myFrame != abc->frame())
+    {
+	const GABC_IObject	&o = abc->object();
+	if (o.valid())
+	{
+	    bool		isconst;
+	    UT_BoundingBox	box;
+	    myFrame = abc->frame();
+	    myRep = GEO_VIEWPORT_BOX;
+	    if (o.getBoundingBox(box, myFrame, isconst))
+	    {
+		GT_BuilderStatus	err;
+		myPrim = GT_PrimitiveBuilder::wireBox(err, box, NULL);
+		if (myAnimationType < GEO_ANIMATION_ATTRIBUTE && !isconst)
+		    myAnimationType = GEO_ANIMATION_ATTRIBUTE;
+	    }
+	}
+    }
+    if (myPrim)
+	updateTransform(abc);
+    return myPrim;
+}
+
+const GT_PrimitiveHandle &
+GABC_PackedImpl::GTCache::centroid(const GABC_PackedImpl *abc)
+{
+    if (!myPrim || myRep != GEO_VIEWPORT_CENTROID || myFrame != abc->frame())
+    {
+	const GABC_IObject	&o = abc->object();
+	if (o.valid())
+	{
+	    bool		isconst;
+	    UT_BoundingBox	box;
+	    myFrame = abc->frame();
+	    myRep = GEO_VIEWPORT_CENTROID;
+	    if (o.getBoundingBox(box, myFrame, isconst))
+	    {
+		fpreal64		pos[3];
+		pos[0] = box.xcenter();
+		pos[1] = box.ycenter();
+		pos[2] = box.zcenter();
+		GT_AttributeListHandle	pt;
+		pt = GT_AttributeList::createAttributeList(
+			"P", new GT_RealConstant(1, pos, 3, GT_TYPE_POINT),
+			NULL);
+		myPrim = new GT_PrimPointMesh(pt,GT_AttributeListHandle());
+		if (myAnimationType < GEO_ANIMATION_ATTRIBUTE && !isconst)
+		    myAnimationType = GEO_ANIMATION_ATTRIBUTE;
+	    }
+	}
+    }
+    if (myPrim)
+	updateTransform(abc);
+    return myPrim;
 }
 
 GEO_AnimationType
 GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
 {
     if (myAnimationType == GEO_ANIMATION_INVALID)
-    {
 	points(abc);	// Update lightest weight cache
-    }
     return myAnimationType;
 }
 
 void
-GABC_PackedImpl::GTCache::updateTransform(const GABC_PackedImpl *abc,
-	GT_PrimitiveHandle &prim)
+GABC_PackedImpl::GTCache::updateTransform(const GABC_PackedImpl *abc)
 {
-    UT_ASSERT(prim);
+    UT_ASSERT(myPrim);
     if (!myTransform)
     {
 	const GABC_IObject	&o = abc->object();
@@ -567,5 +641,5 @@ GABC_PackedImpl::GTCache::updateTransform(const GABC_PackedImpl *abc,
 	    myAnimationType = GEO_ANIMATION_TRANSFORM;
 	}
     }
-    prim->setPrimitiveTransform(myTransform);
+    myPrim->setPrimitiveTransform(myTransform);
 }
