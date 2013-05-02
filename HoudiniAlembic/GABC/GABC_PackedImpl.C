@@ -17,6 +17,7 @@
 
 #include "GABC_PackedImpl.h"
 #include "GABC_PackedGT.h"
+#include "GABC_Visibility.h"
 #include <UT/UT_JSONParser.h>
 #include <UT/UT_Debug.h>
 #include <GU/GU_PackedFactory.h>
@@ -37,6 +38,8 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
+
+static GT_PrimitiveHandle	theNullPrimitive;
 
 class AlembicFactory : public GU_PackedFactory
 {
@@ -480,6 +483,8 @@ GABC_PackedImpl::animationType() const
 void
 GABC_PackedImpl::GTCache::clear()
 {
+    delete myVisibility;
+    myVisibility = NULL;
     myPrim = GT_PrimitiveHandle();
     myTransform = GT_TransformHandle();
     myRep = GEO_VIEWPORT_INVALID_MODE;
@@ -509,6 +514,8 @@ GABC_PackedImpl::GTCache::updateFrame(fpreal frame)
 const GT_PrimitiveHandle &
 GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc)
 {
+    if (!visible(abc))
+	return theNullPrimitive;
     if (!myPrim || myRep != GEO_VIEWPORT_FULL || myFrame != abc->frame())
     {
 	const GABC_IObject	&o = abc->object();
@@ -531,6 +538,8 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc)
 const GT_PrimitiveHandle &
 GABC_PackedImpl::GTCache::points(const GABC_PackedImpl *abc)
 {
+    if (!visible(abc))
+	return theNullPrimitive;
     if (!myPrim || myRep != GEO_VIEWPORT_POINTS || myFrame != abc->frame())
     {
 	const GABC_IObject	&o = abc->object();
@@ -552,6 +561,8 @@ GABC_PackedImpl::GTCache::points(const GABC_PackedImpl *abc)
 const GT_PrimitiveHandle &
 GABC_PackedImpl::GTCache::box(const GABC_PackedImpl *abc)
 {
+    if (!visible(abc))
+	return theNullPrimitive;
     if (!myPrim || myRep != GEO_VIEWPORT_BOX || myFrame != abc->frame())
     {
 	const GABC_IObject	&o = abc->object();
@@ -578,6 +589,8 @@ GABC_PackedImpl::GTCache::box(const GABC_PackedImpl *abc)
 const GT_PrimitiveHandle &
 GABC_PackedImpl::GTCache::centroid(const GABC_PackedImpl *abc)
 {
+    if (!visible(abc))
+	return theNullPrimitive;
     if (!myPrim || myRep != GEO_VIEWPORT_CENTROID || myFrame != abc->frame())
     {
 	const GABC_IObject	&o = abc->object();
@@ -614,6 +627,27 @@ GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
     if (myAnimationType == GEO_ANIMATION_INVALID)
 	points(abc);	// Update lightest weight cache
     return myAnimationType;
+}
+
+bool
+GABC_PackedImpl::GTCache::visible(const GABC_PackedImpl *abc)
+{
+    if (!abc->useVisibility())
+    {
+	delete myVisibility;
+	myVisibility = NULL;
+	return true;
+    }
+    if (!myVisibility)
+    {
+	const GABC_IObject	&o = abc->object();
+	if (!o.valid())
+	    return false;
+	myVisibility = o.visibilityCache();
+    }
+    UT_ASSERT(myVisibility);
+    myVisibility->update(abc->frame());
+    return myVisibility->visible();
 }
 
 void

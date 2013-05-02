@@ -176,13 +176,15 @@ protected:
 	GEO_AnimationType	 animationType(const GABC_PackedImpl *abc);
 
     private:
+	bool	visible(const GABC_PackedImpl *abc);
 	void	updateTransform(const GABC_PackedImpl *abc);
 
-	GT_PrimitiveHandle	myPrim;
-	GT_TransformHandle	myTransform;
-	GEO_AnimationType	myAnimationType;
-	GEO_ViewportLOD		myRep;
-	fpreal			myFrame;
+	GT_PrimitiveHandle	 myPrim;
+	GT_TransformHandle	 myTransform;
+	GEO_AnimationType	 myAnimationType;
+	GEO_ViewportLOD		 myRep;
+	GABC_VisibilityCache	*myVisibility;
+	fpreal			 myFrame;
     };
 
 private:
