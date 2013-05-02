@@ -119,8 +119,15 @@ GABC_GTPrimitive::updateCache(const GT_RefineParms *parms)
     fpreal		 frame = myPrimitive->frame();
 
     if (myVisibilityCache)
+    {
 	myVisibilityCache->update(frame);
-    if (!myCache || lod != myCacheLOD || myAnimation == GEO_ANIMATION_TOPOLOGY)
+    }
+    if (myVisibilityCache && !myVisibilityCache->visible())
+    {
+	myCache = GT_PrimitiveHandle();
+    }
+    else if (!myCache || lod != myCacheLOD
+		    || myAnimation == GEO_ANIMATION_TOPOLOGY)
     {
 	GEO_AnimationType		 atype;
 	myCacheLOD = lod;
