@@ -358,13 +358,15 @@ GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
 }
 
 bool
-GABC_PackedImpl::unpack(GU_Detail &destgdp) const
+GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const
 {
     GT_PrimitiveHandle	prim = fullGT();
     if (prim)
     {
 	UT_Array<GU_Detail *>	details;
 	GT_RefineParms		rparms;
+	if (!allow_psoup)
+	    rparms.setAllowPolySoup(false);
 
 	GT_Util::makeGEO(details, prim, &rparms);
 	for (exint i = 0; i < details.entries(); ++i)
@@ -375,6 +377,18 @@ GABC_PackedImpl::unpack(GU_Detail &destgdp) const
 	}
     }
     return true;
+}
+
+bool
+GABC_PackedImpl::unpack(GU_Detail &destgdp) const
+{
+    return unpackGeometry(destgdp, true);
+}
+
+bool
+GABC_PackedImpl::unpackUsingPolygons(GU_Detail &destgdp) const
+{
+    return unpackGeometry(destgdp, false);
 }
 
 GT_PrimitiveHandle

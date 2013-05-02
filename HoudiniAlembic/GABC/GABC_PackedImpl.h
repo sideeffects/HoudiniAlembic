@@ -107,6 +107,9 @@ public:
     /// getGTFull() and converts the GT geometry to a GU_Detail.
     virtual bool	unpack(GU_Detail &destgdp) const;
 
+    /// Unpack without using polygon soups
+    virtual bool	unpackUsingPolygons(GU_Detail &destgdp) const;
+
     /// @{
     /// Return GT representations of geometry
     GT_PrimitiveHandle	fullGT() const;
@@ -149,10 +152,12 @@ protected:
     {
     public:
 	GTCache()
+	    : myVisibility(NULL)
 	{
 	    clear();
 	}
 	GTCache(const GTCache &)
+	    : myVisibility(NULL)
 	{
 	    clear();	// Just clear
 	}
@@ -189,6 +194,7 @@ protected:
 
 private:
     void	clearGT();
+    bool	unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const;
 
     mutable GABC_IObject	 myObject;
     mutable GTCache		 myCache;
