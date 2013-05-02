@@ -74,6 +74,7 @@ namespace
     typedef Alembic::Abc::IV3fArrayProperty	IV3fArrayProperty;
     typedef Alembic::Abc::IUInt64ArrayProperty	IUInt64ArrayProperty;
     typedef Alembic::Abc::IFloatArrayProperty	IFloatArrayProperty;
+    typedef Alembic::Abc::IBox3dProperty	IBox3dProperty;
     typedef Alembic::Abc::IArrayProperty	IArrayProperty;
     typedef Alembic::Abc::IScalarProperty	IScalarProperty;
     typedef Alembic::Abc::ArraySamplePtr	ArraySamplePtr;
@@ -1517,9 +1518,9 @@ namespace
     {
 	ABC_T		 prim(obj, gabcWrapExisting);
 	const SCHEMA_T	&ss = prim.getSchema();
-	typename SCHEMA_T::Sample	s0 = ss.getValue(ISampleSelector(t));
-	isconst = ss.getNumSamples() == 1;
-	box = GABC_Util::getBox(s0.getSelfBounds());
+	IBox3dProperty	 bounds = ss.getSelfBoundsProperty();
+	isconst = bounds.isConstant();
+	box = GABC_Util::getBox(bounds.getValue(ISampleSelector(t)));
 	return box.isValid();
     }
 
