@@ -57,6 +57,7 @@ public:
     typedef Alembic::Abc::IObject		IObject;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
+    typedef Alembic::Abc::PropertyHeader	PropertyHeader;
     typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
     typedef Alembic::AbcGeom::GeometryScope	GeometryScope;
 
@@ -193,6 +194,18 @@ public:
 				std::string &name,
 				GeometryScope &scope,
 				GEO_AnimationType &atype) const;
+
+    /// Convert an arbitrary property to a GT_DataArray.  This handles indexed
+    /// array types as well as straight data types.
+    ///
+    /// This is a convenience method to extract an array given the compound
+    /// property and the property header.
+    ///
+    /// If supplied, the animation type is filled out.
+    GT_DataArrayHandle	convertIProperty(ICompoundProperty arb,
+					const PropertyHeader &head,
+					fpreal time,
+					GEO_AnimationType *atype=NULL) const;
 
     /// Get position property from shape node
     GT_DataArrayHandle	getPosition(fpreal t, GEO_AnimationType &atype) const;
