@@ -45,6 +45,7 @@ class GABC_API GABC_OProperty
 public:
     typedef Alembic::Abc::OCompoundProperty	OCompoundProperty;
     typedef Alembic::Abc::OArrayProperty	OArrayProperty;
+    typedef Alembic::Abc::OUInt32ArrayProperty	OUInt32ArrayProperty;
 
      GABC_OProperty(Alembic::AbcGeom::GeometryScope scope);
     ~GABC_OProperty();
@@ -68,6 +69,7 @@ public:
 
 private:
     OArrayProperty			myProperty;
+    OUInt32ArrayProperty		myIndexProperty;
     Alembic::AbcGeom::GeometryScope	myScope;
     GT_DataArrayHandle			myCache;
     GT_Storage				myStorage;

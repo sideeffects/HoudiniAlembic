@@ -29,6 +29,8 @@
 #include <GT/GT_DANumeric.h>
 #include <UT/UT_StringArray.h>
 #include <UT/UT_StackBuffer.h>
+#include <UT/UT_ScopedPtr.h>
+#include <UT/UT_EnvControl.h>
 #include "GABC_OOptions.h"
 
 using namespace GABC_NAMESPACE;
@@ -37,7 +39,9 @@ namespace
 {
     typedef Alembic::Abc::OCompoundProperty		OCompoundProperty;
     typedef Alembic::Abc::OArrayProperty		OArrayProperty;
+    typedef Alembic::Abc::OUInt32ArrayProperty		OUInt32ArrayProperty;
     typedef Alembic::Abc::TimeSamplingPtr		TimeSamplingPtr;
+    typedef Alembic::AbcCoreAbstract::DataType		DataType;
     typedef Alembic::AbcCoreAbstract::ArraySample	ArraySample;
     typedef Alembic::Util::Dimensions			Dimensions;
 
@@ -102,6 +106,94 @@ namespace
 	prop.set(sample);
 	return true;
     }
+
+    static bool
+    writeStringProperty(OArrayProperty &prop,
+	    OUInt32ArrayProperty &iprop,
+	    const GT_DataArrayHandle &src,
+	    int tuple_size)
+    {
+	UT_StringArray			gtstrings;
+	UT_IntArray			gtindices;
+	exint				nstrings = 0;
+	exint				nullstring = -1;
+	bool				xlated = false;
+
+	src->getIndexedStrings(gtstrings, gtindices);
+	UT_StackBuffer<std::string>	strings(gtstrings.entries()+1);
+	for (exint i = 0; i < gtindices.entries(); ++i)
+	{
+	    if (gtindices(i) >= 0)
+	    {
+		xlated |= (gtindices(i) != nstrings);
+		if (nullstring < 0 && !gtstrings(i).isstring())
+		    nullstring = nstrings;
+		strings[nstrings] = gtstrings(i).toStdString();
+		gtindices(i) = nstrings;	// Destination target
+		nstrings++;
+	    }
+	}
+	// Now, set the indices
+	GT_DataArrayHandle	 storage;
+	exint			 asize = src->entries();
+	exint			 numindex = asize * tuple_size;
+	const int32		*indices = src->getI32Array(storage);
+	bool			 nullused = false;
+	UT_ScopedPtr<int32>	 indexstorage;
+
+	// GT has its string tuples interleaved.  That is:
+	//  [ offset0,index0
+	//    offset0,index1
+	//    offset0,index2
+	//	  offset1,index0
+	//	  offset1,index1
+	//	  ...]
+	// Alembic needs each array index in its own band of data, so we
+	// need to de-interleave
+	indexstorage.reset(new int32[numindex]);
+	if (tuple_size == 1)
+	    memcpy(indexstorage.get(), indices, sizeof(int32)*numindex);
+	else
+	{
+	    for (int i = 0; i < tuple_size; ++i)
+	    {
+		int32		*dest = indexstorage.get() + i*asize;
+		const int32	*src = indices + i;
+		for (exint j = 0; j < asize; ++j)
+		    dest[j] = src[j*tuple_size];
+	    }
+	}
+	int32	*data = indexstorage.get();
+	for (exint i = 0; i < numindex; ++i)
+	{
+	    if (data[i] < 0 || data[i] >= gtstrings.entries())
+	    {
+		data[i] = nullstring < 0 ? nstrings : nullstring;
+		nullused = true;
+	    }
+	    else
+	    {
+		data[i] = gtindices(data[i]);
+	    }
+	}
+	indices = indexstorage.get();
+	if (nullstring < 0 && nullused)
+	{
+	    nullstring = nstrings;
+	    strings[nstrings] = "";
+	    nstrings++;
+	}
+	ArraySample	stringdata(strings, prop.getDataType(),
+				    Dimensions(nstrings));
+	prop.set(stringdata);
+
+	ArraySample	isample((const uint32 *)indices,
+				DataType(Alembic::Util::kUint32POD, 1),
+				Dimensions(numindex));
+
+	iprop.set(isample);
+	return true;
+    }
 }
 
 GABC_OProperty::GABC_OProperty(Alembic::AbcGeom::GeometryScope scope)
@@ -120,6 +212,15 @@ GABC_OProperty::~GABC_OProperty()
     myProperty.setTimeSampling(ts); \
     valid = true; \
 }
+#define DECL_INDEX_PARAM(TYPE)	{ \
+    Alembic::AbcGeom::TYPE gp(parent, name, true, myScope, 1, time); \
+    myProperty = gp.getValueProperty(); \
+    myIndexProperty = gp.getIndexProperty(); \
+    myProperty.setTimeSampling(ts); \
+    myIndexProperty.setTimeSampling(ts); \
+    valid = true; \
+}
+
 
 #define DECL_REALFD(FTYPE, DTYPE)	{ \
 	if (myStorage == GT_STORE_REAL16) \
@@ -249,7 +350,21 @@ GABC_OProperty::start(OCompoundProperty &parent,
 		DECL_PARAM(ODoubleGeomParam);
 		break;
 	    case GT_STORE_STRING:
-		DECL_PARAM(OStringGeomParam);
+		// If the tuple size isn't 1
+		//   or if there are no indexed strings
+		//   or if more than half of strings have unique indices
+		// Then generate a flat array of strings (not indirect)
+		if (array_size != 1
+			|| array->getStringIndexCount() < 0
+			|| array->getStringIndexCount() > array->entries()/2
+			|| UT_EnvControl::getInt(ENV_HOUDINI_DISABLE_ALEMBIC_INDEXED_ARRAYS))
+		{
+		    DECL_PARAM(OStringGeomParam);
+		}
+		else
+		{
+		    DECL_INDEX_PARAM(OStringGeomParam);
+		}
 		break;
 	    default:
 		break;
@@ -293,7 +408,17 @@ GABC_OProperty::update(const GT_DataArrayHandle &array,
 	    return writeProperty<fpreal64, GT_STORE_REAL64>(myProperty,
 			array, myTupleSize);
 	case GT_STORE_STRING:
-	    return writeStringProperty(myProperty, array, myTupleSize);
+	    if (!myIndexProperty)
+	    {
+		// Non indexed strings
+		return writeStringProperty(myProperty, array, myTupleSize);
+	    }
+	    else
+	    {
+		// Indexed strings
+		return writeStringProperty(myProperty, myIndexProperty,
+				    array, myTupleSize);
+	    }
 	default:
 	    break;
     }
