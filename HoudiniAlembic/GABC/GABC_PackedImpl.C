@@ -372,7 +372,8 @@ GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const
 	for (exint i = 0; i < details.entries(); ++i)
 	{
 	    copyPrimitiveGroups(*details(i), false);
-	    unpackToDetail(destgdp, details(i));
+	    // Don't transform since GT conversion has already done that for us
+	    unpackToDetail(destgdp, details(i), false);
 	    delete details(i);
 	}
     }
