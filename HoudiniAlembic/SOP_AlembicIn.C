@@ -31,6 +31,7 @@
 #include <UT/UT_DSOVersion.h>
 #include <UT/UT_WorkArgs.h>
 #include <GU/GU_Detail.h>
+#include <PRM/PRM_Shared.h>
 #include <SOP/SOP_Guide.h>
 #include <PRM/PRM_Include.h>
 #include <PRM/PRM_SpareData.h>
@@ -337,17 +338,7 @@ static PRM_Name polysoupOptions[] = {
 };
 static PRM_Default prm_polysoupDefault(1, "polymesh");
 static PRM_ChoiceList menu_polysoup(PRM_CHOICELIST_SINGLE, polysoupOptions);
-
-static PRM_Name viewportlodOptions[] = {
-    PRM_Name("full",		"Full Geometry"),
-    PRM_Name("points",		"Point Cloud"),
-    PRM_Name("box",		"Bounding Box"),
-    PRM_Name("centroid",	"Centroid"),
-    PRM_Name("hidden",		"Hidden"),
-    PRM_Name()
-};
 static PRM_Default prm_viewportlodDefault(0, "full");
-static PRM_ChoiceList menu_viewportlod(PRM_CHOICELIST_SINGLE, viewportlodOptions);
 
 static PRM_Name prm_loadLocatorName("loadLocator", "Load Maya Locator");
 static PRM_Name prm_objecPatternName("objectPattern", "Object Pattern");
@@ -390,7 +381,7 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_ORD, 1, &prm_loadmodeName, &prm_loadmodeDefault,
 	    &menu_loadmode),
     PRM_Template(PRM_ORD, 1, &prm_viewportlod, &prm_viewportlodDefault,
-	    &menu_viewportlod),
+	    &PRMviewportLODMenu),
     PRM_Template(PRM_ORD, 1, &prm_pointModeName, &prm_pointModeDefault,
 	    &menu_pointMode),
     PRM_Template(PRM_TOGGLE, 1, &prm_abcxformName, PRMzeroDefaults),
