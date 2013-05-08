@@ -35,6 +35,8 @@
 #include <GU/GU_Detail.h>
 #include <GU/GU_Prim.h>
 
+class UT_MemoryCounter;
+
 namespace GABC_NAMESPACE
 {
 
@@ -50,7 +52,12 @@ public:
     virtual ~GABC_GUPrim();
 
     /// Report approximate memory usage.
-    virtual int64	getMemoryUsage() const;
+    virtual int64 getMemoryUsage() const;
+
+    /// Count memory usage using a UT_MemoryCounter in order to count
+    /// shared memory correctly.
+    /// NOTE: This should always include sizeof(*this).
+    virtual void countMemory(UT_MemoryCounter &counter) const;
 
     static bool		isInstalled()
 			    { return theDef != NULL; }

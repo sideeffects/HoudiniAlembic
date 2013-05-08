@@ -42,6 +42,7 @@
 #include <GT/GT_Primitive.h>
 #include <GT/GT_RefineParms.h>
 #include <GT/GT_Util.h>
+#include <UT/UT_MemoryCounter.h>
 
 #if !defined(GABC_PRIMITIVE_TOKEN)
     #define GABC_PRIMITIVE_TOKEN	"AlembicRef"
@@ -165,8 +166,17 @@ GABC_GUPrim::registerMyself(GA_PrimitiveFactory *factory)
 int64
 GABC_GUPrim::getMemoryUsage() const
 {
-    exint       mem = sizeof(*this);
+    int64 mem = sizeof(*this);
+    // FIXME: THIS NEEDS TO BE CORRECTLY COUNTED!!!
     return mem;
+}
+
+void
+GABC_GUPrim::countMemory(UT_MemoryCounter &counter) const
+{
+    counter.countUnshared(sizeof(*this));
+
+    // FIXME: THIS NEEDS TO BE CORRECTLY COUNTED!!!
 }
 
 static void
