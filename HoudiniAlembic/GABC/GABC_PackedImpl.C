@@ -50,10 +50,10 @@ public:
 	registerIntrinsic("abctypename",
 	    StringGetterCast(&GABC_PackedImpl::intrinsicNodeType));
 	registerIntrinsic("abcfilename",
-	    StdStringGetterCast(&GABC_PackedImpl::filename),
+	    StdStringGetterCast(&GABC_PackedImpl::intrinsicFilename),
 	    StdStringSetterCast(&GABC_PackedImpl::setFilename));
 	registerIntrinsic("abcobjectpath",
-	    StdStringGetterCast(&GABC_PackedImpl::objectPath),
+	    StdStringGetterCast(&GABC_PackedImpl::intrinsicObjectPath),
 	    StdStringSetterCast(&GABC_PackedImpl::setObjectPath));
 	registerIntrinsic("abcframe",
 	    FloatGetterCast(&GABC_PackedImpl::frame),

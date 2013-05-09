@@ -119,8 +119,10 @@ public:
     /// @}
 
     const GABC_IObject	&object() const;
-    const std::string	&filename() const	{ return myFilename; }
+    const std::string	&filename() const { return myFilename; }
+    std::string		 intrinsicFilename() const { return myFilename; }
     const std::string	&objectPath() const	{ return myObjectPath; }
+    std::string		 intrinsicObjectPath() const { return myObjectPath; }
     fpreal		 frame() const		{ return myFrame; }
     bool		 useTransform() const	{ return myUseTransform; }
     bool		 useVisibility() const	{ return myUseVisibility; }
