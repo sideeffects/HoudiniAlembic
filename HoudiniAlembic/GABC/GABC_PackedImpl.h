@@ -125,6 +125,19 @@ public:
     bool		 useTransform() const	{ return myUseTransform; }
     bool		 useVisibility() const	{ return myUseVisibility; }
     GABC_NodeType	 nodeType() const	{ return object().nodeType(); }
+    GEO_AnimationType	 animationType() const;
+    bool		 isConstant() const
+			 {
+			     return animationType() == GEO_ANIMATION_CONSTANT;
+			 }
+    const char		*intrinsicAnimation() const
+			    { return GEOanimationType(animationType()); }
+    const char		*intrinsicNodeType() const
+			    { return GABCnodeType(nodeType()); }
+    int64		 intrinsicVisibility() const
+			    { return computeVisibility(false); }
+    int64		 intrinsicFullVisibility() const
+			    { return computeVisibility(true); }
 
     void	setObject(const GABC_IObject &v);
     void	setFilename(const std::string &v);
@@ -132,10 +145,6 @@ public:
     void	setFrame(fpreal f);
     void	setUseTransform(bool v);
     void	setUseVisibility(bool v);
-
-    bool	isConstant() const
-		    { return animationType() == GEO_ANIMATION_CONSTANT; }
-    GEO_AnimationType	animationType() const;
 protected:
 #if 0
     /// Optional method to compute centroid (default uses bounding box)
@@ -193,6 +202,7 @@ protected:
     };
 
 private:
+    GABC_VisibilityType computeVisibility(bool include_parent) const;
     void	clearGT();
     bool	unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const;
 

@@ -47,6 +47,29 @@ public:
     AlembicFactory()
 	: GU_PackedFactory(GABC_PRIMITIVE_TOKEN, GABC_PRIMITIVE_LABEL)
     {
+	registerIntrinsic("abctypename",
+	    StringGetterCast(&GABC_PackedImpl::intrinsicNodeType));
+	registerIntrinsic("abcfilename",
+	    StdStringGetterCast(&GABC_PackedImpl::filename),
+	    StdStringSetterCast(&GABC_PackedImpl::setFilename));
+	registerIntrinsic("abcobjectpath",
+	    StdStringGetterCast(&GABC_PackedImpl::objectPath),
+	    StdStringSetterCast(&GABC_PackedImpl::setObjectPath));
+	registerIntrinsic("abcframe",
+	    FloatGetterCast(&GABC_PackedImpl::frame),
+	    FloatSetterCast(&GABC_PackedImpl::setFrame));
+	registerIntrinsic("abcanimation",
+	    StringGetterCast(&GABC_PackedImpl::intrinsicAnimation));
+	registerIntrinsic("abcusevisibility",
+	    BoolGetterCast(&GABC_PackedImpl::useVisibility),
+	    BoolSetterCast(&GABC_PackedImpl::setUseVisibility));
+	registerIntrinsic("abcvisibility",
+	    IntGetterCast(&GABC_PackedImpl::intrinsicVisibility));
+	registerIntrinsic("abcfullvisibility",
+	    IntGetterCast(&GABC_PackedImpl::intrinsicFullVisibility));
+	registerIntrinsic("abcusetransform",
+	    BoolGetterCast(&GABC_PackedImpl::useTransform),
+	    BoolSetterCast(&GABC_PackedImpl::setUseTransform));
     }
     virtual ~AlembicFactory()
     {
@@ -54,38 +77,6 @@ public:
 
     virtual GU_PackedImpl	*create() const
 				    { return new GABC_PackedImpl(); }
-
-#if 0
-    /// Query how many intrinsic attributes are supported by this primitive type
-    /// Default: return 0
-    virtual int		getIntrinsicCount() const;
-    /// Get information about the definition of the Nth intrinsic
-    /// Default: assert
-    virtual void	getIntrinsicDefinition(int idx,
-				UT_String &name,
-				GA_StorageClass &storage,
-				bool &read_only) const;
-    /// Get the intrinsic tuple size (which might be varying)
-    /// Default: return 0
-    virtual GA_Size	getIntrinsicTupleSize(const GU_PackedImpl *proc,
-				int idx) const;
-    /// @{
-    /// Get/Set intrinsic attribute values for a primitive
-    /// Default: return 0
-    virtual GA_Size	getIntrinsicValue(const GU_PackedImpl *proc,
-				int idx, UT_StringArray &strings) const;
-    virtual GA_Size	getIntrinsicValue(const GU_PackedImpl *proc,
-				int idx, int64 *val, GA_Size vsize) const;
-    virtual GA_Size	getIntrinsicValue(const GU_PackedImpl *proc,
-				int idx, fpreal64 *val, GA_Size vsize) const;
-    virtual GA_Size	setIntrinsicValue(GU_PackedImpl *proc,
-				int idx, const UT_StringArray &values);
-    virtual GA_Size	setIntrinsicValue(GU_PackedImpl *proc,
-				int idx, const int64 *val, int vsize);
-    virtual GA_Size	setIntrinsicValue(GU_PackedImpl *proc,
-				int idx, const fpreal64 *val, int vsize);
-    /// @}
-#endif
 };
 
 static AlembicFactory	*theFactory = NULL;
@@ -663,6 +654,17 @@ GABC_PackedImpl::GTCache::visible(const GABC_PackedImpl *abc)
     UT_ASSERT(myVisibility);
     myVisibility->update(abc->frame());
     return myVisibility->visible();
+}
+
+GABC_VisibilityType
+GABC_PackedImpl::computeVisibility(bool check_parent) const
+{
+    const GABC_IObject	&o = object();
+    if (!o.valid())
+	return GABC_VISIBLE_HIDDEN;
+
+    bool		 animated;
+    return o.visibility(animated, frame(), check_parent);
 }
 
 void
