@@ -190,7 +190,8 @@ namespace
 	    const char			*name = attribs->getExportName(i);
 	    const GT_DataArrayHandle	&data = attribs->get(i);
 	    if (!data || skips.contains(name)
-			|| !ctx.matchAttribute(scope, name))
+			|| !ctx.matchAttribute(scope, name)
+			|| data->getTupleSize() < 1)
 	    {
 		continue;
 	    }
