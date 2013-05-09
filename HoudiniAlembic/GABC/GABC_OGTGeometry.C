@@ -143,20 +143,33 @@ namespace
 	SkipList()
 	    : myStrings()
 	{
+	    addCommonSkips();
 	}
 	// Strings are passed in the c-tor
 	SkipList(const char *arg0, ...)
 	    : myStrings()
 	{
-	    va_list	 args;
-	    va_start(args, arg0);
-	    for (const char *s = arg0; s; s = va_arg(args, const char *))
+	    addCommonSkips();
+
+	    if (arg0)
 	    {
-		myStrings.insert(s, (void *)0);
+		va_list	 args;
+		va_start(args, arg0);
+		for (const char *s = arg0; s; s = va_arg(args, const char *))
+		{
+		    myStrings.insert(s, (void *)0);
+		}
+		va_end(args);
 	    }
-	    va_end(args);
 	}
 	~SkipList() {}
+
+	void	addCommonSkips()
+	{
+	    // Always skip P and __topology
+	    myStrings.insert("P", (void *)0);
+	    myStrings.insert("__topology", (void *)0);
+	}
 
 	bool	contains(const char *token) const
 		    { return myStrings.count(token) > 0; }
@@ -164,12 +177,12 @@ namespace
     private:
 	UT_SymbolMap<void *, false>	myStrings;
     };
-    static SkipList	thePolyMeshSkip("P", "v", "N", "uv", NULL);
-    static SkipList	theSubDSkip("P", "v", "uv", "creaseweight", NULL);
-    static SkipList	theCurvesSkip("P", "v", "N", "uv", "width", NULL);
-    static SkipList	thePointsSkip("P", "v", "id", "width", NULL);
-    static SkipList	theNuPatchSkip("P", "Pw", "v", "N", "uv", NULL);
-    static SkipList	theEmptySkip("P", NULL);
+    static SkipList	thePolyMeshSkip("v", "N", "uv", NULL);
+    static SkipList	theSubDSkip("v", "uv", "creaseweight", NULL);
+    static SkipList	theCurvesSkip("v", "N", "uv", "width", NULL);
+    static SkipList	thePointsSkip("v", "id", "width", NULL);
+    static SkipList	theNuPatchSkip("Pw", "v", "N", "uv", NULL);
+    static SkipList	theEmptySkip(NULL);
 
     /// Create compound properties definition from an attribute list handle
     static bool

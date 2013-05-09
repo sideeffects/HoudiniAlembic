@@ -32,6 +32,7 @@
 #include "GABC_Util.h"
 #include "GABC_GTUtil.h"
 #include "GABC_ChannelCache.h"
+#include <SYS/SYS_AtomicInt.h>
 #include <GEO/GEO_PackedNameMap.h>
 #include <GU/GU_Detail.h>
 #include <GT/GT_DANumeric.h>
@@ -572,6 +573,27 @@ namespace
 	return GT_STORE_INVALID;
     }
 
+    static SYS_AtomicCounter	theUIDCount;
+
+    static inline void
+    topologyUID(GT_AttributeList &alist, const GABC_IObject &obj)
+    {
+	int __topologyIdx = alist.getIndex("__topology");
+	if (__topologyIdx < 0)
+	    return;
+
+	const GT_DataArrayHandle	&__topology = alist.get(__topologyIdx);
+	if (obj.getAnimationType(false) != GEO_ANIMATION_TOPOLOGY)
+	{
+	    if (!__topology)
+		alist.set(__topologyIdx, new GT_IntConstant(1, 0));
+	}
+	else
+	{
+	    alist.set(__topologyIdx, new GT_IntConstant(1, theUIDCount.add(1)));
+	}
+    }
+
     template <bool ONLY_ANIMATING>
     static void
     fillAttributeList(GT_AttributeList &alist,
@@ -599,6 +621,7 @@ namespace
 	UT_StackBuffer<bool>	 filled(alist.entries());
 
 	memset(filled, 0, sizeof(bool)*alist.entries());
+	topologyUID(alist, obj);
 
 	SET_ARRAY(P, "P", GT_TYPE_POINT)
 	SET_ARRAY(v, "v", GT_TYPE_VECTOR)
@@ -689,6 +712,7 @@ namespace
 			const GeometryScope *scope,
 			int scope_size,
 			ICompoundProperty arb,
+			bool create_topology,
 			const IP3fArrayProperty *P = NULL,
 			const IV3fArrayProperty *v = NULL,
 			const IN3fGeomParam *N = NULL,
@@ -699,6 +723,8 @@ namespace
     {
 	GT_AttributeMap	*map = new GT_AttributeMap();
 
+	if (create_topology)
+	    map->add("__topology", true);
 	addPropertyToMap(*map, "P", P);
 	addPropertyToMap(*map, "Pw", Pw);
 	addPropertyToMap(*map, "v", v);
@@ -797,7 +823,7 @@ namespace
     {
     public:
 	inline GT_AttributeListHandle	build(
-			    GT_Owner,
+			    GT_Owner owner,
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
 			    const GEO_PackedNameMapPtr &namemap,
@@ -814,10 +840,11 @@ namespace
 			    const IFloatArrayProperty *Pw = NULL) const
 	{
 	    return initializeAttributeList(prim, obj, namemap, t,
-		    scope, scope_size, arb, P, v, N, uvs, ids, widths, Pw);
+		    scope, scope_size, arb, owner == GT_OWNER_DETAIL,
+		    P, v, N, uvs, ids, widths, Pw);
 	}
 	inline GT_AttributeListHandle	build(
-			    GT_Owner,
+			    GT_Owner owner,
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
 			    const GEO_PackedNameMapPtr &namemap,
@@ -833,7 +860,8 @@ namespace
 			    const IFloatArrayProperty *Pw = NULL) const
 	{
 	    return initializeAttributeList(prim, obj, namemap, t,
-		    &scope, 1, arb, P, v, N, uvs, ids, widths, Pw);
+		    &scope, 1, arb, owner == GT_OWNER_DETAIL,
+		    P, v, N, uvs, ids, widths, Pw);
 	}
     };
     class UpdateAttributeList
