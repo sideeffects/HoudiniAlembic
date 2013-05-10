@@ -683,7 +683,7 @@ GABC_PackedImpl::GTCache::updateTransform(const GABC_PackedImpl *abc)
 	}
 
 	UT_Matrix4D		xform;
-	abc->getPrim()->getTransform(xform);
+	abc->getPrim()->getFullTransform4(xform);
 	myTransform.reset(new GT_Transform(&xform, 1));
 	if (myAnimationType == GEO_ANIMATION_CONSTANT
 		&& abc->useTransform()
