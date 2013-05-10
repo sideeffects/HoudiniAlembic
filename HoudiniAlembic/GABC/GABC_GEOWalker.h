@@ -31,7 +31,6 @@
 #include "GABC_API.h"
 #include "GABC_Include.h"
 #include "GABC_Util.h"
-#include "GABC_GEOPrim.h"
 #include <GA/GA_Handle.h>
 #include <GU/GU_Detail.h>
 

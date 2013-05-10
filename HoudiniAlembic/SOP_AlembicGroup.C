@@ -32,7 +32,8 @@
 #include <OP/OP_OperatorTable.h>
 #include <PRM/PRM_SpareData.h>
 #include <GU/GU_PrimSelection.h>
-#include <GABC/GABC_GUPrim.h>
+#include <GU/GU_PrimPacked.h>
+#include <GABC/GABC_PackedImpl.h>
 
 #if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
     #define CUSTOM_ALEMBIC_TOKEN_PREFIX	""
@@ -73,23 +74,15 @@ getAllPathComponents(const char *rawpath, PathList &names, StringSet &branches)
 static void
 getAlembicPrimitivePaths(const GU_Detail *gdp, PathList &names)
 {
-#if !defined(GABC_PACKED)
-    GA_PrimitiveTypeId	abctype = GABC_GUPrim::theTypeId();
-#else
     const GA_PrimitiveTypeId	&abctype = GABC_PackedImpl::typeId();
-#endif
     StringSet		branches;
     for (GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
     {
 	const GEO_Primitive	*p = gdp->getGEOPrimitive(*it);
 	if (p->getTypeId() == abctype)
 	{
-#if !defined(GABC_PACKED)
-	    const GABC_GEOPrim	*abc = UTverify_cast<const GABC_GEOPrim *>(p);
-#else
 	    const GU_PrimPacked	*pack = UTverify_cast<const GU_PrimPacked *>(p);
 	    const GABC_PackedImpl *abc = UTverify_cast<const GABC_PackedImpl *>(pack->implementation());
-#endif
 	    getAllPathComponents(abc->objectPath().c_str(), names, branches);
 	}
     }
@@ -324,23 +317,15 @@ SOP_AlembicGroup::selectPrimitives(GA_PrimitiveGroup *group,
     UT_ASSERT(group);
     if (!group)
 	return;
-#if !defined(GABC_PACKED)
-    GA_PrimitiveTypeId	abctype = GABC_GUPrim::theTypeId();
-#else
     const GA_PrimitiveTypeId	&abctype = GABC_PackedImpl::typeId();
-#endif
     for (GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
     {
 	const GEO_Primitive	*p = gdp->getGEOPrimitive(*it);
 	if (p->getTypeId() != abctype)
 	    continue;
 
-#if !defined(GABC_PACKED)
-	const GABC_GEOPrim	*abc = UTverify_cast<const GABC_GEOPrim *>(p);
-#else
 	const GU_PrimPacked	*pack = UTverify_cast<const GU_PrimPacked *>(p);
 	const GABC_PackedImpl	*abc = UTverify_cast<const GABC_PackedImpl *>(pack->implementation());
-#endif
 	if (objectPaths.size())
 	{
 	    const char	*path = abc->objectPath().c_str();
@@ -363,11 +348,7 @@ SOP_AlembicGroup::selectPrimitives(GA_PrimitiveGroup *group,
 	    if (!found)
 		continue;
 	}
-#if !defined(GABC_PACKED)
-	GABC_NodeType	ntype = abc->abcNodeType();
-#else
 	GABC_NodeType	ntype = abc->nodeType();
-#endif
 	if (ntype >= 0)
 	{
 	    UT_ASSERT(ntype < GABC_NUM_NODE_TYPES);

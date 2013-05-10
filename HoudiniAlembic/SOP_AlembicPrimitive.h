@@ -31,17 +31,13 @@
 #include <UT/UT_Version.h>
 #include <UT/UT_Interrupt.h>
 #include <SOP/SOP_Node.h>
-#include <GABC/GABC_GUPrim.h>
+#include <GABC/GABC_PackedImpl.h>
 
 /// SOP to change intrinsic properties on Alembic primitives
 class SOP_AlembicPrimitive : public SOP_Node
 {
 public:
-#if !defined(GABC_PACKED)
-    typedef GABC_NAMESPACE::GABC_GEOPrim	GABC_GEOPrim;
-#else
     typedef GABC_NAMESPACE::GABC_PackedImpl	GABC_PackedImpl;
-#endif
 
     static OP_Node *myConstructor(OP_Network *net, const char *name,
 		    OP_Operator *entry);
@@ -64,12 +60,8 @@ protected:
     virtual OP_ERROR	cookInputGroups(OP_Context &context,
 				int alone = 0);
 
-#if !defined(GABC_PACKED)
-    bool	setProperties(GABC_GEOPrim *prim, OP_Context &ctx);
-#else
     bool	setProperties(GU_PrimPacked *prim, GABC_PackedImpl *abc,
 				OP_Context &ctx);
-#endif
 
     fpreal	FRAME(fpreal t)
 		    { return evalFloat("frame", 0, t); }
@@ -83,12 +75,8 @@ protected:
 private:
     GU_DetailGroupPair		 myDetailGroupPair;
     const GA_PrimitiveGroup	*myGroup;
-#if !defined(GABC_PACKED)
-    GABC_GEOPrim		*myCurrPrim;	// Current primitive
-#else
     GU_PrimPacked		*myCurrPrim;
     GABC_PackedImpl		*myCurrAbc;
-#endif
 };
 
 #endif

@@ -26,12 +26,13 @@
  */
 
 #include "GABC_GEOWalker.h"
-#include "GABC_GUPrim.h"
+#include "GABC_PackedImpl.h"
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_StackBuffer.h>
 #include <Alembic/AbcGeom/All.h>
 #include <GEO/GEO_PackedNameMap.h>
 #include <GT/GT_DataArray.h>
+#include <GU/GU_PrimPacked.h>
 #include <GU/GU_PrimPoly.h>
 #include <GU/GU_PrimPolySoup.h>
 #include <GU/GU_PrimPart.h>
@@ -853,19 +854,6 @@ namespace {
 	    default:
 		return;	// Invalid primitive type
 	}
-#if !defined(GABC_PACKED)
-	GABC_GUPrim *abc = GABC_GUPrim::build(&walk.detail(),
-				walk.filename(),
-				obj,
-				walk.time(),
-				walk.includeXform(),
-				walk.useVisibility());
-	GA_Offset	pt = walk.getPointForAbcPrim();
-	if (GAisValid(pt))
-	    abc->setVertexPoint(pt);
-	abc->setAttributeNameMap(walk.nameMapPtr());
-	abc->setViewportLOD(walk.viewportLOD());
-#else
 	GU_PrimPacked	*packed = GABC_PackedImpl::build(walk.detail(),
 				walk.filename(),
 				obj,
@@ -879,7 +867,6 @@ namespace {
 	    packed->setVertexPoint(pt);
 	packed->setAttributeNameMap(walk.nameMapPtr());
 	packed->setViewportLOD(walk.viewportLOD());
-#endif
 	abc->setUseTransform(walk.includeXform());
 	if (!abc->isConstant())
 	{
@@ -1559,23 +1546,11 @@ GABC_GEOWalker::updateAbcPrims()
     for (GA_Iterator it(detail().getPrimitiveRange()); !it.atEnd(); ++it)
     {
 	GEO_Primitive	*prim = detail().getGEOPrimitive(*it);
-#if !defined(GABC_PACKED)
-	GABC_GUPrim	*abc = UTverify_cast<GABC_GUPrim *>(prim);
-	if (!abc->isConstant())
-	{
-	    setNonConstant();
-	}
-	// Topology is always constant since the point/primitive count doesn't
-	// change.
-	// A change in the attribute map will cause an entire rebuild.
-	abc->setFrame(time());
-#else
 	GU_PrimPacked	*pack = UTverify_cast<GU_PrimPacked *>(prim);
 	GABC_PackedImpl	*abc = UTverify_cast<GABC_PackedImpl *>(pack->implementation());
 	if (!abc->isConstant())
 	    setNonConstant();
 	abc->setFrame(time());
-#endif
 	if (setPath)
 	    myPathAttribute.set(prim->getMapOffset(), abc->objectPath().c_str());
     }

@@ -25,12 +25,12 @@
  *----------------------------------------------------------------------------
  */
 
-#include <GABC/GABC_GUPrim.h>
+#include <GABC/GABC_PackedImpl.h>
 #include <UT/UT_DSOVersion.h>
 
 // Register the GU primitive
 void
 newGeometryPrim(GA_PrimitiveFactory *factory)
 {
-    GABC_NAMESPACE::GABC_GUPrim::registerMyself(factory);
+    GABC_NAMESPACE::GABC_PackedImpl::install(factory);
 }
