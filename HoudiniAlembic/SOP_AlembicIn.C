@@ -906,6 +906,5 @@ SOP_AlembicIn2::inputLabel(unsigned int idx) const
 void
 newSopOperator(OP_OperatorTable *table)
 {
-    fprintf(stderr, "Load!\n");
     SOP_AlembicIn2::installSOP(table);
 }
