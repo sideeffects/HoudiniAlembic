@@ -69,7 +69,7 @@ GABC_IGTStringArray::GABC_IGTStringArray(const GABC_IArray &array)
 {
     // The array is stored as an array of std::string objects
     const std::string	*data = reinterpret_cast<const std::string *>(array.data());
-    for (int j = 0; j < array.tupleSize(); ++j, ++data)
+    for (int j = 0; j < array.tupleSize(); ++j)
     {
 	for (exint i = 0; i < array.entries(); ++i, ++data)
 	    setString(i, j, data->c_str());

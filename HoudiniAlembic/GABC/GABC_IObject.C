@@ -1743,11 +1743,9 @@ GABC_IObject::isMayaLocator() const
 GABC_VisibilityType
 GABC_IObject::visibility(bool &animated, fpreal t, bool check_parent) const
 {
+    animated = false;
     if (!myObject.valid())
-    {
-	animated = false;
 	return GABC_VISIBLE_DEFER;
-    }
 
     GABC_AutoLock	lock(archive());
     IVisibilityProperty	vprop = Alembic::AbcGeom::GetVisibilityProperty(
@@ -1763,10 +1761,7 @@ GABC_IObject::visibility(bool &animated, fpreal t, bool check_parent) const
     {
 	GABC_IObject	parent(getParent());
 	if (!parent.valid())
-	{
-	    animated = false;
 	    return GABC_VISIBLE_VISIBLE;
-	}
 	return parent.visibility(animated, t, true);
     }
     return GABC_VISIBLE_DEFER;

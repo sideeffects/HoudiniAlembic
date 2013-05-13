@@ -139,7 +139,7 @@ namespace
 	exint			 numindex = asize * tuple_size;
 	const int32		*indices = src->getI32Array(storage);
 	bool			 nullused = false;
-	UT_ScopedPtr<int32>	 indexstorage;
+	UT_StackBuffer<int32>	 indexstorage(numindex);
 
 	// GT has its string tuples interleaved.  That is:
 	//  [ offset0,index0
@@ -150,20 +150,19 @@ namespace
 	//	  ...]
 	// Alembic needs each array index in its own band of data, so we
 	// need to de-interleave
-	indexstorage.reset(new int32[numindex]);
 	if (tuple_size == 1)
-	    memcpy(indexstorage.get(), indices, sizeof(int32)*numindex);
+	    memcpy(indexstorage, indices, sizeof(int32)*numindex);
 	else
 	{
 	    for (int i = 0; i < tuple_size; ++i)
 	    {
-		int32		*dest = indexstorage.get() + i*asize;
+		int32		*dest = indexstorage + i*asize;
 		const int32	*src = indices + i;
 		for (exint j = 0; j < asize; ++j)
 		    dest[j] = src[j*tuple_size];
 	    }
 	}
-	int32	*data = indexstorage.get();
+	int32	*data = indexstorage;
 	for (exint i = 0; i < numindex; ++i)
 	{
 	    if (data[i] < 0 || data[i] >= gtstrings.entries())
@@ -176,7 +175,7 @@ namespace
 		data[i] = gtindices(data[i]);
 	    }
 	}
-	indices = indexstorage.get();
+	indices = indexstorage;
 	if (nullstring < 0 && nullused)
 	{
 	    nullstring = nstrings;
