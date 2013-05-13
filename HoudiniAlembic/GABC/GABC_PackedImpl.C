@@ -110,8 +110,6 @@ GABC_PackedImpl::build(GU_Detail &gdp,
 void
 GABC_PackedImpl::install(GA_PrimitiveFactory *gafactory)
 {
-    // FIXME: prints out debug to PicExtensions in $SHS/tables and breaks build
-    //UT_DBGOUT(("== Using Alembic Packed Primitives == \n"));
     UT_ASSERT(!theFactory);
     if (theFactory)
 	return;
