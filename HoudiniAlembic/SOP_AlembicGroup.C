@@ -71,19 +71,43 @@ getAllPathComponents(const char *rawpath, PathList &names, StringSet &branches)
     }
 }
 
+static bool
+primIsInAnyGroup(const GU_Detail *gdp, const GEO_Primitive *prim)
+{
+    GA_Offset			 off = prim->getMapOffset();
+    const GA_PrimitiveGroup	*grp;
+    GA_FOR_ALL_PRIMGROUPS(gdp, grp)
+    {
+	// If the group isn't an internal group, and the group doesn't contain
+	// all primitives, but it does contain the given primitive, then the
+	// primitive is considered to be in a group.
+	if (!grp->getInternal() 
+		&& grp->entries() != gdp->getNumPrimitives()
+		&& grp->containsOffset(off))
+	{
+	    return true;
+	}
+    }
+    return false;
+}
+
 static void
-getAlembicPrimitivePaths(const GU_Detail *gdp, PathList &names)
+getAlembicPrimitivePaths(const GU_Detail *gdp, PathList &names,
+	bool excludeGrouped)
 {
     const GA_PrimitiveTypeId	&abctype = GABC_PackedImpl::typeId();
-    StringSet		branches;
+    StringSet			 branches;
     for (GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
     {
 	const GEO_Primitive	*p = gdp->getGEOPrimitive(*it);
 	if (p->getTypeId() == abctype)
 	{
-	    const GU_PrimPacked	*pack = UTverify_cast<const GU_PrimPacked *>(p);
-	    const GABC_PackedImpl *abc = UTverify_cast<const GABC_PackedImpl *>(pack->implementation());
-	    getAllPathComponents(abc->objectPath().c_str(), names, branches);
+	    if (!excludeGrouped || !primIsInAnyGroup(gdp, p))
+	    {
+		const GU_PrimPacked	*pack = UTverify_cast<const GU_PrimPacked *>(p);
+		const GABC_PackedImpl *abc = UTverify_cast<const GABC_PackedImpl *>(pack->implementation());
+		getAllPathComponents(abc->objectPath().c_str(), names, branches);
+	    }
 	}
     }
 }
@@ -108,22 +132,29 @@ selectAlembicNodes(void *data, int index,
     PathList		 abcobjects;
     GU_DetailHandle	 gdh;
     const GU_Detail	*gdp;
+    bool		 excludeGrouped;
 
-    SOP_Node	*input = UTverify_cast<SOP_Node *>(sop->getInput(0));
-    if (input)
-	gdh = input->getCookedGeoHandle(ctx);
+    gdh = sop->getCookedGeoHandle(ctx);
     gdp = gdh.readLock();
     if (!gdp)
     {
-	cmd.sprintf("message No input geometry found");
-	mgr->execute(cmd.buffer());
-	return 0;
+	SOP_Node	*input = UTverify_cast<SOP_Node *>(sop->getInput(0));
+	if (input)
+	    gdh = input->getCookedGeoHandle(ctx);
+	gdp = gdh.readLock();
+	if (!gdp)
+	{
+	    cmd.sprintf("message No input geometry found");
+	    mgr->execute(cmd.buffer());
+	    return 0;
+	}
     }
 
     cmd.strcpy("treechooser");
     parmname.sprintf("objectPath%d", inst);
     sop->evalString(objectpath, parmname.buffer(), 0, t); // Get curr selection
-    getAlembicPrimitivePaths(gdh.readLock(), abcobjects);
+    excludeGrouped = sop->evalInt("exclude_grouped", 0, t);
+    getAlembicPrimitivePaths(gdh.readLock(), abcobjects, excludeGrouped);
     if (objectpath.isstring())
     {
 	cmd.strcat(" -s ");
@@ -186,6 +217,9 @@ buildPrimSelection(GU_Detail *gdp, const std::vector<std::string> &group_names)
     gdp->selection(primSelection);
 }
 
+static PRM_Name	prm_excludeGrouped("exclude_grouped",
+		    "Exclude Grouped Primitives From Chooser");
+
 static PRM_Name prm_groupName("group#", "Group Name");
 static PRM_Name	prm_objectPathName("objectPath#", "Object Path");
 static PRM_Name	prm_pickObjectPathName("pickobjectPath#", "Pick");
@@ -218,6 +252,7 @@ static PRM_Template	groupTemplate[] =
 
 PRM_Template	SOP_AlembicGroup::myTemplateList[] =
 {
+    PRM_Template(PRM_TOGGLE,	1, &prm_excludeGrouped, PRMzeroDefaults),
     PRM_Template(PRM_MULTITYPE_LIST, groupTemplate, 2,
 	    &prm_groupCount, PRMoneDefaults, 0,
 	    &PRM_SpareData::multiStartOffsetZero),
