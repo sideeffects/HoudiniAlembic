@@ -132,6 +132,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
         hou.hscript("opmultiparm %s 'abcName#' '%s/abcName#' 'hName#' '%s/hName#'" % (
                 sopNode.path(), relPath, relPath))
         
+        _setParmValue(sopNode, "addpath", 0)
         if channelRefs:
             ExpressionToParm(rootNode.parm('remapAttributes'),
                 sopNode.parm('remapAttributes'),
