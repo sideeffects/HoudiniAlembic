@@ -174,10 +174,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 ExpressionToParm(rootNode.parm('fps'),
                         currentNode.parm('fps'))
 
-        objectPath = currentPath
-        if False and ' ' in objectPath:
-            objectPath = ''.join(['"', currentPath, '"'])
-        currentNode.parm('objectPath').set(objectPath)
+        currentNode.parm('objectPath').set(currentPath)
         if typeName == 'cxform':
             currentNode.parm('abcConstant').set(1)
 
