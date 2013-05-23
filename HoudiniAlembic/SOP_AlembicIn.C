@@ -271,7 +271,7 @@ static PRM_Default prm_objectPathDefault(0, "");
 static PRM_Default prm_fpsDefault(24, "$FPS");
 static PRM_Default prm_includeXformDefault(true);
 static PRM_Default prm_useVisibilityDefault(true);
-static PRM_Default prm_pathattribDefault(0, "abcPath");
+static PRM_Default prm_pathattribDefault(0, "path");
 static PRM_Default prm_fileattribDefault(0, "abcFileName");
 
 static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
@@ -418,7 +418,7 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 		&prm_starDefault),
     PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_DETAIL],
 		&prm_starDefault),
-    PRM_Template(PRM_TOGGLE, 1, &prm_addpath, PRMzeroDefaults),
+    PRM_Template(PRM_TOGGLE, 1, &prm_addpath, PRMoneDefaults),
     PRM_Template(PRM_STRING, 1, &prm_pathattrib, &prm_pathattribDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_addfile, PRMzeroDefaults),
     PRM_Template(PRM_STRING, 1, &prm_fileattrib, &prm_fileattribDefault),
