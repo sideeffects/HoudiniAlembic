@@ -144,7 +144,10 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
             ExpressionToParm(rootNode.parm('fps'), sopNode.parm('fps'))
             ExpressionToParm(rootNode.parm('loadmode'), sopNode.parm('loadmode'))
 
-        sopNode.parm('objectPath').set(currentPath)
+        objectPath = currentPath
+        if ' ' in objectPath:
+            objectPath = ''.join(['"', currentPath, '"'])
+        sopNode.parm('objectPath').set(objectPath)
         sopNode.parm('includeXform').set(0)
         #sopNode.parm('usevisibility').set(0)
         sopNode.parm('groupnames').set('none')  # Don't build groups
@@ -171,7 +174,10 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 ExpressionToParm(rootNode.parm('fps'),
                         currentNode.parm('fps'))
 
-        currentNode.parm('objectPath').set(currentPath)
+        objectPath = currentPath
+        if False and ' ' in objectPath:
+            objectPath = ''.join(['"', currentPath, '"'])
+        currentNode.parm('objectPath').set(objectPath)
         if typeName == 'cxform':
             currentNode.parm('abcConstant').set(1)
 
