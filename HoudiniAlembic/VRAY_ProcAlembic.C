@@ -241,6 +241,7 @@ namespace
 	    }
 	    openProceduralObject();
 		setObjectName(myList(0));
+		processPrimitiveMaterial(myList(0));
 		if (myPropertyMap)
 		{
 		    applyProperties(myList(0));
