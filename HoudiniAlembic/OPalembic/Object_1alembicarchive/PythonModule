@@ -1,18 +1,18 @@
 import string
 import time
-import _alembic_hom_extensions as _ahe
+import _alembic_hom_extensions as _abc
 try:
     from hou import ui
 except:
     ui = None
+
+_AbcModule = '__import__("_alembic_hom_extensions")'
 
 def BuildHierarchyRoot(rootNode):
     #For now delete the existing children.
     for child in rootNode.children():
         child.destroy()
     
-    import _alembic_hom_extensions as ABC
-
     fileName = rootNode.evalParm('fileName')
     if not fileName:
         if ui:
@@ -25,7 +25,7 @@ def BuildHierarchyRoot(rootNode):
 
     buildSubnet = rootNode.evalParm('buildSubnet')
 
-    tree = ABC.alembicGetSceneHierarchy(fileName, "")
+    tree = _abc.alembicGetSceneHierarchy(fileName, "")
     channelRefs = rootNode.evalParm('channelRef')
 
     pathList = [x for x in rootNode.evalParm('objectPath').strip('/').split('/') if x]
@@ -82,11 +82,19 @@ def _setNodeName(node, name):
         node.setName(_sanitizeName(name), True)
 
 def _setVisibility(node, filename, objectpath):
-    vis = _ahe.alembicVisibility(filename, objectpath, 0)
-    # TODO: Animated status is in vis[1]
-    if vis[0] == 0:
+    vis = _abc.alembicVisibility(filename, objectpath, 0)
+    if not vis[1] and vis[0] != -1:
+        # Animated visibility
+        _setParmValue(node, 'tdisplay', 1)
+        disp = node.parm('display')
+        disp.setExpression(
+                '%s.alembicVisibility(ch("fileName"), "%s", ch("frame")/ch("fps"))[0] != 0' % (_AbcModule, objectpath),
+                hou.exprLanguage.Python)
+        return True
+    elif vis[0] == 0:
         _setParmValue(node, 'tdisplay', 1)
         _setParmValue(node, 'display', 0)
+    return False
 
 def ExpressionToParm(srcParm, dstParm, isString=False):
     relPath = dstParm.node().relativePathTo(srcParm.node())
@@ -149,7 +157,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
             objectPath = ''.join(['"', currentPath, '"'])
         sopNode.parm('objectPath').set(objectPath)
         sopNode.parm('includeXform').set(0)
-        #sopNode.parm('usevisibility').set(0)
+        sopNode.parm('usevisibility').set(0)
         sopNode.parm('groupnames').set('none')  # Don't build groups
     elif typeName == 'xform' or typeName == 'cxform':
         if buildSubnet:
@@ -162,20 +170,22 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
             else:
                 currentNode.setInput(0, parentNode.indirectInputs()[0])
         _setNodeName(currentNode, name)
-        _setVisibility(currentNode, fileName, currentPath)
+        animated = typeName != 'cxform'
+        if _setVisibility(currentNode, fileName, currentPath):
+            animated = True
         
         if channelRefs:
             ExpressionToParm(rootNode.parm('fileName'),
                     currentNode.parm('fileName'),
                     isString=True)
-            if typeName != 'cxform':
+            if animated:
                 ExpressionToParm(rootNode.parm('frame'),
                         currentNode.parm('frame'))
                 ExpressionToParm(rootNode.parm('fps'),
                         currentNode.parm('fps'))
 
         currentNode.parm('objectPath').set(currentPath)
-        if typeName == 'cxform':
+        if not animated:
             currentNode.parm('abcConstant').set(1)
 
         for entry in children:
@@ -211,8 +221,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 'winsizey',
                 'aperture'):
              currentNode.parm(parmName).setExpression(
-                    'pwd().alembicGetCameraDict(ch("fileName"), "%s", ch("frame")/ch("fps")).get("%s")' % (
-                            currentPath, parmName), hou.exprLanguage.Python)
+                    '%s.alembicGetCameraDict(ch("fileName"), "%s", ch("frame")/ch("fps")).get("%s")' % (_AbcModule, currentPath, parmName), hou.exprLanguage.Python)
         
     
     else:
