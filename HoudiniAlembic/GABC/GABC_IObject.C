@@ -1322,13 +1322,13 @@ namespace
 
     static GT_PrimCurveMesh	*theReticle = NULL;	// Geometry for reticle
     static GT_PrimitiveHandle	 theReticleCleanup;	// To free on close
+    static UT_Lock		 theReticleLock;
 
     static GT_PrimitiveHandle
     buildTransform(const GABC_IObject &obj)
     {
 	UT_ASSERT(obj.valid());
-	UT_Lock					&l = obj.archive()->getLock();
-	UT_DoubleLock<GT_PrimCurveMesh *>	 lock(l, theReticle);
+	UT_DoubleLock<GT_PrimCurveMesh *> lock(theReticleLock, theReticle);
 	if (!lock.getValue())
 	{
 	    GT_Real32Array	*P = new GT_Real32Array(6, 3, GT_TYPE_POINT);

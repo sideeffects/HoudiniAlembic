@@ -36,6 +36,10 @@
 #include <UT/UT_Set.h>
 #include <Alembic/Abc/IArchive.h>
 
+// If you're using a thread-safe version of Alembic (thread-safe HDF5 or Ogawa
+// for example), you can set this define.
+//#define GABC_ALEMBIC_THREADSAFE
+
 namespace GABC_NAMESPACE
 {
 class GABC_IItem;
@@ -62,9 +66,6 @@ public:
 
     /// Access the filename
     const std::string	&filename() const	{ return myFilename; }
-
-    /// Access to the file lock - required for HDF5
-    UT_Lock		&getLock() const	{ return *theLock; }
 
     /// Get the root object
     GABC_IObject	getTop() const;
@@ -100,6 +101,10 @@ public:
     /// @}
 
 private:
+    /// Access to the file lock - required for non-thread safe HDF5
+    UT_Lock		&getLock() const	{ return *theLock; }
+    friend class	 GABC_AutoLock;
+
     GABC_IArchive(const std::string &filename);
 
     // At the current time, HDF5 requires a *global* lock across all files.
@@ -117,6 +122,15 @@ private:
 static inline void intrusive_ptr_add_ref(GABC_IArchive *i) { i->incref(); }
 static inline void intrusive_ptr_release(GABC_IArchive *i) { i->decref(); }
 
+#if defined(GABC_ALEMBIC_THREADSAFE)
+class GABC_API GABC_AutoLock
+{
+public:
+     GABC_AutoLock(const GABC_IArchive &) {}
+     GABC_AutoLock(const GABC_IArchivePtr &) {}
+    ~GABC_AutoLock() {}
+};
+#else
 class GABC_API GABC_AutoLock
 {
 public:
@@ -140,6 +154,8 @@ public:
 private:
     UT_Lock	*myLock;
 };
+#endif
+
 }
 
 #endif
