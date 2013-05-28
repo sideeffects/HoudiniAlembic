@@ -25,13 +25,20 @@
  *----------------------------------------------------------------------------
  */
 
+//#define GABC_OGAWA
+
 #include "GABC_IArchive.h"
 #include "GABC_IObject.h"
 #include <UT/UT_Map.h>
 #include <UT/UT_SysClone.h>
 #include <UT/UT_String.h>
 #include <UT/UT_WorkArgs.h>
-#include <Alembic/AbcCoreHDF5/All.h>
+
+#if defined(GABC_OGAWA)
+    #include <Alembic/AbcCoreFactory/All.h>
+#else
+    #include <Alembic/AbcCoreHDF5/All.h>
+#endif
 
 using namespace GABC_NAMESPACE;
 
@@ -43,6 +50,9 @@ namespace
 {
     typedef Alembic::Abc::IObject			IObject;
     typedef Alembic::Abc::IArchive			IArchive;
+#if defined(GABC_OGAWA)
+    typedef Alembic::AbcCoreFactory::IFactory		IFactory;
+#endif
 }
 
 UT_Lock	*GABC_IArchive::theLock = NULL;
@@ -67,7 +77,12 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
     {
 	try
 	{
+#if defined(GABC_OGAWA)
+	    IFactory	factory;
+	    myArchive = factory.getArchive(path);
+#else
 	    myArchive = IArchive(Alembic::AbcCoreHDF5::ReadArchive(), path);
+#endif
 	}
 	catch (const std::exception &e)
 	{

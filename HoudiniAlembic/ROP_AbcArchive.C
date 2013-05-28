@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+//#define GABC_OGAWA
+
 #include "ROP_AbcArchive.h"
 #include "ROP_AbcContext.h"
 #include <GABC/GABC_Util.h>
@@ -33,6 +35,9 @@
 #include <UT/UT_Date.h>
 #include <UT/UT_Version.h>
 #include <Alembic/AbcCoreHDF5/All.h>
+#if defined(GABC_OGAWA)
+    #include <Alembic/AbcCoreOgawa/All.h>
+#endif
 
 using namespace GABC_NAMESPACE;
 
@@ -81,12 +86,21 @@ ROP_AbcArchive::open(GABC_OError &err, const char *file)
 	    static_cast<const char *>(timestamp));
     try
     {
+#if defined(GABC_OGAWA)
+	myArchive = Alembic::Abc::CreateArchiveWithInfo(
+			Alembic::AbcCoreOgawa::WriteArchive(),
+			file,
+			version.buffer(),
+			userinfo.buffer(),
+			Alembic::Abc::ErrorHandler::kThrowPolicy);
+#else
 	myArchive = Alembic::Abc::CreateArchiveWithInfo(
 			Alembic::AbcCoreHDF5::WriteArchive(),
 			file,
 			version.buffer(),
 			userinfo.buffer(),
 			Alembic::Abc::ErrorHandler::kThrowPolicy);
+#endif
     }
     catch (const std::exception &e)
     {

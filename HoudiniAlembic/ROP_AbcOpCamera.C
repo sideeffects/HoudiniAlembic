@@ -127,15 +127,15 @@ namespace
 	return false;
     }
 
-    OBJ_Camera *
+    static OBJ_Camera *
     getCamera(int id)
     {
 	OP_Node	*node = OP_Node::lookupNode(id);
 	return UTverify_cast<OBJ_Camera *>(node);
     }
 
-    void
-    nodeFullPath(UT_WorkBuffer &buf, int id)
+    static void
+    cameraNodeFullPath(UT_WorkBuffer &buf, int id)
     {
 	OBJ_Camera	*o = getCamera(id);
 	if (!o)
@@ -165,7 +165,7 @@ ROP_AbcOpCamera::start(const OObject &parent,
     if (!cam || !myOCamera)
     {
 	UT_WorkBuffer	fullpath;
-	nodeFullPath(fullpath, myCameraId);
+	cameraNodeFullPath(fullpath, myCameraId);
 	return err.error("Unable to create camera for %s", fullpath.buffer());
     }
 

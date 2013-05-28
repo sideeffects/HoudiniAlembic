@@ -45,17 +45,17 @@ namespace
 
     static const char	*theCameraName = "cameraProperties";
 
-    OBJ_Node *
-    getNode(int id)
+    static OBJ_Node *
+    getXformNode(int id)
     {
 	OP_Node	*node = OP_Node::lookupNode(id);
 	return UTverify_cast<OBJ_Node *>(node);
     }
 
-    void
-    nodeFullPath(UT_WorkBuffer &buf, int id)
+    static void
+    xformNodeFullPath(UT_WorkBuffer &buf, int id)
     {
-	OBJ_Node	*o = getNode(id);
+	OBJ_Node	*o = getXformNode(id);
 	if (!o)
 	    buf.sprintf("Node with unique id %d was deleted", id);
 	else
@@ -101,12 +101,12 @@ bool
 ROP_AbcOpXform::start(const OObject &parent,
 	GABC_OError &err, const ROP_AbcContext &ctx, UT_BoundingBox &box)
 {
-    OBJ_Node	*node = getNode(myNodeId);
+    OBJ_Node	*node = getXformNode(myNodeId);
 
     if (!node || !node->getLocalTransform(ctx.cookContext(), myMatrix))
     {
 	UT_WorkBuffer	fullpath;
-	nodeFullPath(fullpath, myNodeId);
+	xformNodeFullPath(fullpath, myNodeId);
 	return err.error("Error cooking transofmr %s at time %g",
 		fullpath.buffer(), ctx.cookContext().getTime());
     }
@@ -169,12 +169,12 @@ ROP_AbcOpXform::update(GABC_OError &err,
     {
 	if (!myIdentity)
 	{
-	    OBJ_Node	*node = getNode(myNodeId);
+	    OBJ_Node	*node = getXformNode(myNodeId);
 
 	    if (!node || !node->getLocalTransform(ctx.cookContext(), myMatrix))
 	    {
 		UT_WorkBuffer	fullpath;
-		nodeFullPath(fullpath, myNodeId);
+		xformNodeFullPath(fullpath, myNodeId);
 		return err.error("Error cooking transofmr %s at time %g",
 			fullpath.buffer(), ctx.cookContext().getTime());
 	    }

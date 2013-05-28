@@ -30,8 +30,8 @@
 
 #include "ROP_AbcObject.h"
 #include "ROP_AbcContext.h"
+#include <GABC/GABC_OError.h>
 
-class GABC_OError;
 class OBJ_Node;
 
 /// Output archive for Houdini
