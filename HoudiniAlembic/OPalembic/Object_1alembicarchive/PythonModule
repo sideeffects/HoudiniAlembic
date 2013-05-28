@@ -39,6 +39,7 @@ def BuildHierarchyRoot(rootNode):
                         pathList,
                         buildSubnet,
                         channelRefs)
+    rootNode.layoutChildren()
     if not channelRefs:
         PushParametersToChildren(rootNode)
 
