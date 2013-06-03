@@ -75,7 +75,7 @@ ROP_AbcOpXform::ROP_AbcOpXform(OBJ_Node *node, const ROP_AbcContext &ctx)
 	// Add a camera child
 	addChild(theCameraName, new ROP_AbcOpCamera((OBJ_Camera *)node));
     }
-    else
+    else if (node->isObjectRenderable(0))
     {
 	SOP_Node	*sop = ctx.singletonSOP();
 	if (!sop || sop->getCreator() != node)

@@ -53,6 +53,14 @@ ROP_AbcOpBuilder::addChild(GABC_OError &err, OP_Node *child)
     UT_Array<int>	path;
     while (child != myRootNode)
     {
+	OP_Node	*parent = child->getInput(0);
+	if (!parent)
+	    break;
+	path.append(child->getUniqueId());
+	child = parent;
+    }
+    while (child != myRootNode)
+    {
 	path.append(child->getUniqueId());
 	child = child->getParent();
 	UT_ASSERT(child);
@@ -73,7 +81,7 @@ validObjectType(fpreal t, OBJ_Node *obj)
 
     if (obj->getObjectType() == OBJ_CAMERA || obj->getObjectType() == OBJ_SUBNET)
 	return true;
-    if (obj->castToOBJGeometry() && obj->isObjectRenderable(t))
+    if (obj->castToOBJGeometry())
 	return true;
     return false;
 }
