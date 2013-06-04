@@ -12,7 +12,7 @@ def BuildHierarchyRoot(rootNode):
     #For now delete the existing children.
     for child in rootNode.children():
         child.destroy()
-    
+
     fileName = rootNode.evalParm('fileName')
     if not fileName:
         if ui:
@@ -29,7 +29,7 @@ def BuildHierarchyRoot(rootNode):
     channelRefs = rootNode.evalParm('channelRef')
 
     pathList = [x for x in rootNode.evalParm('objectPath').strip('/').split('/') if x]
-    
+
     for entry in tree[2]:
         WalkHierarchy(fileName,
                         rootNode,
@@ -136,11 +136,12 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
         _setNodeName(currentNode, name)
 
         sopNode = currentNode.createNode('alembic')
-        
+        _setNodeName(sopNode, name)
+
         relPath = sopNode.relativePathTo(rootNode)
         hou.hscript("opmultiparm %s 'abcName#' '%s/abcName#' 'hName#' '%s/hName#'" % (
                 sopNode.path(), relPath, relPath))
-        
+
         _setParmValue(sopNode, "addpath", 0)
         if channelRefs:
             ExpressionToParm(rootNode.parm('remapAttributes'),
@@ -174,7 +175,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
         animated = typeName != 'cxform'
         if _setVisibility(currentNode, fileName, currentPath):
             animated = True
-        
+
         if channelRefs:
             ExpressionToParm(rootNode.parm('fileName'),
                     currentNode.parm('fileName'),
@@ -203,14 +204,14 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 ('Alembic',), True)
         currentNode.addSpareParmTuple(rootNode.parm('fps').parmTemplate(),
                 ('Alembic',), True)
-        
+
         if channelRefs:
             ExpressionToParm(rootNode.parm('fileName'),
                     currentNode.parm('fileName'),
                     isString=True)
             ExpressionToParm(rootNode.parm('frame'), currentNode.parm('frame'))
             ExpressionToParm(rootNode.parm('fps'), currentNode.parm('fps'))
-        
+
         for parmName in (
                 'focal',
                 'near',
@@ -223,8 +224,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 'aperture'):
              currentNode.parm(parmName).setExpression(
                     '%s.alembicGetCameraDict(ch("fileName"), "%s", ch("frame")/ch("fps")).get("%s")' % (_AbcModule, currentPath, parmName), hou.exprLanguage.Python)
-        
-    
+
     else:
         return
 
