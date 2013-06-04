@@ -70,8 +70,8 @@ public:
     void	walk(WalkFunc &func) const	{ myTree.walk(func); }
     /// @}
 
-    /// List contents
-    void	ls(bool just_leaves=true) const;
+    /// List contents.  If @c full_tree is false, only the leaf nodes are dumped
+    void	ls(bool full_tree=false) const;
 
     // Tree of operator nodes
     class InternalNode

@@ -35,6 +35,60 @@
 
 using namespace GABC_NAMESPACE;
 
+namespace
+{
+    typedef ROP_AbcOpBuilder::InternalNode	InternalNode;
+
+    static bool
+    validObjectType(fpreal t, OBJ_Node *obj)
+    {
+	if (!obj)
+	    return false;
+
+	if (obj->getObjectType() == OBJ_CAMERA
+		|| obj->getObjectType() == OBJ_SUBNET
+		|| obj->castToOBJGeometry())
+	    return true;
+	return false;
+    }
+
+    static void
+    addNodesToTree(const ROP_AbcContext &ctx,
+	    ROP_AbcObject *node, const InternalNode &inode)
+    {
+	typedef ROP_AbcOpBuilder::InternalNode	InternalNode;
+	for (InternalNode::const_iterator it = inode.begin();
+		it != inode.end(); ++it)
+	{
+	    const InternalNode	&ikid = it->second;
+	    OBJ_Node		*obj = CAST_OBJNODE(ikid.node());
+	    if (validObjectType(ctx.cookTime(), obj))
+	    {
+		ROP_AbcObject		*kid = new ROP_AbcOpXform(obj, ctx);
+		node->addChild(obj->getName(), kid);
+		addNodesToTree(ctx, kid, ikid);
+	    }
+	}
+    }
+
+    static void
+    dumpTree(const InternalNode &node, const char *root, bool full)
+    {
+	OP_Node		*op = node.node();
+	UT_WorkBuffer	 path;
+	path.sprintf("%s/%s", root, op ? op->getName().buffer() : "<unknown>");
+	if (full || node.childCount() == 0)
+	{
+	    printf("  %s (%d)\n", path.buffer(), (int)node.childCount());
+	}
+	for (InternalNode::const_iterator it = node.begin();
+		it != node.end(); ++it)
+	{
+	    dumpTree(it->second, path.buffer(), full);
+	}
+    }
+}
+
 bool
 ROP_AbcOpBuilder::addChild(GABC_OError &err, OP_Node *child)
 {
@@ -53,16 +107,16 @@ ROP_AbcOpBuilder::addChild(GABC_OError &err, OP_Node *child)
     UT_Array<int>	path;
     while (child != myRootNode)
     {
-	OP_Node	*parent = child->getInput(0);
-	if (!parent)
-	    break;
 	path.append(child->getUniqueId());
-	child = parent;
-    }
-    while (child != myRootNode)
-    {
-	path.append(child->getUniqueId());
-	child = child->getParent();
+	if (child->getInput(0)
+		&& child->getInput(0)->getParent() == child->getParent())
+	{
+	    child = child->getInput(0);
+	}
+	else
+	{
+	    child = child->getParent();
+	}
 	UT_ASSERT(child);
     }
     InternalNode	*curr = &myTree;
@@ -73,38 +127,6 @@ ROP_AbcOpBuilder::addChild(GABC_OError &err, OP_Node *child)
     return true;
 }
 
-static bool
-validObjectType(fpreal t, OBJ_Node *obj)
-{
-    if (!obj)
-	return false;
-
-    if (obj->getObjectType() == OBJ_CAMERA || obj->getObjectType() == OBJ_SUBNET)
-	return true;
-    if (obj->castToOBJGeometry())
-	return true;
-    return false;
-}
-
-static void
-addNodesToTree(const ROP_AbcContext &ctx,
-	ROP_AbcObject *node, const ROP_AbcOpBuilder::InternalNode &inode)
-{
-    typedef ROP_AbcOpBuilder::InternalNode	InternalNode;
-    for (InternalNode::const_iterator it = inode.begin();
-	    it != inode.end(); ++it)
-    {
-	const InternalNode	&ikid = it->second;
-	OBJ_Node		*obj = CAST_OBJNODE(ikid.node());
-	if (validObjectType(ctx.cookTime(), obj))
-	{
-	    ROP_AbcObject		*kid = new ROP_AbcOpXform(obj, ctx);
-	    node->addChild(obj->getName(), kid);
-	    addNodesToTree(ctx, kid, ikid);
-	}
-    }
-}
-
 void
 ROP_AbcOpBuilder::buildTree(ROP_AbcArchive &arch,
 	const ROP_AbcContext &ctx) const
@@ -113,32 +135,8 @@ ROP_AbcOpBuilder::buildTree(ROP_AbcArchive &arch,
 }
 
 void
-ROP_AbcOpBuilder::ls(bool just_leaves) const
+ROP_AbcOpBuilder::ls(bool full) const
 {
-    class lsWalk : public WalkFunc
-    {
-    public:
-	lsWalk(bool just_leaves)
-	    : myJustLeaves(just_leaves)
-	{
-	}
-	void	process(const InternalNode &node)
-		{
-		    if (!myJustLeaves || node.childCount() == 0)
-		    {
-			OP_Node		*op = node.node();
-			UT_WorkBuffer	 path;
-			if (op)
-			    op->getFullPath(path);
-			else
-			    path.strcpy("<unknown node>");
-			fprintf(stderr, "  %s\n", path.buffer());
-		    }
-		}
-    private:
-	bool	myJustLeaves;
-    };
-    lsWalk	w(just_leaves);
-    fprintf(stderr, "Tree contents:\n");
-    walk(w);
+    dumpTree(myTree, "", full);
+    fflush(stdout);
 }

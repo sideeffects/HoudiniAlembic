@@ -27,6 +27,7 @@
 
 #include "ROP_AbcOpXform.h"
 #include <OBJ/OBJ_Node.h>
+#include <OBJ/OBJ_SubNet.h>
 #include <SOP/SOP_Node.h>
 #include "ROP_AbcContext.h"
 #include "ROP_AbcOpCamera.h"
@@ -102,12 +103,25 @@ ROP_AbcOpXform::start(const OObject &parent,
 	GABC_OError &err, const ROP_AbcContext &ctx, UT_BoundingBox &box)
 {
     OBJ_Node	*node = getXformNode(myNodeId);
+    bool	 evaluated = false;
 
-    if (!node || !node->getLocalTransform(ctx.cookContext(), myMatrix))
+    if (node)
+    {
+	if (node->isSubNetwork(false))
+	{
+	    OBJ_SubNet	*sub = UTverify_cast<OBJ_SubNet *>(node);
+	    evaluated = sub->getSubnetTransform(ctx.cookContext(), myMatrix);
+	}
+	else
+	{
+	    evaluated = node->getLocalTransform(ctx.cookContext(), myMatrix);
+	}
+    }
+    if (!evaluated)
     {
 	UT_WorkBuffer	fullpath;
 	xformNodeFullPath(fullpath, myNodeId);
-	return err.error("Error cooking transofmr %s at time %g",
+	return err.error("Error cooking transform %s at time %g",
 		fullpath.buffer(), ctx.cookContext().getTime());
     }
     myTimeDependent = node->isTimeDependent(ctx.cookContext());
