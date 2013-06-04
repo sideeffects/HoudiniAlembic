@@ -196,7 +196,7 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
     if (myViewportLOD != src.myViewportLOD)
 	return true;
     if (myObjectPath != src.myObjectPath ||
-	    src.myObjectPattern != src.myObjectPattern)
+	    myObjectPattern != src.myObjectPattern)
 	return true;
     if (mySubdGroupName != src.mySubdGroupName)
 	return true;
