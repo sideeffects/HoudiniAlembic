@@ -136,7 +136,13 @@ ROP_AbcOpXform::start(const OObject &parent,
 	// collide with any of the parent's children.
 	ROP_AbcObject	*owner = getParent();
 	for (ChildContainer::const_iterator it = begin(); it != end(); ++it)
-	    owner->fakeParent(it->second);
+	{
+	    // If the names are equal, then we don't have to worry about name
+	    // collisions since we're replacing this object with the child in
+	    // the hierarchy.
+	    if (it->second->getName() != getName())
+		owner->fakeParent(it->second);
+	}
 
 	if (!startChildren(parent, err, ctx, myBox))
 	    return false;
