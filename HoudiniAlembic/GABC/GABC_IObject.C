@@ -1490,6 +1490,18 @@ namespace
 	return maxwidth;
     }
 
+    static UT_BoundingBox
+    blendBox(const UT_BoundingBox &b0, UT_BoundingBox &b1, fpreal t)
+    {
+	return UT_BoundingBox(
+		    SYSlerp(b0.xmin(), b1.xmin(), t),
+		    SYSlerp(b0.ymin(), b1.ymin(), t),
+		    SYSlerp(b0.zmin(), b1.zmin(), t),
+		    SYSlerp(b0.xmax(), b1.xmax(), t),
+		    SYSlerp(b0.ymax(), b1.ymax(), t),
+		    SYSlerp(b0.zmax(), b1.zmax(), t));
+    }
+
     template <typename ABC_T, typename SCHEMA_T>
     static bool
     abcBounds(const IObject &obj, UT_BoundingBox &box, fpreal t, bool &isconst)
@@ -1497,8 +1509,17 @@ namespace
 	ABC_T		 prim(obj, gabcWrapExisting);
 	const SCHEMA_T	&ss = prim.getSchema();
 	IBox3dProperty	 bounds = ss.getSelfBoundsProperty();
+	index_t		 i0, i1;
+	fpreal		 bias = getIndex(t, ss.getTimeSampling(),
+					ss.getNumSamples(), i0, i1);
 	isconst = bounds.isConstant();
-	box = GABC_Util::getBox(bounds.getValue(ISampleSelector(t)));
+	box = GABC_Util::getBox(bounds.getValue(ISampleSelector(i0)));
+	if (box.isValid() && i0 != i1)
+	{
+	    UT_BoundingBox	b1;
+	    b1 = GABC_Util::getBox(bounds.getValue(ISampleSelector(i1)));
+	    box = blendBox(box, b1, bias);
+	}
 	return box.isValid();
     }
 
