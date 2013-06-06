@@ -114,7 +114,7 @@ GABC_PackedImpl::install(GA_PrimitiveFactory *gafactory)
     if (theFactory)
 	return;
     theFactory = new AlembicFactory();
-    GU_PrimPacked::registerProcedural(gafactory, theFactory);
+    GU_PrimPacked::registerPacked(gafactory, theFactory);
 
     // Now, register the GT primitive
     GABC_CollectPacked	*gt = new GABC_CollectPacked();
