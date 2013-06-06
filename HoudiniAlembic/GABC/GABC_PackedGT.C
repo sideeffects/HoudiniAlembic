@@ -43,15 +43,17 @@ public:
     virtual GT_PrimitiveHandle	doSoftCopy() const
 				    { return new GABC_PackedGT(*this); }
 
-    virtual GT_PrimitiveHandle	getPointCloud(const GT_RefineParms *p) const;
-    virtual GT_PrimitiveHandle	getFullGeometry(const GT_RefineParms *p) const;
+    virtual GT_PrimitiveHandle	getPointCloud(const GT_RefineParms *p,
+					bool &xform) const;
+    virtual GT_PrimitiveHandle	getFullGeometry(const GT_RefineParms *p,
+					bool &xform) const;
     virtual GT_PrimitiveHandle	getBoxGeometry(const GT_RefineParms *p) const;
     virtual GT_PrimitiveHandle	getCentroidGeometry(const GT_RefineParms *p) const;
 private:
 };
 
 GT_PrimitiveHandle
-GABC_PackedGT::getPointCloud(const GT_RefineParms *) const
+GABC_PackedGT::getPointCloud(const GT_RefineParms *, bool &) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
@@ -59,7 +61,7 @@ GABC_PackedGT::getPointCloud(const GT_RefineParms *) const
 }
 
 GT_PrimitiveHandle
-GABC_PackedGT::getFullGeometry(const GT_RefineParms *) const
+GABC_PackedGT::getFullGeometry(const GT_RefineParms *, bool &) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
