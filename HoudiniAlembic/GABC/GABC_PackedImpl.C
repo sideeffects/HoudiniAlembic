@@ -31,7 +31,7 @@
 
 #if !defined(GABC_PRIMITIVE_TOKEN)
     #define GABC_PRIMITIVE_TOKEN	"AlembicRef"
-    #define GABC_PRIMITIVE_LABEL	"Alembic Delayed Load"
+    #define GABC_PRIMITIVE_LABEL	"Alembic Archive"
 #endif
 
 using namespace GABC_NAMESPACE;
