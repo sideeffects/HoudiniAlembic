@@ -31,7 +31,7 @@
 
 #if !defined(GABC_PRIMITIVE_TOKEN)
     #define GABC_PRIMITIVE_TOKEN	"AlembicRef"
-    #define GABC_PRIMITIVE_LABEL	"Alembic Archive"
+    #define GABC_PRIMITIVE_LABEL	"Packed Alembic"
 #endif
 
 using namespace GABC_NAMESPACE;
