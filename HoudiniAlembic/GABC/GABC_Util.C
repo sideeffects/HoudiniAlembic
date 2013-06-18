@@ -585,6 +585,17 @@ namespace
 
     //-*************************************************************************
 
+    static void
+    badFileWarning(const std::string &path)
+    {
+	static UT_Set<std::string>	warnedFiles;
+	if (UTisstring(path.c_str()) && !warnedFiles.count(path))
+	{
+	    warnedFiles.insert(path);
+	    UT_ErrorLog::mantraError("Bad Alembic Archive: '%s'", path.c_str());
+	}
+    }
+
     ArchiveCacheEntryPtr
     FindArchive(const std::string &path)
     {
@@ -596,6 +607,7 @@ namespace
 		return (*I).second;
 	    }
 	}
+	badFileWarning(path);
 	return ArchiveCacheEntryPtr();
     }
 
@@ -604,14 +616,7 @@ namespace
     {
 	if (!UTisstring(path.c_str()) || UTaccess(path.c_str(), R_OK) != 0)
 	{
-	    static UT_Set<std::string>	theWarnedFiles;
-
-	    if (UTisstring(path.c_str()) && !theWarnedFiles.count(path))
-	    {
-		theWarnedFiles.insert(path);
-		UT_ErrorLog::mantraError("Bad Alembic Archive: '%s'",
-			path.c_str());
-	    }
+	    badFileWarning(path);
 	    return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
 	}
         ArchiveCache::iterator I = g_archiveCache->find(path);
