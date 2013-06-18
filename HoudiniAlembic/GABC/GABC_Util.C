@@ -35,6 +35,7 @@
 #include <UT/UT_SharedPtr.h>
 #include <UT/UT_SysClone.h>
 #include <UT/UT_SymbolTable.h>
+#include <UT/UT_ErrorLog.h>
 #include <boost/tokenizer.hpp>
 
 using namespace GABC_NAMESPACE;
@@ -603,6 +604,14 @@ namespace
     {
 	if (!UTisstring(path.c_str()) || UTaccess(path.c_str(), R_OK) != 0)
 	{
+	    static UT_Set<std::string>	theWarnedFiles;
+
+	    if (UTisstring(path.c_str()) && !theWarnedFiles.count(path))
+	    {
+		theWarnedFiles.insert(path);
+		UT_ErrorLog::mantraError("Bad Alembic Archive: '%s'",
+			path.c_str());
+	    }
 	    return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
 	}
         ArchiveCache::iterator I = g_archiveCache->find(path);
