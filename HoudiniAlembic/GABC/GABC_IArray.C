@@ -45,7 +45,7 @@ namespace
 
 GABC_IArray::~GABC_IArray()
 {
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     purge();
     setArchive(NULL);
 }
@@ -68,7 +68,7 @@ GABC_IArray::getSample(GABC_IArchive &arch, const IArrayProperty &prop,
 
     {
 	// Lock to get the sample from the property
-	GABC_AutoLock	lock(arch);
+	GABC_AlembicLock	lock(arch);
 	prop.get(sample, iss);
 	if (!sample->valid())
 	    return GABC_IArray();

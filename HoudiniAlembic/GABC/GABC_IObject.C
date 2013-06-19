@@ -1664,7 +1664,7 @@ GABC_IObject::init()
 
 GABC_IObject::~GABC_IObject()
 {
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     purge();
     setArchive(NULL);
 }
@@ -1690,7 +1690,7 @@ GABC_IObject::getNumChildren() const
 {
     if (myObject.valid())
     {
-	GABC_AutoLock	lock(archive());
+	GABC_AlembicLock	lock(archive());
 	return myObject.getNumChildren();
     }
     return 0;
@@ -1703,7 +1703,7 @@ GABC_IObject::getChild(exint index) const
     UT_ASSERT(myObject.valid());
     if (myObject.valid())
     {
-	GABC_AutoLock	lock(archive());
+	GABC_AlembicLock	lock(archive());
 	UT_ASSERT(archive());
 	return GABC_IObject(archive(), myObject.getChild(index));
     }
@@ -1715,7 +1715,7 @@ GABC_IObject::getChild(const std::string &name) const
 {
     if (myObject.valid())
     {
-	GABC_AutoLock	lock(archive());
+	GABC_AlembicLock	lock(archive());
 	UT_ASSERT(archive());
 	return GABC_IObject(archive(), myObject.getChild(name));
     }
@@ -1768,7 +1768,7 @@ GABC_IObject::visibility(bool &animated, fpreal t, bool check_parent) const
     if (!myObject.valid())
 	return GABC_VISIBLE_DEFER;
 
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     IVisibilityProperty	vprop = Alembic::AbcGeom::GetVisibilityProperty(
 				    const_cast<IObject &>(myObject));
     if (vprop.valid())
@@ -1796,7 +1796,7 @@ GABC_IObject::visibilityCache() const
     if (!myObject.valid())
 	return new GABC_VisibilityCache();
 
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     IVisibilityProperty	vprop = Alembic::AbcGeom::GetVisibilityProperty(
 				    const_cast<IObject &>(myObject));
     if (vprop.valid())
@@ -1843,7 +1843,7 @@ GABC_IObject::getAnimationType(bool include_transform) const
 {
     if (!valid())
 	return GEO_ANIMATION_INVALID;
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     GEO_AnimationType	atype = GEO_ANIMATION_CONSTANT;
 
     try
@@ -1898,7 +1898,7 @@ GABC_IObject::getBoundingBox(UT_BoundingBox &box, fpreal t, bool &isconst) const
 {
     if (!valid())
 	return false;
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     try
     {
 	switch (nodeType())
@@ -1937,7 +1937,7 @@ GABC_IObject::getRenderingBoundingBox(UT_BoundingBox &box, fpreal t) const
     {
 	case GABC_POINTS:
 	    {
-		GABC_AutoLock	lock(archive());
+		GABC_AlembicLock	lock(archive());
 		IPoints		points(myObject, gabcWrapExisting);
 		IPointsSchema	&ss = points.getSchema();
 		box.expandBounds(0, getMaxWidth(ss.getWidthsParam(), t));
@@ -1945,7 +1945,7 @@ GABC_IObject::getRenderingBoundingBox(UT_BoundingBox &box, fpreal t) const
 	    break;
 	case GABC_CURVES:
 	    {
-		GABC_AutoLock	lock(archive());
+		GABC_AlembicLock	lock(archive());
 		ICurves		curves(myObject, gabcWrapExisting);
 		ICurvesSchema	&ss = curves.getSchema();
 		box.expandBounds(0, getMaxWidth(ss.getWidthsParam(), t));
@@ -1960,7 +1960,7 @@ GABC_IObject::getRenderingBoundingBox(UT_BoundingBox &box, fpreal t) const
 TimeSamplingPtr
 GABC_IObject::timeSampling()
 {
-    //GABC_AutoLock	lock(archive());
+    //GABC_AlembicLock	lock(archive());
     switch (nodeType())
     {
 	case GABC_POLYMESH:
@@ -1997,7 +1997,7 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 	fpreal t, GEO_AnimationType &atype,
 	const GEO_PackedNameMapPtr &namemap) const
 {
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     GT_PrimitiveHandle	prim;
     atype = GEO_ANIMATION_CONSTANT;
     try
@@ -2186,7 +2186,7 @@ GABC_IObject::getPosition(fpreal t, GEO_AnimationType &atype) const
 {
     if (valid())
     {
-	GABC_AutoLock	lock(archive());
+	GABC_AlembicLock	lock(archive());
 	try
 	{
 	    switch (nodeType())
@@ -2224,7 +2224,7 @@ GABC_IObject::getVelocity(fpreal t, GEO_AnimationType &atype) const
 {
     if (valid())
     {
-	GABC_AutoLock	lock(archive());
+	GABC_AlembicLock	lock(archive());
 	try
 	{
 	    switch (nodeType())
@@ -2389,7 +2389,7 @@ GABC_IObject::getUserProperties() const
 exint
 GABC_IObject::getNumGeometryProperties() const
 {
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     ICompoundProperty	arb = getArbGeomParams();
     return arb ? arb.getNumProperties() : 0;
 }
@@ -2399,7 +2399,7 @@ GABC_IObject::getGeometryProperty(exint index, fpreal t,
 	std::string &name, GeometryScope &scope,
 	GEO_AnimationType &atype) const
 {
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     GT_DataArrayHandle	data;
     try
     {
@@ -2423,7 +2423,7 @@ GT_DataArrayHandle
 GABC_IObject::getGeometryProperty(const std::string &name, fpreal t,
 	GeometryScope &scope, GEO_AnimationType &atype) const
 {
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     GT_DataArrayHandle	data;
     try
     {
@@ -2448,7 +2448,7 @@ GABC_IObject::getGeometryProperty(const std::string &name, fpreal t,
 exint
 GABC_IObject::getNumUserProperties() const
 {
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     ICompoundProperty	arb = getUserProperties();
     return arb ? arb.getNumProperties() : 0;
 }
@@ -2457,7 +2457,7 @@ GT_DataArrayHandle
 GABC_IObject::getUserProperty(exint index, fpreal t,
 	std::string &name, GEO_AnimationType &atype) const
 {
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     GT_DataArrayHandle	data;
     try
     {
@@ -2480,7 +2480,7 @@ GT_DataArrayHandle
 GABC_IObject::getUserProperty(const std::string &name, fpreal t,
 	GEO_AnimationType &atype) const
 {
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     GT_DataArrayHandle	data;
     try
     {
@@ -2508,7 +2508,7 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
     if (!valid())
 	return false;
     IObject		obj = object();
-    GABC_AutoLock	lock(archive());
+    GABC_AlembicLock	lock(archive());
     bool		ascended = false;
 
     while (obj.valid() && !IXform::matches(obj.getHeader()))
@@ -2549,7 +2549,7 @@ GABC_IObject::localTransform(fpreal t, UT_Matrix4D &mat,
     inheritsXform = true;
     if (nodeType() == GABC_XFORM)
     {
-	GABC_AutoLock	lock(archive());
+	GABC_AlembicLock	lock(archive());
 	IXform		xform(myObject, gabcWrapExisting);
 	IXformSchema	ss = xform.getSchema();
 	index_t		i0, i1;

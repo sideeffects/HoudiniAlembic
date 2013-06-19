@@ -95,7 +95,7 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
 GABC_IArchive::~GABC_IArchive()
 {
     UT_DEC_COUNTER(theCount);
-    GABC_AutoLock	lock(*this);	// Lock for member data deletion
+    GABC_AlembicLock	lock(*this);	// Lock for member data deletion
     if (!purged())
 	purgeObjects();	// Clear all my objects out
 }
@@ -103,7 +103,7 @@ GABC_IArchive::~GABC_IArchive()
 void
 GABC_IArchive::resolveObject(GABC_IObject &obj)
 {
-    GABC_AutoLock	lock(*this);
+    GABC_AlembicLock	lock(*this);
 
     UT_ASSERT(!purged());
     if (!valid())
@@ -126,7 +126,7 @@ GABC_IArchive::getTop() const
     if (!valid())
 	return GABC_IObject();
 
-    GABC_AutoLock	lock(*this);
+    GABC_AlembicLock	 lock(*this);
     GABC_IArchive	*me = const_cast<GABC_IArchive *>(this);
     IObject	root = me->myArchive.getTop();
     return GABC_IObject(me, root);
@@ -135,7 +135,7 @@ GABC_IArchive::getTop() const
 void
 GABC_IArchive::purgeObjects()
 {
-    GABC_AutoLock	lock(*this);
+    GABC_AlembicLock	lock(*this); // Need lock for myObjects
 
     UT_ASSERT(!purged());
     myPurged = true;

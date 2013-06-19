@@ -38,7 +38,7 @@
 
 // If you're using a thread-safe version of Alembic (thread-safe HDF5 or Ogawa
 // for example), you can set this define.
-//#define GABC_ALEMBIC_THREADSAFE
+#define GABC_ALEMBIC_THREADSAFE
 
 namespace GABC_NAMESPACE
 {
@@ -122,15 +122,17 @@ private:
 static inline void intrusive_ptr_add_ref(GABC_IArchive *i) { i->incref(); }
 static inline void intrusive_ptr_release(GABC_IArchive *i) { i->decref(); }
 
-#if defined(GABC_ALEMBIC_THREADSAFE)
-class GABC_API GABC_AutoLock
+/// When running with a thread safe Alembic implementation, the fake lock is
+/// used (since the underlying library is safe).
+class GABC_API GABC_AutoFakeLock
 {
 public:
-     GABC_AutoLock(const GABC_IArchive &) {}
-     GABC_AutoLock(const GABC_IArchivePtr &) {}
-    ~GABC_AutoLock() {}
+     GABC_AutoFakeLock(const GABC_IArchive &) {}
+     GABC_AutoFakeLock(const GABC_IArchivePtr &) {}
+    ~GABC_AutoFakeLock() {}
 };
-#else
+/// The true lock is an implementation of a UT_AutoLock which is used when
+/// locking internal library structures.
 class GABC_API GABC_AutoLock
 {
 public:
@@ -154,6 +156,11 @@ public:
 private:
     UT_Lock	*myLock;
 };
+
+#if defined(GABC_ALEMBIC_THREADSAFE)
+typedef GABC_AutoFakeLock	GABC_AlembicLock;
+#else
+typedef GABC_AutoLock	GABC_AlembicLock;
 #endif
 
 }
