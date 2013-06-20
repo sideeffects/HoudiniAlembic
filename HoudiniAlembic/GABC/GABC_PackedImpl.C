@@ -45,7 +45,8 @@ class AlembicFactory : public GU_PackedFactory
 {
 public:
     AlembicFactory()
-	: GU_PackedFactory(GABC_PRIMITIVE_TOKEN, GABC_PRIMITIVE_LABEL)
+	: GU_PackedFactory(GABC_PRIMITIVE_TOKEN, GABC_PRIMITIVE_LABEL,
+	                   "SOP_alembic")
     {
 	registerIntrinsic("abctypename",
 	    StringGetterCast(&GABC_PackedImpl::intrinsicNodeType));
