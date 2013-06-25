@@ -25,8 +25,6 @@
  *----------------------------------------------------------------------------
  */
 
-//#define GABC_OGAWA
-
 #include "GABC_IArchive.h"
 #include "GABC_IObject.h"
 #include <UT/UT_Map.h>

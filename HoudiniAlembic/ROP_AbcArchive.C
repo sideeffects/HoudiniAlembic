@@ -25,8 +25,6 @@
  *----------------------------------------------------------------------------
  */
 
-//#define GABC_OGAWA
-
 #include "ROP_AbcArchive.h"
 #include "ROP_AbcContext.h"
 #include <GABC/GABC_Util.h>
@@ -44,6 +42,33 @@ using namespace GABC_NAMESPACE;
 namespace
 {
     typedef Alembic::Abc::OArchive	OArchive;
+
+    OArchive
+    openHDF5(const char *filename, const char *version, const char *userinfo)
+    {
+	return Alembic::Abc::CreateArchiveWithInfo(
+			Alembic::AbcCoreHDF5::WriteArchive(),
+			filename,
+			version,
+			userinfo,
+			Alembic::Abc::ErrorHandler::kThrowPolicy);
+    }
+
+    OArchive
+    openOgawa(const char *filename, const char *version, const char *userinfo)
+    {
+#if defined(GABC_OGAWA)
+	return Alembic::Abc::CreateArchiveWithInfo(
+			Alembic::AbcCoreOgawa::WriteArchive(),
+			filename,
+			version,
+			userinfo,
+			Alembic::Abc::ErrorHandler::kThrowPolicy);
+#else
+	// No Ogawa support
+	return openHDF5(filename, version, userinfo);
+#endif
+    }
 }
 
 ROP_AbcArchive::ROP_AbcArchive()
@@ -57,8 +82,10 @@ ROP_AbcArchive::~ROP_AbcArchive()
     close();
 }
 
+
+
 bool
-ROP_AbcArchive::open(GABC_OError &err, const char *file)
+ROP_AbcArchive::open(GABC_OError &err, const char *file, const char *format)
 {
     close();
 
@@ -86,21 +113,21 @@ ROP_AbcArchive::open(GABC_OError &err, const char *file)
 	    static_cast<const char *>(timestamp));
     try
     {
-#if defined(GABC_OGAWA)
-	myArchive = Alembic::Abc::CreateArchiveWithInfo(
-			Alembic::AbcCoreOgawa::WriteArchive(),
-			file,
-			version.buffer(),
-			userinfo.buffer(),
-			Alembic::Abc::ErrorHandler::kThrowPolicy);
-#else
-	myArchive = Alembic::Abc::CreateArchiveWithInfo(
-			Alembic::AbcCoreHDF5::WriteArchive(),
-			file,
-			version.buffer(),
-			userinfo.buffer(),
-			Alembic::Abc::ErrorHandler::kThrowPolicy);
+	if (!strcmp(format, "hdf5"))
+	    myArchive = openHDF5(file, version.buffer(), userinfo.buffer());
+	else
+	{
+#if !defined(GABC_OGAWA)
+	    if (!strcmp(format, "ogawa"))
+	    {
+		// User has specified Ogawa, but with no Ogawa support.
+		err.warningString("Ogawa not supported in this version "
+			    "of Houdini");
+	    }
 #endif
+	    // Default format
+	    myArchive = openOgawa(file, version.buffer(), userinfo.buffer());
+	}
     }
     catch (const std::exception &e)
     {

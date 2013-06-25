@@ -69,6 +69,8 @@ protected:
 
     void	FILENAME(UT_String &str, fpreal time)
 		    { getOutputOverrideEx(str, time, "filename", "mkpath"); }
+    void	FORMAT(UT_String &str, fpreal time)
+		    { evalString(str, "format", 0, time); }
     void	ROOT(UT_String &str, fpreal time)
 		    { evalString(str, "root", 0, time); }
     void	OBJECTS(UT_String &str, fpreal time)

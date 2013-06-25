@@ -44,7 +44,7 @@ public:
     virtual ~ROP_AbcArchive();
 
     /// Open a file for writing
-    bool	open(GABC_OError &err, const char *file);
+    bool	open(GABC_OError &err, const char *file, const char *format);
 
     /// Close the archive
     void	close();

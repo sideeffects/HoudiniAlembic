@@ -80,6 +80,7 @@ namespace
     }
 
     static PRM_Name	theFilenameName("filename", "Alembic File");
+    static PRM_Name	theFormatName("format", "Format");
     static PRM_Name	theRootName("root", "Root Object");
     static PRM_Name	theObjectsName("objects", "Objects");
     static PRM_Name	theCollapseName("collapse",
@@ -101,6 +102,7 @@ namespace
     static PRM_Name	theInitSim("initsim", "Initialize Simulation OPs");
 
     static PRM_Default	theFilenameDefault(0, "$HIP/output.abc");
+    static PRM_Default	theFormatDefault(0, "default");
     static PRM_Default	theRootDefault(0, "/obj");
     static PRM_Default	theStarDefault(0, "*");
     static PRM_Default	theCollapseDefault(0, "no");
@@ -111,6 +113,14 @@ namespace
     static PRM_Default	thePartitionAttributeDefault(0, "");
     static PRM_Default	theVerboseDefault(0);
     static PRM_Default	theFaceSetDefault(0);
+
+    static PRM_Name	theFormatChoices[] =
+    {
+	PRM_Name("default",	"Default Format"),
+	PRM_Name("hdf5",	"HDF5"),
+	PRM_Name("ogawa",	"Ogawa"),
+	PRM_Name()
+    };
 
     static PRM_Name	thePartitionModeChoices[] =
     {
@@ -182,6 +192,8 @@ namespace
 	PRM_Name()	// Sentinal
     };
 
+    static PRM_ChoiceList	theFormatMenu(PRM_CHOICELIST_SINGLE,
+					theFormatChoices);
     static PRM_ChoiceList	theObjectsMenu(PRM_CHOICELIST_REPLACE,
 					buildBundleMenu);
     static PRM_ChoiceList	thePartitionModeMenu(PRM_CHOICELIST_SINGLE,
@@ -216,6 +228,8 @@ namespace
 
     static PRM_Template	theParameters[] = {
 	PRM_Template(PRM_FILE,	1, &theFilenameName, &theFilenameDefault),
+	PRM_Template(PRM_ORD,	1, &theFormatName, &theFormatDefault,
+				    &theFormatMenu),
 	PRM_Template(PRM_TOGGLE,1, &ROPmkpath, PRMzeroDefaults),
 	// Root object should be relative to ROP
 	PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH,
@@ -332,6 +346,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     UT_String	 filename;
     UT_String	 root;
     UT_String	 objects;
+    UT_String	 format;
     fpreal	 tdelta = (end - start);
     fpreal	 tstep;
     int		 mb_samples = 1;
@@ -340,6 +355,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     OP_Node	*rootnode = NULL;
 
     FILENAME(filename, start);
+    FORMAT(format, start);
     if (sop)
     {
 	sop_parent = sop->getCreator();
@@ -428,7 +444,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 		    mb_samples, shutter_open, shutter_close);
 
 	myArchive = new ROP_AbcArchive();
-	if (!myArchive->open(*myError, filename))
+	if (!myArchive->open(*myError, filename, format))
 	{
 	    close();
 	    return 0;
