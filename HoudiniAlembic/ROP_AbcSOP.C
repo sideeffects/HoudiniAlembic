@@ -138,11 +138,13 @@ namespace
     static void
     initializeRefineParms(GT_RefineParms &rparms, const SOP_Node *sop,
 		const ROP_AbcContext &ctx,
-		int subdmode)
+		int subdmode,
+		bool show_unused_points)
     {
 	rparms.setFaceSetMode(ctx.faceSetMode());
 	rparms.setFastPolyCompacting(false);
 	rparms.setPolysAsSubdivision(subdmode == FORCE_SUBD_ON);
+	rparms.setShowUnusedPoints(show_unused_points);
     }
 
     static void
@@ -153,13 +155,14 @@ namespace
 	    const GU_Detail *gdp,
 	    const GA_Range &range,
 	    const ROP_AbcContext &ctx,
-	    int subdmode)
+	    int subdmode,
+	    bool show_unused_points)
     {
 	GA_ROAttributeRef	 attrib;
 	const char		*aname = ctx.partitionAttribute();
 	GT_RefineParms		 rparms;
 
-	initializeRefineParms(rparms, sop, ctx, subdmode);
+	initializeRefineParms(rparms, sop, ctx, subdmode, show_unused_points);
 	if (UTisstring(aname))
 	    attrib = gdp->findStringTuple(GA_ATTRIB_PRIMITIVE, aname);
 	GA_ROHandleS		 str(attrib);
@@ -228,30 +231,30 @@ namespace
 		{
 		    // Build subdivision groups first
 		    partitionGeometryRange(primitives, basename, names, sop,
-			gdp, GA_Range(*subdgroup), ctx, FORCE_SUBD_ON);
+			gdp, GA_Range(*subdgroup), ctx, FORCE_SUBD_ON, false);
 		    // Now, build the polygons
 		    partitionGeometryRange(primitives, basename, names, sop,
-			gdp, GA_Range(*subdgroup, true), ctx, FORCE_SUBD_OFF);
+			gdp, GA_Range(*subdgroup, true), ctx, FORCE_SUBD_OFF, true);
 		}
 		else
 		{
 		    // If there was no group, then there are no subd surfaces
 		    partitionGeometryRange(primitives, basename, names, sop,
-			gdp, gdp->getPrimitiveRange(), ctx, FORCE_SUBD_OFF);
+			gdp, gdp->getPrimitiveRange(), ctx, FORCE_SUBD_OFF, true);
 		}
 	    }
 	    else
 	    {
 		// All polygons should be rendered as subd primitives
 		partitionGeometryRange(primitives, basename, names, sop,
-			gdp, gdp->getPrimitiveRange(), ctx, FORCE_SUBD_ON);
+			gdp, gdp->getPrimitiveRange(), ctx, FORCE_SUBD_ON, true);
 	    }
 	}
 	else
 	{
 	    // No subdivision primitives
 	    partitionGeometryRange(primitives, basename, names, sop,
-		    gdp, gdp->getPrimitiveRange(), ctx, FORCE_SUBD_OFF);
+		    gdp, gdp->getPrimitiveRange(), ctx, FORCE_SUBD_OFF, true);
 	}
     }
 
