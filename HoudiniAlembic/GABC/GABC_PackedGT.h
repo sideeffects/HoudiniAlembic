@@ -33,10 +33,16 @@ public:
 
     /// @{
     /// Interface defined for GT_GEOPrimCollect
+    virtual GT_GEOPrimCollectData *
+		beginCollecting(const GT_GEODetailListHandle &geometry,
+				const GT_RefineParms *parms) const;
     virtual GT_PrimitiveHandle
 		collect(const GT_GEODetailListHandle &geo,
 				const GEO_Primitive *const* prim_list,
 				int nsegments,
+				GT_GEOPrimCollectData *data) const;
+    virtual GT_PrimitiveHandle
+		endCollecting(const GT_GEODetailListHandle &geometry,
 				GT_GEOPrimCollectData *data) const;
     /// @}
 private:

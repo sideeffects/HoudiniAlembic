@@ -17,12 +17,114 @@
 
 #include "GABC_PackedGT.h"
 #include "GABC_PackedImpl.h"
+#include <UT/UT_StackBuffer.h>
 #include <GT/GT_GEOPrimPacked.h>
+#include <GT/GT_GEOPrimCollectBoxes.h>
 
 using namespace GABC_NAMESPACE;
 
 namespace
 {
+
+class CollectData : public GT_GEOPrimCollectData
+{
+public:
+    CollectData(const GT_GEODetailListHandle &geometry, bool useViewportLOD)
+	: GT_GEOPrimCollectData()
+	, myUseViewportLOD(useViewportLOD)
+    {
+    }
+    virtual ~CollectData() {}
+
+    bool	append(const GU_PrimPacked &prim)
+    {
+	if (myUseViewportLOD)
+	{
+	    switch (prim.viewportLOD())
+	    {
+		case GEO_VIEWPORT_HIDDEN:
+		    return true;	// Handled
+		case GEO_VIEWPORT_CENTROID:
+		    myCentroidPrims.append(&prim);
+		    return true;
+		case GEO_VIEWPORT_BOX:
+		    myBoxPrims.append(&prim);
+		    return true;
+		default:
+		    break;
+	    }
+	}
+	return false;
+    }
+    class FillTask
+    {
+    public:
+	FillTask(UT_BoundingBox *boxes,
+		UT_Matrix4F *xforms,
+			const UT_Array<const GU_PrimPacked *>&prims)
+	    : myBoxes(boxes)
+	    , myXforms(xforms)
+	    , myPrims(prims)
+	{
+	}
+	void	operator()(const UT_BlockedRange<exint> &range) const
+	{
+	    UT_Matrix4D		m4d;
+	    for (exint i = range.begin(); i != range.end(); ++i)
+	    {
+		const GU_PrimPacked	&prim = *myPrims(i);
+		prim.getUntransformedBounds(myBoxes[i]);
+		prim.getFullTransform4(m4d);
+		myXforms[i] = m4d;
+	    }
+	}
+    private:
+	UT_BoundingBox				*myBoxes;
+	UT_Matrix4F				*myXforms;
+	const UT_Array<const GU_PrimPacked *>	&myPrims;
+    };
+    GT_PrimitiveHandle	finish() const
+    {
+	GT_GEOPrimCollectBoxes	boxdata(false);
+	exint			nbox = myBoxPrims.entries();
+	exint			ncentroid = myCentroidPrims.entries();
+	exint			nprims = SYSmax(nbox, ncentroid);
+
+	if (!nprims)
+	    return GT_PrimitiveHandle();
+
+	UT_StackBuffer<UT_BoundingBox>	boxes(nprims);
+	UT_StackBuffer<UT_Matrix4F>	xforms(nprims);
+	if (nbox)
+	{
+	    //UTparallelFor(UT_BlockedRange<exint>(0, nbox),
+	    UTserialFor(UT_BlockedRange<exint>(0, nbox),
+		    FillTask(boxes, xforms, myBoxPrims));
+	    for (exint i = 0; i < nbox; ++i)
+	    {
+		boxdata.appendBox(boxes[i], xforms[i],
+			myBoxPrims(i)->getMapOffset());
+	    }
+	}
+	if (ncentroid)
+	{
+	    //UTparallelFor(UT_BlockedRange<exint>(0, ncentroid),
+	    UTserialFor(UT_BlockedRange<exint>(0, ncentroid),
+		    FillTask(boxes, xforms, myCentroidPrims));
+	    for (exint i = 0; i < ncentroid; ++i)
+	    {
+		boxdata.appendCentroid(boxes[i], xforms[i],
+			myCentroidPrims(i)->getMapOffset());
+	    }
+	}
+	return boxdata.getPrimitive();
+    }
+
+private:
+    UT_Array<const GU_PrimPacked *>	myBoxPrims;
+    UT_Array<const GU_PrimPacked *>	myCentroidPrims;
+    bool				myUseViewportLOD;
+};
 
 class GABC_API GABC_PackedGT : public GT_GEOPrimPacked
 {
@@ -90,11 +192,29 @@ GABC_CollectPacked::~GABC_CollectPacked()
 {
 }
 
+GT_GEOPrimCollectData *
+GABC_CollectPacked::beginCollecting(const GT_GEODetailListHandle &geometry,
+				const GT_RefineParms *parms) const
+{
+    return new CollectData(geometry, GT_GEOPrimPacked::useViewportLOD(parms));
+}
+
 GT_PrimitiveHandle
 GABC_CollectPacked::collect(const GT_GEODetailListHandle &geo,
 	const GEO_Primitive *const* prim,
 	int nsegments, GT_GEOPrimCollectData *data) const
 {
-    const GU_PrimPacked	*pack = UTverify_cast<const GU_PrimPacked *>(prim[0]);
-    return GT_PrimitiveHandle(new GABC_PackedGT(pack));
+    CollectData		*collector = data->asPointer<CollectData>();
+    const GU_PrimPacked *pack = UTverify_cast<const GU_PrimPacked *>(prim[0]);
+    if (!collector->append(*pack))
+	return GT_PrimitiveHandle(new GABC_PackedGT(pack));
+    return GT_PrimitiveHandle();
+}
+
+GT_PrimitiveHandle
+GABC_CollectPacked::endCollecting(const GT_GEODetailListHandle &geometry,
+				GT_GEOPrimCollectData *data) const
+{
+    CollectData			*collector = data->asPointer<CollectData>();
+    return collector->finish();
 }
