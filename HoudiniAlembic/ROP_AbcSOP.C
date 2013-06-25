@@ -141,6 +141,7 @@ namespace
 		int subdmode)
     {
 	rparms.setFaceSetMode(ctx.faceSetMode());
+	rparms.setFastPolyCompacting(false);
 	rparms.setPolysAsSubdivision(subdmode == FORCE_SUBD_ON);
     }
 
