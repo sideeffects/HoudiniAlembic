@@ -37,7 +37,9 @@
 #include <Alembic/Abc/IArchive.h>
 
 // Change this when Ogawa is supported
-//#define GABC_OGAWA
+#if ALEMBIC_LIBRARY_VERSION >= 10200
+    #define GABC_OGAWA	1
+#endif
 
 // If you're using a thread-safe version of Alembic (thread-safe HDF5 or Ogawa
 // for example), you can set this define.
