@@ -118,6 +118,8 @@ namespace
     GeometryScope	theConstantUnknownScope[2] =
 					{ gabcConstantScope, gabcUnknownScope };
 
+    static const fpreal	theDefaultWidth = 0.05;
+
     static GT_DataArrayHandle
     arrayFromSample(GABC_IArchive &arch, const ArraySamplePtr &param,
 		int array_extent,
@@ -1472,7 +1474,7 @@ namespace
     getMaxWidth(IFloatGeomParam param, fpreal frame)
     {
 	if (!param.valid())
-	    return 0;
+	    return theDefaultWidth;
 
 	ISampleSelector			iss(frame);
 	IFloatGeomParam::sample_type	psample;
