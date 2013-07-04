@@ -52,6 +52,7 @@
 #include <Alembic/AbcCoreHDF5/All.h>
 #include <UT/UT_StackBuffer.h>
 #include <UT/UT_DoubleLock.h>
+#include <UT/UT_ErrorLog.h>
 
 using namespace GABC_NAMESPACE;
 
@@ -1175,6 +1176,28 @@ namespace
 	return GT_PrimitiveHandle(gt);
     }
 
+    static bool
+    validBezierCounts(const GT_DataArrayHandle &counts, bool periodic)
+    {
+	exint		n = counts->entries();
+	if (periodic)
+	{
+	    for (exint i = 0; i < n; ++i)
+	    {
+		if (counts->getI32(i) % 3 != 0)
+		    return false;
+	    }
+	}
+	else
+	{
+	    for (exint i = 0; i < n; ++i)
+	    {
+		if (counts->getI32(i) % 3 != 1)
+		    return false;
+	    }
+	}
+	return true;
+    }
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
     buildCurveMesh(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
@@ -1220,15 +1243,8 @@ namespace
 
 	GT_Basis	basis = GT_BASIS_LINEAR;
 	bool		periodic = false;
-	switch (sample.getBasis())
-	{
-	    case Alembic::AbcGeom::kBezierBasis:
-		basis = GT_BASIS_BEZIER;
-		break;
-	    default:
-		basis = GT_BASIS_LINEAR;
-		break;
-	}
+	static bool	warned = false;
+
 	switch (sample.getWrap())
 	{
 	    case Alembic::AbcGeom::kPeriodic:
@@ -1238,7 +1254,29 @@ namespace
 		periodic = false;
 		break;
 	}
-
+	switch (sample.getBasis())
+	{
+	    case Alembic::AbcGeom::kBezierBasis:
+		if (validBezierCounts(counts, periodic))
+		    basis = GT_BASIS_BEZIER;
+		else
+		{
+		    if (!warned)
+		    {
+			UT_ErrorLog::mantraWarning(
+				"Alembic file %s (%s) has invalid %s",
+				obj.archive()->filename().c_str(),
+				obj.getFullName().c_str(),
+				"cubic Bezier curves - converting to linear");
+			warned = true;
+		    }
+		    basis = GT_BASIS_LINEAR;
+		}
+		break;
+	    default:
+		basis = GT_BASIS_LINEAR;
+		break;
+	}
 	GT_PrimCurveMesh	*gt = new GT_PrimCurveMesh(basis,
 					counts,
 					vertex,
