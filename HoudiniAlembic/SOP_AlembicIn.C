@@ -355,8 +355,7 @@ static PRM_Name	theAttributePatternNames[GA_ATTRIB_OWNER_N] = {
 };
 
 static PRM_SpareData	theAbcPattern(
-	PRM_SpareData::getFileChooserPatternToken(), "*.abc",
-	NULL
+	PRM_SpareToken(PRM_SpareData::getFileChooserPatternToken(), "*.abc")
 );
 
 static PRM_Default	mainSwitcher[] =

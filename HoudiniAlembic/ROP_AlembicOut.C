@@ -207,10 +207,10 @@ namespace
 				    PRM_RANGE_UI, 3);
 
     // Make paths relative to /obj (for the bundle code)
-    static PRM_SpareData	theObjectList(
-				    "opfilter",		"!!OBJ!!",
-				    "oprelative",	"/obj",
-				    NULL);
+    static PRM_SpareData	theObjectList(PRM_SpareArgs()
+				    << PRM_SpareToken("opfilter", "!!OBJ!!")
+				    << PRM_SpareToken("oprelative", "/obj")
+				);
 
     static PRM_Name	theSampleName("samples", "Samples");
     static PRM_Name	theMotionBlurName("motionBlur", "Use Motion Blur");
