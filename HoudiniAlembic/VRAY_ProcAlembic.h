@@ -92,7 +92,6 @@ public:
     virtual int		initialize(const UT_BoundingBox *box);
     virtual void	getBoundingBox(UT_BoundingBox &box);
     virtual void	render();
-    virtual bool	isThreadSafe() const	{ return true; }
 
 private:
     const UT_Array<GU_Detail *>	&getDetailList() const

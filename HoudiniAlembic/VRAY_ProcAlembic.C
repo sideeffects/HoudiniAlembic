@@ -108,7 +108,6 @@ namespace
 	virtual ~vray_ProcAlembicPrim()
 	{
 	}
-	virtual bool	 isThreadSafe() const	{ return true; }
 	virtual const char	*getClassName()
 				    { return "vray_ProcAlembicPrim"; }
 	virtual int	 initialize(const UT_BoundingBox *)
