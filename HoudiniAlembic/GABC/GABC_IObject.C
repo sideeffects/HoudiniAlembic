@@ -2160,7 +2160,7 @@ GABC_IObject::getBoxGeometry(fpreal t, GEO_AnimationType &atype) const
 	return GT_PrimitiveHandle();
     atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_ATTRIBUTE;
     GT_BuilderStatus	err;
-    return GT_PrimitiveBuilder::wireBox(err, box, NULL);
+    return GT_PrimitiveBuilder::wireBox(err, box);
 }
 
 GT_PrimitiveHandle

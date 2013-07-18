@@ -581,7 +581,7 @@ GABC_PackedImpl::GTCache::box(const GABC_PackedImpl *abc)
 	    if (o.getBoundingBox(box, myFrame, isconst))
 	    {
 		GT_BuilderStatus	err;
-		myPrim = GT_PrimitiveBuilder::wireBox(err, box, NULL);
+		myPrim = GT_PrimitiveBuilder::wireBox(err, box);
 		if (myAnimationType < GEO_ANIMATION_ATTRIBUTE && !isconst)
 		    myAnimationType = GEO_ANIMATION_ATTRIBUTE;
 	    }
