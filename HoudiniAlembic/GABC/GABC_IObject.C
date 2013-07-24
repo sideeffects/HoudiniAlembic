@@ -403,6 +403,9 @@ namespace
     readArrayProperty(GABC_IArchive &arch, const IArrayProperty &prop,
 	    fpreal t, GT_Type tinfo)
     {
+	if(prop.getNumSamples() == 0)
+	    return GT_DataArrayHandle();
+
 	index_t i0, i1;
 	fpreal	bias = getIndex(t, prop.getTimeSampling(),
 				prop.getNumSamples(), i0, i1);
@@ -659,8 +662,9 @@ namespace
 		GT_Storage	store = getGTStorage(arb, header);
 		if (store == GT_STORE_INVALID)
 		    continue;
-		setAttributeData(alist, name,
-			obj.convertIProperty(arb, header, t), filled);
+		GT_DataArrayHandle data = obj.convertIProperty(arb, header, t);
+		if(data)
+		    setAttributeData(alist, name, data, filled);
 	    }
 	}
 	// We need to fill Houdini attributes last.  Otherwise, when converting
