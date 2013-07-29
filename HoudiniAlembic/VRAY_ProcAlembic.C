@@ -803,6 +803,9 @@ VRAY_ProcAlembic::render()
     const GA_PrimitiveTypeId	&abctype = alembicTypeId();
     bool			 warned = false;
     bool			 addgeo = false;
+    GA_Range			 baserange;
+    UT_String			 groupname;
+    const GA_PrimitiveGroup	*rendergroup = NULL;
 
     int nsegments = details.entries();
     UT_ASSERT(nsegments);
@@ -810,6 +813,13 @@ VRAY_ProcAlembic::render()
     agdp = myAttribDetails.entries() ? myAttribDetails(0) : NULL;
     if (agdp && agdp->getNumPrimitives() != gdp->getNumPrimitives())
 	agdp = NULL;
+
+    if (import("object:geometrygroup", groupname))
+    {
+	if (UTisstring(groupname))
+	    rendergroup = gdp->findPrimitiveGroup(groupname);
+    }
+    baserange = gdp->getPrimitiveRange(rendergroup);
 
     if (!gdp->getNumPrimitives())
     {
@@ -819,7 +829,7 @@ VRAY_ProcAlembic::render()
     {
 	UT_Array<const GU_PrimPacked *>	abclist(nsegments, nsegments);
 
-	for (GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
+	for (GA_Iterator it(baserange); !it.atEnd(); ++it)
 	{
 	    const GEO_Primitive	*prim = gdp->getGEOPrimitive(*it);
 	    const GEO_Primitive	*aprim = agdp ? agdp->getGEOPrimitive(*it):NULL;
