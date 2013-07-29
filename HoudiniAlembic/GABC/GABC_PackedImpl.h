@@ -204,6 +204,8 @@ protected:
     };
 
 private:
+    void	markDirty();
+
     GABC_VisibilityType computeVisibility(bool include_parent) const;
     void	clearGT();
     bool	unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const;

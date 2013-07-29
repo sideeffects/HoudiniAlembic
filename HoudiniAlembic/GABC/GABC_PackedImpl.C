@@ -438,6 +438,7 @@ GABC_PackedImpl::setFilename(const std::string &v)
     {
 	myFilename = v;
 	myCache.clear();
+	markDirty();
     }
 }
 
@@ -448,6 +449,7 @@ GABC_PackedImpl::setObjectPath(const std::string &v)
     {
 	myObjectPath = v;
 	myCache.clear();
+	markDirty();
     }
 }
 
@@ -456,6 +458,7 @@ GABC_PackedImpl::setFrame(fpreal f)
 {
     myFrame = f;
     myCache.updateFrame(f);
+    markDirty();
 }
 
 void
@@ -466,6 +469,7 @@ GABC_PackedImpl::setUseTransform(bool v)
 	myUseTransform = v;
 	// This can affect animation type
 	myCache.clear();
+	markDirty();
     }
 }
 
@@ -477,6 +481,7 @@ GABC_PackedImpl::setUseVisibility(bool v)
 	myUseVisibility = v;
 	// This can affect animation type
 	myCache.clear();
+	markDirty();
     }
 }
 
@@ -693,4 +698,23 @@ GABC_PackedImpl::GTCache::updateTransform(const GABC_PackedImpl *abc)
 	}
     }
     myPrim->setPrimitiveTransform(myTransform);
+}
+
+void
+GABC_PackedImpl::markDirty()
+{
+    switch (animationType())
+    {
+	case GEO_ANIMATION_CONSTANT:
+	    break;
+	case GEO_ANIMATION_TRANSFORM:
+	    transformDirty();
+	    break;
+	case GEO_ANIMATION_ATTRIBUTE:
+	    attributeDirty();
+	    break;
+	default:
+	    topologyDirty();
+	    break;
+    }
 }
