@@ -177,12 +177,12 @@ namespace
     private:
 	UT_SymbolMap<void *, false>	myStrings;
     };
-    static SkipList	thePolyMeshSkip("v", "N", "uv", NULL);
-    static SkipList	theSubDSkip("v", "uv", "creaseweight", NULL);
-    static SkipList	theCurvesSkip("v", "N", "uv", "width", NULL);
-    static SkipList	thePointsSkip("v", "id", "width", NULL);
-    static SkipList	theNuPatchSkip("Pw", "v", "N", "uv", NULL);
-    static SkipList	theEmptySkip(NULL);
+    static SkipList	thePolyMeshSkip("v", "N", "uv", (void *)NULL);
+    static SkipList	theSubDSkip("v", "uv", "creaseweight", (void *)NULL);
+    static SkipList	theCurvesSkip("v", "N", "uv", "width", (void *)NULL);
+    static SkipList	thePointsSkip("v", "id", "width", (void *)NULL);
+    static SkipList	theNuPatchSkip("Pw", "v", "N", "uv", (void *)NULL);
+    static SkipList	theEmptySkip((const char *)NULL);
 
     /// Create compound properties definition from an attribute list handle
     static bool
