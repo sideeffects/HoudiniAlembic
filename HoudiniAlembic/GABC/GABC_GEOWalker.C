@@ -1953,26 +1953,15 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
     if (do_transform && !buildAbcPrim() &&
 	    includeXform() && myMatrix != identity44d)
     {
-	bool		 rmgroup = false;
-	GA_PointGroup	*ptgroup;
-	if (!g)
-	{
-	    g = myDetail.newInternalPrimitiveGroup();
-	    rmgroup = true;
-	}
-	ptgroup = myDetail.newInternalPointGroup();
-	for (exint i = 0; i < npoint; ++i)
-	{
-	    ptgroup->addOffset(GA_Offset(myPointCount+i));
-	}
+	GA_Range	xprims = GA_Range(detail().getPrimitiveMap(),
+				GA_Offset(myPrimitiveCount),
+				GA_Offset(myPrimitiveCount + nprim));
+	GA_Range	xpoints = GA_Range(detail().getPointMap(),
+				GA_Offset(myPointCount),
+				GA_Offset(myPointCount + npoint));
 	UT_Matrix4	m4(myMatrix.x);
-	detail().transform(m4, g, ptgroup);
-	detail().destroyPointGroup(ptgroup);
-	if (rmgroup)
-	{
-	    detail().destroyPrimitiveGroup(g);
-	    g = NULL;
-	}
+	// Transform detail and attributes
+	detail().transform(m4, xprims, xpoints, false, false, false);
     }
     myPointCount += npoint;
     myVertexCount += nvertex;
