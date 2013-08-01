@@ -52,8 +52,7 @@ namespace
 	GT_DANumeric<POD_T, T_STORE>	*num;
 	num = new GT_DANumeric<POD_T, T_STORE>(src->entries(),
 				tuple_size, src->getTypeInfo());
-	src->fillArray(num->data(), 0, src->entries(),
-		tuple_size, src->getTupleSize());
+	src->fillArray(num->data(), 0, src->entries(), tuple_size);
 	return num;
     }
 
