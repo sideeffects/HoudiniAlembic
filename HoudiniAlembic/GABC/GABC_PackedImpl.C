@@ -308,24 +308,8 @@ GABC_PackedImpl::getVelocityRange(UT_Vector3 &vmin, UT_Vector3 &vmax) const
 	return;
 
     GEO_AnimationType	atype;
-    GT_DataArrayHandle	v = myObject.getVelocity(myFrame, atype);
-    if (v)
-    {
-	for (int i = 0; i < 3; ++i)
-	{
-	    fpreal	fmin, fmax;
-	    if (i >= v->getTupleSize())
-	    {
-		fmin = fmax = 0;
-	    }
-	    else
-	    {
-		v->getRange(fmin, fmax, i);
-	    }
-	    vmin(i) = fmin;
-	    vmax(i) = fmax;
-	}
-    }
+    GT_Primitive::computeVelocityRange(vmin, vmax,
+		    myObject.getVelocity(myFrame, atype));
 }
 
 void
