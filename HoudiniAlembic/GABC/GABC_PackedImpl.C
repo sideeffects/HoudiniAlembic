@@ -301,6 +301,15 @@ GABC_PackedImpl::getBounds(UT_BoundingBox &box) const
 bool
 GABC_PackedImpl::getRenderingBounds(UT_BoundingBox &box) const
 {
+    switch (nodeType())
+    {
+	case GABC_POINTS:
+	case GABC_CURVES:
+	    break;
+	default:
+	    return getBounds(box);	// Use cache if available
+	    break;
+    }
     return object().getRenderingBoundingBox(box, myFrame);
 }
 
