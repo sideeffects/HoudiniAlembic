@@ -503,6 +503,19 @@ namespace
 	return readArrayProperty(*obj.archive(), v, t, GT_TYPE_VECTOR);
     }
 
+    template <typename PRIM_T, typename SCHEMA_T>
+    static GT_DataArrayHandle
+    gabcGetWidth(const GABC_IObject &obj, fpreal t)
+    {
+	PRIM_T		 prim(obj.object(), gabcWrapExisting);
+	SCHEMA_T	&ss = prim.getSchema();
+	IFloatGeomParam	 v = ss.getWidthsParam();
+	if (!v.valid())
+	    return GT_DataArrayHandle();
+	return readGeomProperty(*obj.archive(), v, t, GT_TYPE_NONE);
+    }
+
+
     static void
     fillHoudiniAttributes(GT_AttributeList &alist,
 		    const GEO_Primitive &prim,
@@ -2250,6 +2263,33 @@ GABC_IObject::getPosition(fpreal t, GEO_AnimationType &atype) const
 		case GABC_NUPATCH:
 		    return gabcGetPosition<INuPatch,
 			       INuPatchSchema>(*this, t, atype);
+		default:
+		    break;
+	    }
+	}
+	catch (const std::exception &)
+	{
+	    UT_ASSERT(0 && "Alembic exception");
+	}
+    }
+    atype = GEO_ANIMATION_CONSTANT;
+    return GT_DataArrayHandle();
+}
+
+GT_DataArrayHandle
+GABC_IObject::getWidth(fpreal t, GEO_AnimationType &atype) const
+{
+    if (valid())
+    {
+	GABC_AlembicLock	lock(archive());
+	try
+	{
+	    switch (nodeType())
+	    {
+		case GABC_CURVES:
+		    return gabcGetWidth<ICurves, ICurvesSchema>(*this, t);
+		case GABC_POINTS:
+		    return gabcGetWidth<IPoints, IPointsSchema>(*this, t);
 		default:
 		    break;
 	    }

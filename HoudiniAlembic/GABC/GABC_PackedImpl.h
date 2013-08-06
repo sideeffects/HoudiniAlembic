@@ -91,6 +91,7 @@ public:
     /// bounds on velocity to accurately compute the bounding box.
     virtual void	getVelocityRange(UT_Vector3 &min,
 				UT_Vector3 &max) const;
+    virtual void	getWidthRange(fpreal &min, fpreal &max) const;
 
     /// Return the primitive's "description".  This should be a unique
     /// identifier for the primitive and defaults to:

@@ -211,6 +211,8 @@ public:
     GT_DataArrayHandle	getPosition(fpreal t, GEO_AnimationType &atype) const;
     /// Get velocity property from shape node
     GT_DataArrayHandle	getVelocity(fpreal t, GEO_AnimationType &atype) const;
+    /// Get the width property from the shape node (curves/points)
+    GT_DataArrayHandle	getWidth(fpreal t, GEO_AnimationType &atype) const;
 
     /// Lookup the data array for the named geometry property at the given time.
     ///  - The @c scope parameter is filled out with the property scope

@@ -313,6 +313,19 @@ GABC_PackedImpl::getVelocityRange(UT_Vector3 &vmin, UT_Vector3 &vmax) const
 }
 
 void
+GABC_PackedImpl::getWidthRange(fpreal &wmin, fpreal &wmax) const
+{
+    wmin = wmax = 0;
+    if (!myObject.valid())
+	return;
+
+    GEO_AnimationType	atype;
+    GT_DataArrayHandle	w = myObject.getWidth(myFrame, atype);
+    if (w)
+	w->getRange(wmin, wmax);
+}
+
+void
 GABC_PackedImpl::getPrimitiveName(UT_WorkBuffer &wbuf) const
 {
     if (UTisstring(objectPath().c_str()))
