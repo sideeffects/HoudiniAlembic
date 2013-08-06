@@ -287,6 +287,10 @@ namespace
 
         ~ArchiveCacheEntry()
         {
+        }
+
+	void	purge()
+	{
 	    if (myArchive)
 	    {
 		for (HandlerSetType::iterator it = myHandlers.begin();
@@ -301,7 +305,7 @@ namespace
 		}
 		myArchive->purgeObjects();
 	    }
-        }
+	}
 
 	bool	addHandler(const ArchiveEventHandlerPtr &handler)
 		{
@@ -653,12 +657,18 @@ namespace
         ArchiveCache::iterator it = g_archiveCache->find(path);
 	if (it != g_archiveCache->end())
 	{
+	    it->second->purge();
 	    g_archiveCache->erase(it);
 	}
     }
     void
     ClearArchiveCache()
     {
+	for (ArchiveCache::iterator it = g_archiveCache->begin();
+		it != g_archiveCache->end(); ++it)
+	{
+	    it->second->purge();
+	}
 	delete g_archiveCache;
 	g_archiveCache = new ArchiveCache;
     }
