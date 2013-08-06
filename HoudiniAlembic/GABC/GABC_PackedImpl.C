@@ -290,7 +290,12 @@ GABC_PackedImpl::getBounds(UT_BoundingBox &box) const
 	return 0;
 
     bool	isconst;
-    return obj.getBoundingBox(box, myFrame, isconst) ? 1 : 0;
+    if (obj.getBoundingBox(box, myFrame, isconst))
+    {
+	setBoxCache(box);
+	return true;
+    }
+    return false;
 }
 
 bool
