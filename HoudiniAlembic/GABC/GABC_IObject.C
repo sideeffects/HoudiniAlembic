@@ -653,6 +653,11 @@ namespace
 	{
 	    setAttributeData(alist, "__primitive_id",
 		    new GT_IntConstant(1, prim->getMapOffset()), filled);
+
+	    GT_DAIndexedString *objp = new GT_DAIndexedString(1,1);
+	    objp->setString(0, 0,  obj.objectPath().c_str());
+	    setAttributeData(alist, "__object_path", objp, filled);
+			     
 	}
 	if (arb)
 	{
@@ -754,7 +759,10 @@ namespace
 	addGeomParamToMap(*map, "width", widths, scope, scope_size);
 
 	if (prim && matchScope(gabcConstantScope, scope, scope_size))
+	{
 	    map->add("__primitive_id", true);
+	    map->add("__object_path", true);
+	}
 	if (arb)
 	{
 	    for (exint i = 0; i < arb.getNumProperties(); ++i)
