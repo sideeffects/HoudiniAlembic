@@ -1041,13 +1041,17 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
 		case GT_PRIM_POLYGON_MESH:
 		    {
 			OPolyMeshSchema	&ss = myShape.myPolyMesh->getSchema();
-			ss.createFaceSet(name);
+			OFaceSet &fset = ss.createFaceSet(name);
+			OFaceSetSchema	&fss = fset.getSchema();
+			fss.setTimeSampling(ctx.timeSampling());
 		    }
 		    break;
 		case GT_PRIM_SUBDIVISION_MESH:
 		    {
 			OSubDSchema	&ss = myShape.mySubD->getSchema();
-			ss.createFaceSet(name);
+			OFaceSet &fset = ss.createFaceSet(name);
+			OFaceSetSchema	&fss = fset.getSchema();
+			fss.setTimeSampling(ctx.timeSampling());
 		    }
 		    break;
 	    }
