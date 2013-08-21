@@ -653,6 +653,20 @@ namespace {
 	}
     }
 
+    static bool
+    matchAttributeName(GA_AttributeOwner owner, const char *name,
+		    const UT_String *patterns)
+    {
+	UT_String	nstr(name);
+	return nstr.multiMatch(patterns[owner]);
+    }
+
+    #define MATCH_ATTRIBUTE(param, name) \
+	(param.valid() && matchAttributeName(getGAOwner(param.getScope()), name, walk.attributePatterns()))
+
+    #define MATCH_PROPERTY(prop, iss, name) \
+	(prop.valid() && matchAttributeName(GA_ATTRIB_POINT, name, walk.attributePatterns()))
+
     static exint
     appendPoints(GABC_GEOWalker &walk, exint npoint)
     {
@@ -989,12 +1003,17 @@ namespace {
 	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
 		ps.getPositionsProperty().getValue(iss),
 		walk.pointCount(), npoint);
-	if (ps.getVelocitiesProperty().valid())
+	if (MATCH_PROPERTY(ps.getVelocitiesProperty(), iss, "v"))
+	{
 	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v", NULL,
 		    ps.getVelocitiesProperty().getValue(iss),
 		    walk.pointCount(), npoint);
-	setGeomAttribute(walk, "uv", NULL, ps.getUVsParam(), iss,
-		npoint, nvertex, nprim);
+	}
+	if (MATCH_ATTRIBUTE(ps.getUVsParam(), "uv"))
+	{
+	    setGeomAttribute(walk, "uv", NULL, ps.getUVsParam(), iss,
+		    npoint, nvertex, nprim);
+	}
 	fillArb(walk, obj, ps.getArbGeomParams(), npoint, nvertex, nprim);
 
 	walk.trackLastFace(nprim);
@@ -1090,14 +1109,22 @@ namespace {
 	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
 		ps.getPositionsProperty().getValue(iss),
 		walk.pointCount(), npoint);
-	if (ps.getVelocitiesProperty().valid())
+	if (MATCH_PROPERTY(ps.getVelocitiesProperty(), iss, "v"))
+	{
 	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v", NULL,
 		    ps.getVelocitiesProperty().getValue(iss),
 		    walk.pointCount(), npoint);
-	setGeomAttribute(walk, "uv", NULL, ps.getUVsParam(), iss,
-		npoint, nvertex, nprim);
-	setGeomAttribute(walk, "N", NULL, ps.getNormalsParam(), iss,
-		npoint, nvertex, nprim);
+	}
+	if (MATCH_ATTRIBUTE(ps.getUVsParam(), "uv"))
+	{
+	    setGeomAttribute(walk, "uv", NULL, ps.getUVsParam(), iss,
+		    npoint, nvertex, nprim);
+	}
+	if (MATCH_ATTRIBUTE(ps.getNormalsParam(), "N"))
+	{
+	    setGeomAttribute(walk, "N", NULL, ps.getNormalsParam(), iss,
+		    npoint, nvertex, nprim);
+	}
 	fillArb(walk, obj, ps.getArbGeomParams(), npoint, nvertex, nprim);
 
 	walk.trackLastFace(nprim);
@@ -1143,15 +1170,27 @@ namespace {
 		cs.getPositionsProperty().getValue(iss),
 		walk.pointCount(), npoint);
 	if (cs.getVelocitiesProperty().valid())
+	if (MATCH_PROPERTY(cs.getVelocitiesProperty(), iss, "v"))
+	{
 	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v", NULL,
 		    cs.getVelocitiesProperty().getValue(iss),
 		    walk.pointCount(), npoint);
-	setGeomAttribute(walk, "uv", NULL, cs.getUVsParam(), iss,
-		npoint, nvertex, nprim);
-	setGeomAttribute(walk, "width", NULL, cs.getWidthsParam(), iss,
-		npoint, nvertex, nprim);
-	setGeomAttribute(walk, "N", NULL, cs.getNormalsParam(), iss,
-		npoint, nvertex, nprim);
+	}
+	if (MATCH_ATTRIBUTE(cs.getUVsParam(), "uv"))
+	{
+	    setGeomAttribute(walk, "uv", NULL, cs.getUVsParam(), iss,
+		    npoint, nvertex, nprim);
+	}
+	if (MATCH_ATTRIBUTE(cs.getWidthsParam(), "width"))
+	{
+	    setGeomAttribute(walk, "width", NULL, cs.getWidthsParam(), iss,
+		    npoint, nvertex, nprim);
+	}
+	if (MATCH_ATTRIBUTE(cs.getNormalsParam(), "N"))
+	{
+	    setGeomAttribute(walk, "N", NULL, cs.getNormalsParam(), iss,
+		    npoint, nvertex, nprim);
+	}
 	fillArb(walk, obj, cs.getArbGeomParams(), npoint, nvertex, nprim);
 
 	walk.trackLastFace(nprim);
@@ -1265,17 +1304,24 @@ namespace {
 	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
 		ps.getPositionsProperty().getValue(iss),
 		walk.pointCount(), npoint);
-	if (ps.getVelocitiesProperty().valid())
+	if (MATCH_PROPERTY(ps.getVelocitiesProperty(), iss, "v"))
+	{
 	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v", NULL,
 		    ps.getVelocitiesProperty().getValue(iss),
 		    walk.pointCount(), npoint);
-	if (ps.getIdsProperty().valid())
+	}
+	if (MATCH_PROPERTY(ps.getIdsProperty(), iss, "id"))
+	{
 	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "id", NULL,
 		    ps.getIdsProperty().getValue(iss),
 		    walk.pointCount(), npoint);
+	}
 	Alembic::AbcGeom::IFloatGeomParam	widths = ps.getWidthsParam();
-	setGeomAttribute(walk, "width", NULL, widths, iss,
+	if (MATCH_ATTRIBUTE(widths, "width"))
+	{
+	    setGeomAttribute(walk, "width", NULL, widths, iss,
 		    npoint, nvertex, nprim);
+	}
 	fillArb(walk, obj, ps.getArbGeomParams(), npoint, nvertex, nprim);
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
@@ -1332,14 +1378,22 @@ namespace {
 	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
 		ps.getPositionsProperty().getValue(iss),
 		walk.pointCount(), npoint);
-	if (ps.getVelocitiesProperty().valid())
+	if (MATCH_PROPERTY(ps.getVelocitiesProperty(), iss, "v"))
+	{
 	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v", NULL,
 		    ps.getVelocitiesProperty().getValue(iss),
 		    walk.pointCount(), npoint);
-	setGeomAttribute(walk, "uv", NULL, ps.getUVsParam(), iss,
-		npoint, nvertex, nprim);
-	setGeomAttribute(walk, "N", NULL, ps.getNormalsParam(), iss,
-		npoint, nvertex, nprim);
+	}
+	if (MATCH_ATTRIBUTE(ps.getUVsParam(), "uv"))
+	{
+	    setGeomAttribute(walk, "uv", NULL, ps.getUVsParam(), iss,
+		    npoint, nvertex, nprim);
+	}
+	if (MATCH_ATTRIBUTE(ps.getNormalsParam(), "N"))
+	{
+	    setGeomAttribute(walk, "N", NULL, ps.getNormalsParam(), iss,
+		    npoint, nvertex, nprim);
+	}
 	fillArb(walk, obj, ps.getArbGeomParams(), npoint, nvertex, nprim);
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
