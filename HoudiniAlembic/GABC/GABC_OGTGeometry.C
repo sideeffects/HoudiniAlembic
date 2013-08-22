@@ -315,6 +315,25 @@ namespace
 	return true;
     }
 
+    static bool
+    matchAttribute(const GABC_OOptions &ctx,
+	    const char *name,
+	    const GT_AttributeListHandle &point,
+	    const GT_AttributeListHandle &vertex = GT_AttributeListHandle(),
+	    const GT_AttributeListHandle &uniform = GT_AttributeListHandle(),
+	    const GT_AttributeListHandle &detail = GT_AttributeListHandle())
+    {
+	if (point && point->getIndex(name) >= 0)
+	    return ctx.matchAttribute(GA_ATTRIB_POINT, name);
+	if (vertex && vertex->getIndex(name) >= 0)
+	    return ctx.matchAttribute(GA_ATTRIB_VERTEX, name);
+	if (uniform && uniform->getIndex(name) >= 0)
+	    return ctx.matchAttribute(GA_ATTRIB_PRIMITIVE, name);
+	if (detail && detail->getIndex(name) >= 0)
+	    return ctx.matchAttribute(GA_ATTRIB_DETAIL, name);
+	return true;
+    }
+
     template <typename POD_T, GT_Storage T_STORAGE,
 	     typename GeomParamSample, typename TRAITS>
     static bool
@@ -328,24 +347,28 @@ namespace
 	    const GT_AttributeListHandle &uniform = GT_AttributeListHandle(),
 	    const GT_AttributeListHandle &detail = GT_AttributeListHandle())
     {
-	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
-		    sample, cache, ctx, name, store,
-		    point, Alembic::AbcGeom::kVertexScope))
-	{
-	    return true;
-	}
+	// Fill vertex attributes first
 	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
 		    vertex, Alembic::AbcGeom::kFacevaryingScope))
 	{
 	    return true;
 	}
+	// Followed by point attributes
+	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
+		    sample, cache, ctx, name, store,
+		    point, Alembic::AbcGeom::kVertexScope))
+	{
+	    return true;
+	}
+	// Followed by uniform
 	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
 		    uniform, Alembic::AbcGeom::kUniformScope))
 	{
 	    return true;
 	}
+	// Followed by detail attribs
 	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
 		    detail, Alembic::AbcGeom::kConstantScope))
@@ -455,9 +478,12 @@ namespace
 	if (cache.needCounts(ctx, counts))
 	    iCnt = int32Array(counts, storage.counts());
 	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
-	fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt, vtx);
-	fillN3f(iNml, cache, ctx, "N", storage.N(), pt, vtx);
-	fillV3f(iVel, cache, ctx, "v", storage.v(), pt, vtx);
+	if (matchAttribute(ctx, "uv", pt, vtx))
+	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt, vtx);
+	if (matchAttribute(ctx, "N", pt, vtx))
+	    fillN3f(iNml, cache, ctx, "N", storage.N(), pt, vtx);
+	if (matchAttribute(ctx, "v", pt, vtx))
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt, vtx);
 
 	OPolyMeshSchema::Sample	sample(iPos.getVals(), iInd, iCnt, iUVs, iNml);
 	if (iVel.valid())
@@ -494,8 +520,10 @@ namespace
 	if (cache.needCounts(ctx, counts))
 	    iCnt = int32Array(counts, storage.counts());
 	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
-	fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt, vtx);
-	fillV3f(iVel, cache, ctx, "v", storage.v(), pt, vtx);
+	if (matchAttribute(ctx, "uv", pt, vtx))
+	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt, vtx);
+	if (matchAttribute(ctx, "v", pt, vtx))
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt, vtx);
 
 	const GT_PrimSubdivisionMesh::Tag	*tag;
 	tag = src.findTag("crease");
@@ -629,11 +657,19 @@ namespace
 	if (cache.needCounts(ctx, counts))
 	    iCnt = int32Array(counts, storage.counts());
 	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
-	fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt);
-	fillN3f(iNml, cache, ctx, "N", storage.N(), pt);
-	fillV3f(iVel, cache, ctx, "v", storage.v(), pt);
-	fillF32(iWidths, cache, ctx, "width", storage.width(), pt,
-		GT_AttributeListHandle(), uniform, detail);
+	// We pass in "pt" for the vertex attributes since we can't
+	// differentiate between them at this point.
+	if (matchAttribute(ctx, "uv", pt, pt))
+	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt);
+	if (matchAttribute(ctx, "N", pt, pt))
+	    fillN3f(iNml, cache, ctx, "N", storage.N(), pt);
+	if (matchAttribute(ctx, "v", pt, pt))
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt, pt);
+	if (matchAttribute(ctx, "width", pt, pt, uniform, detail))
+	{
+	    fillF32(iWidths, cache, ctx, "width", storage.width(), pt,
+		    GT_AttributeListHandle(), uniform, detail);
+	}
 
 	OCurvesSchema::Sample	sample(iPos.getVals(), iCnt,
 		iOrder, iPeriod, iWidths, iUVs, iNml, iBasis);
@@ -668,9 +704,14 @@ namespace
 	}
 	iId = uint64Array(ids, storage.id());
 	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
-	fillV3f(iVel, cache, ctx, "v", storage.v(), pt);
-	fillF32(iWidths, cache, ctx, "width", storage.width(), pt,
-		GT_AttributeListHandle(), GT_AttributeListHandle(), detail);
+	if (matchAttribute(ctx, "v", pt))
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt);
+	if (matchAttribute(ctx, "width", pt,
+		GT_AttributeListHandle(), GT_AttributeListHandle(), detail))
+	{
+	    fillF32(iWidths, cache, ctx, "width", storage.width(), pt,
+		    GT_AttributeListHandle(), GT_AttributeListHandle(), detail);
+	}
 
 	if (cache.needWrite(ctx, "id", ids))
 	{
@@ -706,10 +747,14 @@ namespace
 	const GT_DataArrayHandle		&Pw = pt->get("Pw");
 
 	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
-	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
-	fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt);
-	fillN3f(iNml, cache, ctx, "N", storage.N(), pt);
-	fillV3f(iVel, cache, ctx, "v", storage.v(), pt);
+	// We pass pt as vertex as well since at this stage we can't
+	// differentiate between point and vertex attributes.
+	if (matchAttribute(ctx, "uv", pt, pt))
+	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt);
+	if (matchAttribute(ctx, "N", pt, pt))
+	    fillN3f(iNml, cache, ctx, "N", storage.N(), pt);
+	if (matchAttribute(ctx, "v", pt, pt))
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt);
 	if (cache.needWrite(ctx, "uknots", src.getUKnots()))
 	    iUKnot = floatArray(src.getUKnots(), storage.uknots());
 	if (cache.needWrite(ctx, "vknots", src.getVKnots()))
