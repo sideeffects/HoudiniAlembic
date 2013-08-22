@@ -38,6 +38,7 @@
 #include <GT/GT_DANumeric.h>
 #include <GT/GT_DAIndirect.h>
 #include <GT/GT_DABool.h>
+#include <GT/GT_CurveEval.h>
 #include <GT/GT_PrimitiveBuilder.h>
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_Util.h>
@@ -120,6 +121,7 @@ namespace
 					{ gabcConstantScope, gabcUnknownScope };
 
     static const fpreal	theDefaultWidth = 0.05;
+
 
     static GT_DataArrayHandle
     arrayFromSample(GABC_IArchive &arch, const ArraySamplePtr &param,
@@ -967,6 +969,7 @@ namespace
 	GT_FaceSetPtr		 set = new GT_FaceSet();
 	Int32ArraySamplePtr	 faces = sample.getFaces();
 
+
 	if (!isEmpty(faces))
 	{
 	    const int32		*indices = faces->get();
@@ -1157,6 +1160,7 @@ namespace
 	GT_DataArrayHandle	 counts;
 	GT_DataArrayHandle	 indices;
 
+
 	counts = simpleArrayFromSample(*obj.archive(), sample.getFaceCounts());
 	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices());
 
@@ -1202,27 +1206,53 @@ namespace
     }
 
     static bool
-    validBezierCounts(const GT_DataArrayHandle &counts, bool periodic)
+    validCounts(const GT_DataArrayHandle &counts, const GT_CurveEval &eval)
     {
-	exint		n = counts->entries();
-	if (periodic)
-	{
-	    for (exint i = 0; i < n; ++i)
-	    {
-		if (counts->getI32(i) % 3 != 0)
-		    return false;
-	    }
-	}
-	else
-	{
-	    for (exint i = 0; i < n; ++i)
-	    {
-		if (counts->getI32(i) % 3 != 1)
-		    return false;
-	    }
-	}
+	exint	n = counts->entries();
+	for (int i = 0; i < n; ++i)
+	    if (!eval.validCount(counts->getI32(i)))
+		return false;
 	return true;
     }
+
+    static GT_Basis
+    getGTBasis(Alembic::AbcGeom::BasisType abasis)
+    {
+	switch (abasis)
+	{
+	    case Alembic::AbcGeom::kBezierBasis:
+		return GT_BASIS_BEZIER;
+	    case Alembic::AbcGeom::kBsplineBasis:
+		return GT_BASIS_BSPLINE;
+	    case Alembic::AbcGeom::kCatmullromBasis:
+		return GT_BASIS_CATMULLROM;
+	    case Alembic::AbcGeom::kHermiteBasis:
+		return GT_BASIS_HERMITE;
+	    case Alembic::AbcGeom::kPowerBasis:
+		return GT_BASIS_POWER;
+	    case Alembic::AbcGeom::kNoBasis:
+		return GT_BASIS_LINEAR;
+	}
+	UT_ASSERT(0 && "Unexpected basis type");
+	return GT_BASIS_LINEAR;
+    }
+
+    static void
+    basisWarning(const GABC_IObject &obj, const char *basis)
+    {
+	static bool	warned = false;
+	if (!warned)
+	{
+	    UT_ErrorLog::mantraWarning(
+		    "Alembic file %s (%s) has invalid cubic %s %s",
+		    obj.archive()->filename().c_str(),
+		    obj.getFullName().c_str(),
+		    basis,
+		    "curves - converting to linear");
+	    warned = true;
+	}
+    }
+
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
     buildCurveMesh(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
@@ -1266,42 +1296,16 @@ namespace
 				theConstantUnknownScope, 2,
 				ss.getArbGeomParams());
 
-	GT_Basis	basis = GT_BASIS_LINEAR;
-	bool		periodic = false;
-	static bool	warned = false;
+	GT_Basis	basis = getGTBasis(sample.getBasis());
+	bool		periodic = (sample.getWrap() == Alembic::AbcGeom::kPeriodic);
+	int		order = (sample.getType() == Alembic::AbcGeom::kCubic) ? 4 : 2;
 
-	switch (sample.getWrap())
+	if (!validCounts(counts, GT_CurveEval(basis, order, periodic)))
 	{
-	    case Alembic::AbcGeom::kPeriodic:
-		periodic = true;
-		break;
-	    default:
-		periodic = false;
-		break;
+	    basisWarning(obj, GTbasis(basis));
+	    basis = GT_BASIS_LINEAR;
 	}
-	switch (sample.getBasis())
-	{
-	    case Alembic::AbcGeom::kBezierBasis:
-		if (validBezierCounts(counts, periodic))
-		    basis = GT_BASIS_BEZIER;
-		else
-		{
-		    if (!warned)
-		    {
-			UT_ErrorLog::mantraWarning(
-				"Alembic file %s (%s) has invalid %s",
-				obj.archive()->filename().c_str(),
-				obj.getFullName().c_str(),
-				"cubic Bezier curves - converting to linear");
-			warned = true;
-		    }
-		    basis = GT_BASIS_LINEAR;
-		}
-		break;
-	    default:
-		basis = GT_BASIS_LINEAR;
-		break;
-	}
+
 	GT_PrimCurveMesh	*gt = new GT_PrimCurveMesh(basis,
 					counts,
 					vertex,

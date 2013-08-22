@@ -593,23 +593,33 @@ namespace
 	OV3fGeomParam::Sample			iVel;
 	GT_DataArrayHandle			counts;
 	IntrinsicCache				storage;
-	Alembic::AbcGeom::CurveType		iDegree;
+	Alembic::AbcGeom::CurveType		iOrder;
 	Alembic::AbcGeom::CurvePeriodicity	iPeriod;
 	Alembic::AbcGeom::BasisType		iBasis;
 
 	switch (src.getBasis())
 	{
 	    case GT_BASIS_BEZIER:
-		iDegree = Alembic::AbcGeom::kCubic;
 		iBasis = Alembic::AbcGeom::kBezierBasis;
+	    case GT_BASIS_BSPLINE:
+		iBasis = Alembic::AbcGeom::kBsplineBasis;
+	    case GT_BASIS_CATMULLROM:
+		iBasis = Alembic::AbcGeom::kCatmullromBasis;
+	    case GT_BASIS_HERMITE:
+		iBasis = Alembic::AbcGeom::kHermiteBasis;
+	    case GT_BASIS_POWER:
+		iBasis = Alembic::AbcGeom::kPowerBasis;
 	    case GT_BASIS_LINEAR:
 	    default:
-		iDegree = Alembic::AbcGeom::kLinear;
 		iBasis = Alembic::AbcGeom::kNoBasis;
 		break;
 	}
-	iPeriod = src.getWrap() ? Alembic::AbcGeom::kPeriodic
-				: Alembic::AbcGeom::kNonPeriodic;
+	iOrder = src.getBasis() == GT_BASIS_LINEAR
+			? Alembic::AbcGeom::kLinear
+			: Alembic::AbcGeom::kCubic;
+	iPeriod = src.getWrap()
+			? Alembic::AbcGeom::kPeriodic
+			: Alembic::AbcGeom::kNonPeriodic;
 
 	const GT_AttributeListHandle	&pt = vertexAttributes(src);
 	const GT_AttributeListHandle	&uniform = uniformAttributes(src);
@@ -626,7 +636,7 @@ namespace
 		GT_AttributeListHandle(), uniform, detail);
 
 	OCurvesSchema::Sample	sample(iPos.getVals(), iCnt,
-		iDegree, iPeriod, iWidths, iUVs, iNml, iBasis);
+		iOrder, iPeriod, iWidths, iUVs, iNml, iBasis);
 	if (iVel.valid())
 	    sample.setVelocities(iVel.getVals());
 	dest.getSchema().set(sample);
