@@ -136,7 +136,7 @@ namespace
     }
 
     static void
-    initializeRefineParms(GT_RefineParms &rparms, const SOP_Node *sop,
+    initializeRefineParms(GT_RefineParms &rparms,
 		const ROP_AbcContext &ctx,
 		int subdmode,
 		bool show_unused_points)
@@ -145,6 +145,7 @@ namespace
 	rparms.setFastPolyCompacting(false);
 	rparms.setPolysAsSubdivision(subdmode == FORCE_SUBD_ON);
 	rparms.setShowUnusedPoints(show_unused_points);
+	rparms.setCoalesceFragments(false);
     }
 
     static void
@@ -162,7 +163,7 @@ namespace
 	const char		*aname = ctx.partitionAttribute();
 	GT_RefineParms		 rparms;
 
-	initializeRefineParms(rparms, sop, ctx, subdmode, show_unused_points);
+	initializeRefineParms(rparms, ctx, subdmode, show_unused_points);
 	if (UTisstring(aname))
 	    attrib = gdp->findStringTuple(GA_ATTRIB_PRIMITIVE, aname);
 	GA_ROHandleS		 str(attrib);

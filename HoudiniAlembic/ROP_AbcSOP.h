@@ -62,10 +62,6 @@ public:
 
 private:
     void		clear();
-    void		writeShapes(GABC_OError &err,
-				const ROP_AbcContext &ctx,
-				const UT_Array<const GT_PrimitiveHandle> &prims,
-				UT_BoundingBox &box);
 
     OObject			 myParent;
     UT_Array<ROP_AbcGTShape *>	 myShapes;
