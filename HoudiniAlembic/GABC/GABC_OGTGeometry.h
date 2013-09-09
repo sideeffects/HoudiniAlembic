@@ -66,6 +66,9 @@ public:
 			GABC_OError &err,
 			const GABC_OOptions &ctx);
 
+    /// Return the OObject for this shape
+    OObject	getOObject() const;
+
     /// The intrinsic cache is used to cache array values frame to frame when
     /// optimizing the .abc file for space.  Only arrays which change will be
     /// written to the file.  The cache has storage for most primitive types.

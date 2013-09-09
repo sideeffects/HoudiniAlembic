@@ -1337,3 +1337,25 @@ GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
     err.error("Invalid primitive type (%s): %d", prim->className(), prim->getPrimitiveType());
     return false;
 }
+
+Alembic::Abc::OObject
+GABC_OGTGeometry::getOObject() const
+{
+    switch (myType)
+    {
+	case GT_PRIM_POLYGON_MESH:
+	    return *myShape.myPolyMesh;
+	case GT_PRIM_SUBDIVISION_MESH:
+	    return *myShape.mySubD;
+	case GT_PRIM_POINT_MESH:
+	    return *myShape.myPoints;
+	case GT_PRIM_CURVE_MESH:
+	    return *myShape.myCurves;
+	case GT_PRIM_NUPATCH:
+	    return *myShape.myNuPatch;
+	default:
+	    UT_ASSERT(0);
+	    break;
+    }
+    return OObject();
+}
