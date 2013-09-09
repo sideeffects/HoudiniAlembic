@@ -27,18 +27,29 @@
 
 #include "ROP_AbcGTShape.h"
 #include <GABC/GABC_OGTGeometry.h>
+#include "ROP_AbcGTInstance.h"
 
 using namespace GABC_NAMESPACE;
 
 ROP_AbcGTShape::ROP_AbcGTShape(const std::string &name)
     : myShape(NULL)
+    , myInstance(NULL)
     , myName(name)
 {
 }
 
 ROP_AbcGTShape::~ROP_AbcGTShape()
 {
+    clear();
+}
+
+void
+ROP_AbcGTShape::clear()
+{
     delete myShape;
+    delete myInstance;
+    myShape = NULL;
+    myInstance = NULL;
 }
 
 bool
@@ -53,7 +64,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
 	GABC_OError &err,
 	const ROP_AbcContext &ctx)
 {
-    delete myShape;
+    clear();
     myShape = new GABC_OGTGeometry(myName);
     return myShape->start(prim, parent, err, ctx);
 }
@@ -63,9 +74,28 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
 	GABC_OError &err,
 	const ROP_AbcContext &ctx)
 {
-    if (!myShape)
-	return false;
-    return myShape->update(prim, err, ctx);
+    if (myShape)
+    {
+	return myShape->update(prim, err, ctx);
+    }
+    if (myInstance)
+    {
+	return myInstance->update(err, ctx, prim);
+    }
+    return false;
+}
+
+bool
+ROP_AbcGTShape::firstInstance(const GT_PrimitiveHandle &prim,
+	const OObject &parent,
+	GABC_OError &err,
+	const ROP_AbcContext &ctx,
+	bool subd_mode,
+	bool add_unused_pts)
+{
+    clear();
+    myInstance = new ROP_AbcGTInstance(myName);
+    return myInstance->first(parent, err, ctx, prim, subd_mode, add_unused_pts);
 }
 
 bool
@@ -94,4 +124,11 @@ bool
 ROP_AbcGTShape::getLastBounds(UT_BoundingBox &) const
 {
     return false;
+}
+
+Alembic::Abc::OObject
+ROP_AbcGTShape::getOObject() const
+{
+    UT_ASSERT(myShape);
+    return myShape->getOObject();
 }

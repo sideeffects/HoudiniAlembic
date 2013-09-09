@@ -33,12 +33,16 @@
 #include <GT/GT_Handles.h>
 #include <GABC/GABC_OGTGeometry.h>
 
+class ROP_AbcGTInstance;
+
 /// A shape node representation for a single GT primitive
 class ROP_AbcGTShape : public ROP_AbcObject
 {
 public:
     typedef GABC_NAMESPACE::GABC_OGTGeometry	GABC_OGTGeometry;
     typedef GABC_NAMESPACE::GABC_OError		GABC_OError;
+    typedef Alembic::Abc::OObject		OObject;
+
     ROP_AbcGTShape(const std::string &name);
     virtual ~ROP_AbcGTShape();
 
@@ -53,6 +57,17 @@ public:
     bool	nextFrame(const GT_PrimitiveHandle &prim,
 			    GABC_OError &err,
 			    const ROP_AbcContext &ctx);
+
+    /// Write first frame of an instance to the archive
+    bool	firstInstance(const GT_PrimitiveHandle &prim,
+			    const OObject &parent,
+			    GABC_OError &err,
+			    const ROP_AbcContext &ctx,
+			    bool subd_mode,
+			    bool add_unused_pts);
+
+    /// Return the OObject for the shape
+    OObject	getOObject() const;
 
 private:
     /// @{
@@ -71,11 +86,14 @@ private:
     virtual bool	selfTimeDependent() const;
     virtual bool	getLastBounds(UT_BoundingBox &box) const;
     /// @}
+
+    void	clear();
 private:
     // Use std::string since the name is shared by the ABCGTGeometry and
     // std::string has COW semantics.
     std::string		 myName;
     GABC_OGTGeometry	*myShape;
+    ROP_AbcGTInstance	*myInstance;
 };
 
 #endif

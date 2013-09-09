@@ -55,6 +55,8 @@ public:
     bool	update(const GT_PrimitiveHandle &prim,
 			GABC_OError &err,
 			const ROP_AbcContext &ctx);
+
+    OObject	getShape() const;
 private:
     void	clear();
 

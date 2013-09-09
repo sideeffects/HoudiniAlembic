@@ -49,7 +49,8 @@ namespace
 	{
 	    if (!prim)
 		return;
-	    if (ROP_AbcGTShape::isPrimitiveSupported(prim))
+	    if (prim->getPrimitiveType() == GT_PRIM_INSTANCE
+		    || ROP_AbcGTShape::isPrimitiveSupported(prim))
 	    {
 		myList.append(prim);
 		return;
@@ -144,7 +145,17 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     }
     for (exint i = 0; i < myShapes.entries(); ++i)
     {
-	if (!myShapes(i)->firstFrame(shapes(i), dad, err, ctx))
+	bool	 ok = true;
+	if (shapes(i)->getPrimitiveType() == GT_PRIM_INSTANCE)
+	{
+	    ok = myShapes(i)->firstInstance(shapes(i), dad, err, ctx,
+			myPolysAsSubd, myShowUnusedPoints);
+	}
+	else
+	{
+	    ok = myShapes(i)->firstFrame(shapes(i), dad, err, ctx);
+	}
+	if (!ok)
 	{
 	    clear();
 	    return false;
@@ -180,4 +191,13 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
 	}
     }
     return true;
+}
+
+Alembic::Abc::OObject
+ROP_AbcGTCompoundShape::getShape() const
+{
+    if (myContainer)
+	return *myContainer;
+    UT_ASSERT(myShapes.entries() == 1);
+    return myShapes(0)->getOObject();
 }
