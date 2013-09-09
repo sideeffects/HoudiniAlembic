@@ -88,11 +88,17 @@ namespace
     };
 #endif
 
+    enum abc_SUBDMODE
+    {
+	FORCE_SUBD_OFF,
+	FORCE_SUBD_ON,
+    };
+
     static void
     buildGeometry(PrimitiveList &primitives,
 	    const GU_Detail &gdp,
 	    const GA_Range &range,
-	    bool subd_mode,
+	    abc_SUBDMODE subd_mode,
 	    bool show_pts)
     {
 	/// Since there can be all kinds of primitives we don't understand
@@ -102,7 +108,8 @@ namespace
 	GT_PrimitiveHandle	detail = GT_GEODetail::makeDetail(&gdp, &range);
 	if (detail)
 	{
-	    primitives.append(abc_PrimContainer(detail, subd_mode, show_pts));
+	    primitives.append(abc_PrimContainer(detail,
+				    (subd_mode == FORCE_SUBD_ON), show_pts));
 	}
     }
 
@@ -115,12 +122,6 @@ namespace
 	    return value != 0;
 	return def;
     }
-
-    enum
-    {
-	FORCE_SUBD_OFF,
-	FORCE_SUBD_ON,
-    };
 
     static bool
     objectSubd(const SOP_Node *sop, const ROP_AbcContext &ctx,
@@ -162,7 +163,7 @@ namespace
 	    const GU_Detail &gdp,
 	    const GA_Range &range,
 	    const ROP_AbcContext &ctx,
-	    int subdmode,
+	    abc_SUBDMODE subdmode,
 	    bool show_pts)
     {
 	GA_ROAttributeRef	 attrib;
