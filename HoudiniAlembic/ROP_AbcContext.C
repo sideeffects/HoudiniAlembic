@@ -46,6 +46,7 @@ ROP_AbcContext::ROP_AbcContext()
     , myPartitionAttribute()
     , myPartitionMode(ROP_AbcContext::PATHMODE_FULLPATH)
     , myCollapseIdentity(false)
+    , myUseInstancing(true)
 {
 }
 

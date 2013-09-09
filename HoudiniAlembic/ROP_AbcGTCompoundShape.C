@@ -38,9 +38,12 @@ namespace
     class abc_Refiner : public GT_Refine
     {
     public:
-	abc_Refiner(PrimitiveList &list, const GT_RefineParms *parms)
+	abc_Refiner(PrimitiveList &list,
+		const GT_RefineParms *parms,
+		bool use_instancing)
 	    : myList(list)
 	    , myParms(parms)
+	    , myUseInstancing(use_instancing)
 	{
 	}
 	// We need the primitives generated in a consistent order
@@ -49,8 +52,12 @@ namespace
 	{
 	    if (!prim)
 		return;
-	    if (prim->getPrimitiveType() == GT_PRIM_INSTANCE
-		    || ROP_AbcGTShape::isPrimitiveSupported(prim))
+	    bool	ok = false;
+	    if (myUseInstancing && prim->getPrimitiveType() == GT_PRIM_INSTANCE)
+		ok = true;
+	    else
+		ok = ROP_AbcGTShape::isPrimitiveSupported(prim);
+	    if (ok)
 	    {
 		myList.append(prim);
 		return;
@@ -61,6 +68,7 @@ namespace
     private:
 	PrimitiveList		&myList;
 	const GT_RefineParms	*myParms;
+	bool			 myUseInstancing;
     };
 
     static void
@@ -119,7 +127,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     GT_RefineParms	rparms;
 
     initializeRefineParms(rparms, ctx, myPolysAsSubd, myShowUnusedPoints);
-    abc_Refiner	refiner(shapes, &rparms);
+    abc_Refiner refiner(shapes, &rparms, ctx.useInstancing());
     prim->refine(refiner, &rparms);
 
     if (!shapes.entries())
@@ -148,6 +156,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
 	bool	 ok = true;
 	if (shapes(i)->getPrimitiveType() == GT_PRIM_INSTANCE)
 	{
+	    UT_ASSERT(ctx.useInstancing());
 	    ok = myShapes(i)->firstInstance(shapes(i), dad, err, ctx,
 			myPolysAsSubd, myShowUnusedPoints);
 	}
@@ -174,7 +183,7 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
     GT_RefineParms	rparms;
 
     initializeRefineParms(rparms, ctx, myPolysAsSubd, myShowUnusedPoints);
-    abc_Refiner	refiner(shapes, &rparms);
+    abc_Refiner	refiner(shapes, &rparms, ctx.useInstancing());
     prim->refine(refiner, &rparms);
 
     if (shapes.entries() > myShapes.entries())

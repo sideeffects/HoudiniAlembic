@@ -77,6 +77,8 @@ protected:
 		    { evalString(str, "objects", 0, time); }
     bool	COLLAPSE(fpreal time)
 		    { return evalInt("collapse", 0, time) != 0; }
+    bool	USE_INSTANCING(fpreal time)
+		    { return evalInt("use_instancing", 0, time) != 0; }
     bool	SAVE_ATTRIBUTES(fpreal time)
 		    { return evalInt("save_attributes", 0, time) != 0; }
     bool	DISPLAYSOP(fpreal time)

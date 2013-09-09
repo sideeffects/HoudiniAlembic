@@ -94,6 +94,12 @@ public:
     /// @}
 
     /// @{
+    /// Whether to use instancing
+    bool	useInstancing() const		{ return myUseInstancing; }
+    void	setUseInstancing(bool v)	{ myUseInstancing = v; }
+    /// @}
+
+    /// @{
     /// Set partition attribute for splitting geometry into different shapes
     enum
     {
@@ -149,6 +155,7 @@ private:
     fpreal		 myWriteTime;
     int			 myPartitionMode;
     bool		 myCollapseIdentity;
+    bool		 myUseInstancing;
 };
 
 #endif

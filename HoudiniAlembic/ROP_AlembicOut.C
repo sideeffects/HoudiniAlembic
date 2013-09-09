@@ -85,6 +85,8 @@ namespace
     static PRM_Name	theObjectsName("objects", "Objects");
     static PRM_Name	theCollapseName("collapse",
 				"Collapse Identity Transforms");
+    static PRM_Name	theUseInstancingName("use_instancing",
+				"Use Alembic Instancing Where Possible");
     static PRM_Name	theSaveAttributesName("save_attributes",
 				"Save Attributes");
     static PRM_Name	theDisplaySOPName("displaysop",
@@ -105,7 +107,6 @@ namespace
     static PRM_Default	theFormatDefault(0, "default");
     static PRM_Default	theRootDefault(0, "/obj");
     static PRM_Default	theStarDefault(0, "*");
-    static PRM_Default	theCollapseDefault(0, "no");
     static PRM_Default	theSaveAttributesDefault(1, "yes");
     static PRM_Default	theFullBoundsDefault(0, "no");
     static PRM_Default	theDisplaySOPDefault(0, "no");
@@ -240,7 +241,8 @@ namespace
 				    &theObjectsMenu, 0, 0,
 				    &theObjectList),
 	PRM_Template(PRM_TOGGLE, 1, &theInitSim),
-	PRM_Template(PRM_TOGGLE, 1, &theCollapseName, &theCollapseDefault),
+	PRM_Template(PRM_TOGGLE, 1, &theCollapseName, PRMzeroDefaults),
+	PRM_Template(PRM_TOGGLE, 1, &theUseInstancingName, PRMoneDefaults),
 	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName,
 				    &theFullBoundsDefault),
 	PRM_Template(PRM_TOGGLE, 1, &theDisplaySOPName,
@@ -408,6 +410,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     myContext->setSaveAttributes(SAVE_ATTRIBUTES(start));
     myContext->setUseDisplaySOP(DISPLAYSOP(start));
     myContext->setFullBounds(FULL_BOUNDS(start));
+    myContext->setUseInstancing(USE_INSTANCING(start));
 
     UT_String	partition_mode;
     UT_String	partition_attrib;
