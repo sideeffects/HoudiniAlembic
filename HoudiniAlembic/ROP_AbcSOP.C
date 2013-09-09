@@ -26,6 +26,7 @@
  */
 
 #include "ROP_AbcSOP.h"
+#include "ROP_AbcGTCompoundShape.h"
 #include "ROP_AbcGTShape.h"
 #include <SOP/SOP_Node.h>
 #include <GT/GT_Refine.h>
@@ -38,9 +39,26 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef UT_Array<GT_PrimitiveHandle>	PrimitiveList;
     typedef std::vector<std::string>		NameList;
 
+    class abc_PrimContainer
+    {
+    public:
+	abc_PrimContainer(const GT_PrimitiveHandle &prim,
+			bool subd_mode,
+			bool show_unused_points)
+	    : myPrim(prim)
+	    , mySubdMode(subd_mode)
+	    , myShowPts(show_unused_points)
+	{
+	}
+	GT_PrimitiveHandle	myPrim;
+	bool			mySubdMode;
+	bool			myShowPts;
+    };
+    typedef UT_Array<abc_PrimContainer>	PrimitiveList;
+
+#if 0
     class abc_Refiner : public GT_Refine
     {
     public:
@@ -68,22 +86,23 @@ namespace
 	PrimitiveList		&myList;
 	const GT_RefineParms	*myParms;
     };
+#endif
 
     static void
     buildGeometry(PrimitiveList &primitives,
-	    const GU_Detail *gdp,
-	    const GT_RefineParms &rparms,
-	    const GA_Range *range)
+	    const GU_Detail &gdp,
+	    const GA_Range &range,
+	    bool subd_mode,
+	    bool show_pts)
     {
 	/// Since there can be all kinds of primitives we don't understand
 	/// (i.e. all custom ones, Tetra, etc. we build a GT primitive for the
 	/// detail.  We can refine this into simpler primitives until we *do*
 	/// understand them.
-	GT_PrimitiveHandle	detail = GT_GEODetail::makeDetail(gdp, range);
+	GT_PrimitiveHandle	detail = GT_GEODetail::makeDetail(&gdp, &range);
 	if (detail)
 	{
-	    abc_Refiner	refine(primitives, &rparms);
-	    detail->refine(refine, &rparms);
+	    primitives.append(abc_PrimContainer(detail, subd_mode, show_pts));
 	}
     }
 
@@ -136,40 +155,25 @@ namespace
     }
 
     static void
-    initializeRefineParms(GT_RefineParms &rparms,
-		const ROP_AbcContext &ctx,
-		int subdmode,
-		bool show_unused_points)
-    {
-	rparms.setFaceSetMode(ctx.faceSetMode());
-	rparms.setFastPolyCompacting(false);
-	rparms.setPolysAsSubdivision(subdmode == FORCE_SUBD_ON);
-	rparms.setShowUnusedPoints(show_unused_points);
-	rparms.setCoalesceFragments(false);
-    }
-
-    static void
     partitionGeometryRange(PrimitiveList &primitives,
 	    const std::string &basename,
 	    NameList &names,
 	    const SOP_Node *sop,
-	    const GU_Detail *gdp,
+	    const GU_Detail &gdp,
 	    const GA_Range &range,
 	    const ROP_AbcContext &ctx,
 	    int subdmode,
-	    bool show_unused_points)
+	    bool show_pts)
     {
 	GA_ROAttributeRef	 attrib;
 	const char		*aname = ctx.partitionAttribute();
-	GT_RefineParms		 rparms;
 
-	initializeRefineParms(rparms, ctx, subdmode, show_unused_points);
 	if (UTisstring(aname))
-	    attrib = gdp->findStringTuple(GA_ATTRIB_PRIMITIVE, aname);
+	    attrib = gdp.findStringTuple(GA_ATTRIB_PRIMITIVE, aname);
 	GA_ROHandleS		 str(attrib);
 	if (!str.isValid() || !attrib.getAttribute()->getAIFSharedStringTuple())
 	{
-	    buildGeometry(primitives, gdp, rparms, &range);
+	    buildGeometry(primitives, gdp, range, subdmode, show_pts);
 	    return;
 	}
 
@@ -203,8 +207,8 @@ namespace
 	{
 	    if (partitions(i).entries())
 	    {
-		GA_Range	range(gdp->getPrimitiveMap(), partitions(i));
-		buildGeometry(primitives, gdp, rparms, &range);
+		GA_Range	range(gdp.getPrimitiveMap(), partitions(i));
+		buildGeometry(primitives, gdp, range, subdmode, show_pts);
 		names.push_back(partnames[i]);
 	    }
 	}
@@ -215,7 +219,7 @@ namespace
 	    const std::string &basename,
 	    NameList &names,
 	    const SOP_Node *sop,
-	    const GU_Detail *gdp,
+	    const GU_Detail &gdp,
 	    const ROP_AbcContext &ctx)
     {
 	names.clear();
@@ -227,7 +231,7 @@ namespace
 		// If there's a group name, only the primitives in the group
 		// should be rendered as subd surfaces.
 		const GA_PrimitiveGroup	*subdgroup;
-		subdgroup = gdp->findPrimitiveGroup(subdgroupname);
+		subdgroup = gdp.findPrimitiveGroup(subdgroupname);
 		if (subdgroup)
 		{
 		    // Build subdivision groups first
@@ -241,21 +245,21 @@ namespace
 		{
 		    // If there was no group, then there are no subd surfaces
 		    partitionGeometryRange(primitives, basename, names, sop,
-			gdp, gdp->getPrimitiveRange(), ctx, FORCE_SUBD_OFF, true);
+			gdp, gdp.getPrimitiveRange(), ctx, FORCE_SUBD_OFF, true);
 		}
 	    }
 	    else
 	    {
 		// All polygons should be rendered as subd primitives
 		partitionGeometryRange(primitives, basename, names, sop,
-			gdp, gdp->getPrimitiveRange(), ctx, FORCE_SUBD_ON, true);
+			gdp, gdp.getPrimitiveRange(), ctx, FORCE_SUBD_ON, true);
 	    }
 	}
 	else
 	{
 	    // No subdivision primitives
 	    partitionGeometryRange(primitives, basename, names, sop,
-		    gdp, gdp->getPrimitiveRange(), ctx, FORCE_SUBD_OFF, true);
+		    gdp, gdp.getPrimitiveRange(), ctx, FORCE_SUBD_OFF, true);
 	}
     }
 
@@ -329,32 +333,40 @@ ROP_AbcSOP::start(const OObject &parent,
 	gdp->computeQuickBounds(myBox);
 	box = myBox;
     }
-    partitionGeometry(prims, name, names, sop, gdp, ctx);
+    partitionGeometry(prims, name, names, sop, *gdp, ctx);
     if (names.size() == prims.entries())
     {
 	for (int i = 0; i < prims.entries(); ++i)
 	{
-	    size_t	found = names[i].find_last_of("/");
+	    size_t			 found = names[i].find_last_of("/");
+	    ROP_AbcGTCompoundShape	*shape;
 	    name = getUniqueName(uniquenames, names[i].substr(found+1));
-	    myShapes.append(new ROP_AbcGTShape(name));
+	    shape = new ROP_AbcGTCompoundShape(name,
+					prims(i).mySubdMode,
+					prims(i).myShowPts);
+	    myShapes.append(shape);
 	}
     }
     else
     {
-	UT_WorkBuffer	gname;
-	std::string	uname;
+	UT_WorkBuffer		 gname;
+	std::string		 uname;
+	ROP_AbcGTCompoundShape	*shape;
 	gname.strcpy(name.c_str());
 	for (int i = 0; i < prims.entries(); ++i)
 	{
 	    if (i > 0)
 		gname.sprintf("%s_%d", name.c_str(), i);
 	    uname = getUniqueName(uniquenames, gname.buffer());
-	    myShapes.append(new ROP_AbcGTShape(uname.c_str()));
+	    shape = new ROP_AbcGTCompoundShape(uname,
+					prims(i).mySubdMode,
+					prims(i).myShowPts);
+	    myShapes.append(shape);
 	}
     }
     for (int i = 0; i < prims.entries(); ++i)
     {
-	if (!myShapes(i)->firstFrame(prims(i), myParent, err, ctx))
+	if (!myShapes(i)->first(prims(i).myPrim, myParent, err, ctx, false))
 	{
 	    clear();
 	    UT_WorkBuffer	path;
@@ -395,7 +407,7 @@ ROP_AbcSOP::update(GABC_OError &err,
 	gdp->computeQuickBounds(myBox);
 	box = myBox;
     }
-    partitionGeometry(prims, name, names, sop, gdp, ctx);
+    partitionGeometry(prims, name, names, sop, *gdp, ctx);
     if (prims.entries() > myShapes.entries())
     {
 	// TODO: Add new primitives
@@ -405,7 +417,7 @@ ROP_AbcSOP::update(GABC_OError &err,
 	int	num = SYSmin(myShapes.entries(), prims.entries());
 	for (int i = 0; i < num; ++i)
 	{
-	    if (!myShapes(i)->nextFrame(prims(i), err, ctx))
+	    if (!myShapes(i)->update(prims(i).myPrim, err, ctx))
 	    {
 		clear();
 		UT_WorkBuffer	path;

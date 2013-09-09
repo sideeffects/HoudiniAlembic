@@ -25,50 +25,44 @@
  *----------------------------------------------------------------------------
  */
 
-#ifndef __ROP_AbcSOP__
-#define __ROP_AbcSOP__
+#ifndef __ROP_AbcGTCompoundShape__
+#define __ROP_AbcGTCompoundShape__
 
-#include "ROP_AbcObject.h"
-#include "ROP_AbcContext.h"
-#include <UT/UT_Array.h>
-#include <GT/GT_Handles.h>
+#include "ROP_AbcGTShape.h"
+#include <GABC/GABC_OError.h>
 
-class SOP_Node;
-class ROP_AbcGTShape;
-class ROP_AbcGTCompoundShape;
-
-/// Geometry represented by a SOP node.  This may result in multiple shape
-/// nodes (since Houdini can have a heterogenous mix of primitive types).
-class ROP_AbcSOP : public ROP_AbcObject
+/// Houdini geometry can be composed of multiple simple shapes.
+/// This class "splits" the houdini geometry into multiple simple shapes which
+/// can be represented in Alembic.
+class ROP_AbcGTCompoundShape
 {
 public:
-    typedef Alembic::Abc::OObject		OObject;
+    typedef Alembic::Abc::OObject	OObject;
+    typedef Alembic::AbcGeom::OXform	OXform;
+    typedef GABC_NAMESPACE::GABC_OError	GABC_OError;
 
-    ROP_AbcSOP(SOP_Node *node);
-    virtual ~ROP_AbcSOP();
+    ROP_AbcGTCompoundShape(const std::string &name,
+	    bool polygons_as_subd,
+	    bool show_unused_points);
+    ~ROP_AbcGTCompoundShape();
 
-    /// @{
-    /// Interface defined on ROP_AbcObject
-    virtual const char	*className() const	{ return "SOP"; }
-    virtual bool	start(const OObject &parent,
-				GABC_OError &err,
-				const ROP_AbcContext &ctx,
-				UT_BoundingBox &box);
-    virtual bool	update(GABC_OError &err,
-				const ROP_AbcContext &ctx,
-				UT_BoundingBox &box);
-    virtual bool	selfTimeDependent() const;
-    virtual bool	getLastBounds(UT_BoundingBox &box) const;
-    /// @}
+    bool	first(const GT_PrimitiveHandle &prim,
+			const OObject &parent,
+			GABC_OError &err,
+			const ROP_AbcContext &ctx,
+			bool create_container);
 
+    bool	update(const GT_PrimitiveHandle &prim,
+			GABC_OError &err,
+			const ROP_AbcContext &ctx);
 private:
-    void		clear();
+    void	clear();
 
-    OObject				myParent;
-    UT_Array<ROP_AbcGTCompoundShape *>	myShapes;
-    UT_BoundingBox			myBox;
-    int					mySopId;
-    bool				myTimeDependent;
+    UT_Array<ROP_AbcGTShape *>	 myShapes;
+    OXform			*myContainer;
+    std::string			 myName;
+    bool			 myPolysAsSubd;
+    bool			 myShowUnusedPoints;
 };
 
 #endif
