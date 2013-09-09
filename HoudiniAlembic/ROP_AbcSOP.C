@@ -58,36 +58,6 @@ namespace
     };
     typedef UT_Array<abc_PrimContainer>	PrimitiveList;
 
-#if 0
-    class abc_Refiner : public GT_Refine
-    {
-    public:
-	abc_Refiner(PrimitiveList &list,
-		    const GT_RefineParms *parms)
-	    : myList(list)
-	    , myParms(parms)
-	{
-	}
-	// We need the primitives generated in a consistent order
-	virtual bool	allowThreading() const	{ return false; }
-	virtual void	addPrimitive(const GT_PrimitiveHandle &prim)
-	{
-	    if (!prim)
-		return;
-	    if (ROP_AbcGTShape::isPrimitiveSupported(prim))
-	    {
-		myList.append(prim);
-		return;
-	    }
-	    // We hit a primitive we don't understand, so refine it
-	    prim->refine(*this, myParms);
-	}
-    private:
-	PrimitiveList		&myList;
-	const GT_RefineParms	*myParms;
-    };
-#endif
-
     enum abc_SUBDMODE
     {
 	FORCE_SUBD_OFF,
