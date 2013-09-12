@@ -85,7 +85,7 @@ public:
     };
     GT_PrimitiveHandle	finish() const
     {
-	GT_GEOPrimCollectBoxes	boxdata(false);
+	GT_GEOPrimCollectBoxes	boxdata(true);
 	exint			nbox = myBoxPrims.entries();
 	exint			ncentroid = myCentroidPrims.entries();
 	exint			nprims = SYSmax(nbox, ncentroid);
@@ -103,7 +103,8 @@ public:
 	    for (exint i = 0; i < nbox; ++i)
 	    {
 		boxdata.appendBox(boxes[i], xforms[i],
-			myBoxPrims(i)->getMapOffset());
+			myBoxPrims(i)->getMapOffset(),
+			myBoxPrims(i)->getPointOffset(0));
 	    }
 	}
 	if (ncentroid)
@@ -114,7 +115,8 @@ public:
 	    for (exint i = 0; i < ncentroid; ++i)
 	    {
 		boxdata.appendCentroid(boxes[i], xforms[i],
-			myCentroidPrims(i)->getMapOffset());
+			myCentroidPrims(i)->getMapOffset(),
+			myCentroidPrims(i)->getPointOffset(0));
 	    }
 	}
 	return boxdata.getPrimitive();
