@@ -37,6 +37,12 @@ public:
     GABC_PackedImpl(const GABC_PackedImpl &src);
     virtual ~GABC_PackedImpl();
 
+    /// Note: The caller is responsible for setting the vertex/point for the
+    /// primitive.
+    /// In non-Alembic packed primitive code, you probably just want to call
+    ///   GU_PrimPacked::build(gdp, "AlembicRef")
+    /// which handles the point creation automatically (see the packedsphere
+    /// HDK sample code).
     static GU_PrimPacked	*build(GU_Detail &gdp,
 					const std::string &filename,
 					const GABC_IObject &obj,

@@ -96,7 +96,6 @@ public:
     /// How Alembic delayed load primitives are attached to GA points
     enum AbcPrimPointMode
     {
-	ABCPRIM_NO_POINT,		// No GA point binding
 	ABCPRIM_SHARED_POINT,		// All primitives share a GA point
 	ABCPRIM_UNIQUE_POINT,		// Each prim has its own point
     };

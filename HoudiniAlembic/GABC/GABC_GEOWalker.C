@@ -877,8 +877,8 @@ namespace {
 	GABC_PackedImpl	*abc;
 	abc = UTverify_cast<GABC_PackedImpl *>(packed->implementation());
 	GA_Offset	pt = walk.getPointForAbcPrim();
-	if (GAisValid(pt))
-	    packed->setVertexPoint(pt);
+	UT_ASSERT(GAisValid(pt));
+	packed->setVertexPoint(pt);
 	packed->setAttributeNameMap(walk.nameMapPtr());
 	packed->setViewportLOD(walk.viewportLOD());
 	abc->setUseTransform(walk.includeXform());
@@ -1948,8 +1948,6 @@ GABC_GEOWalker::getPointForAbcPrim()
 {
     switch (myAbcPrimPointMode)
     {
-	case ABCPRIM_NO_POINT:
-	    return GA_INVALID_OFFSET;
 	case ABCPRIM_SHARED_POINT:
 	    return myAbcSharedPoint;
 	case ABCPRIM_UNIQUE_POINT:
