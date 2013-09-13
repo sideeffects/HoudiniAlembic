@@ -434,7 +434,7 @@ loadDetail(UT_Array<GU_Detail *> &details,
     walk.setFrame(fstart, fps);
     walk.setIncludeXform(true);
     walk.setBuildLocator(false);
-    walk.setPointMode(GABC_GEOWalker::ABCPRIM_NO_POINT);
+    walk.setPointMode(GABC_GEOWalker::ABCPRIM_SHARED_POINT);
     walk.setLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES);
     walk.setGroupMode(GABC_GEOWalker::ABC_GROUP_NONE);
 
