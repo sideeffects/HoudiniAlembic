@@ -73,21 +73,22 @@ ROP_AbcOpXform::ROP_AbcOpXform(OBJ_Node *node, const ROP_AbcContext &ctx)
 {
     if (node->getObjectType() == OBJ_CAMERA)
     {
-	// Add a camera child
-	addChild(theCameraName, new ROP_AbcOpCamera((OBJ_Camera *)node));
+	// Don't add a camera when saving geometry
+	if (!ctx.singletonSOP())
+	{
+	    // Add a camera child
+	    addChild(theCameraName, new ROP_AbcOpCamera((OBJ_Camera *)node));
+	}
     }
     else if (node->isObjectRenderable(0))
     {
 	SOP_Node	*sop = ctx.singletonSOP();
-	if (!sop || sop->getCreator() != node)
+	if (!sop || sop->getCreator() == node)
 	{
 	    if (ctx.useDisplaySOP())
 		sop = node->getDisplaySopPtr();
 	    else
 		sop = node->getRenderSopPtr();
-	}
-	if (sop)
-	{
 	    addChild(sop->getName(), new ROP_AbcSOP(sop));
 	    myGeometryContainer = true;
 	}
