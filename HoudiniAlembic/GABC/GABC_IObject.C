@@ -431,6 +431,13 @@ namespace
 				gparam.getNumSamples(), i0, i1);
 	typename T::sample_type	v0;
 	gparam.getExpanded(v0, i0);
+	if (!v0.valid() || !v0.getVals()->size())
+	{
+	    UT_ASSERT(0 && "This is likely a corrupt indexed alembic array");
+	    gparam.getIndexed(v0, i0);
+	    return arrayFromSample(arch, v0.getVals(),
+				gparam.getArrayExtent(), tinfo);
+	}
 	GT_DataArrayHandle	s0 = arrayFromSample(arch, v0.getVals(),
 					gparam.getArrayExtent(), tinfo);
 	if (i0 == i1 || !GTisFloat(s0->getStorage()))
@@ -1159,7 +1166,6 @@ namespace
 	IPolyMeshSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	GT_DataArrayHandle	 counts;
 	GT_DataArrayHandle	 indices;
-
 
 	counts = simpleArrayFromSample(*obj.archive(), sample.getFaceCounts());
 	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices());
