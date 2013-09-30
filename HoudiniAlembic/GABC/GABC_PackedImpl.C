@@ -398,6 +398,14 @@ GABC_PackedImpl::unpackUsingPolygons(GU_Detail &destgdp) const
     return unpackGeometry(destgdp, false);
 }
 
+bool
+GABC_PackedImpl::visibleGT() const
+{
+    if (!object().valid())
+	return false;
+    return myCache.visible(this);
+}
+
 GT_PrimitiveHandle
 GABC_PackedImpl::fullGT() const
 {

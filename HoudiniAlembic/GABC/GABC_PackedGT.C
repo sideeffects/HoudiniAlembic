@@ -38,6 +38,10 @@ public:
 
     bool	append(const GU_PrimPacked &prim)
     {
+	const GABC_PackedImpl	*impl;
+	impl = UTverify_cast<const GABC_PackedImpl *>(prim.implementation());
+	if (!impl->visibleGT())
+	    return true;	// Handled
 	if (myUseViewportLOD)
 	{
 	    switch (prim.viewportLOD())

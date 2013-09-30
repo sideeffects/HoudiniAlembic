@@ -119,6 +119,7 @@ public:
 
     /// @{
     /// Return GT representations of geometry
+    bool		visibleGT() const;
     GT_PrimitiveHandle	fullGT() const;
     GT_PrimitiveHandle	pointGT() const;
     GT_PrimitiveHandle	boxGT() const;
@@ -192,6 +193,7 @@ protected:
 	void	clear();		// Clear all values
 	void	updateFrame(fpreal frame);
 
+	bool				 visible(const GABC_PackedImpl *abc);
 	const GT_PrimitiveHandle	&full(const GABC_PackedImpl *abc);
 	const GT_PrimitiveHandle	&points(const GABC_PackedImpl *abc);
 	const GT_PrimitiveHandle	&box(const GABC_PackedImpl *abc);
@@ -199,7 +201,6 @@ protected:
 	GEO_AnimationType	 animationType(const GABC_PackedImpl *abc);
 
     private:
-	bool	visible(const GABC_PackedImpl *abc);
 	void	updateTransform(const GABC_PackedImpl *abc);
 
 	GT_PrimitiveHandle	 myPrim;
