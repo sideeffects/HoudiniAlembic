@@ -2653,7 +2653,7 @@ GABC_IObject::localTransform(fpreal t, UT_Matrix4D &mat,
     {
 	GABC_AlembicLock	lock(archive());
 	IXform		xform(myObject, gabcWrapExisting);
-	IXformSchema	ss = xform.getSchema();
+	IXformSchema	&ss = xform.getSchema();
 	index_t		i0, i1;
 	XformSample	sample;
 	M44d		m0;
