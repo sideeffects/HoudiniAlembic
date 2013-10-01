@@ -280,7 +280,7 @@ namespace
 	typedef UT_Set<ArchiveEventHandlerPtr>	HandlerSetType;
         ArchiveCacheEntry()
 	    : myCache("abcObjects", 2)
-	    , myDynamicXforms("abxTransforms", 4)
+	    , myDynamicXforms("abcTransforms", 4)
 	    , myXformCacheBuilt(false)
         {
         }
