@@ -120,7 +120,7 @@ public:
     /// @{
     /// Return GT representations of geometry
     bool		visibleGT() const;
-    GT_PrimitiveHandle	fullGT() const;
+    GT_PrimitiveHandle	fullGT(int load_style=GABC_IObject::GABC_LOAD_FULL) const;
     GT_PrimitiveHandle	pointGT() const;
     GT_PrimitiveHandle	boxGT() const;
     GT_PrimitiveHandle	centroidGT() const;
@@ -194,7 +194,8 @@ protected:
 	void	updateFrame(fpreal frame);
 
 	bool				 visible(const GABC_PackedImpl *abc);
-	const GT_PrimitiveHandle	&full(const GABC_PackedImpl *abc);
+	const GT_PrimitiveHandle	&full(const GABC_PackedImpl *abc,
+						int load_style);
 	const GT_PrimitiveHandle	&points(const GABC_PackedImpl *abc);
 	const GT_PrimitiveHandle	&box(const GABC_PackedImpl *abc);
 	const GT_PrimitiveHandle	&centroid(const GABC_PackedImpl *abc);
@@ -209,6 +210,7 @@ protected:
 	GEO_ViewportLOD		 myRep;
 	GABC_VisibilityCache	*myVisibility;
 	fpreal			 myFrame;
+	int			 myLoadStyle;
     };
 
 private:

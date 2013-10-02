@@ -407,11 +407,11 @@ GABC_PackedImpl::visibleGT() const
 }
 
 GT_PrimitiveHandle
-GABC_PackedImpl::fullGT() const
+GABC_PackedImpl::fullGT(int load_style) const
 {
     if (!object().valid())
 	return GT_PrimitiveHandle();
-    return myCache.full(this);
+    return myCache.full(this, load_style);
 }
 
 GT_PrimitiveHandle
@@ -524,6 +524,7 @@ GABC_PackedImpl::GTCache::clear()
     myRep = GEO_VIEWPORT_INVALID_MODE;
     myAnimationType = GEO_ANIMATION_INVALID;
     myFrame = 0;
+    myLoadStyle = GABC_IObject::GABC_LOAD_FULL;
 }
 
 void
@@ -546,11 +547,14 @@ GABC_PackedImpl::GTCache::updateFrame(fpreal frame)
 }
 
 const GT_PrimitiveHandle &
-GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc)
+GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc, int load_style)
 {
     if (!visible(abc))
 	return theNullPrimitive;
-    if (!myPrim || myRep != GEO_VIEWPORT_FULL || myFrame != abc->frame())
+    if (!myPrim
+	    || myRep != GEO_VIEWPORT_FULL
+	    || myLoadStyle != load_style
+	    || myFrame != abc->frame())
     {
 	const GABC_IObject	&o = abc->object();
 	if (o.valid())
@@ -558,8 +562,9 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc)
 	    GEO_AnimationType	atype;
 	    myFrame = abc->frame();
 	    myRep = GEO_VIEWPORT_FULL;
+	    myLoadStyle = load_style;
 	    myPrim = o.getPrimitive(abc->getPrim(), myFrame, atype,
-		    abc->getPrim()->attributeNameMap());
+		    abc->getPrim()->attributeNameMap(), myLoadStyle);
 	    if (atype > myAnimationType)
 		myAnimationType = atype;
 	}

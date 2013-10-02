@@ -137,19 +137,29 @@ public:
     bool		getRenderingBoundingBox(UT_BoundingBox &box,
 				fpreal t) const;
 
+    enum
+    {
+	GABC_LOAD_LEAN_AND_MEAN	= 0x00,	// Only load intrinsic attributes
+	GABC_LOAD_ARBS		= 0x01,	// Load arbitrary attributes
+	GABC_LOAD_FACESETS	= 0x02,	// Load face sets
+	GABC_LOAD_FULL		= 0xff,	// Load full geometry
+    };
+
     /// Get a representation of the shape.  If the @c GEO_Primitive pointer is
     /// non-NULL, the primitive attributes will be added as GT arrays.
     GT_PrimitiveHandle	getPrimitive(const GEO_Primitive *prim,
 				fpreal t,
 				GEO_AnimationType &atype,
-				const GEO_PackedNameMapPtr &namemap) const;
+				const GEO_PackedNameMapPtr &namemap,
+				int load_style=GABC_LOAD_FULL) const;
 
     /// Update primitive time.  Given a primitive created by @c getPrimitive(),
     /// update the transform/attribute arrays with values from the new time.
     GT_PrimitiveHandle	updatePrimitive(const GT_PrimitiveHandle &src,
 				const GEO_Primitive *prim,
 				fpreal new_time,
-				const GEO_PackedNameMapPtr &namemap) const;
+				const GEO_PackedNameMapPtr &namemap,
+				int load_style=GABC_LOAD_FULL) const;
 
     /// Get a representation of the point cloud.  This doesn't include any
     /// attributes.

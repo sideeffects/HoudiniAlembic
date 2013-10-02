@@ -20,6 +20,7 @@
 #include <UT/UT_StackBuffer.h>
 #include <GT/GT_GEOPrimPacked.h>
 #include <GT/GT_GEOPrimCollectBoxes.h>
+#include <GT/GT_RefineParms.h>
 
 using namespace GABC_NAMESPACE;
 
@@ -169,11 +170,24 @@ GABC_PackedGT::getPointCloud(const GT_RefineParms *, bool &) const
 }
 
 GT_PrimitiveHandle
-GABC_PackedGT::getFullGeometry(const GT_RefineParms *, bool &) const
+GABC_PackedGT::getFullGeometry(const GT_RefineParms *parms, bool &) const
 {
     const GABC_PackedImpl	*impl;
+    int				 load_style;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    return impl->fullGT();
+    if (GT_GEOPrimPacked::useViewportLOD(parms))
+    {
+	load_style = GABC_IObject::GABC_LOAD_LEAN_AND_MEAN;
+	if (GT_RefineParms::getViewportAlembicFaceSets(parms))
+	    load_style |= GABC_IObject::GABC_LOAD_FACESETS;
+	if (GT_RefineParms::getViewportAlembicArbGeometry(parms))
+	    load_style |= GABC_IObject::GABC_LOAD_ARBS;
+    }
+    else
+    {
+	load_style = GABC_IObject::GABC_LOAD_FULL;
+    }
+    return impl->fullGT(load_style);
 }
 
 GT_PrimitiveHandle

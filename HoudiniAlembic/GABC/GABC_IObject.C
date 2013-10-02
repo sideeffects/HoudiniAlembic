@@ -867,7 +867,7 @@ namespace
 			    fpreal t,
 			    const GeometryScope *scope,
 			    int scope_size,
-			    ICompoundProperty arb,
+			    const ICompoundProperty &arb,
 			    const IP3fArrayProperty *P = NULL,
 			    const IV3fArrayProperty *v = NULL,
 			    const IN3fGeomParam *N = NULL,
@@ -887,7 +887,7 @@ namespace
 			    const GEO_PackedNameMapPtr &namemap,
 			    fpreal t,
 			    GeometryScope scope,
-			    ICompoundProperty arb,
+			    const ICompoundProperty &arb,
 			    const IP3fArrayProperty *P = NULL,
 			    const IV3fArrayProperty *v = NULL,
 			    const IN3fGeomParam *N = NULL,
@@ -933,7 +933,7 @@ namespace
 			    fpreal t,
 			    const GeometryScope *scope,
 			    int scope_size,
-			    ICompoundProperty arb,
+			    const ICompoundProperty &arb,
 			    const IP3fArrayProperty *P = NULL,
 			    const IV3fArrayProperty *v = NULL,
 			    const IN3fGeomParam *N = NULL,
@@ -952,7 +952,7 @@ namespace
 			    const GEO_PackedNameMapPtr &namemap,
 			    fpreal t,
 			    GeometryScope scope,
-			    ICompoundProperty arb,
+			    const ICompoundProperty &arb,
 			    const IP3fArrayProperty *P = NULL,
 			    const IV3fArrayProperty *v = NULL,
 			    const IN3fGeomParam *N = NULL,
@@ -1011,26 +1011,30 @@ namespace
 	    const GEO_Primitive *prim,
 	    const GABC_IObject &obj,
 	    fpreal t,
-	    const GEO_PackedNameMapPtr &namemap)
+	    const GEO_PackedNameMapPtr &namemap,
+	    int load_style)
     {
 	IPoints			 shape(obj.object(), gabcWrapExisting);
 	IPointsSchema		&ss = shape.getSchema();
 	IPointsSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 
-	GT_AttributeListHandle	vertex;
-	GT_AttributeListHandle	detail;
-	IP3fArrayProperty	P = ss.getPositionsProperty();
-	IV3fArrayProperty	v = ss.getVelocitiesProperty();
-	IUInt64ArrayProperty	ids = ss.getIdsProperty();
-	IFloatGeomParam		widths = ss.getWidthsParam();
+	GT_AttributeListHandle	 vertex;
+	GT_AttributeListHandle	 detail;
+	ICompoundProperty	 arb;
+	IP3fArrayProperty	 P = ss.getPositionsProperty();
+	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+	IUInt64ArrayProperty	 ids = ss.getIdsProperty();
+	IFloatGeomParam		 widths = ss.getWidthsParam();
 	GeometryScope	vertex_scope[3] = { gabcVertexScope, gabcVaryingScope, gabcFacevaryingScope };
 	GeometryScope	detail_scope[3] = { gabcUniformScope, gabcConstantScope, gabcUnknownScope };
+	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
+	    arb = ss.getArbGeomParams();
 
 	vertex = acreate.build(GT_OWNER_POINT, prim, obj, namemap, t,
-			vertex_scope, 3, ss.getArbGeomParams(),
+			vertex_scope, 3, arb,
 			&P, &v, NULL, NULL, &ids, &widths);
 	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
-			detail_scope, 3, ss.getArbGeomParams());
+			detail_scope, 3, arb);
 
 	GT_Primitive	*gt = new GT_PrimPointMesh(vertex, detail);
 	return GT_PrimitiveHandle(gt);
@@ -1042,13 +1046,17 @@ namespace
 			const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
-			const GEO_PackedNameMapPtr &namemap)
+			const GEO_PackedNameMapPtr &namemap,
+			int load_style)
     {
 	ISubD			 shape(obj.object(), gabcWrapExisting);
 	ISubDSchema		&ss = shape.getSchema();
 	ISubDSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	GT_DataArrayHandle	 counts;
 	GT_DataArrayHandle	 indices;
+	ICompoundProperty	 arb;
+	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
+	    arb = ss.getArbGeomParams();
 
 	counts = simpleArrayFromSample(*obj.archive(), sample.getFaceCounts());
 	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices());
@@ -1064,23 +1072,23 @@ namespace
 
 	point = acreate.build(GT_OWNER_POINT, prim, obj, namemap, t,
 				point_scope, 2,
-				ss.getArbGeomParams(),
+				arb,
 				&P,
 				&v,
 				NULL,
 				&uvs);
 	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
 				gabcFacevaryingScope,
-				ss.getArbGeomParams(),
+				arb,
 				NULL,
 				NULL,
 				NULL,
 				&uvs);
 	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap, t,
-				gabcUniformScope, ss.getArbGeomParams());
+				gabcUniformScope, arb);
 	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
 				theConstantUnknownScope, 2,
-				ss.getArbGeomParams());
+				arb);
 
 	GT_PrimSubdivisionMesh	*gt = new GT_PrimSubdivisionMesh(counts,
 					indices,
@@ -1145,7 +1153,8 @@ namespace
 		    GT_DataArrayHandle(val));
 	}
 
-	loadFaceSets(*gt, obj, t);
+	if (load_style & GABC_IObject::GABC_LOAD_FACESETS)
+	    loadFaceSets(*gt, obj, t);
 
 	return GT_PrimitiveHandle(gt);
     }
@@ -1156,13 +1165,17 @@ namespace
 			const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
-			const GEO_PackedNameMapPtr &namemap)
+			const GEO_PackedNameMapPtr &namemap,
+			int load_style)
     {
 	IPolyMesh		 shape(obj.object(), gabcWrapExisting);
 	IPolyMeshSchema		&ss = shape.getSchema();
 	IPolyMeshSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	GT_DataArrayHandle	 counts;
 	GT_DataArrayHandle	 indices;
+	ICompoundProperty	 arb;
+	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
+	    arb = ss.getArbGeomParams();
 
 	counts = simpleArrayFromSample(*obj.archive(), sample.getFaceCounts());
 	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices());
@@ -1179,23 +1192,23 @@ namespace
 
 	point = acreate.build(GT_OWNER_POINT, prim, obj, namemap, t,
 				point_scope, 2,
-				ss.getArbGeomParams(),
+				arb,
 				&P,
 				&v,
 				&N,
 				&uvs);
 	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
 				gabcFacevaryingScope,
-				ss.getArbGeomParams(),
+				arb,
 				NULL,
 				NULL,
 				&N,
 				&uvs);
 	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap, t,
-				gabcUniformScope, ss.getArbGeomParams());
+				gabcUniformScope, arb);
 	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
 				theConstantUnknownScope, 2,
-				ss.getArbGeomParams());
+				arb);
 
 	GT_PrimPolygonMesh	*gt = new GT_PrimPolygonMesh(counts,
 					indices,
@@ -1203,7 +1216,8 @@ namespace
 					vertex,
 					uniform,
 					detail);
-	loadFaceSets(*gt, obj, t);
+	if (load_style & GABC_IObject::GABC_LOAD_FACESETS)
+	    loadFaceSets(*gt, obj, t);
 
 	return GT_PrimitiveHandle(gt);
     }
@@ -1261,12 +1275,16 @@ namespace
     buildCurveMesh(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
-			const GEO_PackedNameMapPtr &namemap)
+			const GEO_PackedNameMapPtr &namemap,
+			int load_style)
     {
 	ICurves			 shape(obj.object(), gabcWrapExisting);
 	ICurvesSchema		&ss = shape.getSchema();
 	ICurvesSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	GT_DataArrayHandle	 counts;
+	ICompoundProperty	 arb;
+	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
+	    arb = ss.getArbGeomParams();
 
 	counts = simpleArrayFromSample(*obj.archive(), sample.getCurvesNumVertices());
 
@@ -1286,7 +1304,7 @@ namespace
 
 	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
 				vertex_scope, 3,
-				ss.getArbGeomParams(),
+				arb,
 				&P,
 				&v,
 				&N,
@@ -1294,10 +1312,10 @@ namespace
 				NULL,
 				&widths);
 	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap, t,
-				gabcUniformScope, ss.getArbGeomParams());
+				gabcUniformScope, arb);
 	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
 				theConstantUnknownScope, 2,
-				ss.getArbGeomParams());
+				arb);
 
 	GT_Basis	basis = getGTBasis(sample.getBasis());
 	bool		periodic = (sample.getWrap() == Alembic::AbcGeom::kPeriodic);
@@ -1316,7 +1334,8 @@ namespace
 					detail,
 					periodic);
 
-	loadFaceSets(*gt, obj, t);
+	if (load_style & GABC_IObject::GABC_LOAD_FACESETS)
+	    loadFaceSets(*gt, obj, t);
 
 	return GT_PrimitiveHandle(gt);
     }
@@ -1439,7 +1458,8 @@ namespace
     buildNuPatch(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			fpreal t,
-			const GEO_PackedNameMapPtr &namemap)
+			const GEO_PackedNameMapPtr &namemap,
+			int load_style)
     {
 	INuPatch		 shape(obj.object(), gabcWrapExisting);
 	INuPatchSchema		&ss = shape.getSchema();
@@ -1448,6 +1468,9 @@ namespace
 	int			 vorder = sample.getVOrder();
 	GT_DataArrayHandle	 uknots;
 	GT_DataArrayHandle	 vknots;
+	ICompoundProperty	 arb;
+	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
+	    arb = ss.getArbGeomParams();
 
 	uknots = simpleArrayFromSample(*obj.archive(), sample.getUKnot());
 	vknots = simpleArrayFromSample(*obj.archive(), sample.getVKnot());
@@ -1473,7 +1496,7 @@ namespace
 
 	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
 				vertex_scope, 3,
-				ss.getArbGeomParams(),
+				arb,
 				&P,
 				&v,
 				&N,
@@ -1483,7 +1506,7 @@ namespace
 				&Pw);
 	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
 				detail_scope, 3,
-				ss.getArbGeomParams());
+				arb);
 
 	GT_PrimNuPatch	*gt = new GT_PrimNuPatch(uorder, uknots,
 				    vorder, vknots, vertex, detail);
@@ -2067,7 +2090,8 @@ GABC_IObject::clampTime(fpreal input_time)
 GT_PrimitiveHandle
 GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 	fpreal t, GEO_AnimationType &atype,
-	const GEO_PackedNameMapPtr &namemap) const
+	const GEO_PackedNameMapPtr &namemap,
+	int load_style) const
 {
     GABC_AlembicLock	lock(archive());
     GT_PrimitiveHandle	prim;
@@ -2078,23 +2102,23 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 	{
 	    case GABC_POLYMESH:
 		prim = buildPolyMesh(CreateAttributeList(), gprim,
-			*this, t, namemap);
+			*this, t, namemap, load_style);
 		break;
 	    case GABC_SUBD:
 		prim = buildSubDMesh(CreateAttributeList(), gprim,
-			*this, t, namemap);
+			*this, t, namemap, load_style);
 		break;
 	    case GABC_POINTS:
 		prim = buildPointMesh(CreateAttributeList(), gprim,
-			*this, t, namemap);
+			*this, t, namemap, load_style);
 		break;
 	    case GABC_CURVES:
 		prim = buildCurveMesh(CreateAttributeList(), gprim,
-			*this, t, namemap);
+			*this, t, namemap, load_style);
 		break;
 	    case GABC_NUPATCH:
 		prim = buildNuPatch(CreateAttributeList(), gprim,
-			*this, t, namemap);
+			*this, t, namemap, load_style);
 		break;
 	    case GABC_XFORM:
 		if (isMayaLocator())
@@ -2118,7 +2142,8 @@ GT_PrimitiveHandle
 GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
 				const GEO_Primitive *gprim,
 				fpreal new_time,
-				const GEO_PackedNameMapPtr &namemap) const
+				const GEO_PackedNameMapPtr &namemap,
+				int load_style) const
 {
     UT_ASSERT(src);
     GT_PrimitiveHandle	prim;
@@ -2128,23 +2153,23 @@ GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
 	{
 	    case GABC_POLYMESH:
 		prim = buildPolyMesh(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap);
+			    *this, new_time, namemap, load_style);
 		break;
 	    case GABC_SUBD:
 		prim = buildSubDMesh(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap);
+			    *this, new_time, namemap, load_style);
 		break;
 	    case GABC_POINTS:
 		prim = buildPointMesh(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap);
+			    *this, new_time, namemap, load_style);
 		break;
 	    case GABC_CURVES:
 		prim = buildCurveMesh(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap);
+			    *this, new_time, namemap, load_style);
 		break;
 	    case GABC_NUPATCH:
 		prim = buildNuPatch(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap);
+			    *this, new_time, namemap, load_style);
 		break;
 	    default:
 		break;
