@@ -967,46 +967,43 @@ namespace
 	const GT_PrimitiveHandle	&myPrim;
     };
 
-    static GT_FaceSetPtr
-    loadFaceSet(const GABC_IObject &obj, fpreal t)
+    static bool
+    loadFaceSet(GT_FaceSetPtr &set, const GABC_IObject &obj,
+	    const ISampleSelector &iss)
     {
 	IFaceSet		 shape(obj.object(), gabcWrapExisting);
-	IFaceSetSchema		&ss = shape.getSchema();
-	IFaceSetSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
-	GT_FaceSetPtr		 set = new GT_FaceSet();
+	const IFaceSetSchema	&ss = shape.getSchema();
+	IFaceSetSchema::Sample	 sample = ss.getValue(iss);
 	Int32ArraySamplePtr	 faces = sample.getFaces();
-
 
 	if (!isEmpty(faces))
 	{
-	    const int32		*indices = faces->get();
-	    exint		 size = faces->size();
-	    for (exint i = 0; i < size; ++i)
-		set->addFace(indices[i]);
+	    set = new GT_FaceSet();
+	    set->addFaces(faces->get(), faces->size());
+	    return true;
 	}
-
-	return set;
+	return false;
     }
 
     template <typename GT_PRIMTYPE>
     static void
     loadFaceSets(GT_PRIMTYPE &pmesh, const GABC_IObject &obj, fpreal t)
     {
-	exint	nkids = obj.getNumChildren();
+	exint		nkids = obj.getNumChildren();
+	GT_FaceSetPtr	set;
+	ISampleSelector iss(t);
 	for (exint i = 0; i < nkids; ++i)
 	{
-	    GABC_IObject	kid = obj.getChild(i);
+	    const GABC_IObject	&kid = obj.getChild(i);
 	    if (kid.valid() && kid.nodeType() == GABC_FACESET)
 	    {
-		GT_FaceSetPtr	set = loadFaceSet(kid, t);
-		if (set)
+		if (loadFaceSet(set, kid, iss))
 		{
 		    pmesh.addFaceSet(kid.getName().c_str(), set);
 		}
 	    }
 	}
     }
-
 
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
