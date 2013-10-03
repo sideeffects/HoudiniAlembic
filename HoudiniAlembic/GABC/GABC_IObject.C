@@ -621,8 +621,6 @@ namespace
 	return GT_STORE_INVALID;
     }
 
-    static SYS_AtomicCounter	theUIDCount;
-
     static inline void
     topologyUID(GT_AttributeList &alist, const GABC_IObject &obj)
     {
@@ -631,14 +629,22 @@ namespace
 	    return;
 
 	const GT_DataArrayHandle	&__topology = alist.get(__topologyIdx);
-	if (obj.getAnimationType(false) != GEO_ANIMATION_TOPOLOGY)
+	if (!__topology)
 	{
-	    if (!__topology)
-		alist.set(__topologyIdx, new GT_IntConstant(1, 0));
-	}
-	else
-	{
-	    alist.set(__topologyIdx, new GT_IntConstant(1, theUIDCount.add(1)));
+	    if (obj.getAnimationType(false) != GEO_ANIMATION_TOPOLOGY)
+	    {
+		int64	 hash;
+
+		hash = UT_String::hash(obj.objectPath().c_str());
+		hash = hash << 32;
+		if (obj.archive())
+		    hash += UT_String::hash(obj.archive()->filename().c_str());
+		alist.set(__topologyIdx, new GT_IntConstant(1, hash));
+	    }
+	    else
+	    {
+		alist.set(__topologyIdx, new GT_IntConstant(1, -1));
+	    }
 	}
     }
 
@@ -682,11 +688,6 @@ namespace
 	{
 	    setAttributeData(alist, "__primitive_id",
 		    new GT_IntConstant(1, prim->getMapOffset()), filled);
-
-	    GT_DAIndexedString *objp = new GT_DAIndexedString(1,1);
-	    objp->setString(0, 0,  obj.objectPath().c_str());
-	    setAttributeData(alist, "__object_path", objp, filled);
-			     
 	}
 	if (arb)
 	{
@@ -793,7 +794,6 @@ namespace
 	if (prim && matchScope(gabcConstantScope, scope, scope_size))
 	{
 	    map->add("__primitive_id", true);
-	    map->add("__object_path", true);
 	}
 	if (arb)
 	{
