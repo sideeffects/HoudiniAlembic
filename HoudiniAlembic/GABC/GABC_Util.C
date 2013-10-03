@@ -279,8 +279,8 @@ namespace
 
 	typedef UT_Set<ArchiveEventHandlerPtr>	HandlerSetType;
         ArchiveCacheEntry()
-	    : myCache("abcObjects", 2)
-	    , myDynamicXforms("abcTransforms", 4)
+	    : myCache("abcObjects", 8)
+	    , myDynamicXforms("abcTransforms", 64)
 	    , myXformCacheBuilt(false)
         {
         }
