@@ -126,8 +126,6 @@ public:
 				    { return myDetail; }
     const UT_String		&objectPattern() const
 				    { return myObjectPattern; }
-    const UT_String		*attributePatterns() const
-				    { return myAttributePatterns; }
     const GEO_PackedNameMapPtr	&nameMapPtr() const
 				    { return myNameMapPtr; }
 
@@ -168,16 +166,6 @@ public:
     /// Set state
     void	setObjectPattern(const char *s)
 		    { myObjectPattern.harden(s); }
-    void	setAttributePattern(GA_AttributeOwner owner, const char *s)
-		    { myAttributePatterns[owner].harden(s); }
-    void	setVertexPattern(const char *s)
-		    { setAttributePattern(GA_ATTRIB_VERTEX, s); }
-    void	setPointPattern(const char *s)
-		    { setAttributePattern(GA_ATTRIB_POINT, s); }
-    void	setPrimitivePattern(const char *s)
-		    { setAttributePattern(GA_ATTRIB_PRIMITIVE, s); }
-    void	setDetailPattern(const char *s)
-		    { setAttributePattern(GA_ATTRIB_DETAIL, s); }
     void	setNameMapPtr(const GEO_PackedNameMapPtr &ptr)
 		    { myNameMapPtr = ptr; }
     void	setPathAttribute(const GA_RWAttributeRef &a);
@@ -296,7 +284,6 @@ private:
     GU_Detail		&myDetail;
     GA_PrimitiveGroup	*mySubdGroup;
     UT_String		 myObjectPattern;
-    UT_String		 myAttributePatterns[GA_ATTRIB_OWNER_N];
     GEO_PackedNameMapPtr myNameMapPtr;	// Attribute map for ABC primitives
     GA_RWHandleS	 myPathAttribute;
     UT_BoundingBox	 myCullBox;

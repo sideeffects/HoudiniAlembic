@@ -152,8 +152,6 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myObjectPath.harden(src.myObjectPath);
     myObjectPattern.harden(src.myObjectPattern);
     mySubdGroupName.harden(src.mySubdGroupName);
-    for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
-	myAttributePatterns[i].harden(src.myAttributePatterns[i]);
     myPathAttribute.harden(src.myPathAttribute);
     myFilenameAttribute.harden(src.myFilenameAttribute);
     return *this;
@@ -200,11 +198,6 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	return true;
     if (mySubdGroupName != src.mySubdGroupName)
 	return true;
-    for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
-    {
-	if (myAttributePatterns[i] != src.myAttributePatterns[i])
-	    return true;
-    }
     if (myIncludeXform != src.myIncludeXform)
 	return true;
     if (myUseVisibility != src.myUseVisibility)
@@ -576,11 +569,6 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     evalString(parms.myObjectPath, "objectPath", 0, now);
     evalString(parms.myObjectPattern, "objectPattern", 0, now);
     evalString(parms.mySubdGroupName, "subdgroup", 0, now);
-    for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
-    {
-	evalString(parms.myAttributePatterns[i],
-		theAttributePatternNames[i].getToken(), 0, now);
-    }
     parms.myIncludeXform = evalInt("includeXform", 0, now) != 0;
     parms.myUseVisibility = evalInt("usevisibility", 0, now) != 0;
     if (evalInt("addpath", 0, now))
@@ -631,6 +619,12 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	evalStringInst("hName#", &i, hName, 0, now);
 	if (abcName.isstring() && hName.isstring())
 	    parms.myNameMapPtr->addMap(abcName, hName);
+    }
+    for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
+    {
+	UT_String	pattern;
+	evalString(pattern, theAttributePatternNames[i].getToken(), 0, now);
+	parms.myNameMapPtr->setPattern((GA_AttributeOwner)i, pattern);
     }
 }
 
@@ -711,11 +705,6 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     GABC_GEOWalker	walk(*gdp);
 
     walk.setObjectPattern(parms.myObjectPattern);
-    for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
-    {
-	walk.setAttributePattern((GA_AttributeOwner)i,
-		parms.myAttributePatterns[i]);
-    }
     if (parms.myAnimationFilter == GABC_GEOWalker::ABC_AFILTER_STATIC)
     {
 	// When we only load static geometry, we don't need to evaluate the

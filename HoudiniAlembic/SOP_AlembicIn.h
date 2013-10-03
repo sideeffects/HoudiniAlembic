@@ -106,7 +106,6 @@ private:
 	UT_String			myObjectPath;
 	UT_String			myObjectPattern;
 	UT_String			mySubdGroupName;
-	UT_String			myAttributePatterns[GA_ATTRIB_OWNER_N];
 	bool				myIncludeXform;
 	bool				myUseVisibility;
 	bool				myBuildLocator;

@@ -148,6 +148,26 @@ namespace
 	return false;
     }
 
+    static GA_AttributeOwner
+    scopeToOwner(GeometryScope scope)
+    {
+	switch (scope)
+	{
+	    case Alembic::AbcGeom::kConstantScope:
+		return GA_ATTRIB_DETAIL;
+	    case Alembic::AbcGeom::kUniformScope:
+	    case Alembic::AbcGeom::kUnknownScope:
+		return GA_ATTRIB_PRIMITIVE;
+	    case Alembic::AbcGeom::kVaryingScope:
+		return GA_ATTRIB_POINT;
+	    case Alembic::AbcGeom::kVertexScope:
+	    case Alembic::AbcGeom::kFacevaryingScope:
+		return GA_ATTRIB_VERTEX;
+	}
+	UT_ASSERT(0);
+	return GA_ATTRIB_POINT;
+    }
+
     static GeometryScope
     getArbitraryPropertyScope(const PropertyHeader &header)
     {
@@ -673,8 +693,8 @@ namespace
 	    for (size_t i = 0; i < arb.getNumProperties(); ++i)
 	    {
 		const PropertyHeader	&header = arb.getPropertyHeader(i);
-		if (!matchScope(getArbitraryPropertyScope(header),
-			    scope, scope_size))
+		GeometryScope		arbscope = getArbitraryPropertyScope(header);
+		if (!matchScope(arbscope, scope, scope_size))
 		{
 		    continue;
 		}
@@ -682,6 +702,9 @@ namespace
 		const char	*name = header.getName().c_str();
 		if (namemap)
 		{
+		    // Verify the attribute matches the pattern
+		    if (!namemap->matchPattern(scopeToOwner(arbscope), name))
+			continue;
 		    name = namemap->getName(name);
 		    if (!name)
 			continue;

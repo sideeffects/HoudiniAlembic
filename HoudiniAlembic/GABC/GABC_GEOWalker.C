@@ -655,17 +655,16 @@ namespace {
 
     static bool
     matchAttributeName(GA_AttributeOwner owner, const char *name,
-		    const UT_String *patterns)
+		    const GEO_PackedNameMapPtr &namemap)
     {
-	UT_String	nstr(name);
-	return nstr.multiMatch(patterns[owner]);
+	return namemap ? namemap->matchPattern(owner, name) : true;
     }
 
     #define MATCH_ATTRIBUTE(param, name) \
-	(param.valid() && matchAttributeName(getGAOwner(param.getScope()), name, walk.attributePatterns()))
+	(param.valid() && matchAttributeName(getGAOwner(param.getScope()), name, walk.nameMapPtr()))
 
     #define MATCH_PROPERTY(prop, iss, name) \
-	(prop.valid() && matchAttributeName(GA_ATTRIB_POINT, name, walk.attributePatterns()))
+	(prop.valid() && matchAttributeName(GA_ATTRIB_POINT, name, walk.nameMapPtr()))
 
     static exint
     appendPoints(GABC_GEOWalker &walk, exint npoint)
@@ -1547,10 +1546,6 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
 	myBoss->opStart("Building geometry from Alembic tree",
 			0, 0, &myBossId);
     }
-    myAttributePatterns[GA_ATTRIB_VERTEX] = "*";
-    myAttributePatterns[GA_ATTRIB_POINT] = "*";
-    myAttributePatterns[GA_ATTRIB_PRIMITIVE] = "*";
-    myAttributePatterns[GA_ATTRIB_DETAIL] = "*";
     myCullBox.makeInvalid();	// 
 }
 
@@ -1880,9 +1875,15 @@ bool
 GABC_GEOWalker::translateAttributeName(GA_AttributeOwner own, UT_String &name)
 {
     if (nameMapPtr())
+    {
+	if (!nameMapPtr()->matchPattern(own, name))
+	    return false;
 	name = nameMapPtr()->getName(name);
+	if (name.isstring())
+	    return false;
+    }
     name.forceValidVariableName();
-    return name.multiMatch(myAttributePatterns[own]) != 0;
+    return true;
 }
 
 void
