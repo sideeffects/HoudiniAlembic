@@ -1952,6 +1952,8 @@ GABC_GEOWalker::getPointForAbcPrim()
     switch (myAbcPrimPointMode)
     {
 	case ABCPRIM_SHARED_POINT:
+	    if (!GAisValid(myAbcSharedPoint))
+		myAbcSharedPoint = myDetail.appendPointOffset();
 	    return myAbcSharedPoint;
 	case ABCPRIM_UNIQUE_POINT:
 	case ABCPRIM_CENTROID_POINT:
