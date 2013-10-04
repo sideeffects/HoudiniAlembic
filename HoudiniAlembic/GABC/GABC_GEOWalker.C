@@ -885,6 +885,7 @@ namespace {
 	{
 	    walk.setNonConstant();
 	}
+	walk.setPointLocation(packed, pt);
 	walk.trackPtVtxPrim(obj, 0, 0, 1, false);
     }
 
@@ -1517,7 +1518,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
     , myPathAttribute()
     , myLastFaceCount(0)
     , myLastFaceStart(0)
-    , myAbcPrimPointMode(ABCPRIM_UNIQUE_POINT)
+    , myAbcPrimPointMode(ABCPRIM_CENTROID_POINT)
     , myPolySoup(ABC_POLYSOUP_POLYMESH)
     , myViewportLOD(GEO_VIEWPORT_FULL)
     , myAbcSharedPoint(GA_INVALID_OFFSET)
@@ -1602,6 +1603,7 @@ GABC_GEOWalker::updateAbcPrims()
 	abc->setFrame(time());
 	if (setPath)
 	    myPathAttribute.set(prim->getMapOffset(), abc->objectPath().c_str());
+	setPointLocation(pack, pack->getPointOffset(0));
     }
 }
 
@@ -1952,9 +1954,35 @@ GABC_GEOWalker::getPointForAbcPrim()
 	case ABCPRIM_SHARED_POINT:
 	    return myAbcSharedPoint;
 	case ABCPRIM_UNIQUE_POINT:
+	case ABCPRIM_CENTROID_POINT:
 	    return myDetail.appendPointOffset();
     }
     return GA_INVALID_OFFSET;
+}
+
+void
+GABC_GEOWalker::setPointLocation(GU_PrimPacked *prim, GA_Offset pt) const
+{
+
+    switch (myAbcPrimPointMode)
+    {
+	case ABCPRIM_UNIQUE_POINT:
+	    myDetail.setPos3(pt, 0, 0, 0);
+	    break;
+	case ABCPRIM_CENTROID_POINT:
+	{
+	    UT_BoundingBox	box;
+	    UT_Matrix4D		m4;
+	    prim->getUntransformedBounds(box);
+	    prim->getFullTransform4(m4);
+	    UT_Vector3		pivot = box.center() * m4;
+	    prim->setPivot(pivot);
+	    myDetail.setPos3(pt, pivot);
+	    break;
+	}
+	default:
+	    break;
+    }
 }
 
 void

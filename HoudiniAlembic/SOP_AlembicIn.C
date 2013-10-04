@@ -89,7 +89,7 @@ SOP_AlembicIn2::Parms::Parms()
     : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
     , myBuildAbcXform(false)
     , myBoundMode(GABC_GEOWalker::BOX_CULL_IGNORE)
-    , myPointMode(GABC_GEOWalker::ABCPRIM_UNIQUE_POINT)
+    , myPointMode(GABC_GEOWalker::ABCPRIM_CENTROID_POINT)
     , myFilename()
     , myObjectPath()
     , myObjectPattern()
@@ -111,7 +111,7 @@ SOP_AlembicIn2::Parms::Parms()
 SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
     , myBoundMode(GABC_GEOWalker::BOX_CULL_IGNORE)
-    , myPointMode(GABC_GEOWalker::ABCPRIM_UNIQUE_POINT)
+    , myPointMode(GABC_GEOWalker::ABCPRIM_CENTROID_POINT)
     , myBuildAbcXform(false)
     , myFilename()
     , myObjectPath()
@@ -566,7 +566,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	    break;
 	case 2:
 	default:
-	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_UNIQUE_POINT;
+	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_CENTROID_POINT;
 	    break;
     }
 

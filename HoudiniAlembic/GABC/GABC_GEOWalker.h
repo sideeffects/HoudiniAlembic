@@ -34,6 +34,8 @@
 #include <GA/GA_Handle.h>
 #include <GU/GU_Detail.h>
 
+class GU_PrimPacked;
+
 namespace GABC_NAMESPACE
 {
 /// @brief Walk an Alembic tree to create Houdini geometry
@@ -98,6 +100,7 @@ public:
     {
 	ABCPRIM_SHARED_POINT,		// All primitives share a GA point
 	ABCPRIM_UNIQUE_POINT,		// Each prim has its own point
+	ABCPRIM_CENTROID_POINT,		// Place point at centroid
     };
 
     /// Whether to build polysoup primitives when it's possible
@@ -266,6 +269,7 @@ public:
     /// Get a GA_Offset to which the Alembic delayed load primitive should be
     /// attached.  This may return an invalid offset
     GA_Offset	getPointForAbcPrim();
+    void	setPointLocation(GU_PrimPacked *abc, GA_Offset offset) const;
 
 protected:
     /// Verify the object matches filters before generating geometry
