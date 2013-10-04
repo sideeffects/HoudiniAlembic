@@ -53,8 +53,12 @@ namespace
 	    if (!prim)
 		return;
 	    bool	ok = false;
-	    if (myUseInstancing && prim->getPrimitiveType() == GT_PRIM_INSTANCE)
+	    if (myUseInstancing &&
+		    (prim->getPrimitiveType() == GT_PRIM_INSTANCE ||
+		     prim->getPrimitiveType() == GT_GEO_PACKED))
+	    {
 		ok = true;
+	    }
 	    else
 		ok = ROP_AbcGTShape::isPrimitiveSupported(prim);
 	    if (ok)
@@ -154,7 +158,8 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     for (exint i = 0; i < myShapes.entries(); ++i)
     {
 	bool	 ok = true;
-	if (shapes(i)->getPrimitiveType() == GT_PRIM_INSTANCE)
+	if (shapes(i)->getPrimitiveType() == GT_PRIM_INSTANCE
+		|| shapes(i)->getPrimitiveType() == GT_GEO_PACKED)
 	{
 	    UT_ASSERT(ctx.useInstancing());
 	    ok = myShapes(i)->firstInstance(shapes(i), dad, err, ctx,

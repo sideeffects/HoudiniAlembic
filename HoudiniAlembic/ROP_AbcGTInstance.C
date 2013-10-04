@@ -19,6 +19,7 @@
 #include <UT/UT_WorkBuffer.h>
 #include <GABC/GABC_Util.h>
 #include <GT/GT_PrimInstance.h>
+#include <GT/GT_GEOPrimPacked.h>
 #include "ROP_AbcContext.h"
 #include "ROP_AbcGTCompoundShape.h"
 
@@ -97,30 +98,64 @@ ROP_AbcGTInstance::first(const OObject &parent, GABC_OError &err,
 	const ROP_AbcContext &ctx, const GT_PrimitiveHandle &prim,
 	bool subd_mode, bool add_unused_pts)
 {
-    UT_WorkBuffer			 nbuf;
-    UT_Matrix4D				 m;
-    const GT_PrimInstance		*iprim = UTverify_cast<const GT_PrimInstance *>(prim.get());
-    const GT_TransformArrayHandle	&xforms = iprim->transforms();
-    exint				 icount = iprim->entries();
-    for (exint i = 0; i < icount; ++i)
+    UT_Matrix4D		m;
+    switch (prim->getPrimitiveType())
     {
-	myInstances.append(Instance());
-	Instance	&inst = myInstances.last();
-	xforms->get(i)->getMatrix(m);
-	if (i == 0)
+	case GT_PRIM_INSTANCE:
 	{
+	    const GT_PrimInstance	*iprim;
+	    UT_WorkBuffer		 nbuf;
+
+	    iprim = UTverify_cast<const GT_PrimInstance *>(prim.get());
+	    const GT_TransformArrayHandle	&xforms = iprim->transforms();
+	    exint				 icount = iprim->entries();
+	    for (exint i = 0; i < icount; ++i)
+	    {
+		myInstances.append(Instance());
+		Instance	&inst = myInstances.last();
+		xforms->get(i)->getMatrix(m);
+		if (i == 0)
+		{
+		    inst.first(parent, err, ctx, m, myName);
+		    myGeometry = inst.setGeometry(err, ctx, iprim->geometry(),
+			    myName, subd_mode, add_unused_pts);
+		    if (!myGeometry)
+			return false;
+		}
+		else
+		{
+		    nbuf.sprintf("%s_instance_%d", myName.c_str(), (int)i);
+		    inst.first(parent, err, ctx, m, nbuf.buffer());
+		    inst.setGeometry(myGeometry->getShape(), myName);
+		}
+	    }
+	}
+	break;
+	case GT_GEO_PACKED:
+	{
+	    // We want to put a transform in the hierarchy before the geometry
+	    // for the packed primitive.
+	    const GT_GEOPrimPacked	*pprim;
+	    GT_TransformHandle		 xform;
+	    GT_PrimitiveHandle		 pgeo;
+	    pprim = UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
+	    myInstances.append(Instance());
+	    Instance	&inst = myInstances.last();
+
+	    pprim->geometryAndTransform(NULL, pgeo, xform);
+	    if (xform)
+		xform->getMatrix(m);
+	    else
+		m.identity();
 	    inst.first(parent, err, ctx, m, myName);
-	    myGeometry = inst.setGeometry(err, ctx, iprim->geometry(), myName,
-		    subd_mode, add_unused_pts);
+	    myGeometry = inst.setGeometry(err, ctx, pgeo,
+		    myName, subd_mode, add_unused_pts);
 	    if (!myGeometry)
 		return false;
 	}
-	else
-	{
-	    nbuf.sprintf("%s_instance_%d", myName.c_str(), (int)i);
-	    inst.first(parent, err, ctx, m, nbuf.buffer());
-	    inst.setGeometry(myGeometry->getShape(), myName);
-	}
+	break;
+	default:
+	    return false;
     }
     return true;
 }
@@ -129,21 +164,53 @@ bool
 ROP_AbcGTInstance::update(GABC_OError &err, const ROP_AbcContext &ctx,
     const GT_PrimitiveHandle &prim)
 {
-    const GT_PrimInstance		*iprim = UTverify_cast<const GT_PrimInstance *>(prim.get());
-    // First, update the geometry
-    if (!myGeometry->update(iprim->geometry(), err, ctx))
-	return false;
-
-    // Now, update the transforms
-    const GT_TransformArrayHandle	&xforms = iprim->transforms();
-    exint				 icount;
-    UT_Matrix4D				 m;
-    icount = SYSmin(xforms->entries(), myInstances.entries());
-
-    for (exint i = 0; i < icount; ++i)
+    UT_Matrix4D m;
+    switch (prim->getPrimitiveType())
     {
-	xforms->get(i)->getMatrix(m);
-	myInstances(i).update(m);
+	case GT_PRIM_INSTANCE:
+	{
+	    const GT_PrimInstance	*iprim;
+
+	    iprim = UTverify_cast<const GT_PrimInstance *>(prim.get());
+	    // First, update the geometry
+	    if (!myGeometry->update(iprim->geometry(), err, ctx))
+		return false;
+
+	    // Now, update the transforms
+	    const GT_TransformArrayHandle	&xforms = iprim->transforms();
+	    exint				 icount;
+	    icount = SYSmin(xforms->entries(), myInstances.entries());
+
+	    for (exint i = 0; i < icount; ++i)
+	    {
+		xforms->get(i)->getMatrix(m);
+		myInstances(i).update(m);
+	    }
+	}
+	break;
+	case GT_GEO_PACKED:
+	{
+	    const GT_GEOPrimPacked	*pprim;
+	    GT_TransformHandle		 xform;
+	    GT_PrimitiveHandle		 pgeo;
+	    pprim = UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
+
+	    pprim->geometryAndTransform(NULL, pgeo, xform);
+	    if (!myGeometry->update(pgeo, err, ctx))
+		return false;
+	    if (myInstances.entries() == 1)
+	    {
+		if (xform)
+		    xform->getMatrix(m);
+		else
+		    m.identity();
+		myInstances(0).update(m);
+	    }
+	}
+	break;
+	default:
+	    UT_ASSERT(0);
+	    return false;
     }
     return true;
 }
