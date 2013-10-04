@@ -283,10 +283,11 @@ static PRM_ChoiceList menu_loadmode(PRM_CHOICELIST_SINGLE, loadModeOptions);
 
 static PRM_Name pointModeOptions[] = {
     PRM_Name("shared",	"Shared Point"),
-    PRM_Name("unique",	"Unique Points"),
+    PRM_Name("unique",	"Unique Points At Origin)"),
+    PRM_Name("centroid", "Unique Points At Centroid"),
     PRM_Name()
 };
-static PRM_Default prm_pointModeDefault(1, "unique");
+static PRM_Default prm_pointModeDefault(2, "centroid");
 static PRM_ChoiceList menu_pointMode(PRM_CHOICELIST_SINGLE, pointModeOptions);
 
 static PRM_Name boxCullOptions[] = {
@@ -561,6 +562,9 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_SHARED_POINT;
 	    break;
 	case 1:
+	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_UNIQUE_POINT;
+	    break;
+	case 2:
 	default:
 	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_UNIQUE_POINT;
 	    break;
