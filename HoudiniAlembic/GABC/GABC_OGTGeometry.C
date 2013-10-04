@@ -169,6 +169,9 @@ namespace
 	    // Always skip P and __topology
 	    myStrings.insert("P", (void *)0);
 	    myStrings.insert("__topology", (void *)0);
+	    myStrings.insert("__primitive_id", (void *)0);
+	    myStrings.insert("__point_id", (void *)0);
+	    myStrings.insert("__vertex_id", (void *)0);
 	}
 
 	bool	contains(const char *token) const
