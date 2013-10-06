@@ -577,8 +577,8 @@ namespace
 	GABC_GTUtil::getGTTypeInfo(VAR::traits_type::interpretation(), \
 				VAR->getDataType().getExtent())
 
-    #define SET_ARRAY(VAR, NAME, TYPEINFO) \
-	if (VAR && *VAR) { \
+    #define SET_ARRAY(VAR, NAME, TYPEINFO, NAMEMAP) \
+	if (VAR && *VAR && (!NAMEMAP || NAMEMAP->matchPattern(GA_ATTRIB_POINT, NAME))) { \
 	    if (ONLY_ANIMATING && VAR->isConstant()) \
 		markFilled(alist, NAME, filled); \
 	    else \
@@ -588,18 +588,24 @@ namespace
     #define SET_GEOM_PARAM(VAR, NAME, TYPEINFO) \
 	if (VAR && VAR->valid() && matchScope(VAR->getScope(), \
 		    scope, scope_size)) { \
-	    if (ONLY_ANIMATING && VAR->isConstant()) \
-		markFilled(alist, NAME, filled); \
-	    setAttributeData(alist, NAME, \
-		    readGeomProperty(arch, *VAR, t, TYPEINFO), filled); \
+	    if (!namemap || \
+		namemap->matchPattern(scopeToOwner(VAR->getScope()), NAME)) { \
+		if (ONLY_ANIMATING && VAR->isConstant()) \
+		    markFilled(alist, NAME, filled); \
+		setAttributeData(alist, NAME, \
+			readGeomProperty(arch, *VAR, t, TYPEINFO), filled); \
+	    } \
 	}
     #define SET_GEOM_UVS_PARAM(VAR, NAME) \
 	if (VAR && VAR->valid() && matchScope(VAR->getScope(), \
 		    scope, scope_size)) { \
-	    if (ONLY_ANIMATING && VAR->isConstant()) \
-		markFilled(alist, NAME, filled); \
-	    setAttributeData(alist, NAME, \
-		    readUVProperty(arch, *VAR, t), filled); \
+	    if (!namemap || \
+		namemap->matchPattern(scopeToOwner(VAR->getScope()), NAME)) { \
+		if (ONLY_ANIMATING && VAR->isConstant()) \
+		    markFilled(alist, NAME, filled); \
+		setAttributeData(alist, NAME, \
+			readUVProperty(arch, *VAR, t), filled); \
+	    } \
 	}
 
     static GT_Storage
@@ -677,13 +683,13 @@ namespace
 	memset(filled, 0, sizeof(bool)*alist.entries());
 	topologyUID(alist, obj);
 
-	SET_ARRAY(P, "P", GT_TYPE_POINT)
-	SET_ARRAY(v, "v", GT_TYPE_VECTOR)
-	SET_ARRAY(ids, "id", GT_TYPE_NONE)
+	SET_ARRAY(P, "P", GT_TYPE_POINT, GEO_PackedNameMapPtr())
+	SET_ARRAY(Pw, "Pw", GT_TYPE_NONE, GEO_PackedNameMapPtr())
+	SET_ARRAY(v, "v", GT_TYPE_VECTOR, namemap)
+	SET_ARRAY(ids, "id", GT_TYPE_NONE, namemap)
 	SET_GEOM_PARAM(N, "N", GT_TYPE_NORMAL)
 	SET_GEOM_UVS_PARAM(uvs, "uv")
 	SET_GEOM_PARAM(widths, "width", GT_TYPE_NONE)
-	SET_ARRAY(Pw, "Pw", GT_TYPE_NONE)
 	if (prim && matchScope(gabcConstantScope, scope, scope_size))
 	{
 	    setAttributeData(alist, "__primitive_id",
@@ -731,20 +737,33 @@ namespace
 
     template <typename T>
     static void
-    addPropertyToMap(GT_AttributeMap &map, const char *name, const T *prop)
+    addPropertyToMap(GT_AttributeMap &map, const char *name, const T *prop,
+		const GEO_PackedNameMapPtr &namemap)
     {
 	if (prop && *prop)
-	    map.add(name, true);
+	{
+	    if (!namemap || namemap->matchPattern(GA_ATTRIB_POINT, name))
+	    {
+		map.add(name, true);
+	    }
+	}
     }
 
     template <typename T>
     static void
     addGeomParamToMap(GT_AttributeMap &map, const char *name, T *param,
-	    const GeometryScope *scope, int scope_size, bool override=false)
+	    const GeometryScope *scope, int scope_size,
+	    const GEO_PackedNameMapPtr &namemap)
     {
 	if (param && param->valid()
 		&& matchScope(param->getScope(), scope, scope_size))
-	    map.add(name, override);
+	{
+	    if (!namemap ||
+		namemap->matchPattern(scopeToOwner(param->getScope()), name))
+	    {
+		map.add(name, false);
+	    }
+	}
     }
 
     static void
@@ -783,13 +802,13 @@ namespace
 
 	if (create_topology)
 	    map->add("__topology", true);
-	addPropertyToMap(*map, "P", P);
-	addPropertyToMap(*map, "Pw", Pw);
-	addPropertyToMap(*map, "v", v);
-	addPropertyToMap(*map, "id", ids);
-	addGeomParamToMap(*map, "N", N, scope, scope_size);
-	addGeomParamToMap(*map, "uv", uvs, scope, scope_size);
-	addGeomParamToMap(*map, "width", widths, scope, scope_size);
+	addPropertyToMap(*map, "P", P, GEO_PackedNameMapPtr());
+	addPropertyToMap(*map, "Pw", Pw, GEO_PackedNameMapPtr());
+	addPropertyToMap(*map, "v", v, namemap);
+	addPropertyToMap(*map, "id", ids, namemap);
+	addGeomParamToMap(*map, "N", N, scope, scope_size, namemap);
+	addGeomParamToMap(*map, "uv", uvs, scope, scope_size, namemap);
+	addGeomParamToMap(*map, "width", widths, scope, scope_size, namemap);
 
 	if (prim && matchScope(gabcConstantScope, scope, scope_size))
 	{
