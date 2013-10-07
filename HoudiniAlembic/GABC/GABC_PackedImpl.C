@@ -578,7 +578,9 @@ const GT_PrimitiveHandle &
 GABC_PackedImpl::GTCache::points(const GABC_PackedImpl *abc)
 {
     if (!visible(abc))
+    {
 	return theNullPrimitive;
+    }
     if (!myPrim || myRep != GEO_VIEWPORT_POINTS || myFrame != abc->frame())
     {
 	const GABC_IObject	&o = abc->object();
@@ -686,6 +688,12 @@ GABC_PackedImpl::GTCache::visible(const GABC_PackedImpl *abc)
     }
     UT_ASSERT(myVisibility);
     myVisibility->update(abc->frame());
+    if (myAnimationType == GEO_ANIMATION_INVALID)
+    {
+	myAnimationType = myVisibility->animated()
+				? GEO_ANIMATION_TRANSFORM
+				: GEO_ANIMATION_CONSTANT;
+    }
     return myVisibility->visible();
 }
 
