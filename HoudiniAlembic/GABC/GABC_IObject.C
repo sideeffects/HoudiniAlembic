@@ -1785,6 +1785,14 @@ namespace
 	return loc.isConstant() ? GEO_ANIMATION_CONSTANT
 				: GEO_ANIMATION_ATTRIBUTE;
     }
+
+    static GEO_AnimationType
+    getFaceSetAnimation(const GABC_IObject &obj)
+    {
+	IFaceSet	 prim(obj.object(), gabcWrapExisting);
+	IFaceSetSchema	&ss = prim.getSchema();
+	return ss.isConstant() ? GEO_ANIMATION_CONSTANT:GEO_ANIMATION_TOPOLOGY;
+    }
 };
 
 GABC_IObject::GABC_IObject()
@@ -2035,6 +2043,9 @@ GABC_IObject::getAnimationType(bool include_transform) const
 		    atype = getLocatorAnimation(*this);
 		else
 		    atype = getAnimation<IXform, IXformSchema>(*this);
+		break;
+	    case GABC_FACESET:
+		atype = getFaceSetAnimation(*this);
 		break;
 	    default:
 		atype = GEO_ANIMATION_TOPOLOGY;
