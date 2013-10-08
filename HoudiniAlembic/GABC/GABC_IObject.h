@@ -246,10 +246,10 @@ public:
 				GEO_AnimationType &atype) const;
 
     /// Access the time sampling pointer
-    TimeSamplingPtr	timeSampling();
+    TimeSamplingPtr	timeSampling() const;
 
     /// Clamp the time to the animated time range
-    fpreal		clampTime(fpreal input_time);
+    fpreal		clampTime(fpreal input_time) const;
 
     /// @{
     /// Get the world transform for the node.  This includes all it's parent

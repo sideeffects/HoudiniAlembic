@@ -2119,7 +2119,7 @@ GABC_IObject::getRenderingBoundingBox(UT_BoundingBox &box, fpreal t) const
 }
 
 TimeSamplingPtr
-GABC_IObject::timeSampling()
+GABC_IObject::timeSampling() const
 {
     //GABC_AlembicLock	lock(archive());
     switch (nodeType())
@@ -2143,7 +2143,7 @@ GABC_IObject::timeSampling()
 }
 
 fpreal
-GABC_IObject::clampTime(fpreal input_time)
+GABC_IObject::clampTime(fpreal input_time) const
 {
     TimeSamplingPtr	time(timeSampling());
     exint		nsamples = time ? time->getNumStoredTimes() : 0;
