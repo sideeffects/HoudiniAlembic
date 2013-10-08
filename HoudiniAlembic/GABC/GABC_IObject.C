@@ -490,6 +490,8 @@ namespace
 	GT_DataArrayHandle	storage;
 	const fpreal32	*src = uv2->getF32Array(storage);
 	fpreal32	*dest = uv3->data();
+	if (uvs.isConstant())
+	    uv3->copyDataId(*uv2);	// Copy over data id if constant
 	for (exint i = 0; i < n; ++i, src += 2, dest += 3)
 	{
 	    dest[0] = src[0];
@@ -1403,7 +1405,8 @@ namespace
 	exint	n = x->entries();
 	UT_ASSERT(n == y->entries() && n == z->entries());
 	GT_Real32Array	*xyz = new GT_Real32Array(n, 3, type);
-	fpreal32		*data = xyz->data();
+	fpreal32	*data = xyz->data();
+	xyz->copyDataId(*x);
 	for (exint i = 0; i < n; ++i, data += 3)
 	{
 	    data[0] = x->getF32(i);
