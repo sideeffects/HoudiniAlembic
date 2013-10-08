@@ -515,38 +515,38 @@ namespace
 	return blendArrays(s0, s1, bias);
     }
 
-    template <typename PRIM_T, typename SCHEMA_T>
+    template <typename PRIM_T>
     static GT_DataArrayHandle
     gabcGetPosition(const GABC_IObject &obj, fpreal t, GEO_AnimationType &atype)
     {
-	PRIM_T			 prim(obj.object(), gabcWrapExisting);
-	SCHEMA_T		&ss = prim.getSchema();
-	IP3fArrayProperty	 P = ss.getPositionsProperty();
+	PRIM_T				 prim(obj.object(), gabcWrapExisting);
+	typename PRIM_T::schema_type	&ss = prim.getSchema();
+	IP3fArrayProperty		 P = ss.getPositionsProperty();
 	UT_ASSERT(P.valid());
 	atype = P.isConstant() ? GEO_ANIMATION_CONSTANT
 				: GEO_ANIMATION_ATTRIBUTE;
 	return readArrayProperty(*obj.archive(), P, t, GT_TYPE_POINT);
     }
 
-    template <typename PRIM_T, typename SCHEMA_T>
+    template <typename PRIM_T>
     static GT_DataArrayHandle
     gabcGetVelocity(const GABC_IObject &obj, fpreal t)
     {
-	PRIM_T			 prim(obj.object(), gabcWrapExisting);
-	SCHEMA_T		&ss = prim.getSchema();
-	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
+	PRIM_T				 prim(obj.object(), gabcWrapExisting);
+	typename PRIM_T::schema_type	&ss = prim.getSchema();
+	IV3fArrayProperty		 v = ss.getVelocitiesProperty();
 	if (!v.valid())
 	    return GT_DataArrayHandle();
 	return readArrayProperty(*obj.archive(), v, t, GT_TYPE_VECTOR);
     }
 
-    template <typename PRIM_T, typename SCHEMA_T>
+    template <typename PRIM_T>
     static GT_DataArrayHandle
     gabcGetWidth(const GABC_IObject &obj, fpreal t)
     {
-	PRIM_T		 prim(obj.object(), gabcWrapExisting);
-	SCHEMA_T	&ss = prim.getSchema();
-	IFloatGeomParam	 v = ss.getWidthsParam();
+	PRIM_T				 prim(obj.object(), gabcWrapExisting);
+	typename PRIM_T::schema_type	&ss = prim.getSchema();
+	IFloatGeomParam			 v = ss.getWidthsParam();
 	if (!v.valid())
 	    return GT_DataArrayHandle();
 	return readGeomProperty(*obj.archive(), v, t, GT_TYPE_NONE);
@@ -1614,21 +1614,21 @@ namespace
 	return GT_PrimitiveHandle(gt);
     }
 
-    template <typename T, typename SCHEMA_T>
+    template <typename T>
     static ICompoundProperty
     geometryProperties(const GABC_IObject &obj)
     {
-	T		 shape(obj.object(), gabcWrapExisting);
-	SCHEMA_T	&ss = shape.getSchema();
+	T			 shape(obj.object(), gabcWrapExisting);
+	typename T::schema_type	&ss = shape.getSchema();
 	return ss.getArbGeomParams();
     }
 
-    template <typename T, typename SCHEMA_T>
+    template <typename T>
     static ICompoundProperty
     userProperties(const GABC_IObject &obj)
     {
-	T		 shape(obj.object(), gabcWrapExisting);
-	SCHEMA_T	&ss = shape.getSchema();
+	T			 shape(obj.object(), gabcWrapExisting);
+	typename T::schema_type	&ss = shape.getSchema();
 	return ss.getUserProperties();
     }
 
@@ -1666,12 +1666,12 @@ namespace
 		    SYSlerp(b0.zmax(), b1.zmax(), t));
     }
 
-    template <typename ABC_T, typename SCHEMA_T>
+    template <typename ABC_T>
     static bool
     abcBounds(const IObject &obj, UT_BoundingBox &box, fpreal t, bool &isconst)
     {
 	ABC_T		 prim(obj, gabcWrapExisting);
-	const SCHEMA_T	&ss = prim.getSchema();
+	const typename ABC_T::schema_type	&ss = prim.getSchema();
 	IBox3dProperty	 bounds = ss.getSelfBoundsProperty();
 	index_t		 i0, i1;
 	fpreal		 bias = getIndex(t, ss.getTimeSampling(),
@@ -1687,12 +1687,12 @@ namespace
 	return box.isValid();
     }
 
-    template <typename ABC_T, typename SCHEMA_T>
+    template <typename ABC_T>
     static TimeSamplingPtr
     abcTimeSampling(const IObject &obj)
     {
-	ABC_T		 prim(obj, gabcWrapExisting);
-	const SCHEMA_T	&ss = prim.getSchema();
+	ABC_T					 prim(obj, gabcWrapExisting);
+	const typename ABC_T::schema_type	&ss = prim.getSchema();
 	return ss.getTimeSampling();
     }
 
@@ -1729,13 +1729,13 @@ namespace
 	return false;
     }
 
-    template <typename ABC_T, typename SCHEMA_T>
+    template <typename ABC_T>
     static GEO_AnimationType
     getAnimation(const GABC_IObject &obj)
     {
-	ABC_T			 prim(obj.object(), gabcWrapExisting);
-	SCHEMA_T		&schema = prim.getSchema();
-	GEO_AnimationType	 atype;
+	ABC_T				 prim(obj.object(), gabcWrapExisting);
+	typename ABC_T::schema_type	&schema = prim.getSchema();
+	GEO_AnimationType		 atype;
 	
 	switch (schema.getTopologyVariance())
 	{
@@ -1758,7 +1758,7 @@ namespace
 
     template <>
     GEO_AnimationType
-    getAnimation<IXform, IXformSchema>(const GABC_IObject &obj)
+    getAnimation<IXform>(const GABC_IObject &obj)
     {
 	IXform		 prim(obj.object(), gabcWrapExisting);
 	IXformSchema	&schema = prim.getSchema();
@@ -1769,7 +1769,7 @@ namespace
 
     template <>
     GEO_AnimationType
-    getAnimation<IPoints, IPointsSchema>(const GABC_IObject &obj)
+    getAnimation<IPoints>(const GABC_IObject &obj)
     {
 	IPoints		 prim(obj.object(), gabcWrapExisting);
 	IPointsSchema	&schema = prim.getSchema();
@@ -1790,11 +1790,20 @@ namespace
     }
 
     static GEO_AnimationType
-    getFaceSetAnimation(const GABC_IObject &obj)
+    getFaceSetAnimationType(const GABC_IObject &obj)
     {
-	IFaceSet	 prim(obj.object(), gabcWrapExisting);
-	IFaceSetSchema	&ss = prim.getSchema();
+	IFaceSet	 shape(obj.object(), gabcWrapExisting);
+	IFaceSetSchema	&ss = shape.getSchema();
 	return ss.isConstant() ? GEO_ANIMATION_CONSTANT:GEO_ANIMATION_TOPOLOGY;
+    }
+
+    template <typename ABCTYPE>
+    static GEO_AnimationType
+    getGenericAnimationType(const GABC_IObject &obj)
+    {
+	ABCTYPE				 shape(obj.object(), gabcWrapExisting);
+	typename ABCTYPE::schema_type	&ss = shape.getSchema();
+	return ss.isConstant() ? GEO_ANIMATION_CONSTANT:GEO_ANIMATION_TRANSFORM;
     }
 };
 
@@ -2027,28 +2036,34 @@ GABC_IObject::getAnimationType(bool include_transform) const
 	switch (nodeType())
 	{
 	    case GABC_POLYMESH:
-		atype = getAnimation<IPolyMesh, IPolyMeshSchema>(*this);
+		atype = getAnimation<IPolyMesh>(*this);
 		break;
 	    case GABC_SUBD:
-		atype = getAnimation<ISubD, ISubDSchema>(*this);
+		atype = getAnimation<ISubD>(*this);
 		break;
 	    case GABC_CURVES:
-		atype = getAnimation<ICurves, ICurvesSchema>(*this);
+		atype = getAnimation<ICurves>(*this);
 		break;
 	    case GABC_POINTS:
-		atype = getAnimation<IPoints, IPointsSchema>(*this);
+		atype = getAnimation<IPoints>(*this);
 		break;
 	    case GABC_NUPATCH:
-		atype = getAnimation<INuPatch, INuPatchSchema>(*this);
+		atype = getAnimation<INuPatch>(*this);
 		break;
 	    case GABC_XFORM:
 		if (isMayaLocator())
 		    atype = getLocatorAnimation(*this);
 		else
-		    atype = getAnimation<IXform, IXformSchema>(*this);
+		    atype = getAnimation<IXform>(*this);
 		break;
 	    case GABC_FACESET:
-		atype = getFaceSetAnimation(*this);
+		atype = getFaceSetAnimationType(*this);
+		break;
+	    case GABC_CAMERA:
+		atype = getGenericAnimationType<ICamera>(*this);
+		break;
+	    case GABC_LIGHT:
+		atype = getGenericAnimationType<ILight>(*this);
 		break;
 	    default:
 		atype = GEO_ANIMATION_TOPOLOGY;
@@ -2079,15 +2094,15 @@ GABC_IObject::getBoundingBox(UT_BoundingBox &box, fpreal t, bool &isconst) const
 	switch (nodeType())
 	{
 	    case GABC_POLYMESH:
-		return abcBounds<IPolyMesh, IPolyMeshSchema>(object(), box, t, isconst);
+		return abcBounds<IPolyMesh>(object(), box, t, isconst);
 	    case GABC_SUBD:
-		return abcBounds<ISubD, ISubDSchema>(object(), box, t, isconst);
+		return abcBounds<ISubD>(object(), box, t, isconst);
 	    case GABC_CURVES:
-		return abcBounds<ICurves, ICurvesSchema>(object(), box, t, isconst);
+		return abcBounds<ICurves>(object(), box, t, isconst);
 	    case GABC_POINTS:
-		return abcBounds<IPoints, IPointsSchema>(object(), box, t, isconst);
+		return abcBounds<IPoints>(object(), box, t, isconst);
 	    case GABC_NUPATCH:
-		return abcBounds<INuPatch, INuPatchSchema>(object(), box, t, isconst);
+		return abcBounds<INuPatch>(object(), box, t, isconst);
 	    case GABC_XFORM:
 		box.initBounds(0, 0, 0);
 		return true;
@@ -2139,17 +2154,17 @@ GABC_IObject::timeSampling() const
     switch (nodeType())
     {
 	case GABC_POLYMESH:
-	    return abcTimeSampling<IPolyMesh, IPolyMeshSchema>(object());
+	    return abcTimeSampling<IPolyMesh>(object());
 	case GABC_SUBD:
-	    return abcTimeSampling<ISubD, ISubDSchema>(object());
+	    return abcTimeSampling<ISubD>(object());
 	case GABC_CURVES:
-	    return abcTimeSampling<ICurves, ICurvesSchema>(object());
+	    return abcTimeSampling<ICurves>(object());
 	case GABC_POINTS:
-	    return abcTimeSampling<IPoints, IPointsSchema>(object());
+	    return abcTimeSampling<IPoints>(object());
 	case GABC_NUPATCH:
-	    return abcTimeSampling<INuPatch, INuPatchSchema>(object());
+	    return abcTimeSampling<INuPatch>(object());
 	case GABC_XFORM:
-	    return abcTimeSampling<IXform, IXformSchema>(object());
+	    return abcTimeSampling<IXform>(object());
 	default:
 	    break;
     }
@@ -2369,20 +2384,15 @@ GABC_IObject::getPosition(fpreal t, GEO_AnimationType &atype) const
 	    switch (nodeType())
 	    {
 		case GABC_POLYMESH:
-		    return gabcGetPosition<IPolyMesh,
-			       IPolyMeshSchema>(*this, t, atype);
+		    return gabcGetPosition<IPolyMesh>(*this, t, atype);
 		case GABC_SUBD:
-		    return gabcGetPosition<ISubD,
-			       ISubDSchema>(*this, t, atype);
+		    return gabcGetPosition<ISubD>(*this, t, atype);
 		case GABC_CURVES:
-		    return gabcGetPosition<ICurves,
-			       ICurvesSchema>(*this, t, atype);
+		    return gabcGetPosition<ICurves>(*this, t, atype);
 		case GABC_POINTS:
-		    return gabcGetPosition<IPoints,
-			       IPointsSchema>(*this, t, atype);
+		    return gabcGetPosition<IPoints>(*this, t, atype);
 		case GABC_NUPATCH:
-		    return gabcGetPosition<INuPatch,
-			       INuPatchSchema>(*this, t, atype);
+		    return gabcGetPosition<INuPatch>(*this, t, atype);
 		default:
 		    break;
 	    }
@@ -2407,9 +2417,9 @@ GABC_IObject::getWidth(fpreal t, GEO_AnimationType &atype) const
 	    switch (nodeType())
 	    {
 		case GABC_CURVES:
-		    return gabcGetWidth<ICurves, ICurvesSchema>(*this, t);
+		    return gabcGetWidth<ICurves>(*this, t);
 		case GABC_POINTS:
-		    return gabcGetWidth<IPoints, IPointsSchema>(*this, t);
+		    return gabcGetWidth<IPoints>(*this, t);
 		default:
 		    break;
 	    }
@@ -2434,15 +2444,15 @@ GABC_IObject::getVelocity(fpreal t, GEO_AnimationType &atype) const
 	    switch (nodeType())
 	    {
 		case GABC_POLYMESH:
-		    return gabcGetVelocity<IPolyMesh, IPolyMeshSchema>(*this, t);
+		    return gabcGetVelocity<IPolyMesh>(*this, t);
 		case GABC_SUBD:
-		    return gabcGetVelocity<ISubD, ISubDSchema>(*this, t);
+		    return gabcGetVelocity<ISubD>(*this, t);
 		case GABC_CURVES:
-		    return gabcGetVelocity<ICurves, ICurvesSchema>(*this, t);
+		    return gabcGetVelocity<ICurves>(*this, t);
 		case GABC_POINTS:
-		    return gabcGetVelocity<IPoints, IPointsSchema>(*this, t);
+		    return gabcGetVelocity<IPoints>(*this, t);
 		case GABC_NUPATCH:
-		    return gabcGetVelocity<INuPatch, INuPatchSchema>(*this, t);
+		    return gabcGetVelocity<INuPatch>(*this, t);
 		default:
 		    break;
 	    }
@@ -2463,31 +2473,31 @@ GABC_IObject::getArbGeomParams() const
 	switch (nodeType())
 	{
 	    case GABC_XFORM:
-		return geometryProperties<IXform, IXformSchema>(*this);
+		return geometryProperties<IXform>(*this);
 		break;
 	    case GABC_POLYMESH:
-		return geometryProperties<IPolyMesh, IPolyMeshSchema>(*this);
+		return geometryProperties<IPolyMesh>(*this);
 		break;
 	    case GABC_SUBD:
-		return geometryProperties<ISubD, ISubDSchema>(*this);
+		return geometryProperties<ISubD>(*this);
 		break;
 	    case GABC_CAMERA:
-		return geometryProperties<ICamera, ICameraSchema>(*this);
+		return geometryProperties<ICamera>(*this);
 		break;
 	    case GABC_FACESET:
-		return geometryProperties<IFaceSet, IFaceSetSchema>(*this);
+		return geometryProperties<IFaceSet>(*this);
 		break;
 	    case GABC_CURVES:
-		return geometryProperties<ICurves, ICurvesSchema>(*this);
+		return geometryProperties<ICurves>(*this);
 		break;
 	    case GABC_POINTS:
-		return geometryProperties<IPoints, IPointsSchema>(*this);
+		return geometryProperties<IPoints>(*this);
 		break;
 	    case GABC_NUPATCH:
-		return geometryProperties<INuPatch, INuPatchSchema>(*this);
+		return geometryProperties<INuPatch>(*this);
 		break;
 	    case GABC_LIGHT:
-		return geometryProperties<ILight, ILightSchema>(*this);
+		return geometryProperties<ILight>(*this);
 
 	    case GABC_MATERIAL:
 	    default:
@@ -2556,31 +2566,31 @@ GABC_IObject::getUserProperties() const
 	switch (nodeType())
 	{
 	    case GABC_XFORM:
-		return userProperties<IXform, IXformSchema>(*this);
+		return userProperties<IXform>(*this);
 		break;
 	    case GABC_POLYMESH:
-		return userProperties<IPolyMesh, IPolyMeshSchema>(*this);
+		return userProperties<IPolyMesh>(*this);
 		break;
 	    case GABC_SUBD:
-		return userProperties<ISubD, ISubDSchema>(*this);
+		return userProperties<ISubD>(*this);
 		break;
 	    case GABC_CAMERA:
-		return userProperties<ICamera, ICameraSchema>(*this);
+		return userProperties<ICamera>(*this);
 		break;
 	    case GABC_FACESET:
-		return userProperties<IFaceSet, IFaceSetSchema>(*this);
+		return userProperties<IFaceSet>(*this);
 		break;
 	    case GABC_CURVES:
-		return userProperties<ICurves, ICurvesSchema>(*this);
+		return userProperties<ICurves>(*this);
 		break;
 	    case GABC_POINTS:
-		return userProperties<IPoints, IPointsSchema>(*this);
+		return userProperties<IPoints>(*this);
 		break;
 	    case GABC_NUPATCH:
-		return userProperties<INuPatch, INuPatchSchema>(*this);
+		return userProperties<INuPatch>(*this);
 		break;
 	    case GABC_LIGHT:
-		return userProperties<ILight, ILightSchema>(*this);
+		return userProperties<ILight>(*this);
 
 	    case GABC_MATERIAL:
 	    default:
