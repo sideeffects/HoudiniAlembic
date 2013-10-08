@@ -77,16 +77,18 @@ GABC_IArray::getSample(GABC_IArchive &arch, const IArrayProperty &prop,
     int	array_extent = arrayExtent(prop);
     if (override_type != GT_TYPE_NONE)
     {
-	return getSample(arch, sample, override_type, array_extent);
+	return getSample(arch, sample, override_type, array_extent,
+		prop.isConstant());
     }
     return getSample(arch, sample,
 	    prop.getMetaData().get("interpretation").c_str(),
-	    array_extent);
+	    array_extent,
+	    prop.isConstant());
 }
 
 GABC_IArray
 GABC_IArray::getSample(GABC_IArchive &arch, const ArraySamplePtr &sample,
-	const char *interp, int array_extent)
+	const char *interp, int array_extent, bool is_constant)
 {
     if (!sample->valid())
 	return GABC_IArray();
@@ -94,12 +96,12 @@ GABC_IArray::getSample(GABC_IArchive &arch, const ArraySamplePtr &sample,
     const DataType	&dtype = sample->getDataType();
     return getSample(arch, sample,
 		GABC_GTUtil::getGTTypeInfo(interp, dtype.getExtent()),
-		array_extent);
+		array_extent, is_constant);
 }
 
 GABC_IArray
 GABC_IArray::getSample(GABC_IArchive &arch, const ArraySamplePtr &sample,
-	GT_Type tinfo, int array_extent)
+	GT_Type tinfo, int array_extent, bool is_constant)
 {
     if (!sample->valid())
 	return GABC_IArray();
@@ -111,5 +113,5 @@ GABC_IArray::getSample(GABC_IArchive &arch, const ArraySamplePtr &sample,
     GT_Size		 size = sample->size()/array_extent;
     GT_Size		 tsize = GABC_GTUtil::getGTTupleSize(dtype)*array_extent;
     GT_Storage		 store = GABC_GTUtil::getGTStorage(dtype);
-    return GABC_IArray(arch, sample, size, tsize, store, tinfo);
+    return GABC_IArray(arch, sample, size, tsize, store, tinfo, is_constant);
 }

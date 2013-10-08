@@ -126,17 +126,19 @@ namespace
     static GT_DataArrayHandle
     arrayFromSample(GABC_IArchive &arch, const ArraySamplePtr &param,
 		int array_extent,
-		GT_Type gttype)
+		GT_Type gttype,
+		bool is_constant)
     {
 	if (!param)
 	    return GT_DataArrayHandle();
 	return GABC_NAMESPACE::GABCarray(GABC_IArray::getSample(arch, param,
-			    gttype, array_extent));
+			    gttype, array_extent, is_constant));
     }
     static GT_DataArrayHandle
-    simpleArrayFromSample(GABC_IArchive &arch, const ArraySamplePtr &param)
+    simpleArrayFromSample(GABC_IArchive &arch, const ArraySamplePtr &param,
+	    bool is_constant)
     {
-	return arrayFromSample(arch, param, 1, GT_TYPE_NONE);
+	return arrayFromSample(arch, param, 1, GT_TYPE_NONE, is_constant);
     }
 
     static bool
@@ -447,6 +449,8 @@ namespace
 	    return GT_DataArrayHandle();
 
 	index_t i0, i1;
+	bool	is_const = gparam.isConstant();
+
 	fpreal	bias = getIndex(t, gparam.getTimeSampling(),
 				gparam.getNumSamples(), i0, i1);
 	typename T::sample_type	v0;
@@ -456,16 +460,18 @@ namespace
 	    UT_ASSERT(0 && "This is likely a corrupt indexed alembic array");
 	    gparam.getIndexed(v0, i0);
 	    return arrayFromSample(arch, v0.getVals(),
-				gparam.getArrayExtent(), tinfo);
+				gparam.getArrayExtent(), tinfo, is_const);
 	}
 	GT_DataArrayHandle	s0 = arrayFromSample(arch, v0.getVals(),
-					gparam.getArrayExtent(), tinfo);
-	if (i0 == i1 || !GTisFloat(s0->getStorage()))
+					gparam.getArrayExtent(), tinfo,
+					is_const);
+	if (is_const || i0 == i1 || !GTisFloat(s0->getStorage()))
 	    return s0;
 	typename T::sample_type	v1;
 	gparam.getExpanded(v1, i1);
 	GT_DataArrayHandle	s1 = arrayFromSample(arch, v1.getVals(),
-					gparam.getArrayExtent(), tinfo);
+					gparam.getArrayExtent(), tinfo,
+					is_const);
 	return blendArrays(s0, s1, bias);
     }
 
@@ -1100,8 +1106,10 @@ namespace
 	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
 	    arb = ss.getArbGeomParams();
 
-	counts = simpleArrayFromSample(*obj.archive(), sample.getFaceCounts());
-	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices());
+	counts = simpleArrayFromSample(*obj.archive(), sample.getFaceCounts(),
+			ss.getFaceCountsProperty().isConstant());
+	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices(),
+			ss.getFaceIndicesProperty().isConstant());
 
 	GT_AttributeListHandle	 point;
 	GT_AttributeListHandle	 vertex;
@@ -1219,8 +1227,10 @@ namespace
 	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
 	    arb = ss.getArbGeomParams();
 
-	counts = simpleArrayFromSample(*obj.archive(), sample.getFaceCounts());
-	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices());
+	counts = simpleArrayFromSample(*obj.archive(), sample.getFaceCounts(),
+			ss.getFaceCountsProperty().isConstant());
+	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices(),
+			ss.getFaceIndicesProperty().isConstant());
 
 	GT_AttributeListHandle	 point;
 	GT_AttributeListHandle	 vertex;
@@ -1328,7 +1338,9 @@ namespace
 	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
 	    arb = ss.getArbGeomParams();
 
-	counts = simpleArrayFromSample(*obj.archive(), sample.getCurvesNumVertices());
+	counts = simpleArrayFromSample(*obj.archive(),
+			sample.getCurvesNumVertices(),
+			ss.getNumVerticesProperty().isConstant());
 
 	GT_AttributeListHandle	 vertex;
 	GT_AttributeListHandle	 uniform;
@@ -1514,8 +1526,10 @@ namespace
 	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
 	    arb = ss.getArbGeomParams();
 
-	uknots = simpleArrayFromSample(*obj.archive(), sample.getUKnot());
-	vknots = simpleArrayFromSample(*obj.archive(), sample.getVKnot());
+	uknots = simpleArrayFromSample(*obj.archive(), sample.getUKnot(),
+			ss.getUKnotsProperty().isConstant());
+	vknots = simpleArrayFromSample(*obj.archive(), sample.getVKnot(),
+			ss.getVKnotsProperty().isConstant());
 
 	GT_AttributeListHandle	 vertex;
 	GT_AttributeListHandle	 uniform;
@@ -1562,15 +1576,25 @@ namespace
 	    GT_DataArrayHandle	curveMin;
 	    GT_DataArrayHandle	curveMax;
 	    GT_DataArrayHandle	curveU, curveV, curveW, curveUVW;
-	    loopCount = simpleArrayFromSample(*obj.archive(), sample.getTrimNumCurves());
-	    curveCount = simpleArrayFromSample(*obj.archive(), sample.getTrimNumVertices());
-	    curveOrders = simpleArrayFromSample(*obj.archive(), sample.getTrimOrders());
-	    curveKnots = simpleArrayFromSample(*obj.archive(), sample.getTrimKnots());
-	    curveMin = simpleArrayFromSample(*obj.archive(), sample.getTrimMins());
-	    curveMax = simpleArrayFromSample(*obj.archive(), sample.getTrimMaxes());
-	    curveU = simpleArrayFromSample(*obj.archive(), sample.getTrimU());
-	    curveV = simpleArrayFromSample(*obj.archive(), sample.getTrimV());
-	    curveW = simpleArrayFromSample(*obj.archive(), sample.getTrimW());
+	    bool	is_const = ss.trimCurveTopologyIsConstant();
+	    loopCount = simpleArrayFromSample(*obj.archive(),
+			    sample.getTrimNumCurves(), is_const);
+	    curveCount = simpleArrayFromSample(*obj.archive(),
+			    sample.getTrimNumVertices(), is_const);
+	    curveOrders = simpleArrayFromSample(*obj.archive(),
+			    sample.getTrimOrders(), is_const);
+	    curveKnots = simpleArrayFromSample(*obj.archive(),
+			    sample.getTrimKnots(), is_const);
+	    curveMin = simpleArrayFromSample(*obj.archive(),
+			    sample.getTrimMins(), is_const);
+	    curveMax = simpleArrayFromSample(*obj.archive(),
+			    sample.getTrimMaxes(), is_const);
+	    curveU = simpleArrayFromSample(*obj.archive(),
+			    sample.getTrimU(), is_const);
+	    curveV = simpleArrayFromSample(*obj.archive(),
+			    sample.getTrimV(), is_const);
+	    curveW = simpleArrayFromSample(*obj.archive(),
+			    sample.getTrimW(), is_const);
 	    curveUVW = joinVector3Array(curveU, curveV, curveW);
 
 	    GT_TrimNuCurves	*trims = new GT_TrimNuCurves(loopCount,

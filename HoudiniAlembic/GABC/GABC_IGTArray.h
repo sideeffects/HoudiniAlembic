@@ -40,9 +40,12 @@ class GABC_API GABC_IGTArray : public GT_DataArray
 {
 public:
     GABC_IGTArray(const GABC_IArray &array)
-	: myArray(array)
+	: GT_DataArray()
+	, myArray(array)
 	, myData(static_cast<const POD_T *>(array.data()))
     {
+	if (array.isConstant())
+	    setDataId(1);
     }
     virtual ~GABC_IGTArray()
     {

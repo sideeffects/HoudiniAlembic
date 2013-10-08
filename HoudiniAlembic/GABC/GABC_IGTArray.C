@@ -74,6 +74,8 @@ GABC_IGTStringArray::GABC_IGTStringArray(const GABC_IArray &array)
 	for (exint i = 0; i < array.entries(); ++i, ++data)
 	    setString(i, j, data->c_str());
     }
+    if (array.isConstant())
+	setDataId(1);
 }
 
 GT_DataArrayHandle

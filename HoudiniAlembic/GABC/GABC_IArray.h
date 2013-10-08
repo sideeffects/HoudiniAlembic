@@ -64,11 +64,12 @@ public:
     /// (see Abc/TypedPropertyTraits.h)
     static GABC_IArray getSample(GABC_IArchive &arch,
 		const ArraySamplePtr &sample, const char *interp,
-		int array_extent);
+		int array_extent, bool is_constant);
     /// Create an array wrapper for the given array sample with the specified
     /// GT_Type as the interpretation.
     static GABC_IArray getSample(GABC_IArchive &arch,
-		const ArraySamplePtr &sample, GT_Type type, int array_extent);
+		const ArraySamplePtr &sample, GT_Type type, int array_extent,
+		bool is_constant);
 
     static GABC_IArray getSample(GABC_IArchive &arch,
 		const IArrayProperty &prop, index_t index,
@@ -93,6 +94,7 @@ public:
 	, mySize(0)
 	, myTupleSize(0)
 	, myType(GT_TYPE_NONE)
+	, myIsConstant(false)
     {
     }
     GABC_IArray(const GABC_IArray &src)
@@ -101,6 +103,7 @@ public:
 	, mySize(src.mySize)
 	, myTupleSize(src.myTupleSize)
 	, myType(src.myType)
+	, myIsConstant(src.myIsConstant)
     {
     }
     GABC_IArray(GABC_IArchive &archive,
@@ -108,12 +111,14 @@ public:
 		GT_Size size,
 		int tuple_size,
 		GT_Storage storage,
-		GT_Type tinfo=GT_TYPE_NONE)
+		GT_Type tinfo,
+		bool is_constant)
 	: GABC_IItem(&archive)
 	, myContainer(array)
 	, mySize(size)
 	, myTupleSize(tuple_size)
 	, myType(tinfo)
+	, myIsConstant(is_constant)
     {
     }
     virtual ~GABC_IArray();
@@ -170,8 +175,9 @@ public:
 			    { return myTupleSize; }
     GT_Size		 entries() const	{ return mySize; }
     GT_Type		 gtType() const		{ return myType; }
+    bool		 isConstant() const	{ return myIsConstant; }
 
-    /// {
+    /// @{
     virtual void	purge();
     /// @}
 private:
@@ -180,6 +186,7 @@ private:
     int			myTupleSize;
     GT_Type		myType;
     PlainOldDataType	myAbcType;
+    bool		myIsConstant;
 };
 }
 
