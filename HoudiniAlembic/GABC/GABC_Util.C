@@ -68,6 +68,10 @@ namespace
     typedef Alembic::AbcGeom::XformSample	XformSample;
     typedef GABC_Util::PathList			PathList;
 
+    static UT_Lock		theFileLock;
+    static UT_Lock		theOCacheLock;
+    static UT_Lock		theXCacheLock;
+
     const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
     // Stores world (cumulative) transforms for objects in the cache.  These
@@ -325,11 +329,27 @@ namespace
 		    return walkTree(root(), walker);
 		}
 
+	inline void	ensureValidTransformCache()
+	{
+	    if (!myXformCacheBuilt)
+	    {
+		// Double lock
+		UT_AutoLock	lock(theXCacheLock);
+		if (!myXformCacheBuilt)
+		{
+		    M44d	id;
+		    id.makeIdentity();
+		    buildTransformCache(root(), "", id);
+		    SYSstoreFence();
+		    myXformCacheBuilt = true;
+		}
+	    }
+	}
+
 	// Build a cache of constant (non-changing) transforms
 	void	buildTransformCache(const GABC_IObject &root, const char *path,
 				    const M44d &parent)
 	{
-	    myXformCacheBuilt = true;
 	    UT_WorkBuffer	fullpath;
 	    for (size_t i = 0; i < root.getNumChildren(); ++i)
 	    {
@@ -361,12 +381,7 @@ namespace
 	/// Check to see if there's a const local transform cached
 	bool	staticLocalTransform(const char *fullpath, M44d &xform)
 		{
-		    if (!myXformCacheBuilt)
-		    {
-			M44d	id;
-			id.makeIdentity();
-			buildTransformCache(root(), "", id);
-		    }
+		    ensureValidTransformCache();
 		    AbcTransformMap::const_map_iterator it;
 		    it = myStaticXforms.find(fullpath);
 		    if (it != myStaticXforms.map_end())
@@ -379,12 +394,7 @@ namespace
 	/// Check to see if there's a const world transform cached
 	bool	staticWorldTransform(const char *fullpath, M44d &xform)
 		{
-		    if (!myXformCacheBuilt)
-		    {
-			M44d	id;
-			id.makeIdentity();
-			buildTransformCache(root(), "", id);
-		    }
+		    ensureValidTransformCache();
 		    AbcTransformMap::const_map_iterator it;
 		    it = myStaticXforms.find(fullpath);
 		    if (it != myStaticXforms.map_end())
@@ -409,12 +419,7 @@ namespace
 
 	bool	isObjectAnimated(const GABC_IObject &obj)
 	{
-	    if (!myXformCacheBuilt)
-	    {
-		M44d	id;
-		id.makeIdentity();
-		buildTransformCache(root(), "", id);
-	    }
+	    ensureValidTransformCache();
 	    std::string	path = obj.getFullName();
 	    AbcTransformMap::const_map_iterator it;
 	    it = myStaticXforms.find(path.c_str());
@@ -425,6 +430,7 @@ namespace
 	bool	getWorldTransform(M44d &x, const GABC_IObject &obj, fpreal now,
 			bool &isConstant, bool &inheritsXform)
 		{
+		    UT_AutoLock	lock(theXCacheLock);
 		    isConstant = true;
 		    // First, check if we have a static 
 		    std::string	path = obj.getFullName();
@@ -477,6 +483,7 @@ namespace
 	GABC_IObject	findObject(const GABC_IObject &parent,
 			    UT_WorkBuffer &fullpath, const char *component)
 		{
+		    UT_AutoLock	lock(theOCacheLock);
 		    fullpath.append("/");
 		    fullpath.append(component);
 		    ArchiveObjectKey	key(fullpath.buffer());
@@ -618,6 +625,8 @@ namespace
     ArchiveCacheEntryPtr
     LoadArchive(const std::string &path)
     {
+	UT_AutoLock	lock(theFileLock);
+
 	if (!UTisstring(path.c_str()) || UTaccess(path.c_str(), R_OK) != 0)
 	{
 	    badFileWarning(path);
@@ -763,7 +772,6 @@ GABC_Util::findObject(const std::string &filename,
     return cacheEntry->isValid() ? cacheEntry->getObject(objectpath)
 		: GABC_IObject();
 }
-
 
 bool
 GABC_Util::getLocalTransform(const std::string &filename,
