@@ -53,14 +53,11 @@ namespace
 #endif
 }
 
-static UT_Lock		theFileLock;
-
 UT_Lock	*GABC_IArchive::theLock = NULL;
 
 GABC_IArchivePtr
 GABC_IArchive::open(const std::string &path)
 {
-    //UT_AutoLock		lock(theFileLock);
     if (!theLock)
     {
 	theLock = new UT_Lock();
@@ -73,7 +70,6 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
     : myFilename(path)
     , myPurged(false)
 {
-    //UT_AutoLock		lock(theFileLock);
     UT_INC_COUNTER(theCount);
     if (UTisstring(path.c_str()) && UTaccess(path.c_str(), R_OK) == 0)
     {
@@ -96,7 +92,6 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
 
 GABC_IArchive::~GABC_IArchive()
 {
-    //UT_AutoLock	flock(theFileLock);
     UT_DEC_COUNTER(theCount);
     GABC_AlembicLock	lock(*this);	// Lock for member data deletion
     if (!purged())
