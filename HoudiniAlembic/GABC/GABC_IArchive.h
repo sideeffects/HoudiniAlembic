@@ -43,9 +43,7 @@
 
 // If you're using a thread-safe version of Alembic (thread-safe HDF5 or Ogawa
 // for example), you can set this define.
-#if !defined(WIN32)
-    #define GABC_ALEMBIC_THREADSAFE
-#endif
+#define GABC_ALEMBIC_THREADSAFE
 
 namespace GABC_NAMESPACE
 {
