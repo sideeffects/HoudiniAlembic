@@ -60,6 +60,8 @@ public:
 
     /// Return the label for the given input
     virtual const char	*inputLabel(unsigned int idx) const;
+
+    virtual SOP_ObjectAppearancePtr	getObjectAppearance();
 protected:
     //--------------------------------------------------------------------------
     // Standard hdk declarations

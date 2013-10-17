@@ -33,6 +33,7 @@
 #include <GU/GU_Detail.h>
 #include <PRM/PRM_Shared.h>
 #include <SOP/SOP_Guide.h>
+#include <SOP/SOP_ObjectAppearance.h>
 #include <PRM/PRM_Include.h>
 #include <PRM/PRM_SpareData.h>
 #include <OP/OP_OperatorTable.h>
@@ -848,6 +849,54 @@ SOP_AlembicIn2::cookMyGuide1(OP_Context &ctx)
     }
     return error();
 }
+
+namespace
+{
+
+class abcFileAppearance : public SOP_ObjectAppearance
+{
+public:
+    abcFileAppearance(SOP_AlembicIn2 *o)
+	: myObject(o)
+    {
+    }
+
+    virtual bool	isGeometricObject() const { return false; }
+    
+    virtual bool	applyEdits()		{ return true; }
+    
+    virtual bool 	viewportLOD(GA_Offset, GEO_ViewportLOD &lod) const
+    {
+	UT_String	lod_name;
+	myObject->evalString(lod_name, "viewportlod", 0, CHgetEvalTime());
+	lod = GEOviewportLOD(lod_name);
+	return lod != GEO_VIEWPORT_INVALID_MODE;
+    }
+    
+    using SOP_ObjectAppearance::setViewportLOD;
+    virtual bool	setViewportLOD(const char *, GEO_ViewportLOD lod)
+    {
+	UT_String lod_name(GEOviewportLOD(lod));
+	if (!lod_name.isstring())
+	    return false;
+	myObject->setString(lod_name, CH_STRING_LITERAL, "viewportlod", 0,
+			    CHgetEvalTime());
+	return true;
+    }
+
+private:
+    SOP_AlembicIn2	*myObject;
+};
+
+}
+
+SOP_ObjectAppearancePtr
+SOP_AlembicIn2::getObjectAppearance()
+{
+    return SOP_ObjectAppearancePtr(new abcFileAppearance(this));
+}
+
+
 
 //-*****************************************************************************
 void
