@@ -1881,7 +1881,7 @@ GABC_GEOWalker::translateAttributeName(GA_AttributeOwner own, UT_String &name)
 	if (!nameMapPtr()->matchPattern(own, name))
 	    return false;
 	name = nameMapPtr()->getName(name);
-	if (name.isstring())
+	if (!name.isstring())
 	    return false;
     }
     name.forceValidVariableName();
