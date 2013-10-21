@@ -305,6 +305,12 @@ namespace
 	return GT_DataArrayHandle();
     }
 
+// Accurate transforms are intended to be more accurate.  However, bug 57694
+// shows that there are some "issues" with the way it's implemented.  If we
+// just blend the matrix values directly, we get inaccurate results, but the
+// blending behaves much better.
+//#define ACCURATE_TRANSFORMS
+#if defined(ACCURATE_TRANSFORMS)
     void decomposeXForm(
             const M44d &m,
             V3d &scale,
@@ -350,10 +356,12 @@ namespace
         return V3d(SYSlerp(a[0], b[0], bias), SYSlerp(a[1], b[1], bias),
 			SYSlerp(a[2], b[2], bias));
     }
+#endif
 
     static M44d
     blendMatrix(const M44d &m0, const M44d &m1, fpreal bias)
     {
+#if defined(ACCURATE_TRANSFORMS)
 	V3d	s0, s1;	// Scales
 	V3d	h0, h1;	// Shears
 	V3d	t0, t1;	// Translates
@@ -367,6 +375,13 @@ namespace
 			    lerp(h0, h1, bias),
 			    Imath::slerp(q0, q1, (double)bias),
 			    lerp(t0, t1, bias));
+#else
+	M44d	result;
+	for (int r = 0; r < 4; ++r)
+	    for (int c = 0; c < 4; ++c)
+		result[r][c] = SYSlerp(m0[r][c], m1[r][c], bias);
+	return result;
+#endif
     }
 
     template <typename T, GT_Storage T_STORAGE>
