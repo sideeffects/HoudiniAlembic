@@ -157,60 +157,6 @@ namespace
 
     typedef UT_SymbolMap<LocalWorldXform>	AbcTransformMap;
 
-    void DecomposeXForm(
-            const Imath::M44d &mat,
-            Imath::V3d &scale,
-            Imath::V3d &shear,
-            Imath::Quatd &rotation,
-            Imath::V3d &translation
-    )
-    {
-        Imath::M44d mat_remainder(mat);
-
-        // Extract Scale, Shear
-        Imath::extractAndRemoveScalingAndShear(mat_remainder, scale, shear);
-
-        // Extract translation
-        translation.x = mat_remainder[3][0];
-        translation.y = mat_remainder[3][1];
-        translation.z = mat_remainder[3][2];
-
-        // Extract rotation
-        rotation = extractQuat(mat_remainder);
-    }
-
-    M44d RecomposeXForm(
-            const Imath::V3d &scale,
-            const Imath::V3d &shear,
-            const Imath::Quatd &rotation,
-            const Imath::V3d &translation
-    )
-    {
-        Imath::M44d scale_mtx, shear_mtx, rotation_mtx, translation_mtx;
-
-        scale_mtx.setScale(scale);
-        shear_mtx.setShear(shear);
-        rotation_mtx = rotation.toMatrix44();
-        translation_mtx.setTranslation(translation);
-
-        return scale_mtx * shear_mtx * rotation_mtx * translation_mtx;
-    }
-
-
-    // when amt is 0, a is returned
-    inline double lerp(double a, double b, double amt)
-    {
-        return (a + (b-a)*amt);
-    }
-
-    Imath::V3d lerp(const Imath::V3d &a, const Imath::V3d &b, double amt)
-    {
-        return Imath::V3d(lerp(a[0], b[0], amt),
-                          lerp(a[1], b[1], amt),
-                          lerp(a[2], b[2], amt));
-    }
-
-
     void
     TokenizeObjectPath(const std::string & objectPath, PathList & pathList)
     {
