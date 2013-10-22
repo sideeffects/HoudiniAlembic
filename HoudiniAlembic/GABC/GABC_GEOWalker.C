@@ -1029,7 +1029,7 @@ namespace {
 	IFaceSetSchema::Sample	 sample = ss.getValue(walk.timeSample());
 	Int32ArraySamplePtr	 faces = sample.getFaces();
 
-	if (faces && faces->valid() && faces->size() > 0)
+	if (faces && faces->valid())
 	{
 	    GU_Detail		&gdp = walk.detail();
 	    GA_PrimitiveGroup	*grp = NULL;
