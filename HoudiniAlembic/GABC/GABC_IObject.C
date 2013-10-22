@@ -1041,7 +1041,7 @@ namespace
 	IFaceSetSchema::Sample	 sample = ss.getValue(iss);
 	Int32ArraySamplePtr	 faces = sample.getFaces();
 
-	if (!isEmpty(faces))
+	if (faces && faces->valid())
 	{
 	    set = new GT_FaceSet();
 	    set->addFaces(faces->get(), faces->size());
