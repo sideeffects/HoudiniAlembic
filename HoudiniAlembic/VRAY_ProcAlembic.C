@@ -875,7 +875,10 @@ VRAY_ProcAlembic::render()
 	    tstep = ngeo > 1 ? 1.0/(ngeo-1) : 1;
 	    openGeometryObject();
 		for (int i = 0; i < ngeo; ++i)
+		{
+		    referenceGeometry(details(i));
 		    addGeometry(const_cast<GU_Detail *>(details(i)), tstep * i);
+		}
 	    closeObject();
 	}
     }
