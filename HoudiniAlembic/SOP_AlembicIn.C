@@ -807,7 +807,8 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	if (parms.myObjectPath.isstring())
 	{
 	    UT_WorkArgs	args;
-	    parms.myObjectPath.parse(args);
+	    UT_String	opath(parms.myObjectPath);
+	    opath.parse(args);
 	    if (args.getArgc())
 	    {
 		UT_StringArray	olist;
