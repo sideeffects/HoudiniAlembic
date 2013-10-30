@@ -97,7 +97,7 @@ public:
     std::string		getName() const	{ return myObject.getName(); }
 
     /// Get the full name of the object
-    std::string		getFullName() const { return myObject.getFullName(); }
+    const std::string	&getFullName() const { return myObjectPath; }
 
     /// @{
     /// Interface from GABC_IItem
