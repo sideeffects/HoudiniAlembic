@@ -135,6 +135,7 @@ public:
      GABC_AutoFakeLock(const GABC_IArchive &) {}
      GABC_AutoFakeLock(const GABC_IArchivePtr &) {}
     ~GABC_AutoFakeLock() {}
+    void	unlock() {}
 };
 /// The true lock is an implementation of a UT_AutoLock which is used when
 /// locking internal library structures.
@@ -158,6 +159,7 @@ public:
 	if (myLock)
 	    myLock->unlock();
     }
+    void	unlock()	{ myLock->unlock(); myLock = NULL; }
 private:
     UT_Lock	*myLock;
 };

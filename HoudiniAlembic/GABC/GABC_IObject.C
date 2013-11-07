@@ -2747,6 +2747,7 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
     }
     if (!obj.valid())
 	return false;
+    lock.unlock();
     if (ascended)
     {
 	return GABC_Util::getWorldTransform(archive()->filename(),
