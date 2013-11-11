@@ -292,7 +292,9 @@ ROP_AbcSOP::start(const OObject &parent,
 
     if (!gdp)
     {
-	return err.error("Error cooking SOP: %s", (const char *)sop->getName());
+	UT_String	sop_path;
+	sop->getFullPath(sop_path);
+	return err.error("Error cooking SOP: %s", sop_path.buffer());
     }
 
     PrimitiveList	prims;
