@@ -681,6 +681,7 @@ namespace
     static void
     fillAttributeList(GT_AttributeList &alist,
 	    const GEO_PackedNameMapPtr &namemap,
+	    int load_style,
 	    const GEO_Primitive *prim,
 	    const GABC_IObject &obj,
 	    fpreal t,
@@ -750,7 +751,9 @@ namespace
 	// We need to fill Houdini attributes last.  Otherwise, when converting
 	// two primitives, the Houdini attributes override the first primitive
 	// converted.
-	if (prim && matchScope(gabcConstantScope, scope, scope_size))
+	if (prim
+		&& (load_style & GABC_IObject::GABC_LOAD_HOUDINI)
+		&& matchScope(gabcConstantScope, scope, scope_size))
 	{
 	    fillHoudiniAttributes(alist, *prim, GA_ATTRIB_PRIMITIVE, filled);
 	    fillHoudiniAttributes(alist, *prim, GA_ATTRIB_GLOBAL, filled);
@@ -808,6 +811,7 @@ namespace
     initializeAttributeList(const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			const GEO_PackedNameMapPtr &namemap,
+			int load_style,
 			fpreal t, 
 			const GeometryScope *scope,
 			int scope_size,
@@ -860,7 +864,9 @@ namespace
 	    }
 	}
 
-	if (prim && matchScope(gabcConstantScope, scope, scope_size))
+	if (prim
+		&& (load_style & GABC_IObject::GABC_LOAD_HOUDINI)
+		&& matchScope(gabcConstantScope, scope, scope_size))
 	{
 	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_PRIMITIVE);
 	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_GLOBAL);
@@ -876,8 +882,8 @@ namespace
 	    {
 		UT_StackBuffer<bool>	filled(alist->entries());
 		memset(filled, 0, sizeof(bool)*alist->entries());
-		fillAttributeList<false>(*alist, namemap, prim, obj, t,
-			scope, scope_size,
+		fillAttributeList<false>(*alist, namemap, load_style,
+			prim, obj, t, scope, scope_size,
 			arb, P, v, N, uvs, ids, widths, Pw);
 	    }
 	}
@@ -890,6 +896,7 @@ namespace
 			const GEO_Primitive *prim,
 			const GABC_IObject &obj,
 			const GEO_PackedNameMapPtr &namemap,
+			int load_style,
 			fpreal t, 
 			const GeometryScope *scope,
 			int scope_size,
@@ -908,7 +915,7 @@ namespace
 	// Copy the existing attributes
 	GT_AttributeList	*alist = new GT_AttributeList(*src);
 	// Only fill animating attributes
-	fillAttributeList<true>(*alist, namemap, prim, obj, t,
+	fillAttributeList<true>(*alist, namemap, load_style, prim, obj, t,
 		    scope, scope_size, arb, P, v, N, uvs, ids, widths, Pw);
 	return GT_AttributeListHandle(alist);
     }
@@ -929,6 +936,7 @@ namespace
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
 			    const GEO_PackedNameMapPtr &namemap,
+			    int load_style,
 			    fpreal t,
 			    const GeometryScope *scope,
 			    int scope_size,
@@ -941,7 +949,7 @@ namespace
 			    const IFloatGeomParam *widths = NULL,
 			    const IFloatArrayProperty *Pw = NULL) const
 	{
-	    return initializeAttributeList(prim, obj, namemap, t,
+	    return initializeAttributeList(prim, obj, namemap, load_style, t,
 		    scope, scope_size, arb, owner == GT_OWNER_DETAIL,
 		    P, v, N, uvs, ids, widths, Pw);
 	}
@@ -950,6 +958,7 @@ namespace
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
 			    const GEO_PackedNameMapPtr &namemap,
+			    int load_style,
 			    fpreal t,
 			    GeometryScope scope,
 			    const ICompoundProperty &arb,
@@ -961,7 +970,7 @@ namespace
 			    const IFloatGeomParam *widths = NULL,
 			    const IFloatArrayProperty *Pw = NULL) const
 	{
-	    return initializeAttributeList(prim, obj, namemap, t,
+	    return initializeAttributeList(prim, obj, namemap, load_style, t,
 		    &scope, 1, arb, owner == GT_OWNER_DETAIL,
 		    P, v, N, uvs, ids, widths, Pw);
 	}
@@ -995,6 +1004,7 @@ namespace
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
 			    const GEO_PackedNameMapPtr &namemap,
+			    int load_style,
 			    fpreal t,
 			    const GeometryScope *scope,
 			    int scope_size,
@@ -1007,14 +1017,16 @@ namespace
 			    const IFloatGeomParam *widths = NULL,
 			    const IFloatArrayProperty *Pw = NULL) const
 	{
-	    return updateAttributeList(getSource(owner), prim, obj, namemap, t,
-		    scope, scope_size, arb, P, v, N, uvs, ids, widths, Pw);
+	    return updateAttributeList(getSource(owner), prim, obj,
+		    namemap, load_style, t, scope, scope_size,
+		    arb, P, v, N, uvs, ids, widths, Pw);
 	}
 	inline GT_AttributeListHandle	build(
 			    GT_Owner owner,
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
 			    const GEO_PackedNameMapPtr &namemap,
+			    int load_style,
 			    fpreal t,
 			    GeometryScope scope,
 			    const ICompoundProperty &arb,
@@ -1026,8 +1038,9 @@ namespace
 			    const IFloatGeomParam *widths = NULL,
 			    const IFloatArrayProperty *Pw = NULL) const
 	{
-	    return updateAttributeList(getSource(owner), prim, obj, namemap, t,
-		    &scope, 1, arb, P, v, N, uvs, ids, widths, Pw);
+	    return updateAttributeList(getSource(owner), prim, obj,
+		    namemap, load_style, t, &scope, 1,
+		    arb, P, v, N, uvs, ids, widths, Pw);
 	}
 	const GT_PrimitiveHandle	&myPrim;
     };
@@ -1095,11 +1108,11 @@ namespace
 	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
 	    arb = ss.getArbGeomParams();
 
-	vertex = acreate.build(GT_OWNER_POINT, prim, obj, namemap, t,
-			vertex_scope, 3, arb,
-			&P, &v, NULL, NULL, &ids, &widths);
-	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
-			detail_scope, 3, arb);
+	vertex = acreate.build(GT_OWNER_POINT, prim, obj, namemap,
+		load_style, t, vertex_scope, 3, arb,
+		&P, &v, NULL, NULL, &ids, &widths);
+	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap,
+		load_style, t, detail_scope, 3, arb);
 
 	GT_Primitive	*gt = new GT_PrimPointMesh(vertex, detail);
 	return GT_PrimitiveHandle(gt);
@@ -1137,23 +1150,27 @@ namespace
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 	GeometryScope	point_scope[2] = { gabcVaryingScope, gabcVertexScope };
 
-	point = acreate.build(GT_OWNER_POINT, prim, obj, namemap, t,
+	point = acreate.build(GT_OWNER_POINT, prim, obj, namemap,
+				load_style, t,
 				point_scope, 2,
 				arb,
 				&P,
 				&v,
 				NULL,
 				&uvs);
-	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
+	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj,
+				namemap, load_style, t,
 				gabcFacevaryingScope,
 				arb,
 				NULL,
 				NULL,
 				NULL,
 				&uvs);
-	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap, t,
+	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap,
+				load_style, t,
 				gabcUniformScope, arb);
-	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
+	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap,
+				load_style, t,
 				theConstantUnknownScope, 2,
 				arb);
 
@@ -1259,23 +1276,26 @@ namespace
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 	GeometryScope	point_scope[2] = { gabcVaryingScope, gabcVertexScope };
 
-	point = acreate.build(GT_OWNER_POINT, prim, obj, namemap, t,
+	point = acreate.build(GT_OWNER_POINT, prim, obj, namemap,
+				load_style, t,
 				point_scope, 2,
 				arb,
 				&P,
 				&v,
 				&N,
 				&uvs);
-	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
+	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap,
+				load_style, t,
 				gabcFacevaryingScope,
 				arb,
 				NULL,
 				NULL,
 				&N,
 				&uvs);
-	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap, t,
-				gabcUniformScope, arb);
-	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
+	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap,
+				load_style, t, gabcUniformScope, arb);
+	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap,
+				load_style, t,
 				theConstantUnknownScope, 2,
 				arb);
 
@@ -1373,7 +1393,8 @@ namespace
 					gabcFacevaryingScope
 				 };
 
-	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
+	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap,
+				load_style, t,
 				vertex_scope, 3,
 				arb,
 				&P,
@@ -1382,9 +1403,11 @@ namespace
 				&uvs,
 				NULL,
 				&widths);
-	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap, t,
+	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap,
+				load_style, t,
 				gabcUniformScope, arb);
-	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
+	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap,
+				load_style, t,
 				theConstantUnknownScope, 2,
 				arb);
 
@@ -1568,7 +1591,8 @@ namespace
 					gabcUnknownScope
 				 };
 
-	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap, t,
+	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap,
+				load_style, t,
 				vertex_scope, 3,
 				arb,
 				&P,
@@ -1578,7 +1602,8 @@ namespace
 				NULL,
 				NULL,
 				&Pw);
-	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap, t,
+	detail = acreate.build(GT_OWNER_DETAIL, prim, obj, namemap,
+				load_style, t,
 				detail_scope, 3,
 				arb);
 

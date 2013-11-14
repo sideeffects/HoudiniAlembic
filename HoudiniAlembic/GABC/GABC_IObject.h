@@ -142,7 +142,11 @@ public:
 	GABC_LOAD_LEAN_AND_MEAN	= 0x00,	// Only load intrinsic attributes
 	GABC_LOAD_ARBS		= 0x01,	// Load arbitrary attributes
 	GABC_LOAD_FACESETS	= 0x02,	// Load face sets
+	GABC_LOAD_HOUDINI	= 0x04,	// Load houdini attributes too
 	GABC_LOAD_FULL		= 0xff,	// Load full geometry
+
+	// Forcibly load geometry untransformed
+	GABC_LOAD_FORCE_UNTRANSFORMED	= 0x1000,
     };
 
     /// Get a representation of the shape.  If the @c GEO_Primitive pointer is

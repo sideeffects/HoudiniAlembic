@@ -126,6 +126,11 @@ public:
     GT_PrimitiveHandle	centroidGT() const;
     /// @}
 
+    /// The xformGT will return the transform for the primitive, regardless of
+    /// whether the load_style for full geometry was set to force untransformed
+    /// geometry.
+    GT_TransformHandle	xformGT() const;
+
     const GABC_IObject	&object() const;
     const std::string	&filename() const { return myFilename; }
     std::string		 intrinsicFilename() const { return myFilename; }
@@ -201,7 +206,15 @@ protected:
 	const GT_PrimitiveHandle	&centroid(const GABC_PackedImpl *abc);
 	GEO_AnimationType	 animationType(const GABC_PackedImpl *abc);
 
+	/// Return the current transform handle
+	const GT_TransformHandle	&xform(const GABC_PackedImpl *abc)
+	{
+	    refreshTransform(abc);
+	    return myTransform;
+	}
+
     private:
+	void	refreshTransform(const GABC_PackedImpl *abc);
 	void	updateTransform(const GABC_PackedImpl *abc);
 
 	GT_PrimitiveHandle	 myPrim;

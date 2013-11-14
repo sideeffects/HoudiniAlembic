@@ -438,6 +438,14 @@ GABC_PackedImpl::centroidGT() const
     return myCache.centroid(this);
 }
 
+GT_TransformHandle
+GABC_PackedImpl::xformGT() const
+{
+    if (!object().valid())
+	return GT_TransformHandle();
+    return myCache.xform(this);
+}
+
 const GABC_IObject &
 GABC_PackedImpl::object() const
 {
@@ -709,9 +717,8 @@ GABC_PackedImpl::computeVisibility(bool check_parent) const
 }
 
 void
-GABC_PackedImpl::GTCache::updateTransform(const GABC_PackedImpl *abc)
+GABC_PackedImpl::GTCache::refreshTransform(const GABC_PackedImpl *abc)
 {
-    UT_ASSERT(myPrim);
     if (!myTransform)
     {
 	const GABC_IObject	&o = abc->object();
@@ -733,7 +740,21 @@ GABC_PackedImpl::GTCache::updateTransform(const GABC_PackedImpl *abc)
 	    myAnimationType = GEO_ANIMATION_TRANSFORM;
 	}
     }
-    myPrim->setPrimitiveTransform(myTransform);
+}
+
+void
+GABC_PackedImpl::GTCache::updateTransform(const GABC_PackedImpl *abc)
+{
+    UT_ASSERT(myPrim);
+    if (myLoadStyle & GABC_IObject::GABC_LOAD_FORCE_UNTRANSFORMED)
+    {
+	myPrim->setPrimitiveTransform(GT_Transform::identity());
+    }
+    else
+    {
+	refreshTransform(abc);
+	myPrim->setPrimitiveTransform(myTransform);
+    }
 }
 
 void
