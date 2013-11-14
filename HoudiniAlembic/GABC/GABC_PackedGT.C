@@ -18,7 +18,6 @@
 #include "GABC_PackedGT.h"
 #include "GABC_PackedImpl.h"
 #include <UT/UT_StackBuffer.h>
-#include <UT/UT_ErrorLog.h>
 #include <GT/GT_GEOPrimPacked.h>
 #include <GT/GT_GEOPrimCollectBoxes.h>
 #include <GT/GT_GEOAttributeFilter.h>
