@@ -443,18 +443,25 @@ namespace
     {
 	for (exint i = 0; i < names.entries(); ++i)
 	{
-	    const GT_FaceSetPtr	&set = src->find(names(i).c_str());
+	    GT_FaceSetPtr	set;
+	    
+	    if (src)
+		set = src->find(names(i).c_str());
+	    UT_ASSERT(dest.hasFaceSet(names(i)));
+	    OFaceSet			 fset = dest.getFaceSet(names(i));
+	    OFaceSetSchema		&ss = fset.getSchema();
+	    OFaceSetSchema::Sample	 sample;
 	    if (set)
 	    {
-		UT_ASSERT(dest.hasFaceSet(names(i)));
-		OFaceSet		fset = dest.getFaceSet(names(i));
-		OFaceSetSchema		&ss = fset.getSchema();
-		OFaceSetSchema::Sample	sample;
-		GT_DataArrayHandle	items = set->extractMembers();
-		GT_DataArrayHandle	store;
+		GT_DataArrayHandle		 items = set->extractMembers();
+		GT_DataArrayHandle		 store;
 		sample.setFaces(int32Array(items, store));
-		ss.set(sample);
 	    }
+	    else
+	    {
+		sample.setFaces(Int32ArraySample(NULL, 0));
+	    }
+	    ss.set(sample);
 	}
     }
 
