@@ -451,10 +451,11 @@ namespace
 	    OFaceSet			 fset = dest.getFaceSet(names(i));
 	    OFaceSetSchema		&ss = fset.getSchema();
 	    OFaceSetSchema::Sample	 sample;
+	    GT_DataArrayHandle		 items;
+	    GT_DataArrayHandle		 store;
 	    if (set)
 	    {
-		GT_DataArrayHandle		 items = set->extractMembers();
-		GT_DataArrayHandle		 store;
+		items = set->extractMembers();
 		sample.setFaces(int32Array(items, store));
 	    }
 	    else
