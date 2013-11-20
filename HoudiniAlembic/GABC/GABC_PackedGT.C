@@ -375,7 +375,10 @@ GABC_PackedGT::getFullGeometry(const GT_RefineParms *parms, bool &) const
 	if (GT_RefineParms::getViewportAlembicFaceSets(parms))
 	    load_style |= GABC_IObject::GABC_LOAD_FACESETS;
 	if (GT_RefineParms::getViewportAlembicArbGeometry(parms))
+	{
 	    load_style |= GABC_IObject::GABC_LOAD_ARBS;
+	    load_style |= GABC_IObject::GABC_LOAD_HOUDINI;
+	}
     }
     else
     {
