@@ -85,12 +85,18 @@ ROP_AbcOpXform::ROP_AbcOpXform(OBJ_Node *node, const ROP_AbcContext &ctx)
 	SOP_Node	*sop = ctx.singletonSOP();
 	if (!sop || sop->getCreator() == node)
 	{
-	    if (ctx.useDisplaySOP())
-		sop = node->getDisplaySopPtr();
-	    else
-		sop = node->getRenderSopPtr();
-	    addChild(sop->getName(), new ROP_AbcSOP(sop));
-	    myGeometryContainer = true;
+	    if (!sop)
+	    {
+		if (ctx.useDisplaySOP())
+		    sop = node->getDisplaySopPtr();
+		else
+		    sop = node->getRenderSopPtr();
+	    }
+	    if (sop)
+	    {
+		addChild(sop->getName(), new ROP_AbcSOP(sop));
+		myGeometryContainer = true;
+	    }
 	}
     }
 }
