@@ -799,7 +799,7 @@ GABC_Util::getWorldTransform(const std::string &filename,
 	try
 	{
 	    ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
-	    UT_ASSERT(cacheEntry->getObject(obj.getFullName()).valid());
+	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
 	    success = cacheEntry->getWorldTransform(wxform, obj,
 				    sample_time, isConstant, inheritsXform);
 	}
@@ -823,7 +823,7 @@ GABC_Util::isTransformAnimated(const std::string &filename,
 	try
 	{
 	    ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
-	    UT_ASSERT(cacheEntry->getObject(obj.getFullName()).valid());
+	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
 	    animated = cacheEntry->isObjectAnimated(obj);
 	}
 	catch (const std::exception &)
