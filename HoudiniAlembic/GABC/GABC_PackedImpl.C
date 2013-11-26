@@ -415,6 +415,17 @@ GABC_PackedImpl::fullGT(int load_style) const
 }
 
 GT_PrimitiveHandle
+GABC_PackedImpl::instanceGT() const
+{
+    int		loadstyle = GABC_IObject::GABC_LOAD_FULL;
+    // We don't want to copy over the attributes from the Houdini geometry
+    loadstyle &= ~(GABC_IObject::GABC_LOAD_HOUDINI);
+    // We don't want to transform into world space
+    loadstyle |=  (GABC_IObject::GABC_LOAD_FORCE_UNTRANSFORMED);
+    return fullGT(loadstyle);
+}
+
+GT_PrimitiveHandle
 GABC_PackedImpl::pointGT() const
 {
     if (!object().valid())
@@ -696,11 +707,9 @@ GABC_PackedImpl::GTCache::visible(const GABC_PackedImpl *abc)
     }
     UT_ASSERT(myVisibility);
     myVisibility->update(abc->frame());
-    if (myAnimationType == GEO_ANIMATION_INVALID)
+    if (myAnimationType <= GEO_ANIMATION_CONSTANT && myVisibility->animated())
     {
-	myAnimationType = myVisibility->animated()
-				? GEO_ANIMATION_TRANSFORM
-				: GEO_ANIMATION_CONSTANT;
+	myAnimationType = GEO_ANIMATION_TRANSFORM;
     }
     return myVisibility->visible();
 }

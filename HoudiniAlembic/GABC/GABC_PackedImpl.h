@@ -126,6 +126,11 @@ public:
     GT_PrimitiveHandle	centroidGT() const;
     /// @}
 
+    /// Get the geometry for "instancing".  This geometry doesn't have the
+    /// transform to world space, nor does it have the Houdini attributes from
+    /// the primitive.
+    GT_PrimitiveHandle	instanceGT() const;
+
     /// The xformGT will return the transform for the primitive, regardless of
     /// whether the load_style for full geometry was set to force untransformed
     /// geometry.
@@ -177,11 +182,13 @@ protected:
     public:
 	GTCache()
 	    : myVisibility(NULL)
+	    , myAnimationType(GEO_ANIMATION_INVALID)
 	{
 	    clear();
 	}
 	GTCache(const GTCache &)
 	    : myVisibility(NULL)
+	    , myAnimationType(GEO_ANIMATION_INVALID)
 	{
 	    clear();	// Just clear
 	}

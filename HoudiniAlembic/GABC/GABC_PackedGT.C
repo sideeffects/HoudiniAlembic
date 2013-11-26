@@ -56,6 +56,11 @@ public:
 					bool &xform) const;
     virtual GT_PrimitiveHandle	getBoxGeometry(const GT_RefineParms *p) const;
     virtual GT_PrimitiveHandle	getCentroidGeometry(const GT_RefineParms *p) const;
+
+    virtual bool		canInstance() const	{ return true; }
+    virtual bool		getInstanceKey(UT_Options &options) const;
+    virtual GT_PrimitiveHandle	getInstanceGeometry(const GT_RefineParms *p) const;
+    virtual GT_TransformHandle	getInstanceTransform() const;
 private:
 };
 
@@ -64,11 +69,9 @@ class CollectData : public GT_GEOPrimCollectData
 {
 public:
     CollectData(const GT_GEODetailListHandle &geometry,
-	    bool useViewportLOD,
-	    bool doInstancing)
+	    bool useViewportLOD)
 	: GT_GEOPrimCollectData()
 	, myUseViewportLOD(useViewportLOD)
-	, myDoInstancing(doInstancing)
     {
     }
     virtual ~CollectData() {}
@@ -95,11 +98,6 @@ public:
 		    // Fall through to generic handling
 		    break;
 	    }
-	}
-	if (myDoInstancing)
-	{
-	    myFullPrims.append(&prim);
-	    return true;
 	}
 	return false;
     }
@@ -170,189 +168,15 @@ public:
 	return boxdata.getPrimitive();
     }
 
-    static const GABC_PackedImpl *getImpl(const GU_PrimPacked *prim)
-    {
-	const GU_PackedImpl	*impl = prim->implementation();
-	return UTverify_cast<const GABC_PackedImpl *>(impl);
-    }
-
-    class InstanceGroup
-    {
-    public:
-	InstanceGroup()
-	    : myPrims()
-	    , myPrim0(0)
-	    , myOrder(-1)
-	{
-	}
-	GT_PrimitiveHandle	makePrimitive() const
-	{
-	    const GABC_PackedImpl	*impl = getImpl(myPrim0);
-	    if (myPrims.entries() == 0)
-		return impl->fullGT(GABC_IObject::GABC_LOAD_FULL);
-
-	    int		load_style = GABC_IObject::GABC_LOAD_FULL;
-	    // Now, strip out any Houdini primitive attributes, these will be
-	    // put on the instance.
-	    load_style &= ~GABC_IObject::GABC_LOAD_HOUDINI;
-	    // We also want to force the geometry to be untransformed since the
-	    // instance will pick up the transforms.
-	    load_style |=  GABC_IObject::GABC_LOAD_FORCE_UNTRANSFORMED;
-	    GT_PrimitiveHandle		geo = impl->fullGT(load_style);
-	    GT_TransformArrayHandle	xforms(new GT_TransformArray());
-	    GT_GEOOffsetList		vertices;
-	    xforms->setEntries(myPrims.entries());
-	    for (exint i = 0; i < myPrims.entries(); ++i)
-	    {
-		impl = getImpl(myPrims(i));
-		vertices.append(myPrims(i)->getVertexOffset(0));
-		xforms->set(i, impl->xformGT());
-	    }
-	    GT_GEOAttributeFilter	 filter;
-	    const GU_Detail		*gdp;
-	    GT_AttributeListHandle	 uniform, detail;
-	    gdp = UTverify_cast<const GU_Detail *>(myPrims(0)->getParent());
-	    GT_GEODetailList	 glist(&gdp, 1);
-	    uniform = glist.getVertexAttributes(filter, &vertices,
-				    GT_GEODetailList::GEO_INCLUDE_POINT,
-				    GT_GEODetailList::GEO_INCLUDE_PRIMITIVE);
-	    detail = glist.getDetailAttributes(filter);
-	    return new GT_PrimInstance(geo, xforms, uniform, detail);
-	}
-	void	append(const GU_PrimPacked *p)
-	{
-	    if (!myPrim0)
-	    {
-		myPrim0 = p;
-	    }
-	    else
-	    {
-		if (!myPrims.entries())
-		    myPrims.append(myPrim0);
-		myPrims.append(p);
-	    }
-	}
-	int	order() const			{ return myOrder; }
-	UT_Array<const GU_PrimPacked *>	 myPrims;
-	const GU_PrimPacked		*myPrim0;
-	int				 myOrder;
-    };
-    class InstanceKey
-    {
-    public:
-	InstanceKey(const GABC_PackedImpl &impl)
-	    : myPath(impl.filename())
-	    , myObject(impl.objectPath())
-	    , myFrame(impl.frame())
-	    , myUseTransform(impl.useTransform())
-	{
-	}
-	uint		hash() const
-	{
-	    return UT_String::hash(myPath.c_str())
-		^ UT_String::hash(myObject.c_str())
-		^ SYSreal_hash(myFrame)
-		^ (myUseTransform ? 0xc0ffee : 0);
-	}
-	bool		isEqual(const InstanceKey &k) const
-	{
-	    return myFrame == k.myFrame
-		&& myUseTransform == k.myUseTransform
-		&& myPath == k.myPath
-		&& myObject == k.myObject;
-	}
-	bool		operator==(const InstanceKey &k) const
-				{ return isEqual(k); }
-
-    private:
-	const std::string	&myPath;
-	const std::string	&myObject;
-	fpreal			 myFrame;
-	bool			 myUseTransform;
-    };
-    class InstanceKeyHash
-    {
-    public:
-	inline uint	operator()(const InstanceKey &k) const
-			    { return k.hash(); }
-    };
-
-    typedef UT_Map<InstanceKey, InstanceGroup, InstanceKeyHash>	InstanceGroupMap;
-
-    static GT_PrimitiveHandle
-    makeInstanceGroups(const InstanceGroup **groups, exint size)
-    {
-	if (size == 1)
-	    return groups[0]->makePrimitive();
-
-	GT_PrimCollect	*c = new GT_PrimCollect();
-	c->reserve(size);
-	for (exint i = 0; i < size; ++i)
-	    c->appendPrimitive(groups[i]->makePrimitive());
-	return GT_PrimitiveHandle(c);
-    }
-
-    GT_PrimitiveHandle	finishFull() const
-    {
-	if (!myFullPrims.entries())
-	    return GT_PrimitiveHandle();
-	InstanceGroupMap	map;
-	// Here we partition the primitives into "instance" groups.
-	// We need to maintain primitive order for proper motion blur.
-	for (exint i = 0; i < myFullPrims.entries(); ++i)
-	{
-	    const GABC_PackedImpl	*impl = getImpl(myFullPrims(i));
-	    InstanceKey			 key(*impl);
-	    InstanceGroup		&group = map[key];
-	    if (group.myOrder < 0)
-		group.myOrder = map.size()-1;
-	    group.append(myFullPrims(i));
-	}
-	exint					ngroups = map.size();
-	UT_StackBuffer<const InstanceGroup *>	groups(ngroups);
-	for (InstanceGroupMap::const_iterator it = map.begin();
-		it != map.end(); ++it)
-	{
-	    groups[it->second.myOrder] = &(it->second);
-	}
-	return makeInstanceGroups(groups, ngroups);
-    }
-
     GT_PrimitiveHandle	finish() const
     {
-	GT_PrimitiveHandle	boxes = finishBoxes();
-	GT_PrimitiveHandle	full = finishFull();
-
-	if (!boxes)
-	    return full;
-	if (!full)
-	    return boxes;
-	GT_PrimCollect	*collect = dynamic_cast<GT_PrimCollect *>(boxes.get());
-	if (collect)
-	{
-	    // Just append to the existing collection
-	    collect->appendPrimitive(full);
-	    return boxes;
-	}
-	collect = dynamic_cast<GT_PrimCollect *>(full.get());
-	if (collect)
-	{
-	    // Just append to the existing collection
-	    collect->appendPrimitive(boxes);
-	    return boxes;
-	}
-	collect = new GT_PrimCollect();
-	collect->appendPrimitive(boxes);
-	collect->appendPrimitive(full);
-	return GT_PrimitiveHandle(collect);
+	return finishBoxes();
     }
 
 private:
     UT_Array<const GU_PrimPacked *>	myBoxPrims;
     UT_Array<const GU_PrimPacked *>	myCentroidPrims;
-    UT_Array<const GU_PrimPacked *>	myFullPrims;
     bool				myUseViewportLOD;
-    bool				myDoInstancing;
 };
 
 GT_PrimitiveHandle
@@ -387,6 +211,133 @@ GABC_PackedGT::getFullGeometry(const GT_RefineParms *parms, bool &) const
     return impl->fullGT(load_style);
 }
 
+#if 0
+namespace
+{
+// Methods to add GT array values to a UT_Options (for instance keys)
+static void
+addFloat(UT_Options &options, const char *name, const GT_DataArrayHandle &h)
+{
+    UT_ASSERT(h->entries() == 1);
+    if (h->getTupleSize() == 1)
+	options.setOptionF(name, h->getF64(0));
+    else
+    {
+	UT_Fpreal64Array	vals;
+	vals.entries(h->getTupleSize());
+	h->import(0, vals.array(), vals.entries());
+	options.setOptionFArray(name, vals);
+    }
+}
+
+static void
+addInt(UT_Options &options, const char *name, const GT_DataArrayHandle &h)
+{
+    UT_ASSERT(h->entries() == 1);
+    if (h->getTupleSize() == 1)
+	options.setOptionI(name, h->getI64(0));
+    else
+    {
+	UT_Int64Array	vals;
+	vals.entries(h->getTupleSize());
+	h->import(0, vals.array(), vals.entries());
+	options.setOptionIArray(name, vals);
+    }
+}
+
+static void
+addString(UT_Options &options, const char *name, const GT_DataArrayHandle &h)
+{
+    UT_ASSERT(h->entries() == 1);
+    if (h->getTupleSize() == 1)
+	options.setOptionS(name, h->getS(0));
+    else
+    {
+	UT_WorkBuffer	val;
+	val.sprintf("[%s", h->getS(0));
+	for (int i = 1; i < h->getTupleSize(); ++i)
+	{
+	    val.append(",");
+	    val.append(h->getS(i));
+	}
+	options.setOptionS(name, val.buffer());
+    }
+}
+}
+#endif
+
+bool
+GABC_PackedGT::getInstanceKey(UT_Options &options) const
+{
+    const GABC_PackedImpl	*impl;
+    impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+
+    options.setOptionS("f", impl->filename());
+    options.setOptionS("o", impl->objectPath());
+    if (impl->isConstant())
+	options.setOptionF("t", 0.0);
+    else
+	options.setOptionF("t", impl->frame());
+    options.setOptionB("x", impl->useTransform());
+    options.setOptionB("v", impl->useVisibility());
+
+#if 0
+    // Grab primitive attributes
+    GT_AttributeListHandle	attribs = getInstanceAttributes();
+    if (attribs)
+    {
+	//attribs->dumpList("Alembic", false);
+	UT_WorkBuffer	oname;
+	for (int i = 0; i < attribs->entries(); ++i)
+	{
+	    const GT_DataArrayHandle	&data = attribs->get(i);
+	    const char			*aname = attribs->getName(i);
+	    oname.sprintf("a:%s", aname);
+	    if (GTisFloat(data->getStorage()))
+		addFloat(options, oname.buffer(), data);
+	    else if (GTisInteger(data->getStorage()))
+	    {
+		if (!strcmp(aname, "__primitive_id") ||
+			!strcmp(aname, "__vertex_id"))
+		{
+		    continue;
+		}
+		addInt(options, oname.buffer(), data);
+	    }
+	    else if (GTisString(data->getStorage()))
+	    {
+		if (!strcmp(aname, "shop_materialpath") ||
+			!strcmp(aname, "material_override") ||
+			!strcmp(aname, "varmap") ||
+			!strcmp(aname, "property_map"))
+		{
+		    continue;
+		}
+		addString(options, oname.buffer(), data);
+	    }
+	    else UT_ASSERT(0);
+	}
+    }
+#endif
+    return true;
+}
+
+GT_PrimitiveHandle
+GABC_PackedGT::getInstanceGeometry(const GT_RefineParms *p) const
+{
+    const GABC_PackedImpl	*impl;
+    impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+    return impl->instanceGT();
+}
+
+GT_TransformHandle
+GABC_PackedGT::getInstanceTransform() const
+{
+    const GABC_PackedImpl	*impl;
+    impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+    return impl->xformGT();
+}
+
 GT_PrimitiveHandle
 GABC_PackedGT::getBoxGeometry(const GT_RefineParms *) const
 {
@@ -414,8 +365,7 @@ GABC_CollectPacked::beginCollecting(const GT_GEODetailListHandle &geometry,
 				const GT_RefineParms *parms) const
 {
     return new CollectData(geometry,
-	    GT_GEOPrimPacked::useViewportLOD(parms),
-	    GT_RefineParms::getAlembicInstancing(parms));
+	    GT_GEOPrimPacked::useViewportLOD(parms));
 }
 
 GT_PrimitiveHandle
