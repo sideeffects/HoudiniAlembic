@@ -573,16 +573,16 @@ namespace
     {
 	UT_AutoLock	lock(theFileLock);
 
-	if (!UTisstring(path.c_str()) || UTaccess(path.c_str(), R_OK) != 0)
-	{
-	    badFileWarning(path);
-	    return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
-	}
         ArchiveCache::iterator I = g_archiveCache->find(path);
         if (I != g_archiveCache->end())
         {
             return (*I).second;
         }
+	if (!UTisstring(path.c_str()) || UTaccess(path.c_str(), R_OK) != 0)
+	{
+	    badFileWarning(path);
+	    return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
+	}
         ArchiveCacheEntryPtr entry = ArchiveCacheEntryPtr(
                 new ArchiveCacheEntry);
 	entry->setArchive(GABC_IArchive::open(path));
