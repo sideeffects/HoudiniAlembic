@@ -26,7 +26,7 @@
  */
 
 #include "GABC_Types.h"
-#include <UT/UT_FSA.h>
+#include <UT/UT_FSATable.h>
 
 using namespace GABC_NAMESPACE;
 
