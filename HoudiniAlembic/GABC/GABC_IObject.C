@@ -1312,11 +1312,12 @@ namespace
     }
 
     static bool
-    validCounts(const GT_DataArrayHandle &counts, const GT_CurveEval &eval)
+    validCounts(const GT_DataArrayHandle &counts, int order,
+		const GT_CurveEval &eval)
     {
 	exint	n = counts->entries();
 	for (int i = 0; i < n; ++i)
-	    if (!eval.validCount(counts->getI32(i)))
+	    if (!eval.validCount(counts->getI32(i), order))
 		return false;
 	return true;
     }
@@ -1415,7 +1416,7 @@ namespace
 	bool		periodic = (sample.getWrap() == Alembic::AbcGeom::kPeriodic);
 	int		order = (sample.getType() == Alembic::AbcGeom::kCubic) ? 4 : 2;
 
-	if (!validCounts(counts, GT_CurveEval(basis, order, periodic)))
+	if (!validCounts(counts, order, GT_CurveEval(basis, periodic)))
 	{
 	    basisWarning(obj, GTbasis(basis));
 	    basis = GT_BASIS_LINEAR;
