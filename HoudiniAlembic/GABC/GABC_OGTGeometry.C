@@ -40,7 +40,6 @@
 #include <GT/GT_PrimCurve.h>
 #include <GT/GT_PrimSubdivisionMesh.h>
 #include <GT/GT_PrimNuPatch.h>
-#include <GT/GT_PrimNuCurves.h>
 #include <GT/GT_TrimNuCurves.h>
 #include <GT/GT_PrimPointMesh.h>
 
@@ -848,9 +847,6 @@ namespace
 	    case GT_PRIM_POLYGON:
 		refined.reset(new GT_PrimPolygonMesh(*(const GT_PrimPolygon *)(prim.get())));
 		break;
-	    case GT_PRIM_NUCURVES:
-		refined = ((const GT_PrimNuCurves *)(prim.get()))->buildHull();
-		break;
 	    default:
 		break;
 	}
@@ -1213,7 +1209,6 @@ GABC_OGTGeometry::isPrimitiveSupported(const GT_PrimitiveHandle &prim)
 	case GT_GEO_PRIMTPSURF:
 	case GT_PRIM_CURVE:
 	case GT_PRIM_POLYGON:
-	case GT_PRIM_NUCURVES:
 	    return true;
 	default:
 	    break;
