@@ -81,6 +81,7 @@ namespace
     typedef Alembic::Abc::IArrayProperty	IArrayProperty;
     typedef Alembic::Abc::IScalarProperty	IScalarProperty;
     typedef Alembic::Abc::ArraySamplePtr	ArraySamplePtr;
+    typedef Alembic::Abc::UcharArraySamplePtr	UcharArraySamplePtr;
     typedef Alembic::Abc::Int32ArraySamplePtr	Int32ArraySamplePtr;
     typedef Alembic::Abc::FloatArraySamplePtr	FloatArraySamplePtr;
     typedef Alembic::Abc::WrapExistingFlag	WrapExistingFlag;
@@ -1317,8 +1318,26 @@ namespace
     {
 	exint	n = counts->entries();
 	for (int i = 0; i < n; ++i)
+	{
 	    if (!eval.validCount(counts->getI32(i), order))
 		return false;
+	}
+	return true;
+    }
+
+    static bool
+    validCounts(const GT_DataArrayHandle &counts,
+	    const GT_DataArrayHandle &order,
+	    const GT_CurveEval &eval)
+    {
+	exint	n = counts->entries();
+	if (n != order->entries())
+	    return false;
+	for (exint i = 0; i < n; ++i)
+	{
+	    if (!eval.validCount(counts->getI32(i), order->getI32(i)))
+		return false;
+	}
 	return true;
     }
 
@@ -1360,6 +1379,37 @@ namespace
 	}
     }
 
+    static void
+    orderWarning(const GABC_IObject &obj, const char *msg)
+    {
+	static bool	warned = false;
+	if (!warned)
+	{
+	    UT_ErrorLog::mantraWarning(
+		    "Alembic file %s (%s): %s converting to linear",
+		    obj.archive()->filename().c_str(),
+		    obj.getFullName().c_str(),
+		    msg);
+	    warned = true;
+	}
+    }
+
+    static void
+    knotWarning(const GABC_IObject &obj, const char *msg)
+    {
+	static bool	warned = false;
+	if (!warned)
+	{
+	    UT_ErrorLog::mantraWarning(
+		    "Alembic file %s (%s): %s - Ignoring knot vectors",
+		    obj.archive()->filename().c_str(),
+		    obj.getFullName().c_str(),
+		    msg);
+	    warned = true;
+	}
+    }
+
+
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
     buildCurveMesh(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
@@ -1393,7 +1443,6 @@ namespace
 					gabcVertexScope,
 					gabcFacevaryingScope
 				 };
-
 	vertex = acreate.build(GT_OWNER_VERTEX, prim, obj, namemap,
 				load_style, t,
 				vertex_scope, 3,
@@ -1412,14 +1461,54 @@ namespace
 				theConstantUnknownScope, 2,
 				arb);
 
-	GT_Basis	basis = getGTBasis(sample.getBasis());
-	bool		periodic = (sample.getWrap() == Alembic::AbcGeom::kPeriodic);
-	int		order = (sample.getType() == Alembic::AbcGeom::kCubic) ? 4 : 2;
-
-	if (!validCounts(counts, order, GT_CurveEval(basis, periodic)))
+	GT_Basis basis = getGTBasis(sample.getBasis());
+	bool	 periodic = (sample.getWrap() == Alembic::AbcGeom::kPeriodic);
+	int	 uorder = -1;
+	GT_DataArrayHandle	order;
+	GT_DataArrayHandle	knots;
+	switch (sample.getType())
 	{
-	    basisWarning(obj, GTbasis(basis));
-	    basis = GT_BASIS_LINEAR;
+	    case Alembic::AbcGeom::kCubic:
+		uorder = 4;
+		break;
+	    case Alembic::AbcGeom::kLinear:
+		uorder = 2;
+		break;
+	    case Alembic::AbcGeom::kVariableOrder:
+	    {
+		UcharArraySamplePtr	abcOrders = sample.getOrders();
+		if (isEmpty(abcOrders))
+		{
+		    orderWarning(obj, "Curves have missing varying orders");
+		    uorder = 2;
+		    basis = GT_BASIS_LINEAR;
+		}
+		else
+		{
+		    order = new GT_UInt8Array(abcOrders->get(),
+						abcOrders->size(), 1);
+		}
+		break;
+	    }
+	}
+
+	if (uorder > 0)
+	{
+	    if (!validCounts(counts, uorder, GT_CurveEval(basis, periodic)))
+	    {
+		basisWarning(obj, GTbasis(basis));
+		basis = GT_BASIS_LINEAR;
+	    }
+	}
+	else
+	{
+	    if (!validCounts(counts, order, GT_CurveEval(basis, periodic)))
+	    {
+		basisWarning(obj, GTbasis(basis));
+		basis = GT_BASIS_LINEAR;
+		uorder = 2;
+		order = NULL;
+	    }
 	}
 
 	GT_PrimCurveMesh	*gt = new GT_PrimCurveMesh(basis,
@@ -1428,6 +1517,22 @@ namespace
 					uniform,
 					detail,
 					periodic);
+	if (uorder > 0)
+	    gt->setOrder(uorder);
+	else
+	{
+	    UT_ASSERT(order);
+	    gt->setOrder(order);
+	}
+	const FloatArraySamplePtr	&abcknots = sample.getKnots();
+	if (!isEmpty(abcknots))
+	{
+	    if (!gt->setKnots(new GT_Real32Array(abcknots->get(),
+						abcknots->size(), 1)))
+	    {
+		knotWarning(obj, "Invalid knot vector");
+	    }
+	}
 
 	if (load_style & GABC_IObject::GABC_LOAD_FACESETS)
 	    loadFaceSets(*gt, obj, t);

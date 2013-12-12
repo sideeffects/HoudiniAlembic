@@ -55,6 +55,7 @@ namespace
     typedef UT_SymbolMap<GABC_OProperty *>	PropertyMap;
     typedef Alembic::Abc::V2f			V2f;
     typedef Alembic::Abc::V3f			V3f;
+    typedef Alembic::Abc::UcharArraySample	UcharArraySample;
     typedef Alembic::Abc::Int32ArraySample	Int32ArraySample;
     typedef Alembic::Abc::UInt64ArraySample	UInt64ArraySample;
     typedef Alembic::Abc::FloatArraySample	FloatArraySample;
@@ -629,7 +630,11 @@ namespace
 	OV2fGeomParam::Sample			iUVs;
 	ON3fGeomParam::Sample			iNml;
 	OV3fGeomParam::Sample			iVel;
+	FloatArraySample			iKnots;
+	UcharArraySample			iOrders;
 	GT_DataArrayHandle			counts;
+	GT_DataArrayHandle			orders;
+	GT_DataArrayHandle			knots = src.knots();
 	IntrinsicCache				storage;
 	Alembic::AbcGeom::CurveType		iOrder;
 	Alembic::AbcGeom::CurvePeriodicity	iPeriod;
@@ -652,9 +657,30 @@ namespace
 		iBasis = Alembic::AbcGeom::kNoBasis;
 		break;
 	}
-	iOrder = src.getBasis() == GT_BASIS_LINEAR
-			? Alembic::AbcGeom::kLinear
-			: Alembic::AbcGeom::kCubic;
+	switch (src.uniformOrder())
+	{
+	    case 2:
+		iOrder = Alembic::AbcGeom::kLinear;
+		break;
+	    case 4:
+		iOrder = Alembic::AbcGeom::kCubic;
+		break;
+	    default:
+		iOrder = Alembic::AbcGeom::kVariableOrder;
+		if (src.isUniformOrder())
+		{
+		    // Here, we have a uniform order, but it's not something
+		    // that's supported implicitly by Alembic.  So, we just
+		    // create a 
+		    orders = new GT_IntConstant(src.getCurveCount(),
+					src.uniformOrder());
+		}
+		else
+		{
+		    orders = src.varyingOrders();
+		}
+		break;
+	}
 	iPeriod = src.getWrap()
 			? Alembic::AbcGeom::kPeriodic
 			: Alembic::AbcGeom::kNonPeriodic;
@@ -683,6 +709,11 @@ namespace
 
 	OCurvesSchema::Sample	sample(iPos.getVals(), iCnt,
 		iOrder, iPeriod, iWidths, iUVs, iNml, iBasis);
+	if (knots)
+	{
+	    iKnots = floatArray(src.knots(), storage.uknots());
+	    sample.setKnots(iKnots);
+	}
 	if (iVel.valid())
 	    sample.setVelocities(iVel.getVals());
 	dest.getSchema().set(sample);
