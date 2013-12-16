@@ -644,14 +644,19 @@ namespace
 	{
 	    case GT_BASIS_BEZIER:
 		iBasis = Alembic::AbcGeom::kBezierBasis;
+		break;
 	    case GT_BASIS_BSPLINE:
 		iBasis = Alembic::AbcGeom::kBsplineBasis;
+		break;
 	    case GT_BASIS_CATMULLROM:
 		iBasis = Alembic::AbcGeom::kCatmullromBasis;
+		break;
 	    case GT_BASIS_HERMITE:
 		iBasis = Alembic::AbcGeom::kHermiteBasis;
+		break;
 	    case GT_BASIS_POWER:
 		iBasis = Alembic::AbcGeom::kPowerBasis;
+		break;
 	    case GT_BASIS_LINEAR:
 	    default:
 		iBasis = Alembic::AbcGeom::kNoBasis;
