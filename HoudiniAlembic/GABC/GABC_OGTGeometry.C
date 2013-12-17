@@ -188,7 +188,7 @@ namespace
     };
     static SkipList	thePolyMeshSkip("v", "N", "uv", (void *)NULL);
     static SkipList	theSubDSkip("v", "uv", "creaseweight", (void *)NULL);
-    static SkipList	theCurvesSkip("v", "N", "uv", "width", (void *)NULL);
+    static SkipList	theCurvesSkip("Pw", "v", "N", "uv", "width", (void *)NULL);
     static SkipList	thePointsSkip("v", "id", "width", (void *)NULL);
     static SkipList	theNuPatchSkip("Pw", "v", "N", "uv", (void *)NULL);
     static SkipList	theEmptySkip((const char *)NULL);
@@ -631,13 +631,13 @@ namespace
 	    IntrinsicCache &cache, const GABC_OOptions &ctx)
     {
 	OP3fGeomParam::Sample			iPos;
+	FloatArraySample			iPosWeight;
 	Int32ArraySample			iCnt;
 	OFloatGeomParam::Sample			iWidths;
 	OV2fGeomParam::Sample			iUVs;
 	ON3fGeomParam::Sample			iNml;
 	OV3fGeomParam::Sample			iVel;
 	FloatArraySample			iKnots;
-	FloatArraySample			iPw;
 	UInt8ArraySample			iOrders;
 	GT_DataArrayHandle			counts;
 	GT_DataArrayHandle			orders, order_storage;
@@ -704,6 +704,8 @@ namespace
 	const GT_AttributeListHandle	&uniform = uniformAttributes(src);
 	const GT_AttributeListHandle	&detail = detailAttributes(src);
 
+	const GT_DataArrayHandle	&Pw = pt->get("Pw");
+
 	counts = src.getCurveCountArray().extractCounts();
 	if (cache.needCounts(ctx, counts))
 	    iCnt = int32Array(counts, storage.counts());
@@ -721,11 +723,13 @@ namespace
 	    fillF32(iWidths, cache, ctx, "width", storage.width(), pt,
 		    GT_AttributeListHandle(), uniform, detail);
 	}
+	if (Pw && cache.needWrite(ctx, "Pw", Pw))
+	    iPosWeight = floatArray(Pw, storage.Pw());
 
 	OCurvesSchema::Sample	sample(iPos.getVals(), iCnt,
 		iOrder, iPeriod, iWidths, iUVs, iNml, iBasis,
-		iPw, iOrders);
-	if (knots)
+		iPosWeight, iOrders);
+	if (knots && cache.needWrite(ctx, "uknots", knots))
 	{
 	    iKnots = floatArray(src.knots(), storage.uknots());
 	    sample.setKnots(iKnots);

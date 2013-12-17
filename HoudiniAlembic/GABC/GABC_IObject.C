@@ -1419,6 +1419,7 @@ namespace
 	GT_AttributeListHandle	 uniform;
 	GT_AttributeListHandle	 detail;
 	IP3fArrayProperty	 P = ss.getPositionsProperty();
+	IFloatArrayProperty	 Pw = ss.getPositionWeightsProperty();
 	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
 	const IN3fGeomParam	&N = ss.getNormalsParam();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
@@ -1437,7 +1438,8 @@ namespace
 				&N,
 				&uvs,
 				NULL,
-				&widths);
+				&widths,
+				&Pw);
 	uniform = acreate.build(GT_OWNER_UNIFORM, prim, obj, namemap,
 				load_style, t,
 				gabcUniformScope, arb);
