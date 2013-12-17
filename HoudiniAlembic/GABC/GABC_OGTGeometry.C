@@ -56,6 +56,7 @@ namespace
     typedef Alembic::Abc::V2f			V2f;
     typedef Alembic::Abc::V3f			V3f;
     typedef Alembic::Abc::UcharArraySample	UcharArraySample;
+    typedef Alembic::Abc::UcharArraySample	UInt8ArraySample;
     typedef Alembic::Abc::Int32ArraySample	Int32ArraySample;
     typedef Alembic::Abc::UInt64ArraySample	UInt64ArraySample;
     typedef Alembic::Abc::FloatArraySample	FloatArraySample;
@@ -82,6 +83,11 @@ namespace
     typedef Alembic::AbcGeom::ON3fGeomParam	ON3fGeomParam;
     typedef Alembic::AbcGeom::OFloatGeomParam	OFloatGeomParam;
 
+    UInt8ArraySample
+    uint8Array(const GT_DataArrayHandle &data, GT_DataArrayHandle &storage)
+    {
+	return UInt8ArraySample(data->getU8Array(storage), data->entries());
+    }
     Int32ArraySample
     int32Array(const GT_DataArrayHandle &data, GT_DataArrayHandle &storage)
     {
@@ -631,9 +637,10 @@ namespace
 	ON3fGeomParam::Sample			iNml;
 	OV3fGeomParam::Sample			iVel;
 	FloatArraySample			iKnots;
-	UcharArraySample			iOrders;
+	FloatArraySample			iPw;
+	UInt8ArraySample			iOrders;
 	GT_DataArrayHandle			counts;
-	GT_DataArrayHandle			orders;
+	GT_DataArrayHandle			orders, order_storage;
 	GT_DataArrayHandle			knots = src.knots();
 	IntrinsicCache				storage;
 	Alembic::AbcGeom::CurveType		iOrder;
@@ -676,7 +683,8 @@ namespace
 		{
 		    // Here, we have a uniform order, but it's not something
 		    // that's supported implicitly by Alembic.  So, we just
-		    // create a 
+		    // create a constant array to store the order.
+		    // For example, if all curves are order 7
 		    orders = new GT_IntConstant(src.getCurveCount(),
 					src.uniformOrder());
 		}
@@ -684,6 +692,8 @@ namespace
 		{
 		    orders = src.varyingOrders();
 		}
+		// TODO: We should likely cache these
+		iOrders = uint8Array(orders, order_storage);
 		break;
 	}
 	iPeriod = src.getWrap()
@@ -713,7 +723,8 @@ namespace
 	}
 
 	OCurvesSchema::Sample	sample(iPos.getVals(), iCnt,
-		iOrder, iPeriod, iWidths, iUVs, iNml, iBasis);
+		iOrder, iPeriod, iWidths, iUVs, iNml, iBasis,
+		iPw, iOrders);
 	if (knots)
 	{
 	    iKnots = floatArray(src.knots(), storage.uknots());

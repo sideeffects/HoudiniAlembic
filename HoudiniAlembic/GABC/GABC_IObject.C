@@ -1366,47 +1366,32 @@ namespace
     static void
     basisWarning(const GABC_IObject &obj, const char *basis)
     {
-	static bool	warned = false;
-	if (!warned)
-	{
-	    UT_ErrorLog::mantraWarning(
+	UT_ErrorLog::mantraWarningOnce(
 		    "Alembic file %s (%s) has invalid cubic %s %s",
 		    obj.archive()->filename().c_str(),
 		    obj.getFullName().c_str(),
 		    basis,
 		    "curves - converting to linear");
-	    warned = true;
-	}
     }
 
     static void
     orderWarning(const GABC_IObject &obj, const char *msg)
     {
-	static bool	warned = false;
-	if (!warned)
-	{
-	    UT_ErrorLog::mantraWarning(
+	UT_ErrorLog::mantraWarningOnce(
 		    "Alembic file %s (%s): %s converting to linear",
 		    obj.archive()->filename().c_str(),
 		    obj.getFullName().c_str(),
 		    msg);
-	    warned = true;
-	}
     }
 
     static void
     knotWarning(const GABC_IObject &obj, const char *msg)
     {
-	static bool	warned = false;
-	if (!warned)
-	{
-	    UT_ErrorLog::mantraWarning(
+	UT_ErrorLog::mantraWarningOnce(
 		    "Alembic file %s (%s): %s - Ignoring knot vectors",
 		    obj.archive()->filename().c_str(),
 		    obj.getFullName().c_str(),
 		    msg);
-	    warned = true;
-	}
     }
 
 
