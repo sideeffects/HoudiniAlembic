@@ -726,14 +726,12 @@ namespace
 	if (Pw && cache.needWrite(ctx, "Pw", Pw))
 	    iPosWeight = floatArray(Pw, storage.Pw());
 
+	if (knots)
+	    iKnots = floatArray(knots, storage.uknots());
+
 	OCurvesSchema::Sample	sample(iPos.getVals(), iCnt,
 		iOrder, iPeriod, iWidths, iUVs, iNml, iBasis,
-		iPosWeight, iOrders);
-	if (knots && cache.needWrite(ctx, "uknots", knots))
-	{
-	    iKnots = floatArray(src.knots(), storage.uknots());
-	    sample.setKnots(iKnots);
-	}
+		iPosWeight, iOrders, iKnots);
 	if (iVel.valid())
 	    sample.setVelocities(iVel.getVals());
 	dest.getSchema().set(sample);
