@@ -84,7 +84,7 @@ GABC_NAMESPACE::GABCarray(const GABC_IArray &iarray)
     if (!iarray.valid())
 	return GT_DataArrayHandle();
 
-    GT_DataArray	*data;
+    GT_DataArray	*data = NULL;
     switch (iarray.abcType())
     {
 	// Compatible storage types between Alembic & GT
