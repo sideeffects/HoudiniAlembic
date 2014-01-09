@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013
+ * Copyright (c) 2014
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and

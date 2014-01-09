@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013
+ * Copyright (c) 2014
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -30,6 +30,7 @@
 #include <UT/UT_DSOVersion.h>
 #include <CMD/CMD_Manager.h>
 #include <OP/OP_OperatorTable.h>
+#include <PRM/PRM_Shared.h>
 #include <PRM/PRM_SpareData.h>
 #include <GU/GU_PrimSelection.h>
 #include <GU/GU_PrimPacked.h>
