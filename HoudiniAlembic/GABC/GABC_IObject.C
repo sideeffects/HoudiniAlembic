@@ -471,7 +471,7 @@ namespace
 				gparam.getNumSamples(), i0, i1);
 	typename T::sample_type	v0;
 	gparam.getExpanded(v0, i0);
-	if (!v0.valid() || !v0.getVals()->size())
+	if (!v0.getVals() || !v0.getVals()->size())
 	{
 	    UT_ASSERT(0 && "This is likely a corrupt indexed alembic array");
 	    gparam.getIndexed(v0, i0);

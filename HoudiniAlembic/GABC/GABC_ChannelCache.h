@@ -52,8 +52,8 @@ public:
 			    const TimeSamplingPtr &time);
     ~GABC_ChannelCache();
 
-    bool			valid() const		{ return myData; }
-    bool			animated() const	{ return myTime; }
+    bool			valid() const		{ return myData.get(); }
+    bool			animated() const	{ return myTime.get(); }
     const TimeSamplingPtr	&time() const		{ return myTime; }
     const GT_DataArrayHandle	&data() const		{ return myData; }
 
