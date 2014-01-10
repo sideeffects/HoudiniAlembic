@@ -1973,13 +1973,7 @@ GABC_GEOWalker::setPointLocation(GU_PrimPacked *prim, GA_Offset pt) const
 	    break;
 	case ABCPRIM_CENTROID_POINT:
 	{
-	    UT_BoundingBox	box;
-	    UT_Matrix4D		m4;
-	    prim->getUntransformedBounds(box);
-	    prim->getFullTransform4(m4);
-	    UT_Vector3		pivot = box.center() * m4;
-	    prim->setPivot(pivot);
-	    myDetail.setPos3(pt, pivot);
+	    prim->movePivotToCentroid();
 	    break;
 	}
 	default:
