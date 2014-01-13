@@ -33,15 +33,8 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    // Compile time asserts need to be declared in a function
-    class dummy
-    {
-	dummy()
-	{
-	    // If this is not true, we can't instantiate a BoolArraySamplePtr
-	    UT_ASSERT_COMPILETIME(sizeof(bool) == sizeof(uint8));
-	}
-    };
+    // If this is not true, we can't instantiate a BoolArraySamplePtr
+    SYS_STATIC_ASSERT(sizeof(bool) == sizeof(uint8));
 
     // Copy out of ABC array into a GT array
     template <typename ABC_TYPE, typename GT_TYPE, GT_Storage GT_STORAGE>
