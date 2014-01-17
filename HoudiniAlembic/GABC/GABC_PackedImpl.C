@@ -398,6 +398,8 @@ GABC_PackedImpl::unpackUsingPolygons(GU_Detail &destgdp) const
     return unpackGeometry(destgdp, false);
 }
 
+static UT_Lock	theLock;
+
 bool
 GABC_PackedImpl::visibleGT() const
 {
@@ -417,6 +419,7 @@ GABC_PackedImpl::fullGT(int load_style) const
 GT_PrimitiveHandle
 GABC_PackedImpl::instanceGT() const
 {
+    UT_AutoLock	lock(theLock);
     int		loadstyle = GABC_IObject::GABC_LOAD_FULL;
     // We don't want to copy over the attributes from the Houdini geometry
     loadstyle &= ~(GABC_IObject::GABC_LOAD_HOUDINI);
