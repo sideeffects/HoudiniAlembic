@@ -193,8 +193,13 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
     GT_RefineParms	rparms;
 
     initializeRefineParms(rparms, ctx, myPolysAsSubd, myShowUnusedPoints);
-    abc_Refiner	refiner(shapes, &rparms, ctx.useInstancing());
-    prim->refine(refiner, &rparms);
+    if (ROP_AbcGTShape::isPrimitiveSupported(prim))
+	shapes.append(prim);
+    else
+    {
+	abc_Refiner	refiner(shapes, &rparms, ctx.useInstancing());
+	prim->refine(refiner, &rparms);
+    }
 
     if (shapes.entries() > myShapes.entries())
     {
