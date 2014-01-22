@@ -129,6 +129,8 @@ ROP_AbcGTShape::getLastBounds(UT_BoundingBox &) const
 Alembic::Abc::OObject
 ROP_AbcGTShape::getOObject() const
 {
-    UT_ASSERT(myShape);
+    UT_ASSERT(myShape && "Exported geometry will be incorrect");
+    if (!myShape)
+	return Alembic::Abc::OObject();
     return myShape->getOObject();
 }
