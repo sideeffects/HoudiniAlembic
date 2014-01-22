@@ -54,6 +54,8 @@ public:
 					bool add_unused_pts);
 	void	setGeometry(const OObject &child, const std::string &name);
 	void	update(const UT_Matrix4D &xform);
+
+	OXform	&oxform()	{ return myOXform; }
     private:
 	OXform		myOXform;
     };
@@ -71,6 +73,8 @@ public:
 			const ROP_AbcContext &ctx,
 			const GT_PrimitiveHandle &prim);
 
+    OObject	getOObject() const;
+    exint	entries() const	{ return myInstances.entries(); }
 private:
     std::string			 myName;
     ROP_AbcGTCompoundShape	*myGeometry;

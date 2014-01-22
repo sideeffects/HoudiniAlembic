@@ -126,6 +126,10 @@ ROP_AbcGTInstance::first(const OObject &parent, GABC_OError &err,
 		{
 		    nbuf.sprintf("%s_instance_%d", myName.c_str(), (int)i);
 		    inst.first(parent, err, ctx, m, nbuf.buffer());
+		    // myGeometry is ROP_AbcGTCompoundShape.C
+		    // myGeometry has no container (single shape)
+		    // So it returns myShape(0)
+		    // Which is a
 		    inst.setGeometry(myGeometry->getShape(), myName);
 		}
 	    }
@@ -213,4 +217,12 @@ ROP_AbcGTInstance::update(GABC_OError &err, const ROP_AbcContext &ctx,
 	    return false;
     }
     return true;
+}
+
+Alembic::Abc::OObject
+ROP_AbcGTInstance::getOObject() const
+{
+    if (myInstances.entries())
+	return SYSconst_cast(this)->myInstances(0).oxform().getParent();
+    return Alembic::Abc::OObject();
 }
