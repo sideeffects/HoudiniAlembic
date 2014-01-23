@@ -86,11 +86,11 @@ def _setVisibility(node, filename, objectpath):
     vis = _abc.alembicVisibility(filename, objectpath, 0)
     if not vis[1] and vis[0] != -1:
         # Animated visibility
+        _setParmValue(node, 'fileName', filename)
         _setParmValue(node, 'tdisplay', 1)
         disp = node.parm('display')
-        disp.setExpression(
-                '%s.alembicVisibility(ch("fileName"), "%s", ch("frame")/ch("fps"))[0] != 0' % (_AbcModule, objectpath),
-                hou.exprLanguage.Python)
+        expr = '%s.alembicVisibility(ch("fileName"), "%s", ch("frame")/ch("fps"))[0] != 0' % (_AbcModule, objectpath)
+        disp.setExpression(expr, hou.exprLanguage.Python)
         return True
     elif vis[0] == 0:
         _setParmValue(node, 'tdisplay', 1)
