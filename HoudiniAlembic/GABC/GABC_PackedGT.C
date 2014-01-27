@@ -180,19 +180,21 @@ private:
 };
 
 GT_PrimitiveHandle
-GABC_PackedGT::getPointCloud(const GT_RefineParms *, bool &) const
+GABC_PackedGT::getPointCloud(const GT_RefineParms *, bool &xform) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+    xform = false;
     return impl->pointGT();
 }
 
 GT_PrimitiveHandle
-GABC_PackedGT::getFullGeometry(const GT_RefineParms *parms, bool &) const
+GABC_PackedGT::getFullGeometry(const GT_RefineParms *parms, bool &xform) const
 {
     const GABC_PackedImpl	*impl;
     int				 load_style;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+    xform = false;
     if (GT_GEOPrimPacked::useViewportLOD(parms))
     {
 	load_style = GABC_IObject::GABC_LOAD_LEAN_AND_MEAN;
