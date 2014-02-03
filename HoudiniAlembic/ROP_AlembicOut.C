@@ -623,8 +623,9 @@ ROP_AlembicOut::updateParmsFlags()
     changed |= enableParm("shutter", MOTIONBLUR(0));
     changed |= enableParm("samples", MOTIONBLUR(0));
 
-    changed |= enableParm("root", !issop);
-    changed |= enableParm("objects", !issop);
+    changed |= setVisibleState("root", !issop);
+    changed |= setVisibleState("objects", !issop);
+    changed |= setVisibleState("displaysop", !issop);
 
     return changed;
 }
