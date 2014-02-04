@@ -426,7 +426,7 @@ loadDetail(UT_Array<GU_Detail *> &details,
     fpreal		fstart = frame, finc = 1;
     if (details.entries() > 1)
     {
-	finc = (shutter[1] - shutter[0]) / fps;
+	finc = (shutter[1] - shutter[0]) / (fps * (details.entries()-1));
 	fstart = frame - finc * shutter[0];
     }
 
