@@ -545,7 +545,9 @@ ROP_AlembicOut::filterNode(OP_Node *node, fpreal now)
 	myError->error("%s is not an object", path.buffer());
 	return false;
     }
-    if (!obj->getObjectDisplay(now))
+    // We need to evaluate the display before isDisplayTimeDependent() will
+    // give us valid results.
+    if (!obj->getObjectDisplay(now) && !obj->isDisplayTimeDependent())
     {
 	return false;
     }

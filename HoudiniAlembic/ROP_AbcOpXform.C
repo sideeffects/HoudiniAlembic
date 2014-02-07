@@ -39,11 +39,13 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef Alembic::Abc::OObject		OObject;
-    typedef Alembic::AbcGeom::OXform		OXform;
-    typedef Alembic::AbcGeom::XformSample	XformSample;
-    typedef Alembic::Abc::M44d			M44d;
-    typedef Alembic::Abc::Box3d			Box3d;
+    typedef Alembic::Abc::OObject			OObject;
+    typedef Alembic::AbcGeom::OXform			OXform;
+    typedef Alembic::AbcGeom::OVisibilityProperty	OVisibilityProperty;
+    typedef Alembic::AbcGeom::ObjectVisibility		ObjectVisibility;
+    typedef Alembic::AbcGeom::XformSample		XformSample;
+    typedef Alembic::Abc::M44d				M44d;
+    typedef Alembic::Abc::Box3d				Box3d;
 
     static const char	*theCameraName = "cameraProperties";
 
@@ -218,6 +220,17 @@ ROP_AbcOpXform::start(const OObject &parent,
 	    Box3d	b3 = GABC_Util::getBox(myBox);
 	    myOXform.getSchema().getChildBoundsProperty().set(b3);
 	}
+	if (node->isDisplayTimeDependent())
+	{
+	    // Note:  This is only a valid check if the display channels have
+	    // been evaluated, so there could be problems in hbatch.  However,
+	    // we already performed the evaluation when building the tree, so
+	    // we should be ok.
+	    myVisibility = CreateVisibilityProperty(myOXform,
+				ctx.timeSampling());
+	    setVisibility(ctx);
+	    myTimeDependent = true;
+	}
     }
 
     // Now, set the bounding box for my parent
@@ -230,6 +243,20 @@ ROP_AbcOpXform::start(const OObject &parent,
     updateTimeDependentKids();
 
     return true;
+}
+
+void
+ROP_AbcOpXform::setVisibility(const ROP_AbcContext &ctx)
+{
+    if (myVisibility)
+    {
+	OBJ_Node		*node = getXformNode(myNodeId);
+	ObjectVisibility	 v = Alembic::AbcGeom::kVisibilityDeferred;
+
+	if (node && !node->getObjectDisplay(ctx.cookContext().getTime()))
+	    v = Alembic::AbcGeom::kVisibilityHidden;
+	myVisibility.set(v);
+    }
 }
 
 bool
@@ -251,6 +278,8 @@ ROP_AbcOpXform::update(GABC_OError &err,
 	    }
 	}
     }
+    if (myVisibility)
+	setVisibility(ctx);
 
     // Process children, computing their bounding box
     UT_BoundingBox	kidbox;

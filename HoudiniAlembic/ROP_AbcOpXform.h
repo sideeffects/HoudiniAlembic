@@ -37,8 +37,9 @@ class OBJ_Node;
 class ROP_AbcOpXform : public ROP_AbcObject
 {
 public:
-    typedef Alembic::AbcGeom::OXform	OXform;
-    typedef Alembic::Abc::OObject	OObject;
+    typedef Alembic::AbcGeom::OXform			OXform;
+    typedef Alembic::AbcGeom::OVisibilityProperty	OVisibilityProperty;
+    typedef Alembic::Abc::OObject			OObject;
 
     ROP_AbcOpXform(OBJ_Node *node, const ROP_AbcContext &ctx);
     virtual ~ROP_AbcOpXform();
@@ -58,9 +59,11 @@ public:
     /// @}
 
 private:
+    void		 setVisibility(const ROP_AbcContext &ctx);
     UT_Matrix4D		 myMatrix;
     UT_BoundingBox	 myBox;
     OXform		 myOXform;
+    OVisibilityProperty	 myVisibility;
     int			 myNodeId;
     bool		 myTimeDependent;
     bool		 myIdentity;
