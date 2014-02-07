@@ -39,6 +39,7 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
+    typedef Alembic::Abc::OObject		OObject;
     typedef Alembic::AbcGeom::OXform		OXform;
     typedef Alembic::AbcGeom::XformSample	XformSample;
     typedef Alembic::Abc::M44d			M44d;
@@ -61,6 +62,52 @@ namespace
 	    buf.sprintf("Node with unique id %d was deleted", id);
 	else
 	    o->getFullPath(buf);
+    }
+
+    static bool
+    collapseTransform(bool geometry_container,
+		bool time_dependent,
+		OP_Node *node,
+		const UT_Matrix4D &xform,
+		const ROP_AbcContext &ctx,
+		const OObject &parent)
+    {
+	// We can't collapse if we're the root node
+	if (!const_cast<OObject &>(parent).getParent().valid())
+	    return false;
+
+	int	abc_collapse;
+	if (node->evalParameterOrProperty("abc_collapse", 0,
+			ctx.cookContext().getTime(), abc_collapse))
+	{
+	    // There's a parameter "abc_collapse".  So, if the user has set
+	    // this to "true", we'll collapse the transform.  This will even
+	    // allow subnet objects to be collapsed out of the Alembic tree.
+	    // Of course, the transform is also collapsed out.
+	    if (abc_collapse != 0)
+		return true;
+	}
+
+	// For the remainder of the options, we only collapse if we're the
+	// geometry object containing SOPs (not sub-nets).
+	if (!geometry_container)
+	    return false;	// Only collapse the SOP container
+
+	switch (ctx.collapseIdentity())
+	{
+	    case ROP_AbcContext::COLLAPSE_NONE:
+		// Don't collapse any geometry nodes
+		return false;
+	    case ROP_AbcContext::COLLAPSE_GEOMETRY:
+		// Collapse all geometry containers, regardless of transforms
+		const_cast<OObject &>(parent).getParent().valid();
+		return true;
+	    case ROP_AbcContext::COLLAPSE_IDENTITY:
+		// Collapse geometry containers only if it's a non-animated
+		// identity transform.
+		return !time_dependent && xform.isIdentity();
+	}
+	return false;
     }
 }
 
@@ -132,11 +179,8 @@ ROP_AbcOpXform::start(const OObject &parent,
 		fullpath.buffer(), ctx.cookContext().getTime());
     }
     myTimeDependent = node->isTimeDependent(ctx.cookContext());
-    if (!myTimeDependent
-	    && myMatrix.isIdentity()
-	    && myGeometryContainer
-	    && ctx.collapseIdentity()
-	    && const_cast<OObject &>(parent).getParent().valid())
+    if (collapseTransform(myGeometryContainer, myTimeDependent,
+		node, myMatrix, ctx, parent))
     {
 	myIdentity = true;
 	// Now, we have to adjust the names of the children so they don't

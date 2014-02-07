@@ -84,7 +84,7 @@ namespace
     static PRM_Name	theRootName("root", "Root Object");
     static PRM_Name	theObjectsName("objects", "Objects");
     static PRM_Name	theCollapseName("collapse",
-				"Collapse Identity Transforms");
+				"Collapse Objects");
     static PRM_Name	theUseInstancingName("use_instancing",
 				"Use Alembic Instancing Where Possible");
     static PRM_Name	theSaveAttributesName("save_attributes",
@@ -112,6 +112,7 @@ namespace
     static PRM_Default	theDisplaySOPDefault(0, "no");
     static PRM_Default	thePartitionModeDefault(0, "no");
     static PRM_Default	thePartitionAttributeDefault(0, "");
+    static PRM_Default	theCollapseDefault(0, "off");
     static PRM_Default	theVerboseDefault(0);
     static PRM_Default	theFaceSetDefault(0);
 
@@ -193,6 +194,14 @@ namespace
 	PRM_Name()	// Sentinal
     };
 
+    static PRM_Name	theCollapseChoices[] =
+    {
+	PRM_Name("off",	"Do Not Collapse Identity Objects"),
+	PRM_Name("on",  "Collapse Non-Animating Identity Objects"),
+	PRM_Name("geo", "Collapse All Geometry Container Objects"),
+	PRM_Name()
+    };
+
     static PRM_ChoiceList	theFormatMenu(PRM_CHOICELIST_SINGLE,
 					theFormatChoices);
     static PRM_ChoiceList	theObjectsMenu(PRM_CHOICELIST_REPLACE,
@@ -203,6 +212,8 @@ namespace
 					thePartitionAttributeChoices);
     static PRM_ChoiceList	theFaceSetModeMenu(PRM_CHOICELIST_SINGLE,
 					theFaceSetModeChoices);
+    static PRM_ChoiceList	theCollapseMenu(PRM_CHOICELIST_SINGLE,
+					theCollapseChoices);
 
     static PRM_Range	theVerboseRange(PRM_RANGE_RESTRICTED, 0,
 				    PRM_RANGE_UI, 3);
@@ -241,7 +252,8 @@ namespace
 				    &theObjectsMenu, 0, 0,
 				    &theObjectList),
 	PRM_Template(PRM_TOGGLE, 1, &theInitSim),
-	PRM_Template(PRM_TOGGLE, 1, &theCollapseName, PRMzeroDefaults),
+	PRM_Template(PRM_ORD, 1, &theCollapseName, &theCollapseDefault,
+				    &theCollapseMenu),
 	PRM_Template(PRM_TOGGLE, 1, &theUseInstancingName, PRMoneDefaults),
 	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName,
 				    &theFullBoundsDefault),
@@ -327,6 +339,19 @@ ROP_AlembicOut::close()
     delete myContext;	myContext = NULL;
     delete myError;	myError = NULL;
     delete myArchive;	myArchive = NULL;
+}
+
+int
+ROP_AlembicOut::COLLAPSE(fpreal time)
+{
+    UT_String	str;
+    evalString(str, "collapse", 0, time);
+    if (str == "off")
+	return ROP_AbcContext::COLLAPSE_NONE;
+    if (str == "geo")
+	return ROP_AbcContext::COLLAPSE_GEOMETRY;
+    UT_ASSERT(str == "on");
+    return ROP_AbcContext::COLLAPSE_IDENTITY;
 }
 
 int

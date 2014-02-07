@@ -97,7 +97,7 @@ Objects:
                 Only objects that are displayed on the start frame will be output to the archive.
 
 Collapse identity transforms:
-        This option will skip writing any transform nodes which have no transform
+        This option can be used to skip writing transform nodes which have no transform
         (an identity transform) for the entire animation.
         
         When importing an Alembic scene, there are often empty geometry nodes
@@ -105,6 +105,25 @@ Collapse identity transforms:
         placeholders to contain the geometry. However, when exporting the
         scene, they will be added as dummy transform nodes (roughly doubling
         the size of the Alembic archive node count).
+
+	Do Not Collapse Identity Objects:
+		All geometry objects will be saved as Alembic transform nodes
+	Collapse Non-Animating Identity Objects:
+		All geometry objects which are not animated and have an
+		identity transform will be skipped when writing the Alembic
+		file.
+	Collapse All Geometry Container Objects:
+		All geometry objects containing SOPs will not be written to the
+		Alembic file.  In some cases for subnet hierarchies, having a
+		subnet parent animated will propagate the time dependence to
+		the contained nodes.  This option allows you to forcibly skip
+		the geometry nodes.  Note that any transformations on these
+		nodes will be lost during the save.
+
+	Note:  If an object has a parameter named `abc_collapse` that evaluates
+	to a non-zero value, the object will be skipped from the save.  This
+	allows fine-grained per-object control regardless of the setting of
+	this parameter.
 
 Full Bounding Box Tree:
         This will cause all Alembic nodes to have proper bounding boxes written.

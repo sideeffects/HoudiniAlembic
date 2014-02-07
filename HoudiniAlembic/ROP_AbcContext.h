@@ -89,8 +89,14 @@ public:
 
     /// @{
     /// Whether to collapse leaf node identity transforms
-    bool	 collapseIdentity() const	{ return myCollapseIdentity; }
-    void	 setCollapseIdentity(bool v)	{ myCollapseIdentity = v; }
+    enum
+    {
+	COLLAPSE_NONE,		// Don't collapse identity geometry nodes
+	COLLAPSE_IDENTITY,	// Collapse non-animated identity nodes
+	COLLAPSE_GEOMETRY,	// Collapse geometry nodes, regardless of xform
+    };
+    int		 collapseIdentity() const	{ return myCollapseIdentity; }
+    void	 setCollapseIdentity(int v)	{ myCollapseIdentity = v; }
     /// @}
 
     /// @{
@@ -154,7 +160,7 @@ private:
     UT_String		 myPartitionAttribute;
     fpreal		 myWriteTime;
     int			 myPartitionMode;
-    bool		 myCollapseIdentity;
+    int			 myCollapseIdentity;
     bool		 myUseInstancing;
 };
 

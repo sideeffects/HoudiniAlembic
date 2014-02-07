@@ -75,8 +75,7 @@ protected:
 		    { evalString(str, "root", 0, time); }
     void	OBJECTS(UT_String &str, fpreal time)
 		    { evalString(str, "objects", 0, time); }
-    bool	COLLAPSE(fpreal time)
-		    { return evalInt("collapse", 0, time) != 0; }
+    int		COLLAPSE(fpreal time);
     bool	USE_INSTANCING(fpreal time)
 		    { return evalInt("use_instancing", 0, time) != 0; }
     bool	SAVE_ATTRIBUTES(fpreal time)
