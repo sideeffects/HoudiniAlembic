@@ -107,23 +107,17 @@ Collapse identity transforms:
         the size of the Alembic archive node count).
 
 	Do Not Collapse Identity Objects:
-		All geometry objects will be saved as Alembic transform nodes
+		All geometry objects will be saved as Alembic transform nodes.
 	Collapse Non-Animating Identity Objects:
-		All geometry objects which are not animated and have an
-		identity transform will be skipped when writing the Alembic
-		file.
+		All geometry objects which are not animated and have an identity transform will be skipped when writing the Alembic file.
 	Collapse All Geometry Container Objects:
-		All geometry objects containing SOPs will not be written to the
-		Alembic file.  In some cases for subnet hierarchies, having a
-		subnet parent animated will propagate the time dependence to
-		the contained nodes.  This option allows you to forcibly skip
-		the geometry nodes.  Note that any transformations on these
-		nodes will be lost during the save.
+		All geometry objects containing SOPs will not be written to the Alembic file.  In some cases for subnet hierarchies, having a subnet parent animated will propagate the time dependence to the contained nodes.  This option allows you to forcibly skip the geometry nodes.  
+		
+		NOTE:
+		        Any transformations on these nodes will be lost during the save.
 
-	Note:  If an object has a parameter named `abc_collapse` that evaluates
-	to a non-zero value, the object will be skipped from the save.  This
-	allows fine-grained per-object control regardless of the setting of
-	this parameter.
+	NOTE:
+	        If an object has a parameter named `abc_collapse` that evaluates to a non-zero value, the object will be skipped from the save.  This allows fine-grained per-object control regardless of the setting of this parameter.
 
 Full Bounding Box Tree:
         This will cause all Alembic nodes to have proper bounding boxes written.
@@ -179,7 +173,7 @@ Partition Mode:
         When saving a complex piece of geometry, it is possible to partition the
         geometry into multiple shape nodes by splitting up the primitives based on
         a string attribute.  There are several different ways to interpret the
-        string values:
+        string values.
 
 	No Geometry Partitioning:
 		The geometry will be output as a single Alembic shape node.
