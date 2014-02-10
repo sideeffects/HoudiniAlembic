@@ -78,6 +78,8 @@ protected:
     int		COLLAPSE(fpreal time);
     bool	USE_INSTANCING(fpreal time)
 		    { return evalInt("use_instancing", 0, time) != 0; }
+    bool	SAVE_HIDDEN(fpreal time)
+		    { return evalInt("save_hidden", 0, time) != 0; }
     bool	SAVE_ATTRIBUTES(fpreal time)
 		    { return evalInt("save_attributes", 0, time) != 0; }
     bool	DISPLAYSOP(fpreal time)

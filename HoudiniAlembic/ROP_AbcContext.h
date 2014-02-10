@@ -106,6 +106,14 @@ public:
     /// @}
 
     /// @{
+    /// Whether to save out objects that aren't displayed.  In this case,
+    /// objects will be written to the .abc file with their visibility set to
+    /// kHidden.
+    bool	saveHidden() const		{ return mySaveHidden; }
+    void	setSaveHidden(bool v)		{ mySaveHidden = v; }
+    /// @}
+
+    /// @{
     /// Set partition attribute for splitting geometry into different shapes
     enum
     {
@@ -162,6 +170,7 @@ private:
     int			 myPartitionMode;
     int			 myCollapseIdentity;
     bool		 myUseInstancing;
+    bool		 mySaveHidden;
 };
 
 #endif

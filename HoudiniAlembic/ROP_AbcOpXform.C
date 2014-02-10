@@ -231,6 +231,12 @@ ROP_AbcOpXform::start(const OObject &parent,
 	    setVisibility(ctx);
 	    myTimeDependent = true;
 	}
+	else if (!node->getObjectDisplay(ctx.cookContext().getTime()))
+	{
+	    OVisibilityProperty	 vis;
+	    vis = CreateVisibilityProperty(myOXform, ctx.timeSampling());
+	    vis.set(Alembic::AbcGeom::kVisibilityHidden);
+	}
     }
 
     // Now, set the bounding box for my parent

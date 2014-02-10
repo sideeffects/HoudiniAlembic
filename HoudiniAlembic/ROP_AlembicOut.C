@@ -87,6 +87,8 @@ namespace
 				"Collapse Objects");
     static PRM_Name	theUseInstancingName("use_instancing",
 				"Use Alembic Instancing Where Possible");
+    static PRM_Name	theSaveHiddenName("save_hidden",
+				"Save All Non-Displayed (Hidden) Objects");
     static PRM_Name	theSaveAttributesName("save_attributes",
 				"Save Attributes");
     static PRM_Name	theDisplaySOPName("displaysop",
@@ -254,6 +256,7 @@ namespace
 	PRM_Template(PRM_TOGGLE, 1, &theInitSim),
 	PRM_Template(PRM_ORD, 1, &theCollapseName, &theCollapseDefault,
 				    &theCollapseMenu),
+	PRM_Template(PRM_TOGGLE, 1, &theSaveHiddenName, PRMoneDefaults),
 	PRM_Template(PRM_TOGGLE, 1, &theUseInstancingName, PRMoneDefaults),
 	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName,
 				    &theFullBoundsDefault),
@@ -436,6 +439,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     myContext->setUseDisplaySOP(DISPLAYSOP(start));
     myContext->setFullBounds(FULL_BOUNDS(start));
     myContext->setUseInstancing(USE_INSTANCING(start));
+    myContext->setSaveHidden(SAVE_HIDDEN(start));
 
     UT_String	partition_mode;
     UT_String	partition_attrib;
@@ -547,9 +551,12 @@ ROP_AlembicOut::filterNode(OP_Node *node, fpreal now)
     }
     // We need to evaluate the display before isDisplayTimeDependent() will
     // give us valid results.
-    if (!obj->getObjectDisplay(now) && !obj->isDisplayTimeDependent())
+    if (!myContext->saveHidden())
     {
-	return false;
+	// If we're hidden and we aren't time dependent, then we can skip the
+	// object
+	if (!obj->getObjectDisplay(now) && !obj->isDisplayTimeDependent())
+	    return false;
     }
     return true;
 }
