@@ -30,10 +30,31 @@
 #include <GT/GT_Refine.h>
 #include <GT/GT_RefineParms.h>
 #include <GT/GT_Primitive.h>
+#include <GT/GT_GEOPrimPacked.h>
+#include <GABC/GABC_PackedImpl.h>
 
 namespace
 {
     typedef UT_Array<GT_PrimitiveHandle>	PrimitiveList;
+
+    static bool
+    shouldInstance(const GT_PrimitiveHandle &prim)
+    {
+	int	ptype = prim->getPrimitiveType();
+	if (ptype == GT_GEO_PACKED)
+	{
+	    const GT_GEOPrimPacked	*gt;
+	    gt = UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
+	    const GU_PrimPacked	*gu = gt->getPrim();
+
+	    // We don't want to instance a single Alembic shape
+	    if (gu->getTypeId() == GABC_NAMESPACE::GABC_PackedImpl::typeId())
+	    {
+		return false;
+	    }
+	}
+	return ptype == GT_GEO_PACKED || ptype == GT_PRIM_INSTANCE;
+    }
 
     class abc_Refiner : public GT_Refine
     {
@@ -53,9 +74,7 @@ namespace
 	    if (!prim)
 		return;
 	    bool	ok = false;
-	    if (myUseInstancing &&
-		    (prim->getPrimitiveType() == GT_PRIM_INSTANCE ||
-		     prim->getPrimitiveType() == GT_GEO_PACKED))
+	    if (myUseInstancing && shouldInstance(prim))
 	    {
 		ok = true;
 	    }
@@ -87,7 +106,6 @@ namespace
 	rparms.setCoalesceFragments(false);
     }
 }
-
 
 ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &name,
 		bool polys_as_subd,
@@ -163,8 +181,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     for (exint i = 0; i < myShapes.entries(); ++i)
     {
 	bool	 ok = true;
-	if (shapes(i)->getPrimitiveType() == GT_PRIM_INSTANCE
-		|| shapes(i)->getPrimitiveType() == GT_GEO_PACKED)
+	if (shouldInstance(shapes(i)))
 	{
 	    UT_ASSERT(ctx.useInstancing());
 	    ok = myShapes(i)->firstInstance(shapes(i), dad, err, ctx,

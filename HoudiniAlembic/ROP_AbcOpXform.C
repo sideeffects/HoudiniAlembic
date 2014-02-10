@@ -287,15 +287,14 @@ ROP_AbcOpXform::update(GABC_OError &err,
     if (!updateChildren(err, ctx, kidbox))
 	return false;
 
-    if (selfTimeDependent())
+    if (selfTimeDependent() && !myIdentity)
     {
 	XformSample	sample;
 	M44d	m = GABC_Util::getM(myMatrix);
 	sample.setMatrix(m);
 	myOXform.getSchema().set(sample);
     }
-    else 
-    if (ctx.fullBounds())
+    else if (ctx.fullBounds())
     {
 	if (kidbox != myBox)
 	{
