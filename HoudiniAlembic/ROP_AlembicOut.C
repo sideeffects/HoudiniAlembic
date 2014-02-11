@@ -550,12 +550,15 @@ ROP_AlembicOut::filterNode(OP_Node *node, fpreal now)
 	return false;
     }
     // We need to evaluate the display before isDisplayTimeDependent() will
-    // give us valid results.
+    // give us valid results.  We need to do this here since we check time
+    // dependency in ROP_AbcOpXform.C.  If this isn't done, hbatch may end up
+    // with incorrect time dependency information.
+    bool	disp = obj->getObjectDisplay(now);
     if (!myContext->saveHidden())
     {
 	// If we're hidden and we aren't time dependent, then we can skip the
 	// object
-	if (!obj->getObjectDisplay(now) && !obj->isDisplayTimeDependent())
+	if (!disp && !obj->isDisplayTimeDependent())
 	    return false;
     }
     return true;
