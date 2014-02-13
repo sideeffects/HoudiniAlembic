@@ -246,6 +246,15 @@
 	    help	"If enabled, child objects will have channel references to the main archive."
 	}
 	parm {
+	    name	"flattenVisibility"
+	    label	"Flatten Visibilty Evaluation"
+	    type	toggle
+	    default	{ "1" }
+	    export	none
+	    parmtag	{ "export_disable" "1" }
+	    help	"For correct visibility computations, Houdini needs to evaluate visibility in the innermost geometry nodes since children of a subnet inherit visibility (which isn't always true in Alembic).  You should turn this off if you need to export Alembic maintaining the original visibility."
+	}
+	parm {
 	    name	"pushChannels"
 	    label	"Push Parameters to Children"
 	    type	button

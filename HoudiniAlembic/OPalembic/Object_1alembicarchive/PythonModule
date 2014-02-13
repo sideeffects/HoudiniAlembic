@@ -27,6 +27,7 @@ def BuildHierarchyRoot(rootNode):
 
     tree = _abc.alembicGetSceneHierarchy(fileName, "")
     channelRefs = rootNode.evalParm('channelRef')
+    flatVisibility = rootNode.evalParm('flattenVisibility')
 
     pathList = [x for x in rootNode.evalParm('objectPath').strip('/').split('/') if x]
 
@@ -38,7 +39,8 @@ def BuildHierarchyRoot(rootNode):
                         entry,
                         pathList,
                         buildSubnet,
-                        channelRefs)
+                        channelRefs,
+                        flatVisibility)
     rootNode.layoutChildren()
     if not channelRefs:
         PushParametersToChildren(rootNode)
@@ -82,14 +84,22 @@ def _setNodeName(node, name):
     except:
         node.setName(_sanitizeName(name), True)
 
-def _setVisibility(node, filename, objectpath):
-    vis = _abc.alembicVisibility(filename, objectpath, 0)
+def _checkAnimatedVisibility(filename, objectpath):
+    vis = _abc.alembicVisibility(filename, objectpath, 0, 1)
+    return not vis[1] and vis[0] != -1
+
+def _setVisibility(node, filename, objectpath, chprefix):
+    vis = _abc.alembicVisibility(filename, objectpath, 0, 1)
+    if vis[1] and vis[0] == 1:
+        # Always visibile (constant visibility, and displayed)
+        return False
     if not vis[1] and vis[0] != -1:
         # Animated visibility
         _setParmValue(node, 'fileName', filename)
         _setParmValue(node, 'tdisplay', 1)
         disp = node.parm('display')
-        expr = '%s.alembicVisibility(ch("fileName"), "%s", ch("frame")/ch("fps"))[0] != 0' % (_AbcModule, objectpath)
+        # Visibility is set on leaf geometry node
+        expr = '%s.alembicVisibility(ch("%sfileName"), "%s", ch("%sframe")/ch("%sfps"), 1)[0] != 0' % (_AbcModule, chprefix, objectpath, chprefix, chprefix)
         disp.setExpression(expr, hou.exprLanguage.Python)
         return True
     elif vis[0] == 0:
@@ -117,7 +127,7 @@ def _setupAbcGeo(geo, issubd):
     hou.hscript('opproperty -f -F Render %s mantra,prman* %s' % (geo.path(), parms))
 
 def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
-                pathList, buildSubnet, channelRefs):
+                pathList, buildSubnet, channelRefs, flatVisibility):
     name, typeName, children = childEntry
     if pathList:
         if pathList[0] != name:
@@ -134,6 +144,8 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
             for parmname in ('vm_rendersubd', 'ri_rendersubd'):
                 _setParmValue(currentNode, parmname, 1)
         _setNodeName(currentNode, name)
+        if flatVisibility:
+            _setVisibility(currentNode, fileName, parentPath, "../")
 
         sopNode = currentNode.createNode('alembic')
         _setNodeName(sopNode, name)
@@ -173,8 +185,12 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 currentNode.setInput(0, parentNode.indirectInputs()[0])
         _setNodeName(currentNode, name)
         animated = typeName != 'cxform'
-        if _setVisibility(currentNode, fileName, currentPath):
-            animated = True
+        if flatVisibility:
+            if _checkAnimatedVisibility(fileName, currentPath):
+                animated = True
+        else:
+            if _setVisibility(currentNode, fileName, currentPath, ""):
+                animated = True
 
         if channelRefs:
             ExpressionToParm(rootNode.parm('fileName'),
@@ -192,7 +208,8 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
 
         for entry in children:
             WalkHierarchy(fileName, rootNode, currentNode, currentPath,
-                        entry, pathList, buildSubnet, channelRefs)
+                        entry, pathList, buildSubnet, channelRefs,
+                        flatVisibility)
         currentNode.layoutChildren()
     elif typeName == 'camera':
         currentNode = parentNode.createNode('cam')
