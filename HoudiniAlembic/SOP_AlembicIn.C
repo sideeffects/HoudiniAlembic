@@ -29,6 +29,7 @@
 #include <GABC/GABC_GEOWalker.h>
 
 #include <UT/UT_DSOVersion.h>
+#include <UT/UT_StringStream.h>
 #include <UT/UT_WorkArgs.h>
 #include <GU/GU_Detail.h>
 #include <PRM/PRM_Shared.h>

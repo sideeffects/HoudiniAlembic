@@ -26,8 +26,9 @@
  */
 
 #include "SOP_AlembicGroup.h"
-#include <UT/UT_WorkArgs.h>
 #include <UT/UT_DSOVersion.h>
+#include <UT/UT_StringStream.h>
+#include <UT/UT_WorkArgs.h>
 #include <CMD/CMD_Manager.h>
 #include <OP/OP_OperatorTable.h>
 #include <PRM/PRM_Shared.h>
