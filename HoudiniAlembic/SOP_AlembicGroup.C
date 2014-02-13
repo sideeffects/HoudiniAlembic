@@ -167,13 +167,11 @@ selectAlembicNodes(void *data, int index,
 	cmd.protectedStrcat(abcobjects[i].c_str());
     }
 
-    UT_OStrStream	 os;
+    UT_OStringStream	 os;
     mgr->execute(cmd.buffer(), 0, &os);
-    os << std::ends;
-    UT_String	result(os.str());
+    UT_String	result(os.str().buffer());
     result.trimBoundingSpace();
     sop->setString(result, CH_STRING_LITERAL, parmname.buffer(), 0, t);
-    os.rdbuf()->freeze(0);
 
     return 0;
 }
