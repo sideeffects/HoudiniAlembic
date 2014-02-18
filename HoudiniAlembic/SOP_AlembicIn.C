@@ -283,7 +283,7 @@ static PRM_ChoiceList menu_loadmode(PRM_CHOICELIST_SINGLE, loadModeOptions);
 
 static PRM_Name pointModeOptions[] = {
     PRM_Name("shared",	"Shared Point"),
-    PRM_Name("unique",	"Unique Points At Origin)"),
+    PRM_Name("unique",	"Unique Points At Origin"),
     PRM_Name("centroid", "Unique Points At Centroid"),
     PRM_Name()
 };
