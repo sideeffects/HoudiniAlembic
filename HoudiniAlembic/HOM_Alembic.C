@@ -576,79 +576,88 @@ namespace
         if (!PY_PyArg_ParseTuple(args, "ssd", &archivePath, &objectPath,
                 &sampleTime)) return NULL;
 
-	IObject	obj = GABC_Util::findObject(archivePath, objectPath);
-
-	if (obj.valid() && ICamera::matches(obj.getHeader()))
+	try
 	{
-	    ICamera camera(obj.object(), Alembic::Abc::kWrapExisting);
-	    CameraSample cameraSample = camera.getSchema().getValue(
-		    ISampleSelector(sampleTime));
+	    IObject	obj = GABC_Util::findObject(archivePath, objectPath);
 
-	    //Express in houdini terms?
-	    PY_PyObject * val = NULL;
-
-	    val = PY_PyFloat_FromDouble(cameraSample.getFocalLength());
-	    PY_PyDict_SetItemString(resultDict, "focal", val);
-	    PY_Py_DECREF(val);
-
-	    val = PY_PyFloat_FromDouble(cameraSample.getNearClippingPlane());
-	    PY_PyDict_SetItemString(resultDict, "near", val);
-	    PY_Py_DECREF(val);
-
-	    val = PY_PyFloat_FromDouble(cameraSample.getFarClippingPlane());
-	    PY_PyDict_SetItemString(resultDict, "far", val);
-	    PY_Py_DECREF(val);
-
-	    val = PY_PyFloat_FromDouble(cameraSample.getFocusDistance());
-	    PY_PyDict_SetItemString(resultDict, "focus", val);
-	    PY_Py_DECREF(val);
-
-	    double top, bottom, left, right;
-	    cameraSample.getScreenWindow(top, bottom, left, right);
-
-	    double winx = cameraSample.getHorizontalFilmOffset() *
-		    cameraSample.getLensSqueezeRatio() /
-			    cameraSample.getHorizontalAperture();
-
-	    double winy = cameraSample.getVerticalFilmOffset() *
-		    cameraSample.getLensSqueezeRatio() /
-			    cameraSample.getVerticalAperture();
-
-	    //TODO, full 2D transformations
-	    V2d postScale(1.0, 1.0);
-	    for ( size_t i = 0; i < cameraSample.getNumOps(); ++i )
+	    if (obj.valid() && ICamera::matches(obj.getHeader()))
 	    {
-		const FilmBackXformOp	&op = cameraSample.getOp(i);
+		ICamera camera(obj.object(), Alembic::Abc::kWrapExisting);
+		CameraSample cameraSample = camera.getSchema().getValue(
+			ISampleSelector(sampleTime));
 
-		if ( op.isScaleOp() )
+		//Express in houdini terms?
+		PY_PyObject * val = NULL;
+
+		val = PY_PyFloat_FromDouble(cameraSample.getFocalLength());
+		PY_PyDict_SetItemString(resultDict, "focal", val);
+		PY_Py_DECREF(val);
+
+		val = PY_PyFloat_FromDouble(cameraSample.getNearClippingPlane());
+		PY_PyDict_SetItemString(resultDict, "near", val);
+		PY_Py_DECREF(val);
+
+		val = PY_PyFloat_FromDouble(cameraSample.getFarClippingPlane());
+		PY_PyDict_SetItemString(resultDict, "far", val);
+		PY_Py_DECREF(val);
+
+		val = PY_PyFloat_FromDouble(cameraSample.getFocusDistance());
+		PY_PyDict_SetItemString(resultDict, "focus", val);
+		PY_Py_DECREF(val);
+
+		double top, bottom, left, right;
+		cameraSample.getScreenWindow(top, bottom, left, right);
+
+		double winx = cameraSample.getHorizontalFilmOffset() *
+			cameraSample.getLensSqueezeRatio() /
+				cameraSample.getHorizontalAperture();
+
+		double winy = cameraSample.getVerticalFilmOffset() *
+			cameraSample.getLensSqueezeRatio() /
+				cameraSample.getVerticalAperture();
+
+		//TODO, full 2D transformations
+		V2d postScale(1.0, 1.0);
+		for ( size_t i = 0; i < cameraSample.getNumOps(); ++i )
 		{
-		    postScale *= op.getScale();
+		    const FilmBackXformOp	&op = cameraSample.getOp(i);
+
+		    if ( op.isScaleOp() )
+		    {
+			postScale *= op.getScale();
+		    }
 		}
+
+		//TODO overscan
+		double winsizex = cameraSample.getLensSqueezeRatio() / postScale[0];
+		double winsizey = cameraSample.getLensSqueezeRatio() / postScale[1];
+
+		val = PY_PyFloat_FromDouble(winx);
+		PY_PyDict_SetItemString(resultDict, "winx", val);
+		PY_Py_DECREF(val);
+
+		val = PY_PyFloat_FromDouble(winy);
+		PY_PyDict_SetItemString(resultDict, "winy", val);
+		PY_Py_DECREF(val);
+
+		val = PY_PyFloat_FromDouble(winsizex);
+		PY_PyDict_SetItemString(resultDict, "winsizex", val);
+		PY_Py_DECREF(val);
+
+		val = PY_PyFloat_FromDouble(winsizey);
+		PY_PyDict_SetItemString(resultDict, "winsizey", val);
+		PY_Py_DECREF(val);
+
+		val = PY_PyFloat_FromDouble(
+			cameraSample.getHorizontalAperture()*10.0);
+		PY_PyDict_SetItemString(resultDict, "aperture", val);
+		PY_Py_DECREF(val);
 	    }
-
-	    //TODO overscan
-	    double winsizex = cameraSample.getLensSqueezeRatio() / postScale[0];
-	    double winsizey = cameraSample.getLensSqueezeRatio() / postScale[1];
-
-	    val = PY_PyFloat_FromDouble(winx);
-	    PY_PyDict_SetItemString(resultDict, "winx", val);
-	    PY_Py_DECREF(val);
-
-	    val = PY_PyFloat_FromDouble(winy);
-	    PY_PyDict_SetItemString(resultDict, "winy", val);
-	    PY_Py_DECREF(val);
-
-	    val = PY_PyFloat_FromDouble(winsizex);
-	    PY_PyDict_SetItemString(resultDict, "winsizex", val);
-	    PY_Py_DECREF(val);
-
-	    val = PY_PyFloat_FromDouble(winsizey);
-	    PY_PyDict_SetItemString(resultDict, "winsizey", val);
-	    PY_Py_DECREF(val);
-
-	    val = PY_PyFloat_FromDouble(
-		    cameraSample.getHorizontalAperture()*10.0);
-	    PY_PyDict_SetItemString(resultDict, "aperture", val);
+	}
+	catch (const std::exception &e)
+	{
+	    PY_PyObject *val = PY_PyString_FromString(e.what());
+	    PY_PyDict_SetItemString(resultDict, "error", val);
 	    PY_Py_DECREF(val);
 	}
 
