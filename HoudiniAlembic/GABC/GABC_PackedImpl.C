@@ -772,13 +772,15 @@ GABC_PackedImpl::GTCache::updateTransform(const GABC_PackedImpl *abc)
 void
 GABC_PackedImpl::markDirty()
 {
-    switch (animationType())
+    // Don't compute the animation type
+    switch (myCache.animationType())
     {
 	case GEO_ANIMATION_CONSTANT:
 	    break;
 	case GEO_ANIMATION_TRANSFORM:
 	    transformDirty();
 	    break;
+	case GEO_ANIMATION_INVALID:
 	case GEO_ANIMATION_ATTRIBUTE:
 	    attributeDirty();
 	    break;

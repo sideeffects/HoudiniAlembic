@@ -212,6 +212,8 @@ protected:
 	const GT_PrimitiveHandle	&box(const GABC_PackedImpl *abc);
 	const GT_PrimitiveHandle	&centroid(const GABC_PackedImpl *abc);
 	GEO_AnimationType	 animationType(const GABC_PackedImpl *abc);
+	GEO_AnimationType	 animationType() const
+				    { return myAnimationType; }
 
 	/// Return the current transform handle
 	const GT_TransformHandle	&xform(const GABC_PackedImpl *abc)
