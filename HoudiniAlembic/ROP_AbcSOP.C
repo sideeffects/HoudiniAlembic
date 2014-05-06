@@ -258,7 +258,7 @@ ROP_AbcSOP::clear()
 {
     for (int i = 0; i < myShapes.entries(); ++i)
 	delete myShapes(i);
-    myShapes.resize(0);
+    myShapes.setCapacity(0);
 }
 
 static std::string

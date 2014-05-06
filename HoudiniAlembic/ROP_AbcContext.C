@@ -65,7 +65,7 @@ ROP_AbcContext::setTimeSampling(fpreal tstart,
     fpreal	spf = CHgetManager()->getSecsPerSample();
     
     tstart += spf;
-    myBlurTimes.resize(0);
+    myBlurTimes.setCapacity(0);
     if (mb_samples < 2)
     {
 	myTimeSampling.reset(new TimeSampling(tstep, tstart));

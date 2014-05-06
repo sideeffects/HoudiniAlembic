@@ -130,7 +130,7 @@ ROP_AbcGTCompoundShape::clear()
 	delete myShapes(i);
     delete myContainer;
     myContainer = NULL;
-    myShapes.resize(0);
+    myShapes.setCapacity(0);
 }
 
 bool
