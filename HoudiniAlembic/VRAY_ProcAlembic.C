@@ -597,7 +597,7 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 	{
 	    for (int i = 0; i < myLoadDetails.entries(); ++i)
 		freeGeometry(myLoadDetails(i));
-	    myLoadDetails.resize(0);
+	    myLoadDetails.setCapacity(0);
 	}
     }
     else
@@ -664,7 +664,7 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 	{
 	    for (int i = 0; i < myAttribDetails.entries(); ++i)
 		freeGeometry(myAttribDetails(i));
-	    myAttribDetails.resize(0);
+	    myAttribDetails.setCapacity(0);
 	    myMergeInfo.clear();
 	}
     }
