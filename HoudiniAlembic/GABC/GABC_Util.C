@@ -32,6 +32,7 @@
 #include <UT/UT_WorkBuffer.h>
 #include <UT/UT_StringArray.h>
 #include <UT/UT_FSA.h>
+#include <UT/UT_PathSearch.h>
 #include <UT/UT_SharedPtr.h>
 #include <UT/UT_SysClone.h>
 #include <UT/UT_SymbolTable.h>
@@ -553,12 +554,25 @@ namespace
 	}
     }
 
+    static bool
+    pathMap(UT_String &path)
+    {
+	if (!path.isstring())
+	    return false;
+	if (UTaccess(path.buffer(), R_OK) == 0)
+	    return true;
+	if (!UT_PathSearch::pathMap(path))
+	    return false;
+	return UTaccess(path.buffer(), R_OK) == 0;
+    }
+
     ArchiveCacheEntryPtr
     FindArchive(const std::string &path)
     {
-	if (UTisstring(path.c_str()) && UTaccess(path.c_str(), R_OK) == 0)
+	UT_String	spath(path.c_str());
+	if (pathMap(spath))
 	{
-	    ArchiveCache::iterator I = g_archiveCache->find(path);
+	    ArchiveCache::iterator I = g_archiveCache->find(spath.buffer());
 	    if (I != g_archiveCache->end())
 	    {
 		return (*I).second;
@@ -578,14 +592,15 @@ namespace
         {
             return (*I).second;
         }
-	if (!UTisstring(path.c_str()) || UTaccess(path.c_str(), R_OK) != 0)
+	UT_String	spath(path.c_str());
+	if (!pathMap(spath))
 	{
 	    badFileWarning(path);
 	    return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
 	}
         ArchiveCacheEntryPtr entry = ArchiveCacheEntryPtr(
                 new ArchiveCacheEntry);
-	entry->setArchive(GABC_IArchive::open(path));
+	entry->setArchive(GABC_IArchive::open(spath.buffer()));
         while (g_archiveCache->size() >= g_maxCache)
         {
             long d = static_cast<long>(std::floor(
