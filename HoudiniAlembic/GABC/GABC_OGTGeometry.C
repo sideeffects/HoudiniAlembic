@@ -449,7 +449,7 @@ namespace
         if(sample.getVals().size() != weights.size())
         {
             UT_ASSERT(0);
-            return 0;
+            return P3fArraySamplePtr();
         }
 
         size_t              size = weights.size();

@@ -954,7 +954,7 @@ namespace {
         if (points_ptr->size() != weights_ptr->size())
         {
             UT_ASSERT(0);
-            return 0;
+            return P4fArraySamplePtr();
         }
 
         size_t              size = points_ptr->size();
