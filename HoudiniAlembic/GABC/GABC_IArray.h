@@ -185,7 +185,6 @@ private:
     GT_Size		mySize;
     int			myTupleSize;
     GT_Type		myType;
-    PlainOldDataType	myAbcType;
     bool		myIsConstant;
 };
 }
