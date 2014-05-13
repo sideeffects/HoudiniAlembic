@@ -387,6 +387,45 @@ namespace
 
     template <typename T, GT_Storage T_STORAGE>
     static GT_DataArrayHandle
+    rationalize(const GT_DataArrayHandle &p, const T *p_data,
+                const GT_DataArrayHandle &pw, const T *pw_data)
+    {
+        GT_Size                     p_entries = p->entries();
+        GT_Size                     pw_entries = pw->entries();
+
+        if (p_entries != pw_entries)
+        {
+            UT_ASSERT(0);
+            return p;
+        }
+
+        GT_Size                     p_tuple = p->getTupleSize();
+        // GT_DANumeric holds own copy of data,
+        // frees memory during destruction
+        GT_DANumeric<T, T_STORAGE>  *gtarray = new GT_DANumeric<T, T_STORAGE> (
+                p_entries,
+                p_tuple,
+                p->getTypeInfo());
+        T                           *dest = gtarray->data();
+        T                           val;
+        exint                       pos = 0;
+
+        for (exint i = 0; i < p_entries; ++i)
+        {
+            val = pw_data[i];
+
+            for (exint j = 0; j < p_tuple; ++j)
+            {
+                dest[pos] = p_data[pos] / val;
+                pos = pos + 1;
+            }
+        }
+
+        return GT_DataArrayHandle(gtarray);
+    }
+
+    template <typename T, GT_Storage T_STORAGE>
+    static GT_DataArrayHandle
     blendArrays(const GT_DataArrayHandle &s0, const T *f0,
 		const GT_DataArrayHandle &s1, const T *f1,
 		fpreal bias)
@@ -702,14 +741,64 @@ namespace
 	    return;
 
 	GABC_IArchive		&arch = *obj.archive();
-	ISampleSelector		 sample(t);
-	UT_StackBuffer<bool>	 filled(alist.entries());
+	ISampleSelector		sample(t);
+	UT_StackBuffer<bool>	filled(alist.entries());
+	GT_DataArrayHandle      p_data = 0;
 
 	memset(filled, 0, sizeof(bool)*alist.entries());
 	topologyUID(alist, obj);
 
-	SET_ARRAY(P, "P", GT_TYPE_POINT, GEO_PackedNameMapPtr())
-	SET_ARRAY(Pw, "Pw", GT_TYPE_NONE, GEO_PackedNameMapPtr())
+        if (P && *P && (!GEO_PackedNameMapPtr() || GEO_PackedNameMapPtr()->matchPattern(GA_ATTRIB_POINT, "P"))) {
+            if (ONLY_ANIMATING && P->isConstant())
+                markFilled(alist, "P", filled);
+            else
+                p_data = readArrayProperty(arch, *P, t, GT_TYPE_POINT);
+        }
+        if (Pw && *Pw && (!GEO_PackedNameMapPtr() || GEO_PackedNameMapPtr()->matchPattern(GA_ATTRIB_POINT, "Pw"))) {
+            if (ONLY_ANIMATING && Pw->isConstant())
+                markFilled(alist, "Pw", filled);
+            else
+            {
+	        GT_DataArrayHandle  buf_p;
+	        GT_DataArrayHandle  buf_pw;
+                GT_DataArrayHandle  pw_data = readArrayProperty(arch, *Pw, t, GT_TYPE_NONE);
+
+                if (p_data)
+                {
+                    switch (p_data->getStorage())
+                    {
+                        case GT_STORE_REAL16:
+                            p_data = rationalize<fpreal16, GT_STORE_REAL16>(p_data,
+                                    p_data->getF16Array(buf_p),
+                                    pw_data,
+                                    pw_data->getF16Array(buf_pw));
+                            break;
+
+                	case GT_STORE_REAL32:
+                            p_data = rationalize<fpreal32, GT_STORE_REAL32>(p_data,
+                                    p_data->getF32Array(buf_p),
+                                    pw_data,
+                                    pw_data->getF32Array(buf_pw));
+                            break;
+
+                        case GT_STORE_REAL64:
+                            p_data = rationalize<fpreal64, GT_STORE_REAL64>(p_data,
+                                    p_data->getF64Array(buf_p),
+                                    pw_data,
+                                    pw_data->getF64Array(buf_pw));
+                            break;
+
+                        default:
+                            UT_ASSERT(0);
+                    }
+                }
+
+                setAttributeData(alist, "Pw", pw_data, filled);
+            }
+        }
+        if (p_data)
+            setAttributeData(alist, "P", p_data, filled);
+
 	SET_ARRAY(v, "v", GT_TYPE_VECTOR, namemap)
 	SET_ARRAY(ids, "id", GT_TYPE_NONE, namemap)
 	SET_GEOM_PARAM(N, "N", GT_TYPE_NORMAL)

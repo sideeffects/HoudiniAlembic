@@ -39,14 +39,26 @@
 #include <GU/GU_PrimNURBSurf.h>
 #include <GA/GA_Handle.h>
 
+namespace Alembic {
+    namespace Abc {
+        namespace ALEMBIC_VERSION_NS {
+            typedef Imath::V4f      V4f;
+            ALEMBIC_ABC_DECLARE_TYPE_TRAITS(V4f, kFloat32POD, 4, "point", P4fTPTraits);
+        }
+    }
+}
+
 using namespace GABC_NAMESPACE;
 
 namespace {
     typedef Imath::M44d				M44d;
+    typedef Imath::V3f			        V3f;
     typedef Imath::V3d				V3d;
+    typedef Imath::V4f                          V4f;
     typedef Alembic::Abc::DataType		DataType;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
+    typedef Alembic::Abc::P3fArraySample	P3fArraySample;
     typedef Alembic::Abc::Int32ArraySamplePtr	Int32ArraySamplePtr;
     typedef Alembic::Abc::FloatArraySamplePtr	FloatArraySamplePtr;
     typedef Alembic::Abc::P3fArraySamplePtr	P3fArraySamplePtr;
@@ -74,6 +86,11 @@ namespace {
     typedef Alembic::AbcGeom::IFaceSet		IFaceSet;
     typedef Alembic::AbcGeom::IFaceSetSchema	IFaceSetSchema;
     typedef INuPatchSchema::Sample		INuPatchSample;
+
+    // Types used for NURBS rationalization, but undefined by Alembic
+    typedef Alembic::Abc::P4fTPTraits                   P4fTPTraits;
+    typedef Alembic::Abc::TypedArraySample<P4fTPTraits> P4fArraySample;
+    typedef Alembic::Util::shared_ptr<P4fArraySample>   P4fArraySamplePtr;
 
     const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
     const M44d	identity44d(1, 0, 0, 0,
@@ -931,6 +948,31 @@ namespace {
 	return false;
     }
 
+    P4fArraySamplePtr
+    rationalize(const P3fArraySamplePtr &points_ptr, const FloatArraySamplePtr &weights_ptr)
+    {
+        if (points_ptr->size() != weights_ptr->size())
+        {
+            UT_ASSERT(0);
+            return 0;
+        }
+
+        size_t              size = points_ptr->size();
+        const V3f	    *points = points_ptr->get();
+        const fpreal32	    *weights = weights_ptr->get();
+        V4f                 *rationalized_vals = new V4f[size];
+
+        for(exint i = 0; i < size; ++i)
+        {
+            rationalized_vals[i] = V4f(points[i] / weights[i]);
+            rationalized_vals[i].w = weights[i];
+        }
+
+        // Use custom destructor to free rationized_vals memory
+        return P4fArraySamplePtr(new P4fArraySample(rationalized_vals, size),
+                Alembic::AbcCoreAbstract::TArrayDeleter<V4f>());
+    }
+
     bool
     reusePolySoup(GABC_GEOWalker &walk)
     {
@@ -1137,9 +1179,9 @@ namespace {
 	ISampleSelector		iss = walk.timeSample();
 	ICurves			curves(obj.object(), gabcWrapExisting);
 	ICurvesSchema		&cs = curves.getSchema();
-	P3fArraySamplePtr	P = cs.getPositionsProperty().getValue(iss);
-	Int32ArraySamplePtr	nvtx =cs.getNumVerticesProperty().getValue(iss);
-	exint			npoint = P->size();
+	P3fArraySamplePtr	points = cs.getPositionsProperty().getValue(iss);
+	Int32ArraySamplePtr	nvtx = cs.getNumVerticesProperty().getValue(iss);
+	exint			npoint = points->size();
 	exint			nvertex = npoint;
 	exint			nprim = nvtx->size();
 
@@ -1161,14 +1203,24 @@ namespace {
 	{
 	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
-	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
+	    UT_ASSERT(walk.detail().getNumPrimitives() == walk.primitiveCount());
 	    appendCurves(walk, npoint, nvtx);
 	}
 
 	// Set properties
-	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
-		cs.getPositionsProperty().getValue(iss),
-		walk.pointCount(), npoint);
+	if (MATCH_PROPERTY(cs.getPositionWeightsProperty(), iss, "Pw"))
+        {
+            setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
+                        rationalize(points, cs.getPositionWeightsProperty().getValue(iss)),
+                        walk.pointCount(), npoint);
+        }
+        else
+        {
+            setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
+                        points,
+                        walk.pointCount(), npoint);
+        }
+
 	if (cs.getVelocitiesProperty().valid())
 	if (MATCH_PROPERTY(cs.getVelocitiesProperty(), iss, "v"))
 	{
@@ -1338,13 +1390,13 @@ namespace {
 	FloatArraySamplePtr	vknots = patch.getVKnot();
 	int			uorder = patch.getUOrder();
 	int			vorder = patch.getVOrder();
-	P3fArraySamplePtr	P = ps.getPositionsProperty().getValue(iss);
-	exint			npoint = P->size();
+	P3fArraySamplePtr	points = ps.getPositionsProperty().getValue(iss);
+	exint			npoint = points->size();
 	exint			nvertex = npoint;
 	exint			nprim = 1;
 
 	// Verify that we have the expected point count
-	UT_ASSERT(P->size() == (uknots->size()-uorder)*(vknots->size()-vorder));
+	UT_ASSERT(npoint == (uknots->size()-uorder)*(vknots->size()-vorder));
 
 	//fprintf(stderr, "NuPatch: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
 
@@ -1365,7 +1417,7 @@ namespace {
 	{
 	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
-	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
+	    UT_ASSERT(walk.detail().getNumPrimitives() == walk.primitiveCount());
 	    appendNURBS(walk, uorder, uknots, vorder, vknots);
 	}
 	GA_Offset	 primoff = GA_Offset(walk.primitiveCount());
@@ -1375,9 +1427,19 @@ namespace {
 	setKnotVector(*surf->getVBasis(), vknots);
 
 	// Set properties
-	setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
-		ps.getPositionsProperty().getValue(iss),
-		walk.pointCount(), npoint);
+        if (MATCH_PROPERTY(ps.getPositionWeightsProperty(), iss, "Pw"))
+        {
+            setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
+        		rationalize(points, ps.getPositionWeightsProperty().getValue(iss)),
+        		walk.pointCount(), npoint);
+        }
+        else
+        {
+            setAttribute(walk.detail(), GA_ATTRIB_POINT, "P", NULL,
+            		points,
+            		walk.pointCount(), npoint);
+        }
+
 	if (MATCH_PROPERTY(ps.getVelocitiesProperty(), iss, "v"))
 	{
 	    setAttribute(walk.detail(), GA_ATTRIB_POINT, "v", NULL,

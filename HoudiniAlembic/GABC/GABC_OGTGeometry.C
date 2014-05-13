@@ -63,6 +63,7 @@ namespace
     typedef Alembic::Abc::V2fArraySample	V2fArraySample;
     typedef Alembic::Abc::V3fArraySample	V3fArraySample;
     typedef Alembic::Abc::P3fArraySample	P3fArraySample;
+    typedef Alembic::Abc::P3fArraySamplePtr	P3fArraySamplePtr;
     typedef Alembic::Abc::OCompoundProperty	OCompoundProperty;
     typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
     typedef Alembic::AbcGeom::OFaceSet		OFaceSet;
@@ -442,6 +443,30 @@ namespace
 	return transformedAttributes(prim, prim.getDetailAttributes());
     }
 
+    static P3fArraySamplePtr
+    homogenize(OP3fGeomParam::Sample &sample, const FloatArraySample &weights)
+    {
+        if(sample.getVals().size() != weights.size())
+        {
+            UT_ASSERT(0);
+            return 0;
+        }
+
+        size_t              size = weights.size();
+        const V3f           *sample_vals = sample.getVals().get();
+        const fpreal32      *weight_vals = weights.get();
+        V3f                 *homogenized_vals = new V3f[size];
+
+        for(exint i = 0; i < size; ++i)
+        {
+            homogenized_vals[i] = sample_vals[i] * weight_vals[i];
+        }
+
+        // Use custom destructor to free homogenized_vals memory
+        return P3fArraySamplePtr(new P3fArraySample(homogenized_vals, size),
+                        Alembic::AbcCoreAbstract::TArrayDeleter<V3f>());
+    }
+
     template <typename ABC_TYPE>
     static void
     fillFaceSets(const UT_Array<std::string> &names,
@@ -646,6 +671,7 @@ namespace
 	Alembic::AbcGeom::CurveType		iOrder;
 	Alembic::AbcGeom::CurvePeriodicity	iPeriod;
 	Alembic::AbcGeom::BasisType		iBasis;
+	P3fArraySamplePtr                       homogenized_vals;
 
 	switch (src.getBasis())
 	{
@@ -724,7 +750,13 @@ namespace
 		    GT_AttributeListHandle(), uniform, detail);
 	}
 	if (Pw && cache.needWrite(ctx, "Pw", Pw))
+	{
 	    iPosWeight = floatArray(Pw, storage.Pw());
+            homogenized_vals = homogenize(iPos, iPosWeight);
+
+            if(homogenized_vals)
+                iPos.setVals(*homogenized_vals);
+        }
 
 	if (knots)
 	    iKnots = floatArray(knots, storage.uknots());
@@ -801,6 +833,7 @@ namespace
 	OV2fGeomParam::Sample	iUVs;
 	OV3fGeomParam::Sample	iVel;
 	IntrinsicCache		storage;
+	P3fArraySamplePtr                       homogenized_vals;
 
 	const GT_AttributeListHandle		&pt = vertexAttributes(src);
 	const GT_DataArrayHandle		&Pw = pt->get("Pw");
@@ -819,7 +852,13 @@ namespace
 	if (cache.needWrite(ctx, "vknots", src.getVKnots()))
 	    iVKnot = floatArray(src.getVKnots(), storage.vknots());
 	if (Pw && cache.needWrite(ctx, "Pw", Pw))
+	{
 	    iPosWeight = floatArray(Pw, storage.Pw());
+            homogenized_vals = homogenize(iPos, iPosWeight);
+
+            if(homogenized_vals)
+                iPos.setVals(*homogenized_vals);
+	}
 
 	ONuPatchSchema::Sample	sample(iPos.getVals(),
 			src.getNu(), src.getNv(),
