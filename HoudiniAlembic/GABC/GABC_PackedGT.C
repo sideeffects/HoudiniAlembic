@@ -35,11 +35,21 @@ class GABC_API GABC_PackedGT : public GT_GEOPrimPacked
 {
 public:
     GABC_PackedGT(const GU_PrimPacked *prim)
-	: GT_GEOPrimPacked(prim)
+	: GT_GEOPrimPacked(prim),
+	  myID(0)
     {
+	if(prim)
+	{
+	    const GABC_PackedImpl *impl =
+	       UTverify_cast<const GABC_PackedImpl *>(prim->implementation());
+	    if(impl)
+		myID = impl->getPropertiesHash();
+	}
     }
+    
     GABC_PackedGT(const GABC_PackedGT &src)
-	: GT_GEOPrimPacked(src)
+	: GT_GEOPrimPacked(src),
+	  myID(src.myID)
     {
     }
     virtual ~GABC_PackedGT()
@@ -61,7 +71,11 @@ public:
     virtual bool		getInstanceKey(UT_Options &options) const;
     virtual GT_PrimitiveHandle	getInstanceGeometry(const GT_RefineParms *p) const;
     virtual GT_TransformHandle	getInstanceTransform() const;
+
+    virtual bool		getUniqueID(int64 &id) const
+				{ id = myID; return true; }
 private:
+    int64	myID;
 };
 
 

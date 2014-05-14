@@ -148,6 +148,8 @@ GABC_PackedImpl::GABC_PackedImpl()
     , myFrame(0)
     , myUseTransform(true)
     , myUseVisibility(true)
+    , myCachedUniqueID(false)
+    , myUniqueID(0)
 {
 }
 
@@ -160,6 +162,8 @@ GABC_PackedImpl::GABC_PackedImpl(const GABC_PackedImpl &src)
     , myFrame(src.myFrame)
     , myUseTransform(src.myUseTransform)
     , myUseVisibility(src.myUseVisibility)
+    , myCachedUniqueID(src.myCachedUniqueID)
+    , myUniqueID(src.myUniqueID)
 {
 }
 
@@ -788,4 +792,25 @@ GABC_PackedImpl::markDirty()
 	    topologyDirty();
 	    break;
     }
+}
+
+int64
+GABC_PackedImpl::getPropertiesHash() const
+{
+    if(!myCachedUniqueID)
+    {
+	// This call is expensive as it accesses the alembic file, so cache it.
+	if(!myObject.getPropertiesHash(myUniqueID))
+	{
+	    // HDF, likely. Hash the object path & filename to get an id.
+	    const int64 pathhash = UT_String::hash(objectPath().c_str());
+	    const int64 filehash = UT_String::hash(filename().c_str());
+
+	    myUniqueID = pathhash + SYSwang_inthash64(filehash);
+	}
+	    
+	myCachedUniqueID = true;
+    }
+    
+    return myUniqueID;
 }

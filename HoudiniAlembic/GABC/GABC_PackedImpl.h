@@ -159,6 +159,10 @@ public:
     int64		 intrinsicFullVisibility() const
 			    { return computeVisibility(true); }
 
+    /// Returns a sys_wang64 hash of the sum of 64B values making up the Alembic
+    /// property hash.
+    int64		 getPropertiesHash() const;
+
     void	setObject(const GABC_IObject &v);
     void	setFilename(const std::string &v);
     void	setObjectPath(const std::string &v);
@@ -244,6 +248,9 @@ private:
 
     mutable GABC_IObject	 myObject;
     mutable GTCache		 myCache;
+    mutable bool		 myCachedUniqueID;
+    mutable int64		 myUniqueID;
+    mutable 
     std::string			 myFilename;
     std::string			 myObjectPath;
     fpreal			 myFrame;

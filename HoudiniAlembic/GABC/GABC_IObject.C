@@ -3028,3 +3028,17 @@ GABC_IObject::localTransform(fpreal t, M44d &m4,
     m4 = GABC_Util::getM(xform);
     return true;
 }
+
+bool
+GABC_IObject::getPropertiesHash(int64 &hash) const
+{
+    Alembic::Util::Digest prophash;
+    if(const_cast<IObject &>(myObject).getPropertiesHash(prophash))
+    {
+	hash = prophash.words[0] + SYSwang_inthash64(prophash.words[1]);
+	return true;
+    }
+    
+    hash = 0;
+    return false;
+}

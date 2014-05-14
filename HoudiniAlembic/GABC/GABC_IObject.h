@@ -280,6 +280,10 @@ public:
 				    bool &inheritsXform) const;
     /// @}
 
+    /// Alembic's 128b prop hash wang'hashed to 64b. Returns false if no hash
+    /// exists (getPropertiesHash() returns false, such as for HDF5).
+    bool		getPropertiesHash(int64 &hash) const;
+
     /// @{
     /// Member data access
     const std::string	&objectPath() const		{ return myObjectPath; }
