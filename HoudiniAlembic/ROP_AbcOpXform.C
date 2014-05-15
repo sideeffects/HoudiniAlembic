@@ -279,7 +279,7 @@ ROP_AbcOpXform::update(GABC_OError &err,
 	    {
 		UT_WorkBuffer	fullpath;
 		xformNodeFullPath(fullpath, myNodeId);
-		return err.error("Error cooking transofmr %s at time %g",
+		return err.error("Error cooking transform %s at time %g",
 			fullpath.buffer(), ctx.cookContext().getTime());
 	    }
 	}

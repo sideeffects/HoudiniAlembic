@@ -31,12 +31,16 @@
 #include <UT/UT_StackBuffer.h>
 #include <Alembic/AbcGeom/All.h>
 #include <GEO/GEO_PackedNameMap.h>
+#include <GEO/GEO_PrimNURBCurve.h>
+#include <GEO/GEO_PrimRBezCurve.h>
 #include <GT/GT_DataArray.h>
 #include <GU/GU_PrimPacked.h>
 #include <GU/GU_PrimPoly.h>
 #include <GU/GU_PrimPolySoup.h>
 #include <GU/GU_PrimPart.h>
+#include <GU/GU_PrimNURBCurve.h>
 #include <GU/GU_PrimNURBSurf.h>
+#include <GU/GU_PrimRBezCurve.h>
 #include <GA/GA_Handle.h>
 
 namespace Alembic {
@@ -59,6 +63,7 @@ namespace {
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
     typedef Alembic::Abc::P3fArraySample	P3fArraySample;
+    typedef Alembic::Abc::UcharArraySamplePtr	UcharArraySamplePtr;
     typedef Alembic::Abc::Int32ArraySamplePtr	Int32ArraySamplePtr;
     typedef Alembic::Abc::FloatArraySamplePtr	FloatArraySamplePtr;
     typedef Alembic::Abc::P3fArraySamplePtr	P3fArraySamplePtr;
@@ -72,6 +77,7 @@ namespace {
     typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
     typedef Alembic::AbcGeom::XformSample	XformSample;
 
+    typedef Alembic::AbcGeom::BasisType         BasisType;
     typedef Alembic::AbcGeom::GeometryScope	GeometryScope;
     typedef Alembic::AbcGeom::ISubD		ISubD;
     typedef Alembic::AbcGeom::ISubDSchema	ISubDSchema;
@@ -86,6 +92,7 @@ namespace {
     typedef Alembic::AbcGeom::IFaceSet		IFaceSet;
     typedef Alembic::AbcGeom::IFaceSetSchema	IFaceSetSchema;
     typedef INuPatchSchema::Sample		INuPatchSample;
+    typedef ICurvesSchema::Sample               ICurvesSample;
 
     // Types used for NURBS rationalization, but undefined by Alembic
     typedef Alembic::Abc::P4fTPTraits                   P4fTPTraits;
@@ -305,6 +312,13 @@ namespace {
 	    // transform as a vector.
 	}
 	return attrib;
+    }
+
+    template <typename T>
+    static bool
+    isEmpty(const T &ptr)
+    {
+	return !ptr || !ptr->valid() || ptr->size() == 0;
     }
 
     template <typename T>
@@ -731,23 +745,41 @@ namespace {
     }
 
     void
-    appendCurves(GABC_GEOWalker &walk, exint npoint, Int32ArraySamplePtr counts)
+    appendCurves(GABC_GEOWalker &walk,
+            BasisType type,
+            Int32ArraySamplePtr counts,
+            exint npoint,
+            int order)
     {
 	GU_Detail	&gdp = walk.detail();
 	exint		 startpoint = appendPoints(walk, npoint);
 	exint		 ncurves = counts->size();
-	GEO_PolyCounts	 pcounts;
-	exint		 nvtx = 0;
-	for (exint i = 0; i < ncurves; ++i)
+        GEO_PolyCounts	 pcounts;
+        exint		 nvtx = 0;
+        for (exint i = 0; i < ncurves; ++i)
+        {
+            nvtx += (*counts)[i];
+            pcounts.append((*counts)[i]);
+        }
+        UT_StackBuffer<int>	indices(nvtx);
+        for (int i = 0; i < nvtx; ++i)
+            indices[i] = i;
+
+	switch (type)
 	{
-	    nvtx += (*counts)[i];
-	    pcounts.append((*counts)[i]);
+	    case Alembic::AbcGeom::kBezierBasis:
+	        GEO_PrimRBezCurve::buildBlock(&gdp, GA_Offset(startpoint),
+                        npoint, pcounts, indices, order);
+	        break;
+	    case Alembic::AbcGeom::kBsplineBasis:
+	        GEO_PrimNURBCurve::buildBlock(&gdp, GA_Offset(startpoint),
+                        npoint, pcounts, indices, order);
+	        break;
+            case Alembic::AbcGeom::kNoBasis:
+            default:
+                GU_PrimPoly::buildBlock(&gdp, GA_Offset(startpoint),
+                        npoint, pcounts, indices, false);
 	}
-	UT_StackBuffer<int>	indices(nvtx);
-	for (int i = 0; i < nvtx; ++i)
-	    indices[i] = i;
-	GU_PrimPoly::buildBlock(&gdp, GA_Offset(startpoint), npoint,
-			pcounts, indices, false);
     }
 
     void
@@ -1179,11 +1211,39 @@ namespace {
 	ISampleSelector		iss = walk.timeSample();
 	ICurves			curves(obj.object(), gabcWrapExisting);
 	ICurvesSchema		&cs = curves.getSchema();
-	P3fArraySamplePtr	points = cs.getPositionsProperty().getValue(iss);
-	Int32ArraySamplePtr	nvtx = cs.getNumVerticesProperty().getValue(iss);
-	exint			npoint = points->size();
+	ICurvesSample		c_sample = cs.getValue(iss);
+	P3fArraySamplePtr	points = cs.getPositionsProperty()
+	                                .getValue(iss);
+	Int32ArraySamplePtr	nvtx = cs.getNumVerticesProperty()
+	                                .getValue(iss);
+	FloatArraySamplePtr     knots = c_sample.getKnots();
+        BasisType               type = c_sample.getBasis();
+        exint			npoint = points->size();
 	exint			nvertex = npoint;
 	exint			nprim = nvtx->size();
+	int                     uorder;
+
+	switch (c_sample.getType())
+        {
+            case Alembic::AbcGeom::kCubic:
+                uorder = 4;
+                break;
+            case Alembic::AbcGeom::kLinear:
+                uorder = 2;
+                break;
+            case Alembic::AbcGeom::kVariableOrder:
+            {
+                UcharArraySamplePtr     abcOrders = c_sample.getOrders();
+                if (!isEmpty(abcOrders))
+                {
+                    uorder = abcOrders->get()[0];
+                    break;
+                }
+            }
+            default:
+                uorder = 2;
+                type = Alembic::AbcGeom::kNoBasis;
+        }
 
 	GEO_AnimationType	atype = getAnimationType(walk, obj);
 	if (atype != GEO_ANIMATION_CONSTANT)
@@ -1204,7 +1264,15 @@ namespace {
 	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() == walk.primitiveCount());
-	    appendCurves(walk, npoint, nvtx);
+	    appendCurves(walk, type, nvtx, npoint, uorder);
+	}
+
+	if (type == Alembic::AbcGeom::kBsplineBasis && !isEmpty(knots))
+	{
+	    GA_Offset	        primoff = GA_Offset(walk.primitiveCount());
+            GU_PrimNURBCurve	*curve = UTverify_cast<GU_PrimNURBCurve *>(
+                                        walk.detail().getGEOPrimitive(primoff));
+            setKnotVector(*curve->getBasis(), knots);
 	}
 
 	// Set properties
