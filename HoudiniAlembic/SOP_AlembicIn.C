@@ -31,6 +31,7 @@
 #include <UT/UT_DSOVersion.h>
 #include <UT/UT_StringStream.h>
 #include <UT/UT_WorkArgs.h>
+#include <UT/UT_WorkBuffer.h>
 #include <GU/GU_Detail.h>
 #include <PRM/PRM_Shared.h>
 #include <SOP/SOP_Guide.h>
@@ -820,7 +821,12 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	else
 	{
 	    if (!GABC_Util::walk(parms.myFilename, walk))
-		addError(SOP_MESSAGE, "Error evaluating Alembic file");
+	    {
+		UT_WorkBuffer msg;
+		msg.sprintf("Error evaluating Alembic file (%s)",
+			    parms.myFilename.c_str());
+		addError(SOP_MESSAGE, msg.buffer());
+	    }
 	}
 	setupEventHandler(parms.myFilename);
     }
