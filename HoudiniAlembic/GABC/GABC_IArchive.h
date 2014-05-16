@@ -94,7 +94,9 @@ public:
     void	decref()
 		{
 		    if (!myRefCount.add(-1))
-			delete this;
+		    {
+			closeAndDelete();
+		    }
 		}
     /// @}
 
@@ -106,6 +108,7 @@ public:
     /// @}
 
 private:
+    void		 closeAndDelete();
     /// Access to the file lock - required for non-thread safe HDF5
     UT_Lock		&getLock() const	{ return *theLock; }
     friend class	 GABC_AutoLock;

@@ -51,6 +51,9 @@ namespace
 #if defined(GABC_OGAWA)
     typedef Alembic::AbcCoreFactory::IFactory		IFactory;
 #endif
+    typedef UT_Map<std::string, GABC_IArchive *>	ArchiveCache;
+
+    static ArchiveCache	theArchiveCache;
 }
 
 UT_Lock	*GABC_IArchive::theLock = NULL;
@@ -63,7 +66,36 @@ GABC_IArchive::open(const std::string &path)
 	theLock = new UT_Lock();
 	GABC_IObject::init();
     }
-    return GABC_IArchivePtr(new GABC_IArchive(path));
+
+    UT_AutoLock	lock(*theLock);
+    ArchiveCache::iterator	it = theArchiveCache.find(path);
+    GABC_IArchive		*arch = NULL;
+    if (it != theArchiveCache.end())
+    {
+	arch = it->second;
+    }
+    else
+    {
+	arch = new GABC_IArchive(path);
+	theArchiveCache[path] = arch;
+    }
+    return GABC_IArchivePtr(arch);
+}
+
+void
+GABC_IArchive::closeAndDelete()
+{
+    UT_AutoLock	lock(*theLock);
+    // In the time between the atomic decrement and the lock acquisition, it's
+    // possible another thread my have called open on my path.  This would have
+    // incremented my reference count.
+    if (myRefCount.load() != 0)
+    {
+	// It's happened!
+	UT_ASSERT(theArchiveCache.find(myFilename) != theArchiveCache.end());
+	return;
+    }
+    delete this;
 }
 
 GABC_IArchive::GABC_IArchive(const std::string &path)
