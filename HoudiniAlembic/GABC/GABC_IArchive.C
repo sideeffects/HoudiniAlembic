@@ -95,6 +95,7 @@ GABC_IArchive::closeAndDelete()
 	UT_ASSERT(theArchiveCache.find(myFilename) != theArchiveCache.end());
 	return;
     }
+    theArchiveCache.erase(myFilename);
     delete this;
 }
 
