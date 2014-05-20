@@ -273,9 +273,23 @@ ROP_AbcOpXform::update(GABC_OError &err,
     {
 	if (!myIdentity)
 	{
+	    bool        evaluated = false;
 	    OBJ_Node	*node = getXformNode(myNodeId);
 
-	    if (!node || !node->getLocalTransform(ctx.cookContext(), myMatrix))
+	    if (node)
+	    {
+                if (node->isSubNetwork(false))
+                {
+                    OBJ_SubNet  *sub = UTverify_cast<OBJ_SubNet *>(node);
+                    evaluated = sub->getSubnetTransform(ctx.cookContext(), myMatrix);
+                }
+                else
+                {
+                    evaluated = node->getLocalTransform(ctx.cookContext(), myMatrix);
+                }
+            }
+
+	    if (!evaluated)
 	    {
 		UT_WorkBuffer	fullpath;
 		xformNodeFullPath(fullpath, myNodeId);
