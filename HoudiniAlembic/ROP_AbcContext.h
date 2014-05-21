@@ -166,7 +166,6 @@ private:
     OP_Context		 myCookContext;
     SOP_Node		*mySingletonSOP;
     UT_String		 myPartitionAttribute;
-    fpreal		 myWriteTime;
     int			 myPartitionMode;
     int			 myCollapseIdentity;
     bool		 myUseInstancing;
