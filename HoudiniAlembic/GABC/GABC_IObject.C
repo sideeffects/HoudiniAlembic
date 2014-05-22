@@ -244,7 +244,8 @@ namespace
     }
     template <typename T_SCHEMA>
     static void
-    adjustDeformingTimeSample(fpreal &t, const T_SCHEMA &ss)
+    adjustDeformingTimeSample(fpreal &t, const GABC_IObject &obj,
+	    const T_SCHEMA &ss)
     {
 	// If the mesh has varying topology, we need to choose a single time
 	// sample rather than trying to blend between samples.
@@ -259,15 +260,17 @@ namespace
 	std::pair<index_t, chrono_t> t1 = itime->getCeilIndex(t, nsamp);
 	if (t0.first == t1.first)
 	    return;		// Same time index
-	if ((t - t0.second) > (t1.second - t))
-	{
-	    t = t1.second;	// Closer to t1
+
+	fpreal best = ((t-t0.second) > (t1.second-t)) ? t1.second : t0.second;
+	if (SYSisEqual(best, t, timeBias))
+	    return;	// Same time (essentially)
+	UT_ErrorLog::mantraErrorOnce(
+	    "Alembic sub-frame interpolation error for dynamic topology %s (%s)",
+	    obj.archive()->filename().c_str(),
+	    obj.getFullName().c_str());
+	t = best;
 	}
-	else
-	{
-	    t = t0.second;	// Closer to t0
-	}
-    }
+
     static GT_DataArrayHandle
     getArraySample(GABC_IArchive &arch, const IArrayProperty &prop,
 	    index_t idx, GT_Type tinfo)
@@ -1222,7 +1225,7 @@ namespace
     {
 	IPoints			 shape(obj.object(), gabcWrapExisting);
 	IPointsSchema		&ss = shape.getSchema();
-	adjustDeformingTimeSample(t, ss);
+	adjustDeformingTimeSample(t, obj, ss);
 	IPointsSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 
 	GT_AttributeListHandle	 vertex;
@@ -1258,7 +1261,7 @@ namespace
     {
 	ISubD			 shape(obj.object(), gabcWrapExisting);
 	ISubDSchema		&ss = shape.getSchema();
-	adjustDeformingTimeSample(t, ss);
+	adjustDeformingTimeSample(t, obj, ss);
 	ISubDSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	GT_DataArrayHandle	 counts;
 	GT_DataArrayHandle	 indices;
@@ -1384,7 +1387,7 @@ namespace
     {
 	IPolyMesh		 shape(obj.object(), gabcWrapExisting);
 	IPolyMeshSchema		&ss = shape.getSchema();
-	adjustDeformingTimeSample(t, ss);
+	adjustDeformingTimeSample(t, obj, ss);
 	IPolyMeshSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	GT_DataArrayHandle	 counts;
 	GT_DataArrayHandle	 indices;
@@ -1535,7 +1538,7 @@ namespace
     {
 	ICurves			 shape(obj.object(), gabcWrapExisting);
 	ICurvesSchema		&ss = shape.getSchema();
-	adjustDeformingTimeSample(t, ss);
+	adjustDeformingTimeSample(t, obj, ss);
 	ICurvesSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	GT_DataArrayHandle	 counts;
 	ICompoundProperty	 arb;
@@ -1782,7 +1785,7 @@ namespace
     {
 	INuPatch		 shape(obj.object(), gabcWrapExisting);
 	INuPatchSchema		&ss = shape.getSchema();
-	adjustDeformingTimeSample(t, ss);
+	adjustDeformingTimeSample(t, obj, ss);
 	INuPatchSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	int			 uorder = sample.getUOrder();
 	int			 vorder = sample.getVOrder();
