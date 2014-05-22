@@ -230,6 +230,44 @@ namespace
 	return bias;
     }
 
+    template <typename T_SCHEMA>
+    static bool
+    isHeterogeneousTopology(const T_SCHEMA &ss)
+    {
+	return ss.getTopologyVariance() == Alembic::AbcGeom::kHeterogeneousTopology;
+    }
+    template <>
+    bool
+    isHeterogeneousTopology<IPointsSchema>(const IPointsSchema &ss)
+    {
+	return !ss.isConstant();
+    }
+    template <typename T_SCHEMA>
+    static void
+    adjustDeformingTimeSample(fpreal &t, const T_SCHEMA &ss)
+    {
+	// If the mesh has varying topology, we need to choose a single time
+	// sample rather than trying to blend between samples.
+	if (!isHeterogeneousTopology(ss))
+	    return;	// We can blend samples with impunity
+	// Now, pick a time, any time.
+	exint	 nsamp = SYSmax((exint)ss.getNumSamples(), (exint)1);
+	if (nsamp < 2)
+	    return;	// Only one sample?
+	const TimeSamplingPtr	&itime = ss.getTimeSampling();
+	std::pair<index_t, chrono_t> t0 = itime->getFloorIndex(t, nsamp);
+	std::pair<index_t, chrono_t> t1 = itime->getCeilIndex(t, nsamp);
+	if (t0.first == t1.first)
+	    return;		// Same time index
+	if ((t - t0.second) > (t1.second - t))
+	{
+	    t = t1.second;	// Closer to t1
+	}
+	else
+	{
+	    t = t0.second;	// Closer to t0
+	}
+    }
     static GT_DataArrayHandle
     getArraySample(GABC_IArchive &arch, const IArrayProperty &prop,
 	    index_t idx, GT_Type tinfo)
@@ -1184,6 +1222,7 @@ namespace
     {
 	IPoints			 shape(obj.object(), gabcWrapExisting);
 	IPointsSchema		&ss = shape.getSchema();
+	adjustDeformingTimeSample(t, ss);
 	IPointsSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 
 	GT_AttributeListHandle	 vertex;
@@ -1219,6 +1258,7 @@ namespace
     {
 	ISubD			 shape(obj.object(), gabcWrapExisting);
 	ISubDSchema		&ss = shape.getSchema();
+	adjustDeformingTimeSample(t, ss);
 	ISubDSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	GT_DataArrayHandle	 counts;
 	GT_DataArrayHandle	 indices;
@@ -1344,6 +1384,7 @@ namespace
     {
 	IPolyMesh		 shape(obj.object(), gabcWrapExisting);
 	IPolyMeshSchema		&ss = shape.getSchema();
+	adjustDeformingTimeSample(t, ss);
 	IPolyMeshSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	GT_DataArrayHandle	 counts;
 	GT_DataArrayHandle	 indices;
@@ -1494,6 +1535,7 @@ namespace
     {
 	ICurves			 shape(obj.object(), gabcWrapExisting);
 	ICurvesSchema		&ss = shape.getSchema();
+	adjustDeformingTimeSample(t, ss);
 	ICurvesSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	GT_DataArrayHandle	 counts;
 	ICompoundProperty	 arb;
@@ -1740,6 +1782,7 @@ namespace
     {
 	INuPatch		 shape(obj.object(), gabcWrapExisting);
 	INuPatchSchema		&ss = shape.getSchema();
+	adjustDeformingTimeSample(t, ss);
 	INuPatchSchema::Sample	 sample = ss.getValue(ISampleSelector(t));
 	int			 uorder = sample.getUOrder();
 	int			 vorder = sample.getVOrder();
