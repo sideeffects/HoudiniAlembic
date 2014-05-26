@@ -256,9 +256,18 @@ def PushParametersToChildren(rootNode):
 
 def _pushStringParm(name, fnode, tnode):
     tparm = tnode.parm(name)
-    if tparm:
-        fparm = fnode.parm(name)
+    if tparm == None:
+        return
+
+    fparm = fnode.parm(name)
+    if len(fparm.keyframes()) == 0:
+        # Push the value
         tparm.set(fparm.unexpandedString())
+    else:
+        # We can't easily push channels to the children, so in this
+        # case, we need to set channel references.
+        tparm.deleteAllKeyframes()
+        ExpressionToParm(fparm, tparm, True)
 
 def _pushScalarParm(name, fnode, tnode):
     tparm = tnode.parm(name)
