@@ -714,15 +714,22 @@ namespace {
 	GU_PrimParticle::build(&gdp, npoint, 1);
     }
 
-    static void
-    setKnotVector(GA_Basis &basis, FloatArraySamplePtr &knots)
+    static exint
+    setKnotVector(GA_Basis &basis, FloatArraySamplePtr &knots, int offset = 0)
     {
-	GA_KnotVector	&kvec = basis.getKnotVector();
-	UT_ASSERT(kvec.entries() == knots->size());
-	for (int i = 0; i < knots->size(); ++i)
-	    kvec.setValue(i, knots->get()[i]);
+	GA_KnotVector   &kvec = basis.getKnotVector();
+        exint           basis_size = kvec.entries();
+        exint           knots_size = knots->size();
+
+	UT_ASSERT(basis_size <= (knots_size - offset));
+
+	for (int i = 0; i < basis_size; ++i)
+	    kvec.setValue(i, knots->get()[offset + i]);
+
 	// Adjust flags based on knot values
 	basis.validate(GA_Basis::GA_BASIS_ADAPT_FLAGS);
+
+	return basis_size;
     }
 
     void
@@ -1269,10 +1276,17 @@ namespace {
 
 	if (type == Alembic::AbcGeom::kBsplineBasis && !isEmpty(knots))
 	{
-	    GA_Offset	        primoff = GA_Offset(walk.primitiveCount());
-            GU_PrimNURBCurve	*curve = UTverify_cast<GU_PrimNURBCurve *>(
-                                        walk.detail().getGEOPrimitive(primoff));
-            setKnotVector(*curve->getBasis(), knots);
+	    exint       offset = 0;
+	    exint       prims_added = nvtx->size();
+	    exint       prims_prior = walk.primitiveCount();
+
+	    for (exint i = 0; i < prims_added; ++i)
+	    {
+                GA_Offset	        primoff = GA_Offset(prims_prior + i);
+                GU_PrimNURBCurve	*curve = UTverify_cast<GU_PrimNURBCurve *>(
+                                            walk.detail().getGEOPrimitive(primoff));
+                offset += setKnotVector(*curve->getBasis(), knots, offset);
+            }
 	}
 
 	// Set properties
