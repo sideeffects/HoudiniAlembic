@@ -139,6 +139,96 @@ GABC_PackedImpl::typeId()
     return theFactory->typeId();
 }
 
+
+//#define USE_FAST_CACHE
+
+#ifdef USE_FAST_CACHE
+
+// NOTE: This is simply a proof of concept used for testing. It should not
+//       be enabled in a release build, as it 1) has no cap and 2) doesn't
+//	 reload or release the data when the alembic file is reloaded or
+//	 no longer referenced.
+
+namespace
+{
+typedef UT_Map<fpreal, GT_PrimitiveHandle>	gabc_DeformCache;
+typedef UT_Map<fpreal, UT_Matrix4D>		gabc_TransformCache;
+typedef UT_Map<fpreal, UT_BoundingBox>		gabc_BoundsCache;
+    
+class gabc_ObjectCacheItem
+{
+public:
+    gabc_ObjectCacheItem()
+	: geo_anim_type(GEO_ANIMATION_INVALID),
+	  xform_anim_type(GEO_ANIMATION_INVALID),
+	  bounds_anim_type(GEO_ANIMATION_INVALID),
+	  has_static_xform(false),
+	  has_bounds(true),
+	  deform_cache(new gabc_DeformCache),
+	  transform_cache(new gabc_TransformCache),
+	  bounds_cache(new gabc_BoundsCache) {}
+
+    ~gabc_ObjectCacheItem()
+	{
+	    delete deform_cache;
+	    delete transform_cache;
+	    delete bounds_cache;
+	}
+
+    // Geometry 
+    GEO_AnimationType    geo_anim_type;
+    GT_PrimitiveHandle   static_geo;
+    gabc_DeformCache    *deform_cache;
+
+    // Transform
+    GEO_AnimationType    xform_anim_type;
+    bool	         has_static_xform;
+    UT_Matrix4D	         static_xform;
+    gabc_TransformCache *transform_cache;
+
+    // bounds
+    GEO_AnimationType	 bounds_anim_type;
+    bool		 has_bounds;
+    UT_BoundingBox	 static_bounds;
+    gabc_BoundsCache	*bounds_cache;
+};
+   
+typedef UT_Map<std::string, gabc_ObjectCacheItem *>	gabc_ObjectCache;
+typedef UT_Map<std::string, gabc_ObjectCache *>		gabc_FileCache;
+    
+static gabc_FileCache theFileCache;
+
+gabc_ObjectCacheItem *
+getFileObject(const std::string &filename, const std::string &object_path)
+{
+    gabc_ObjectCacheItem *item = NULL;
+    gabc_ObjectCache *cache = NULL;
+    gabc_FileCache::iterator file_it = theFileCache.find(filename);
+    
+    if(file_it == theFileCache.end())
+    {
+	cache = new gabc_ObjectCache;
+	theFileCache[filename] = cache;
+    }
+    else
+	cache = file_it->second;
+
+    gabc_ObjectCache::iterator obj_it = cache->find(object_path);
+    if(obj_it == cache->end())
+    {
+	item = new gabc_ObjectCacheItem;
+	(*cache)[ object_path ] = item;
+    }
+    else
+	item = obj_it->second;
+
+    return item;
+}
+   
+};
+#endif
+
+
 GABC_PackedImpl::GABC_PackedImpl()
     : GU_PackedImpl()
     , myObject()
@@ -293,17 +383,79 @@ GABC_PackedImpl::loadUnknownToken(const char *token,
 bool
 GABC_PackedImpl::getBounds(UT_BoundingBox &box) const
 {
-    const GABC_IObject	&obj = object();
-    if (!obj.valid())
+    const GABC_IObject	&iobj = object();
+    if (!iobj.valid())
 	return 0;
 
+#ifdef USE_FAST_CACHE
+
+    gabc_ObjectCacheItem *obj = getFileObject(filename(), objectPath());
+    if(!obj->has_bounds)
+	return false;
+
+    bool fetched_bounds = false;
+    
+    if(obj->bounds_anim_type == GEO_ANIMATION_INVALID)
+    {
+	bool	isconst;
+	if (iobj.getBoundingBox(box, myFrame, isconst))
+	{
+	    setBoxCache(box);
+	    fetched_bounds = true;
+	    obj->bounds_anim_type = isconst ? GEO_ANIMATION_CONSTANT
+					    : GEO_ANIMATION_TRANSFORM;
+	}
+	else
+	{
+	    obj->has_bounds = false;
+	    return false;
+	}
+    }
+    
+    if(obj->bounds_anim_type == GEO_ANIMATION_TRANSFORM)
+    {
+	gabc_BoundsCache::iterator bounds_it =
+	    obj->bounds_cache->find(myFrame);
+
+	if(bounds_it != obj->bounds_cache->end())
+	{
+	    // cached matrix
+	    box = bounds_it->second;
+	}
+	else
+	{
+	    if(!fetched_bounds)
+	    {
+		bool isconst;
+		if(iobj.getBoundingBox(box, myFrame, isconst))
+		{
+		    setBoxCache(box);
+		}
+		else
+		    box.makeInvalid();
+	    }
+	    
+	    (*obj->bounds_cache)[myFrame] = box;
+	}	
+    }
+    else if(!fetched_bounds)
+    {
+	box = obj->static_bounds;
+    }
+
+    return true;
+    
+#else // !USE_FAST_CACHE
+    
     bool	isconst;
-    if (obj.getBoundingBox(box, myFrame, isconst))
+    if (iobj.getBoundingBox(box, myFrame, isconst))
     {
 	setBoxCache(box);
 	return true;
     }
     return false;
+    
+#endif
 }
 
 bool
@@ -362,8 +514,56 @@ GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
     if (!myUseTransform || !myObject.valid())
 	return false;
 
+#ifdef USE_FAST_CACHE
+
+    bool has_matrix = false;
+    gabc_ObjectCacheItem *obj = getFileObject(filename(), objectPath());
+ 	
+    // grab the animation type
+    GEO_AnimationType anim = obj->xform_anim_type;
+
+    if(anim == GEO_ANIMATION_INVALID)
+    {
+	myObject.getWorldTransform(m, myFrame, anim);
+
+	has_matrix = true;
+	obj->xform_anim_type = anim;
+	if(anim == GEO_ANIMATION_CONSTANT)
+	{
+	    obj->static_xform = m;
+	    return true;
+	}
+    }
+
+    if(anim >= GEO_ANIMATION_TRANSFORM)
+    {
+	gabc_TransformCache::iterator trans_it =
+	    obj->transform_cache->find(myFrame);
+
+	if(trans_it != obj->transform_cache->end())
+	{
+	    // cached matrix
+	    m = trans_it->second;
+	}
+	else
+	{
+	    if(!has_matrix)
+		myObject.getWorldTransform(m, myFrame, anim);
+	    
+	    (*obj->transform_cache)[myFrame] = m;
+	    obj->has_static_xform = false;
+	}
+    }
+    else if(anim == GEO_ANIMATION_CONSTANT) // static transform
+	m = obj->static_xform;
+    
+#else
+    
     GEO_AnimationType	atype;
     myObject.getWorldTransform(m, myFrame, atype);
+    
+#endif
+    
     return true;
 }
 
@@ -417,7 +617,51 @@ GABC_PackedImpl::fullGT(int load_style) const
 {
     if (!object().valid())
 	return GT_PrimitiveHandle();
+    
+#ifdef USE_FAST_CACHE
+    GT_PrimitiveHandle h;
+    GEO_AnimationType anim = GEO_ANIMATION_INVALID;
+    gabc_ObjectCacheItem *obj = getFileObject(filename(), objectPath());
+
+    // First, see if the animation type is cached
+    anim = obj->geo_anim_type;
+    h = obj->static_geo;
+
+    if(anim == GEO_ANIMATION_INVALID)
+    {
+	anim = animationType();
+	obj->geo_anim_type = anim;
+    }
+
+    // Now, see if the deformed geometry is cached.
+    if(anim == GEO_ANIMATION_ATTRIBUTE || anim == GEO_ANIMATION_TOPOLOGY)
+    {
+	gabc_DeformCache::iterator it =  obj->deform_cache->find(myFrame);
+	if(it != obj->deform_cache->end())
+	{
+	    h = it->second;
+	}
+	else
+	{
+	    h = myCache.full(this, load_style);
+	    // put deforming geo in the deformation cache
+	    (*obj->deform_cache)[myFrame] = h;
+	    h->setStaticGeometry( false );
+	}
+    }
+    else if(!h)
+    {
+	h = myCache.full(this, load_style);
+	h->setStaticGeometry(true);
+
+	// put static geo into the object cache.
+	obj->static_geo = h;
+    }
+    
+    return h;
+#else
     return myCache.full(this, load_style);
+#endif
 }
 
 GT_PrimitiveHandle
@@ -692,7 +936,7 @@ GEO_AnimationType
 GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
 {
     if (myAnimationType == GEO_ANIMATION_INVALID)
-	points(abc);	// Update lightest weight cache
+     	points(abc);	// Update lightest weight cache
     return myAnimationType;
 }
 
