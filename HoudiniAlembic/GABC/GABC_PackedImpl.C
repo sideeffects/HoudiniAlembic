@@ -140,8 +140,6 @@ GABC_PackedImpl::typeId()
 }
 
 
-//#define USE_FAST_CACHE
-
 #ifdef USE_FAST_CACHE
 
 // NOTE: This is simply a proof of concept used for testing. It should not
@@ -149,11 +147,10 @@ GABC_PackedImpl::typeId()
 //	 reload or release the data when the alembic file is reloaded or
 //	 no longer referenced.
 
-namespace
-{
 typedef UT_Map<fpreal, GT_PrimitiveHandle>	gabc_DeformCache;
 typedef UT_Map<fpreal, UT_Matrix4D>		gabc_TransformCache;
 typedef UT_Map<fpreal, UT_BoundingBox>		gabc_BoundsCache;
+typedef UT_Map<fpreal, GABC_VisibilityType>	gabc_VisibilityCache;
     
 class gabc_ObjectCacheItem
 {
@@ -162,17 +159,22 @@ public:
 	: geo_anim_type(GEO_ANIMATION_INVALID),
 	  xform_anim_type(GEO_ANIMATION_INVALID),
 	  bounds_anim_type(GEO_ANIMATION_INVALID),
+	  vis_anim_type(GEO_ANIMATION_INVALID),
 	  has_static_xform(false),
 	  has_bounds(true),
+	  vis_type(GABC_VISIBLE_DEFER),
 	  deform_cache(new gabc_DeformCache),
 	  transform_cache(new gabc_TransformCache),
-	  bounds_cache(new gabc_BoundsCache) {}
+	  bounds_cache(new gabc_BoundsCache),
+	  vis_cache(new gabc_VisibilityCache),
+	  prop_hash(-1) {}
 
     ~gabc_ObjectCacheItem()
 	{
 	    delete deform_cache;
 	    delete transform_cache;
 	    delete bounds_cache;
+	    delete vis_cache;
 	}
 
     // Geometry 
@@ -191,6 +193,14 @@ public:
     bool		 has_bounds;
     UT_BoundingBox	 static_bounds;
     gabc_BoundsCache	*bounds_cache;
+
+    // prophash
+    int64		 prop_hash;
+
+    // visibility
+    GEO_AnimationType    vis_anim_type;
+    GABC_VisibilityType	 vis_type;
+    gabc_VisibilityCache *vis_cache;
 };
    
 typedef UT_Map<std::string, gabc_ObjectCacheItem *>	gabc_ObjectCache;
@@ -225,7 +235,16 @@ getFileObject(const std::string &filename, const std::string &object_path)
     return item;
 }
    
-};
+gabc_ObjectCacheItem *
+GABC_PackedImpl::getObjectCacheItem() const
+{
+    if(!myObjectCacheItem)
+	myObjectCacheItem = getFileObject(filename(), objectPath());
+	
+    return myObjectCacheItem;
+}
+
+
 #endif
 
 
@@ -240,6 +259,11 @@ GABC_PackedImpl::GABC_PackedImpl()
     , myUseVisibility(true)
     , myCachedUniqueID(false)
     , myUniqueID(0)
+    , myConstVisibility(GABC_VISIBLE_DEFER)
+    , myHasConstBounds(false)
+#ifdef USE_FAST_CACHE
+    , myObjectCacheItem(NULL)
+#endif
 {
 }
 
@@ -254,6 +278,12 @@ GABC_PackedImpl::GABC_PackedImpl(const GABC_PackedImpl &src)
     , myUseVisibility(src.myUseVisibility)
     , myCachedUniqueID(src.myCachedUniqueID)
     , myUniqueID(src.myUniqueID)
+    , myConstVisibility(src.myConstVisibility)
+    , myHasConstBounds(src.myHasConstBounds)
+    , myConstBounds(src.myConstBounds)
+#ifdef USE_FAST_CACHE
+    , myObjectCacheItem(src.myObjectCacheItem)
+#endif
 {
 }
 
@@ -389,7 +419,13 @@ GABC_PackedImpl::getBounds(UT_BoundingBox &box) const
 
 #ifdef USE_FAST_CACHE
 
-    gabc_ObjectCacheItem *obj = getFileObject(filename(), objectPath());
+    if(myHasConstBounds)
+    {
+	box = myConstBounds;
+	return true;
+    }
+
+    gabc_ObjectCacheItem *obj = getObjectCacheItem();
     if(!obj->has_bounds)
 	return false;
 
@@ -404,6 +440,14 @@ GABC_PackedImpl::getBounds(UT_BoundingBox &box) const
 	    fetched_bounds = true;
 	    obj->bounds_anim_type = isconst ? GEO_ANIMATION_CONSTANT
 					    : GEO_ANIMATION_TRANSFORM;
+
+	    if(isconst)
+	    {
+		myHasConstBounds = true;
+		myConstBounds = box;
+	    }
+	    else
+		myHasConstBounds = false;
 	}
 	else
 	{
@@ -517,7 +561,7 @@ GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
 #ifdef USE_FAST_CACHE
 
     bool has_matrix = false;
-    gabc_ObjectCacheItem *obj = getFileObject(filename(), objectPath());
+    gabc_ObjectCacheItem *obj = getObjectCacheItem();
  	
     // grab the animation type
     GEO_AnimationType anim = obj->xform_anim_type;
@@ -604,12 +648,124 @@ GABC_PackedImpl::unpackUsingPolygons(GU_Detail &destgdp) const
 
 static UT_Lock	theLock;
 
+#ifdef USE_FAST_CACHE
+#include <Alembic/AbcGeom/All.h>
+namespace
+{
+using namespace Alembic::Abc;
+using namespace Alembic::AbcGeom;
+    
+GABC_VisibilityType
+fetchVisibility(GABC_IObject &iobj, gabc_ObjectCacheItem *obj)
+{
+    // must be called from within a locked section.
+    IVisibilityProperty	vprop = Alembic::AbcGeom::GetVisibilityProperty(
+	const_cast<IObject &>(iobj.object()));
+    if (vprop.valid())
+    {
+	if(vprop.isConstant())
+	{
+	    obj->vis_anim_type = GEO_ANIMATION_CONSTANT;
+	    obj->vis_type = vprop.getValue((index_t)0) ? GABC_VISIBLE_VISIBLE
+						       : GABC_VISIBLE_HIDDEN;
+	    return obj->vis_type;
+	}
+	else
+	{
+	    exint		 nsamples = vprop.getNumSamples();
+	    exint		 ntrue = 0;
+	    for (exint i = 0; i < nsamples; ++i)
+	    {
+		index_t idx = i;
+		bool vis = vprop.getValue(ISampleSelector(idx));
+		fpreal t = vprop.getTimeSampling()->getSampleTime(idx);
+
+	
+		(*obj->vis_cache)[t] = vis ? GABC_VISIBLE_VISIBLE
+					   : GABC_VISIBLE_HIDDEN;
+		if(vis)
+		    ntrue++;
+	    }
+
+	    // trivial visibility list, not really animated.
+	    if(ntrue == 0 || ntrue == nsamples)
+	    {
+		obj->vis_anim_type = GEO_ANIMATION_CONSTANT;
+		obj->vis_type = (ntrue != 0) ? GABC_VISIBLE_VISIBLE
+					     : GABC_VISIBLE_HIDDEN;
+		obj->vis_cache->clear();
+
+		return obj->vis_type;
+	    }
+	    else
+	    {
+		obj->vis_anim_type = GEO_ANIMATION_TRANSFORM; // no anim_vis
+		return GABC_VISIBLE_DEFER;
+	    }
+	}
+    }
+    else
+    {
+	GABC_IObject pobj = iobj.getParent();
+	if(pobj.valid())
+	    return fetchVisibility(pobj, obj);
+    }
+
+    obj->vis_anim_type = GEO_ANIMATION_CONSTANT;
+    return GABC_VISIBLE_VISIBLE;
+}
+}
+#endif
+
 bool
 GABC_PackedImpl::visibleGT() const
 {
     if (!object().valid())
 	return false;
+
+#ifdef USE_FAST_CACHE
+    if(!useVisibility())
+	return true;
+    
+    if(myConstVisibility != GABC_VISIBLE_DEFER)
+	return (myConstVisibility == GABC_VISIBLE_VISIBLE);
+        
+    gabc_ObjectCacheItem *obj = getObjectCacheItem();
+    GABC_VisibilityType vis = GABC_VISIBLE_DEFER;
+
+    if(obj->vis_anim_type == GEO_ANIMATION_INVALID)
+    {
+	{
+	    GABC_AlembicLock	lock(myObject.archive());
+	    vis = fetchVisibility(myObject, obj);
+	}
+	
+	if(vis != GABC_VISIBLE_DEFER)
+	{
+	    if(obj->vis_anim_type == GEO_ANIMATION_CONSTANT)
+		myConstVisibility = obj->vis_type;
+	    
+	    return (obj->vis_type != GABC_VISIBLE_HIDDEN);
+	}
+    }
+
+    if(obj->vis_anim_type == GEO_ANIMATION_CONSTANT)
+    {
+	vis = obj->vis_type;
+    }
+    else
+    {
+	gabc_VisibilityCache::iterator vis_it = obj->vis_cache->find(frame());
+
+	if(vis_it != obj->vis_cache->end())
+	    return (vis_it->second != GABC_VISIBLE_HIDDEN);
+    }
+
+    return (obj->vis_type != GABC_VISIBLE_HIDDEN);
+   
+#else
     return myCache.visible(this);
+#endif
 }
 
 GT_PrimitiveHandle
@@ -621,7 +777,7 @@ GABC_PackedImpl::fullGT(int load_style) const
 #ifdef USE_FAST_CACHE
     GT_PrimitiveHandle h;
     GEO_AnimationType anim = GEO_ANIMATION_INVALID;
-    gabc_ObjectCacheItem *obj = getFileObject(filename(), objectPath());
+    gabc_ObjectCacheItem *obj = getObjectCacheItem();
 
     // First, see if the animation type is cached
     anim = obj->geo_anim_type;
@@ -646,13 +802,15 @@ GABC_PackedImpl::fullGT(int load_style) const
 	    h = myCache.full(this, load_style);
 	    // put deforming geo in the deformation cache
 	    (*obj->deform_cache)[myFrame] = h;
-	    h->setStaticGeometry( false );
+	    if(h)
+		h->setStaticGeometry( false );
 	}
     }
     else if(!h)
     {
 	h = myCache.full(this, load_style);
-	h->setStaticGeometry(true);
+	if(h)
+	    h->setStaticGeometry(true);
 
 	// put static geo into the object cache.
 	obj->static_geo = h;
@@ -1043,16 +1201,29 @@ GABC_PackedImpl::getPropertiesHash() const
 {
     if(!myCachedUniqueID)
     {
-	// This call is expensive as it accesses the alembic file, so cache it.
-	if(!myObject.getPropertiesHash(myUniqueID))
-	{
-	    // HDF, likely. Hash the object path & filename to get an id.
-	    const int64 pathhash = UT_String::hash(objectPath().c_str());
-	    const int64 filehash = UT_String::hash(filename().c_str());
+#ifdef USE_FAST_CACHE
+	gabc_ObjectCacheItem *obj = getObjectCacheItem();
 
-	    myUniqueID = pathhash + SYSwang_inthash64(filehash);
-	}
+	// yes, there is a 1 in 2^64 chance that this will give a false
+	// positive for an uncached prop hash.
+	if(obj->prop_hash != -1)
+	    myUniqueID = obj->prop_hash;
+	else
+	{
+#endif
+	    if(!myObject.getPropertiesHash(myUniqueID))
+	    {
+		// HDF, likely. Hash the object path & filename to get an id.
+		const int64 pathhash = UT_String::hash(objectPath().c_str());
+		const int64 filehash = UT_String::hash(filename().c_str());
+		
+		myUniqueID = pathhash + SYSwang_inthash64(filehash);
+	    }
 	    
+#ifdef USE_FAST_CACHE
+	    obj->prop_hash = myUniqueID;
+	}
+#endif	    
 	myCachedUniqueID = true;
     }
     

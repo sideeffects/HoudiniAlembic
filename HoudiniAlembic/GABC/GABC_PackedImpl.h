@@ -23,6 +23,11 @@
 #include <GU/GU_PackedImpl.h>
 #include <GT/GT_Primitive.h>
 
+//#define USE_FAST_CACHE
+#ifdef USE_FAST_CACHE
+class gabc_ObjectCacheItem;
+#endif
+
 namespace GABC_NAMESPACE
 {
 
@@ -256,6 +261,16 @@ private:
     fpreal			 myFrame;
     bool			 myUseTransform;
     bool			 myUseVisibility;
+
+    mutable GABC_VisibilityType	 myConstVisibility;
+    mutable bool		 myHasConstBounds;
+    mutable UT_BoundingBox	 myConstBounds;
+
+#ifdef USE_FAST_CACHE
+    gabc_ObjectCacheItem	 *getObjectCacheItem() const;
+    
+    mutable gabc_ObjectCacheItem *myObjectCacheItem;
+#endif
 };
 
 }
