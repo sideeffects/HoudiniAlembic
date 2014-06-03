@@ -59,16 +59,17 @@ GABC_IItem::setArchive(const GABC_IArchivePtr &arch)
     if (arch.get() != myArchive.get())
     {
 	// Lock both archives - regardless of whether Alembic is threaded or not
-	GABC_AutoLock	l1(myArchive);
-	GABC_AutoLock	l2(arch);
 	if (myArchive)
 	{
+	    GABC_AutoLock	l1(myArchive);
 	    myArchive->unreference(this);
+	    myArchive = NULL;
 	}
-	myArchive = arch;
 	if (arch)
 	{
+	    GABC_AutoLock	l2(arch);
 	    arch->reference(this);
+	    myArchive = arch;
 	}
     }
 }
