@@ -176,6 +176,7 @@ GABC_IArchive::purgeObjects()
 	(*it)->purge();
     }
     myArchive = IArchive();
+    theArchiveCache.erase(myFilename);
 }
 
 void
