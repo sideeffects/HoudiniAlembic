@@ -1137,6 +1137,7 @@ GABC_PackedImpl::computeVisibility(bool check_parent) const
 void
 GABC_PackedImpl::GTCache::refreshTransform(const GABC_PackedImpl *abc)
 {
+    UT_AutoLock	lock(theLock);
     if (!myTransform)
     {
 	const GABC_IObject	&o = abc->object();
