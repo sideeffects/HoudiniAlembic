@@ -35,6 +35,7 @@ ROP_AbcGTShape::ROP_AbcGTShape(const std::string &name)
     : myShape(NULL)
     , myInstance(NULL)
     , myName(name)
+    , myPrimType(GT_PRIM_UNDEFINED)
 {
 }
 
@@ -62,11 +63,13 @@ bool
 ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
 	const OObject &parent,
 	GABC_OError &err,
-	const ROP_AbcContext &ctx)
+	const ROP_AbcContext &ctx,
+	ObjectVisibility vis)
 {
     clear();
+    myPrimType = prim->getPrimitiveType();
     myShape = new GABC_OGTGeometry(myName);
-    return myShape->start(prim, parent, err, ctx);
+    return myShape->start(prim, parent, err, ctx, vis);
 }
 
 bool
@@ -86,16 +89,44 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
 }
 
 bool
+ROP_AbcGTShape::nextFrameHidden(GABC_OError &err, exint frames)
+{
+    if (frames < 0)
+    {
+        err.error("Attempted to update less than 0 frames.");
+        return false;
+    }
+
+    if (myShape)
+    {
+	return myShape->updateHidden(err, frames);
+    }
+    if (myInstance)
+    {
+	return myInstance->updateHidden(err, myPrimType, frames);
+    }
+    return false;
+}
+
+bool
 ROP_AbcGTShape::firstInstance(const GT_PrimitiveHandle &prim,
 	const OObject &parent,
 	GABC_OError &err,
 	const ROP_AbcContext &ctx,
 	bool subd_mode,
-	bool add_unused_pts)
+	bool add_unused_pts,
+        ObjectVisibility vis)
 {
     clear();
+    myPrimType = prim->getPrimitiveType();
     myInstance = new ROP_AbcGTInstance(myName);
-    return myInstance->first(parent, err, ctx, prim, subd_mode, add_unused_pts);
+    return myInstance->first(parent, err, ctx, prim, subd_mode, add_unused_pts, vis);
+}
+
+int
+ROP_AbcGTShape::getPrimitiveType() const
+{
+    return myPrimType;
 }
 
 bool

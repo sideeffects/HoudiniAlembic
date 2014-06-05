@@ -60,6 +60,12 @@ public:
     bool	update(const GT_DataArrayHandle &array,
 		    const GABC_OOptions &options);
 
+    /// Write the next sample to the properties using the previous sample.
+    bool	updateFromPrevious();
+
+    /// Get number of samples written to property so far.
+    exint       getNumSamples() const { return myProperty.getNumSamples(); }
+
     /// @{
     /// Accessors
     Alembic::AbcGeom::GeometryScope	scope() const { return myScope; }

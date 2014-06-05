@@ -113,6 +113,7 @@ ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &name,
     : myShapes()
     , myName(name)
     , myContainer(NULL)
+    , myElapsedFrames(0)
     , myPolysAsSubd(polys_as_subd)
     , myShowUnusedPoints(show_unused_pts)
 {
@@ -134,6 +135,29 @@ ROP_AbcGTCompoundShape::clear()
 }
 
 bool
+ROP_AbcGTCompoundShape::shapeStart(ROP_AbcGTShape *shape,
+        GT_PrimitiveHandle prim,
+        GABC_OError &err,
+        const ROP_AbcContext &ctx,
+        ObjectVisibility vis)
+{
+    bool    ok = true;
+
+    if (shouldInstance(prim))
+    {
+        UT_ASSERT(ctx.useInstancing());
+        ok = shape->firstInstance(prim, *myShapeParent, err, ctx,
+                    myPolysAsSubd, myShowUnusedPoints, vis);
+    }
+    else
+    {
+        ok = shape->firstFrame(prim, *myShapeParent, err, ctx, vis);
+    }
+
+    return ok;
+}
+
+bool
 ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
 			const OObject &parent,
 			GABC_OError &err,
@@ -145,24 +169,34 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     clear();
 
     // Refine the primitive into it's atomic shapes
-    PrimitiveList	shapes;
+    PrimitiveList	prims;
     GT_RefineParms	rparms;
 
     initializeRefineParms(rparms, ctx, myPolysAsSubd, myShowUnusedPoints);
     if (ROP_AbcGTShape::isPrimitiveSupported(prim))
-	shapes.append(prim);
+	prims.append(prim);
     else
     {
-	abc_Refiner refiner(shapes, &rparms, ctx.useInstancing());
+	abc_Refiner refiner(prims, &rparms, ctx.useInstancing());
 	prim->refine(refiner, &rparms);
     }
 
-    if (!shapes.entries())
-	return false;
+    ++myElapsedFrames;
+    myShapeParent = &parent;
+
+    exint       prim_entries = prims.entries();
+    if (!prim_entries)
+	return true;
+
+    if (prim_entries > 1 && create_container)
+    {
+	myContainer = new OXform(parent, myName, ctx.timeSampling());
+	myShapeParent = myContainer;
+    }
 
     std::string		shape_name = myName;
     UT_WorkBuffer	shape_namebuf;
-    for (exint i = 0; i < shapes.entries(); ++i)
+    for (exint i = 0; i < prim_entries; ++i)
     {
 	if (i > 0)
 	{
@@ -172,31 +206,19 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
 	myShapes.append(new ROP_AbcGTShape(shape_name));
     }
 
-    OObject		dad(parent);
-    if (shapes.entries() > 1 && create_container)
-    {
-	myContainer = new OXform(parent, myName, ctx.timeSampling());
-	dad = *myContainer;
-    }
     for (exint i = 0; i < myShapes.entries(); ++i)
     {
-	bool	 ok = true;
-	if (shouldInstance(shapes(i)))
-	{
-	    UT_ASSERT(ctx.useInstancing());
-	    ok = myShapes(i)->firstInstance(shapes(i), dad, err, ctx,
-			myPolysAsSubd, myShowUnusedPoints);
-	}
-	else
-	{
-	    ok = myShapes(i)->firstFrame(shapes(i), dad, err, ctx);
-	}
-	if (!ok)
+	if (!shapeStart(myShapes(i),
+	        prims(i),
+	        err,
+	        ctx,
+	        Alembic::AbcGeom::kVisibilityDeferred))
 	{
 	    clear();
 	    return false;
 	}
     }
+
     return true;
 }
 
@@ -206,31 +228,99 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
 			const ROP_AbcContext &ctx)
 {
     // Refine the primitive into it's atomic shapes
-    PrimitiveList	shapes;
+    PrimitiveList	prims;
     GT_RefineParms	rparms;
 
     initializeRefineParms(rparms, ctx, myPolysAsSubd, myShowUnusedPoints);
     if (ROP_AbcGTShape::isPrimitiveSupported(prim))
-	shapes.append(prim);
+	prims.append(prim);
     else
     {
-	abc_Refiner	refiner(shapes, &rparms, ctx.useInstancing());
+	abc_Refiner	refiner(prims, &rparms, ctx.useInstancing());
 	prim->refine(refiner, &rparms);
     }
 
-    if (shapes.entries() > myShapes.entries())
+    exint       shape_entries = myShapes.entries();
+    exint       prim_entries = prims.entries();
+    exint       s_pos = 0;
+    exint       p_pos = 0;
+
+    // Go through the list of existing shapes looking for one with
+    // a primitive type matching the one of the current primitive.
+    // When one is found, update the sample of the shape using the
+    // current primitive then move on to the next one.
+    //
+    // There may be primitives further along in the list that match
+    // the type of the shapes we skip over, but there is no elegant
+    // way that I can currently think of to address this.
+    while (p_pos < prim_entries && s_pos < shape_entries)
     {
-	// TODO: Add new primitives
+        int         prim_type = prims(p_pos)->getPrimitiveType();
+        int         shape_type = myShapes(s_pos)->getPrimitiveType();
+
+        if (prim_type == shape_type)
+        {
+            // Redundant safety check?
+            if (!myShapes(s_pos)->nextFrame(prims(p_pos), err, ctx))
+            {
+                clear();
+                return false;
+            }
+
+            ++s_pos;
+            ++p_pos;
+        }
+        else
+        {
+            myShapes(s_pos)->nextFrameHidden(err);
+            ++s_pos;
+        }
     }
-    exint	num = SYSmin(myShapes.entries(), shapes.entries());
-    for (exint i = 0; i < num; ++i)
+    // The lists of current primitives and existing shapes might not
+    // match up nicely. If we've updated using all of the primitives,
+    // mark the remaining shapes as hidden.
+    //
+    // If we checked all of the existing shapes and still have
+    // primitives remaining, create new shapes to house them.
+    //
+    // At most only one of the two blocks below should be called.
+    while (s_pos < shape_entries)
     {
-	if (!myShapes(i)->nextFrame(shapes(i), err, ctx))
-	{
-	    clear();
-	    return false;
-	}
+        myShapes(s_pos)->nextFrameHidden(err);
+        ++s_pos;
     }
+    if (p_pos < prim_entries)
+    {
+        std::string     shape_name = myName;
+        UT_WorkBuffer   shape_namebuf;
+
+        for (exint i = p_pos; i < prim_entries; ++i)
+        {
+            if (s_pos > 0)
+            {
+                shape_namebuf.sprintf("%s_%d", myName.c_str(), (int)s_pos);
+                shape_name = shape_namebuf.buffer();
+            }
+            myShapes.append(new ROP_AbcGTShape(shape_name));
+
+            if (!shapeStart(myShapes(s_pos),
+                    prims(i),
+                    err,
+                    ctx,
+                    Alembic::AbcGeom::kVisibilityHidden))
+            {
+                clear();
+                return false;
+            }
+
+            myShapes(s_pos)->nextFrameHidden(err, (myElapsedFrames - 1));
+            myShapes(s_pos)->nextFrame(prims(i), err, ctx);
+
+            ++s_pos;
+        }
+    }
+
+    ++myElapsedFrames;
     return true;
 }
 

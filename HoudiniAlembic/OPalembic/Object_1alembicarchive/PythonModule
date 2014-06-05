@@ -171,7 +171,6 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
             objectPath = ''.join(['"', currentPath, '"'])
         sopNode.parm('objectPath').set(objectPath)
         sopNode.parm('includeXform').set(0)
-        sopNode.parm('usevisibility').set(0)
         sopNode.parm('groupnames').set('none')  # Don't build groups
     elif typeName == 'xform' or typeName == 'cxform':
         if buildSubnet:

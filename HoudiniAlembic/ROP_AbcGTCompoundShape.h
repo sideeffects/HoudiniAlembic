@@ -37,9 +37,10 @@
 class ROP_AbcGTCompoundShape
 {
 public:
-    typedef Alembic::Abc::OObject	OObject;
-    typedef Alembic::AbcGeom::OXform	OXform;
-    typedef GABC_NAMESPACE::GABC_OError	GABC_OError;
+    typedef GABC_NAMESPACE::GABC_OError	        GABC_OError;
+    typedef Alembic::Abc::OObject	        OObject;
+    typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
+    typedef Alembic::AbcGeom::OXform	        OXform;
 
     ROP_AbcGTCompoundShape(const std::string &name,
 	    bool polygons_as_subd,
@@ -59,10 +60,17 @@ public:
     OObject	getShape() const;
 private:
     void	clear();
+    bool        shapeStart(ROP_AbcGTShape *shape,
+                        GT_PrimitiveHandle prim,
+                        GABC_OError &err,
+                        const ROP_AbcContext &ctx,
+                        ObjectVisibility vis);
 
     UT_Array<ROP_AbcGTShape *>	 myShapes;
+    const OObject               *myShapeParent;
     OXform			*myContainer;
     std::string			 myName;
+    exint                        myElapsedFrames;
     bool			 myPolysAsSubd;
     bool			 myShowUnusedPoints;
 };

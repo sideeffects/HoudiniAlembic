@@ -1779,7 +1779,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 {
     const ObjectHeader	&ohead = obj.getHeader();
 
-    if (useVisibility() && myLoadMode != LOAD_ABC_PRIMITIVES)
+    if (useVisibility())
     {
 	bool			animated;
 	GABC_VisibilityType	vtype;

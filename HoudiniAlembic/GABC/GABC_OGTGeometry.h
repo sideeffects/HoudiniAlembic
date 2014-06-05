@@ -44,13 +44,15 @@ class GABC_OProperty;
 class GABC_API GABC_OGTGeometry
 {
 public:
-    typedef Alembic::Abc::OObject		OObject;
-    typedef UT_SymbolMap<GABC_OProperty *>	PropertyMap;
-    typedef Alembic::AbcGeom::OPolyMesh		OPolyMesh;
-    typedef Alembic::AbcGeom::OSubD		OSubD;
-    typedef Alembic::AbcGeom::OCurves		OCurves;
-    typedef Alembic::AbcGeom::OPoints		OPoints;
-    typedef Alembic::AbcGeom::ONuPatch		ONuPatch;
+    typedef Alembic::Abc::OObject		    OObject;
+    typedef UT_SymbolMap<GABC_OProperty *>	    PropertyMap;
+    typedef Alembic::AbcGeom::ObjectVisibility	    ObjectVisibility;
+    typedef Alembic::AbcGeom::OVisibilityProperty   OVisibilityProperty;
+    typedef Alembic::AbcGeom::OPolyMesh		    OPolyMesh;
+    typedef Alembic::AbcGeom::OSubD		    OSubD;
+    typedef Alembic::AbcGeom::OCurves		    OCurves;
+    typedef Alembic::AbcGeom::OPoints		    OPoints;
+    typedef Alembic::AbcGeom::ONuPatch		    ONuPatch;
 
      GABC_OGTGeometry(const std::string &name);
     ~GABC_OGTGeometry();
@@ -61,10 +63,15 @@ public:
     bool	start(const GT_PrimitiveHandle &prim,
 			const OObject &parent,
 			GABC_OError &err,
-			const GABC_OOptions &ctx);
+			const GABC_OOptions &ctx,
+	                ObjectVisibility vis
+	                        = Alembic::AbcGeom::kVisibilityDeferred);
     bool	update(const GT_PrimitiveHandle &prim,
-			GABC_OError &err,
-			const GABC_OOptions &ctx);
+		        GABC_OError &err,
+		        const GABC_OOptions &ctx,
+	                ObjectVisibility vis
+	                        = Alembic::AbcGeom::kVisibilityDeferred);
+    bool	updateHidden(GABC_OError &err, exint frames = 1);
 
     /// Return the OObject for this shape
     OObject	getOObject() const;
@@ -243,6 +250,7 @@ protected:
 			const GABC_OOptions &ctx);
     void	writeProperties(const GT_PrimitiveHandle &prim,
 			const GABC_OOptions &ctx);
+    void	writePropertiesFromPrevious();
     void	clearProperties();
     void	clearShape();
     void	clearCache();
@@ -269,6 +277,7 @@ private:
     IntrinsicCache		 myCache; // Cache for space optimization
     SecondaryCache		*mySecondaryCache;
     UT_Array<std::string>	 myFaceSetNames;
+    OVisibilityProperty          myVisibility;
     int				 myType;
 };
 }

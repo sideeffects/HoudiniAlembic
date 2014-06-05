@@ -372,6 +372,13 @@ GABC_OProperty::start(OCompoundProperty &parent,
 }
 
 bool
+GABC_OProperty::updateFromPrevious()
+{
+    myProperty.setFromPrevious();
+    return true;
+}
+
+bool
 GABC_OProperty::update(const GT_DataArrayHandle &array,
 	const GABC_OOptions &ctx)
 {
@@ -379,8 +386,7 @@ GABC_OProperty::update(const GT_DataArrayHandle &array,
     {
 	if (myCache && array->isEqual(*myCache))
 	{
-	    myProperty.setFromPrevious();
-	    return true;
+	    return updateFromPrevious();
 	}
 	// Keep previous version cached
 	myCache = array->harden();

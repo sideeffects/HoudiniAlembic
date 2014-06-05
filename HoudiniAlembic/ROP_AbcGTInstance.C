@@ -29,6 +29,7 @@ namespace
 {
     typedef Alembic::Abc::OObject		OObject;
     typedef Alembic::Abc::M44d			M44d;
+    typedef Alembic::AbcGeom::ObjectVisibility  ObjectVisibility;
     typedef Alembic::AbcGeom::OXform		OXform;
     typedef Alembic::AbcGeom::XformSample	XformSample;
 }
@@ -38,13 +39,19 @@ ROP_AbcGTInstance::Instance::first(const OObject &parent,
 	GABC_OError &err,
 	const ROP_AbcContext &ctx,
 	const UT_Matrix4D &xform,
-	const std::string &name)
+	const std::string &name,
+	ObjectVisibility vis)
 {
     XformSample	sample;
     M44d	m = GABC_Util::getM(xform);
 
-    sample.setMatrix(m);
     myOXform = OXform(parent, name, ctx.timeSampling());
+    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
+            myOXform,
+            ctx.timeSampling());
+
+    sample.setMatrix(m);
+    myVisibility.set(vis);
     myOXform.getSchema().set(sample);
 }
 
@@ -71,15 +78,25 @@ ROP_AbcGTInstance::Instance::setGeometry(const OObject &child, const std::string
 {
     myOXform.addChildInstance(child, name);
 }
+
 void
-ROP_AbcGTInstance::Instance::update(const UT_Matrix4D &xform)
+ROP_AbcGTInstance::Instance::update(const UT_Matrix4D &xform,
+	ObjectVisibility vis)
 {
     XformSample	sample;
     M44d	m = GABC_Util::getM(xform);
 
     // TODO: Check whether transform has changed
     sample.setMatrix(m);
+    myVisibility.set(vis);
     myOXform.getSchema().set(sample);
+}
+
+void
+ROP_AbcGTInstance::Instance::updateHidden()
+{
+    myVisibility.set(Alembic::AbcGeom::kVisibilityHidden);
+    myOXform.getSchema().setFromPrevious();
 }
 
 ROP_AbcGTInstance::ROP_AbcGTInstance(const std::string &name)
@@ -94,9 +111,13 @@ ROP_AbcGTInstance::~ROP_AbcGTInstance()
 }
 
 bool
-ROP_AbcGTInstance::first(const OObject &parent, GABC_OError &err,
-	const ROP_AbcContext &ctx, const GT_PrimitiveHandle &prim,
-	bool subd_mode, bool add_unused_pts)
+ROP_AbcGTInstance::first(const OObject &parent,
+        GABC_OError &err,
+	const ROP_AbcContext &ctx,
+	const GT_PrimitiveHandle &prim,
+	bool subd_mode,
+	bool add_unused_pts,
+        ObjectVisibility vis)
 {
     UT_Matrix4D		m;
     switch (prim->getPrimitiveType())
@@ -116,7 +137,7 @@ ROP_AbcGTInstance::first(const OObject &parent, GABC_OError &err,
 		xforms->get(i)->getMatrix(m);
 		if (i == 0)
 		{
-		    inst.first(parent, err, ctx, m, myName);
+		    inst.first(parent, err, ctx, m, myName, vis);
 		    myGeometry = inst.setGeometry(err, ctx, iprim->geometry(),
 			    myName, subd_mode, add_unused_pts);
 		    if (!myGeometry)
@@ -125,7 +146,7 @@ ROP_AbcGTInstance::first(const OObject &parent, GABC_OError &err,
 		else
 		{
 		    nbuf.sprintf("%s_instance_%d", myName.c_str(), (int)i);
-		    inst.first(parent, err, ctx, m, nbuf.buffer());
+		    inst.first(parent, err, ctx, m, nbuf.buffer(), vis);
 		    // myGeometry is ROP_AbcGTCompoundShape.C
 		    // myGeometry has no container (single shape)
 		    // So it returns myShape(0)
@@ -135,6 +156,7 @@ ROP_AbcGTInstance::first(const OObject &parent, GABC_OError &err,
 	    }
 	}
 	break;
+
 	case GT_GEO_PACKED:
 	{
 	    // We want to put a transform in the hierarchy before the geometry
@@ -151,13 +173,14 @@ ROP_AbcGTInstance::first(const OObject &parent, GABC_OError &err,
 		xform->getMatrix(m);
 	    else
 		m.identity();
-	    inst.first(parent, err, ctx, m, myName);
+	    inst.first(parent, err, ctx, m, myName, vis);
 	    myGeometry = inst.setGeometry(err, ctx, pgeo,
 		    myName, subd_mode, add_unused_pts);
 	    if (!myGeometry)
 		return false;
 	}
 	break;
+
 	default:
 	    return false;
     }
@@ -165,8 +188,10 @@ ROP_AbcGTInstance::first(const OObject &parent, GABC_OError &err,
 }
 
 bool
-ROP_AbcGTInstance::update(GABC_OError &err, const ROP_AbcContext &ctx,
-    const GT_PrimitiveHandle &prim)
+ROP_AbcGTInstance::update(GABC_OError &err,
+        const ROP_AbcContext &ctx,
+        const GT_PrimitiveHandle &prim,
+        ObjectVisibility vis)
 {
     UT_Matrix4D m;
     switch (prim->getPrimitiveType())
@@ -188,10 +213,11 @@ ROP_AbcGTInstance::update(GABC_OError &err, const ROP_AbcContext &ctx,
 	    for (exint i = 0; i < icount; ++i)
 	    {
 		xforms->get(i)->getMatrix(m);
-		myInstances(i).update(m);
+		myInstances(i).update(m, vis);
 	    }
 	}
 	break;
+
 	case GT_GEO_PACKED:
 	{
 	    const GT_GEOPrimPacked	*pprim;
@@ -208,10 +234,48 @@ ROP_AbcGTInstance::update(GABC_OError &err, const ROP_AbcContext &ctx,
 		    xform->getMatrix(m);
 		else
 		    m.identity();
-		myInstances(0).update(m);
+		myInstances(0).update(m, vis);
 	    }
 	}
 	break;
+
+	default:
+	    UT_ASSERT(0);
+	    return false;
+    }
+    return true;
+}
+
+bool
+ROP_AbcGTInstance::updateHidden(GABC_OError &err,
+        int primType,
+        exint frames)
+{
+    UT_Matrix4D m;
+    switch (primType)
+    {
+	case GT_PRIM_INSTANCE:
+	{
+	    for (exint i = 0; i < myInstances.entries(); ++i)
+	    {
+	        for (exint j = 0; j < frames; ++j) {
+		    myInstances(i).updateHidden();
+		}
+	    }
+	}
+	break;
+
+	case GT_GEO_PACKED:
+	{
+	    if (myInstances.entries() == 1)
+	    {
+	        for (exint j = 0; j < frames; ++j) {
+		    myInstances(0).updateHidden();
+                }
+	    }
+	}
+	break;
+
 	default:
 	    UT_ASSERT(0);
 	    return false;

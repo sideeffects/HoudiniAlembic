@@ -42,6 +42,7 @@ public:
     typedef GABC_NAMESPACE::GABC_OGTGeometry	GABC_OGTGeometry;
     typedef GABC_NAMESPACE::GABC_OError		GABC_OError;
     typedef Alembic::Abc::OObject		OObject;
+    typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
 
     ROP_AbcGTShape(const std::string &name);
     virtual ~ROP_AbcGTShape();
@@ -52,11 +53,15 @@ public:
     bool	firstFrame(const GT_PrimitiveHandle &prim,
 			    const OObject &parent,
 			    GABC_OError &err,
-			    const ROP_AbcContext &ctx);
-    /// Write the next frame to the archvive
+			    const ROP_AbcContext &ctx,
+                            ObjectVisibility vis);
+    /// Write the next frame to the archive
     bool	nextFrame(const GT_PrimitiveHandle &prim,
 			    GABC_OError &err,
 			    const ROP_AbcContext &ctx);
+    /// Write the next frame to the archive for hidden geometry.
+    /// The next frame is just a copy of the previous frame.
+    bool	nextFrameHidden(GABC_OError &err, exint frames = 1);
 
     /// Write first frame of an instance to the archive
     bool	firstInstance(const GT_PrimitiveHandle &prim,
@@ -64,7 +69,11 @@ public:
 			    GABC_OError &err,
 			    const ROP_AbcContext &ctx,
 			    bool subd_mode,
-			    bool add_unused_pts);
+			    bool add_unused_pts,
+                            ObjectVisibility vis);
+
+    /// Return the primitive type for this shape.
+    int         getPrimitiveType() const;
 
     /// Return the OObject for the shape
     OObject	getOObject() const;
@@ -94,6 +103,7 @@ private:
     std::string		 myName;
     GABC_OGTGeometry	*myShape;
     ROP_AbcGTInstance	*myInstance;
+    int                  myPrimType;
 };
 
 #endif
