@@ -511,7 +511,10 @@ GABC_PackedImpl::getRenderingBounds(UT_BoundingBox &box) const
 	case GABC_CURVES:
 	    break;
 	default:
-	    return getBounds(box);	// Use cache if available
+	    // Calling the primitive to get the "bounds" (not rendering bounds)
+	    // will use the box cache if possible.
+	    return getPrim()->getUntransformedBounds(box);
+	return false;
 	    break;
     }
     return object().getRenderingBoundingBox(box, myFrame);
