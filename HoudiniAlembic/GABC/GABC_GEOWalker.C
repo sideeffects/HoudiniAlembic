@@ -719,9 +719,8 @@ namespace {
     {
 	GA_KnotVector   &kvec = basis.getKnotVector();
         exint           basis_size = kvec.entries();
-        exint           knots_size = knots->size();
 
-	UT_ASSERT(basis_size <= (knots_size - offset));
+	UT_ASSERT(basis_size <= (knots->size() - offset));
 
 	for (int i = 0; i < basis_size; ++i)
 	    kvec.setValue(i, knots->get()[offset + i]);
