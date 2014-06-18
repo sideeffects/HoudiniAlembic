@@ -28,8 +28,6 @@
 #ifndef __SOP_AlembicGroup__
 #define __SOP_AlembicGroup__
 
-#include <UT/UT_Version.h>
-#include <UT/UT_Interrupt.h>
 #include <SOP/SOP_Node.h>
 
 /// SOP to select Alembic primitives based on various criteria

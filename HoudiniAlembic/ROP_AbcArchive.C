@@ -31,7 +31,7 @@
 #include <GABC/GABC_OError.h>
 #include <OP/OP_Director.h>
 #include <UT/UT_Date.h>
-#include <UT/UT_Version.h>
+#include <SYS/SYS_Version.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 #if defined(GABC_OGAWA)
     #include <Alembic/AbcCoreOgawa/All.h>
@@ -99,10 +99,7 @@ ROP_AbcArchive::open(GABC_OError &err, const char *file, const char *format)
     UT_String		hipname;
     UT_WorkBuffer	timestamp;
 
-    version.sprintf("Houdini%d.%d.%d",
-	    UT_MAJOR_VERSION_INT,
-	    UT_MINOR_VERSION_INT,
-	    UT_BUILD_VERSION_INT);
+    version.sprintf("Houdini%s", SYS_Version::full());
 
     OPgetDirector()->getCommandManager()->getVariable("HIP", hip);
     OPgetDirector()->getCommandManager()->getVariable("HIPNAME", hipname);

@@ -28,8 +28,6 @@
 #ifndef __SOP_AlembicPrimitive__
 #define __SOP_AlembicPrimitive__
 
-#include <UT/UT_Version.h>
-#include <UT/UT_Interrupt.h>
 #include <SOP/SOP_Node.h>
 #include <GABC/GABC_PackedImpl.h>
 
