@@ -32,7 +32,7 @@ Valid Frame Range:
         
         Otherwise, you will usually set this to non-strict.
 
-        Render Any Frame: 
+        Render Current Frame: 
                 Renders a single frame, based on the value in the playbar or the frame that is requested by a connected output render node.
 
         Render Frame Range:
