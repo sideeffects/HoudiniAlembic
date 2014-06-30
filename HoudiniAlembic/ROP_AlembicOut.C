@@ -244,7 +244,7 @@ namespace
 	PRM_Template(PRM_FILE,	1, &theFilenameName, &theFilenameDefault),
 	PRM_Template(PRM_ORD,	1, &theFormatName, &theFormatDefault,
 				    &theFormatMenu),
-	PRM_Template(PRM_TOGGLE,1, &ROPmkpath, PRMzeroDefaults),
+	PRM_Template(PRM_TOGGLE,1, &ROPmkpath, PRMoneDefaults),
 	// Root object should be relative to ROP
 	PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH,
 				    1, &theRootName, &theRootDefault,
