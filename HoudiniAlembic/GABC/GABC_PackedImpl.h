@@ -255,7 +255,6 @@ private:
     mutable GTCache		 myCache;
     mutable bool		 myCachedUniqueID;
     mutable int64		 myUniqueID;
-    mutable 
     std::string			 myFilename;
     std::string			 myObjectPath;
     fpreal			 myFrame;
