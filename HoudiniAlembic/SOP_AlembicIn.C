@@ -84,6 +84,57 @@ namespace
 
 	return 0;
     }
+
+    static int
+    stringComparator(const UT_StringHolder *s1, const UT_StringHolder *s2)
+    {
+        return strcmp(s1->buffer(), s2->buffer());
+    }
+
+    // Remove duplicates and redundant strings. Used to clean up
+    // paths list.
+    //
+    // Ex:  {
+    //          aaa/bbb/ccc
+    //          aaa/bbb
+    //          aaa/bbb
+    //          aaa/ddd/eee/fff
+    //          aaa/ddd/eee/ggg
+    //      }
+    //
+    //      would become:
+    //
+    //      {
+    //          aaa/bbb
+    //          aaa/ddd/eee
+    //      }
+    //
+    static void
+    removeDuplicates(UT_StringArray &strings)
+    {
+        if (strings.entries() < 2)
+            return;
+
+        UT_StringHolder     str1, str2;
+        int i = 1;
+
+        strings.sort(stringComparator);
+
+        while (i < strings.entries())
+        {
+            str1 = strings(i - 1);
+            str2 = strings(i);
+
+            if (str2.startsWith(str1))
+            {
+                strings.remove(i);
+            }
+            else
+            {
+                ++i;
+            }
+        }
+    }
 }
 
 SOP_AlembicIn2::Parms::Parms()
@@ -814,6 +865,9 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 		UT_StringArray	olist;
 		for (int i = 0; i < args.getArgc(); ++i)
 		    olist.append(args(i));
+
+		removeDuplicates(olist);
+
 		if (!GABC_Util::walk(parms.myFilename, walk, olist))
 		    addError(SOP_MESSAGE, "Error evaluating objects in file");
 	    }
