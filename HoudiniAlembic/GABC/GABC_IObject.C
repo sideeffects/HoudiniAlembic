@@ -240,7 +240,7 @@ namespace
     bool
     isHeterogeneousTopology<IPointsSchema>(const IPointsSchema &ss)
     {
-	return !ss.isConstant();
+	return !ss.getIdsProperty().isConstant();
     }
     template <typename T_SCHEMA>
     static void
@@ -269,7 +269,7 @@ namespace
 	    obj.archive()->filename().c_str(),
 	    obj.getFullName().c_str());
 	t = best;
-	}
+    }
 
     static GT_DataArrayHandle
     getArraySample(GABC_IArchive &arch, const IArrayProperty &prop,

@@ -73,7 +73,7 @@ ROP_AbcContext::setTimeSampling(fpreal tstart,
     }
     else if (shutter_open < shutter_close)
     {
-	fpreal	shutter_step = (shutter_close - shutter_open) / (mb_samples - 1);
+	fpreal	shutter_step = (shutter_close - shutter_open) / mb_samples;
 	fpreal	blur_offset = shutter_open;
 	if (SYSequalZero(shutter_open) && SYSequalZero(shutter_close-1))
 	{
