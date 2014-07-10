@@ -95,6 +95,8 @@ namespace
 				"Use Display SOP");
     static PRM_Name	theFullBoundsName("full_bounds",
 				"Full Bounding Box Tree");
+    static PRM_Name	theKeepAbcHierarchyName("keep_hierarchy",
+				"Keep Packed Alembic Hierarchy");
     static PRM_Name	thePartitionModeName("partition_mode",
 				"Partition Mode");
     static PRM_Name	thePartitionAttributeName("partition_attribute",
@@ -112,6 +114,7 @@ namespace
     static PRM_Default	theSaveAttributesDefault(1, "yes");
     static PRM_Default	theFullBoundsDefault(0, "no");
     static PRM_Default	theDisplaySOPDefault(0, "no");
+    static PRM_Default  theKeepAbcHierarchyDefault(0, "no");
     static PRM_Default	thePartitionModeDefault(0, "no");
     static PRM_Default	thePartitionAttributeDefault(0, "");
     static PRM_Default	theCollapseDefault(0, "off");
@@ -201,6 +204,7 @@ namespace
 	PRM_Name("off",	"Do Not Collapse Identity Objects"),
 	PRM_Name("on",  "Collapse Non-Animating Identity Objects"),
 	PRM_Name("geo", "Collapse All Geometry Container Objects"),
+	PRM_Name("all", "Collapse All Objects (Packed Alembic Roundtripping)"),
 	PRM_Name()
     };
 
@@ -260,6 +264,8 @@ namespace
 	PRM_Template(PRM_TOGGLE, 1, &theUseInstancingName, PRMoneDefaults),
 	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName,
 				    &theFullBoundsDefault),
+	PRM_Template(PRM_TOGGLE, 1, &theKeepAbcHierarchyName,
+				    &theKeepAbcHierarchyDefault),
 	PRM_Template(PRM_TOGGLE, 1, &theDisplaySOPName,
 				    &theDisplaySOPDefault),
 	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
@@ -353,6 +359,8 @@ ROP_AlembicOut::COLLAPSE(fpreal time)
 	return ROP_AbcContext::COLLAPSE_NONE;
     if (str == "geo")
 	return ROP_AbcContext::COLLAPSE_GEOMETRY;
+    if (str == "all")
+	return ROP_AbcContext::COLLAPSE_ALL;
     UT_ASSERT(str == "on");
     return ROP_AbcContext::COLLAPSE_IDENTITY;
 }
@@ -438,6 +446,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     myContext->setSaveAttributes(SAVE_ATTRIBUTES(start));
     myContext->setUseDisplaySOP(DISPLAYSOP(start));
     myContext->setFullBounds(FULL_BOUNDS(start));
+    myContext->setKeepAbcHierarchy(KEEP_HIERARCHY(start));
     myContext->setUseInstancing(USE_INSTANCING(start));
     myContext->setSaveHidden(SAVE_HIDDEN(start));
 

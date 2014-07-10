@@ -74,7 +74,11 @@ namespace
 		const ROP_AbcContext &ctx,
 		const OObject &parent)
     {
-	// We can't collapse if we're the root node
+        // COLLAPSE_ALL will always collapse
+        if (ctx.collapseIdentity() == ROP_AbcContext::COLLAPSE_ALL)
+            return true;
+
+	// Otherwise, we can't collapse if we're the root node
 	if (!const_cast<OObject &>(parent).getParent().valid())
 	    return false;
 
@@ -108,8 +112,9 @@ namespace
 		// Collapse geometry containers only if it's a non-animated
 		// identity transform.
 		return !time_dependent && xform.isIdentity();
+            default:
+	        return false;
 	}
-	return false;
     }
 }
 

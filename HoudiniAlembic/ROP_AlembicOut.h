@@ -86,6 +86,8 @@ protected:
 		    { return evalInt("displaysop", 0, time) != 0; }
     bool	FULL_BOUNDS(fpreal time)
 		    { return evalInt("full_bounds", 0, time) != 0; }
+    bool	KEEP_HIERARCHY(fpreal time)
+		    { return evalInt("keep_hierarchy", 0, time) != 0; }
     void	FACESET_MODE(UT_String &sval, fpreal time)
 		    { evalString(sval, "facesets", 0, time); }
     void	PARTITION_MODE(UT_String &sval, fpreal time)

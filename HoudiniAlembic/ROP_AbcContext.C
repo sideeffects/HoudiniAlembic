@@ -48,6 +48,7 @@ ROP_AbcContext::ROP_AbcContext()
     , myCollapseIdentity(false)
     , myUseInstancing(true)
     , mySaveHidden(true)
+    , myKeepAbcHierarchy(false)
 {
 }
 

@@ -46,8 +46,11 @@
 namespace Alembic {
     namespace Abc {
         namespace ALEMBIC_VERSION_NS {
-            typedef Imath::V4f      V4f;
-            ALEMBIC_ABC_DECLARE_TYPE_TRAITS(V4f, kFloat32POD, 4, "point", P4fTPTraits);
+            ALEMBIC_ABC_DECLARE_TYPE_TRAITS(Imath::V4f,
+                    kFloat32POD,
+                    4,
+                    "point",
+                    P4fTPTraits);
         }
     }
 }

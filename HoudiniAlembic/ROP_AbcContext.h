@@ -94,6 +94,8 @@ public:
 	COLLAPSE_NONE,		// Don't collapse identity geometry nodes
 	COLLAPSE_IDENTITY,	// Collapse non-animated identity nodes
 	COLLAPSE_GEOMETRY,	// Collapse geometry nodes, regardless of xform
+	COLLAPSE_ALL,           // Collapse all transform nodes (used for
+	                        // roundtripping packed Alembics)
     };
     int		 collapseIdentity() const	{ return myCollapseIdentity; }
     void	 setCollapseIdentity(int v)	{ myCollapseIdentity = v; }
@@ -111,6 +113,13 @@ public:
     /// kHidden.
     bool	saveHidden() const		{ return mySaveHidden; }
     void	setSaveHidden(bool v)		{ mySaveHidden = v; }
+    /// @}
+
+    /// @{
+    /// Whether to save out packed Alembics using their hierarchy information
+    /// from the import Alembic archive.
+    bool	keepAbcHierarchy() const	{ return myKeepAbcHierarchy; }
+    void	setKeepAbcHierarchy(bool v)	{ myKeepAbcHierarchy = v; }
     /// @}
 
     /// @{
@@ -170,6 +179,7 @@ private:
     int			 myCollapseIdentity;
     bool		 myUseInstancing;
     bool		 mySaveHidden;
+    bool                 myKeepAbcHierarchy;
 };
 
 #endif

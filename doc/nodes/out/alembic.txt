@@ -85,6 +85,21 @@ Render With Take:
 Alembic File:
         The name of the archive to generate.
 
+Format:
+	The file format of the archive to generate.
+
+	Default:
+		Use whichever file format is the default for the current version of Houdini.
+
+	HDF5:
+		Use the HDF5 file format. HDF5 is a common hierarchical data format, and several tools exist to view and edit HDF5 files.
+
+	Ogawa:
+		Use the Ogawa file format. Ogawa is an Alembic-specific file format available for use as of Alembic 1.5. Ogawa files are on average smaller (by 5-15%) and faster (4x for single-threaded reads, 25x for multi-threaded reads on 8 core systems) than HDF5 files.
+
+Create Intermediate Directories:
+	Create the directories in the Alembic archive output path if they do not exist.
+
 [Include:standard#mkpath]
 
 Root Object:
@@ -92,11 +107,11 @@ Root Object:
 
 Objects:
         A pattern/bundle of objects to include in the alembic archive.
-    
-        NOTE:
-                Only objects that are displayed on the start frame will be output to the archive.
 
-Collapse identity transforms:
+Initialize Simulation OPs:
+	Reset simulations before writing Alembic archive.
+
+Collapse Objects:
         This option can be used to skip writing transform nodes which have no transform
         (an identity transform) for the entire animation.
         
@@ -107,21 +122,36 @@ Collapse identity transforms:
         the size of the Alembic archive node count).
 
 	Do Not Collapse Identity Objects:
-		All geometry objects will be saved as Alembic transform nodes.
+		All geometry containers (geometry objects containing SOPs) will be saved as Alembic transform nodes.
 	Collapse Non-Animating Identity Objects:
-		All geometry objects which are not animated and have an identity transform will be skipped when writing the Alembic file.
+		All geometry containers which are not animated and have an identity transform will be skipped when writing the Alembic file.
 	Collapse All Geometry Container Objects:
-		All geometry objects containing SOPs will not be written to the Alembic file.  In some cases for subnet hierarchies, having a subnet parent animated will propagate the time dependence to the contained nodes.  This option allows you to forcibly skip the geometry nodes.  
+		All geometry containers will not be written to the Alembic file.  In some cases for subnet hierarchies, having a subnet parent animated will propagate the time dependence to the contained nodes.  This option allows you to forcibly skip the geometry nodes.  
 		
 		NOTE:
 		        Any transformations on these nodes will be lost during the save.
+	
+	Collapse All Objects (Packed Alembic Roundtripping):
+		All geometry containers and subnets will not be written to the Alembic file. This option is useful for modifying and roundtripping packed Alembic geometry using SOPs.
+
+		NOTE:
+			Any transformations on these nodes will be lost during the save.
 
 	NOTE:
 	        If an object has a parameter named `abc_collapse` that evaluates to a non-zero value, the object will be skipped from the save.  This allows fine-grained per-object control regardless of the setting of this parameter.
 
+Save All Non-Displayed (Hidden) Objects:
+	If this checkbox is turned on, hidden objects matching the __Objects__ pattern/bundle will also written to the Alembic archive.
+
+Use Alembic Instancing Where Possible:
+	This will cause packed objects (excluding packed Alembics) to be instanced within the Alembic archive during write, reusing geometry and potentially decreasing the size of the file.
+
 Full Bounding Box Tree:
         This will cause all Alembic nodes to have proper bounding boxes written.
         Computing bounds for only the shape nodes is more efficient.
+
+Keep Packed Alembic Hierarchy:
+	If this checkbox is turned on, packed Alembic geometry will be written to the Alembic archive under the same hierarchy as the Alembic file from which it was read. The root of the imported hierarchy will be placed underneath the geometry container of the Alembic import SOP in the exported archive.
 
 Use Display SOP:
 	If this checkbox is turned on, the geometry in the Display SOP will be

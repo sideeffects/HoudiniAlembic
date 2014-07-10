@@ -3084,7 +3084,7 @@ GABC_IObject::getPropertiesHash(int64 &hash) const
 	hash = prophash.words[0] + SYSwang_inthash64(prophash.words[1]);
 	return true;
     }
-    
+
     hash = 0;
     return false;
 }

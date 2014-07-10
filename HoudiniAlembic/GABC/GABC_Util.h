@@ -193,6 +193,8 @@ public:
     /// children)
     static bool		walk(const std::string &filename, Walker &walker,
 				const UT_StringArray &objects);
+    static bool		walk(const std::string &filename, Walker &walker,
+				const UT_Set<std::string> &objects);
 
     /// Get the local transform for a given node in an Alembic file.  The @c
     /// isConstant flag will be true if the local transform is constant (even

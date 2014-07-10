@@ -29,6 +29,7 @@
 #define __ROP_AbcGTCompoundShape__
 
 #include "ROP_AbcGTShape.h"
+#include "ROP_AbcPackedAbc.h"
 #include <GABC/GABC_OError.h>
 
 /// Houdini geometry can be composed of multiple simple shapes.
@@ -38,6 +39,7 @@ class ROP_AbcGTCompoundShape
 {
 public:
     typedef GABC_NAMESPACE::GABC_OError	        GABC_OError;
+
     typedef Alembic::Abc::OObject	        OObject;
     typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
     typedef Alembic::AbcGeom::OXform	        OXform;
@@ -60,19 +62,20 @@ public:
     OObject	getShape() const;
 private:
     void	clear();
-    bool        shapeStart(ROP_AbcGTShape *shape,
+    bool        startMyShape(ROP_AbcGTShape *shape,
                         GT_PrimitiveHandle prim,
                         GABC_OError &err,
                         const ROP_AbcContext &ctx,
                         ObjectVisibility vis);
 
-    UT_Array<ROP_AbcGTShape *>	 myShapes;
-    const OObject               *myShapeParent;
-    OXform			*myContainer;
-    std::string			 myName;
-    exint                        myElapsedFrames;
-    bool			 myPolysAsSubd;
-    bool			 myShowUnusedPoints;
+    const OObject              *myShapeParent;
+    OXform                     *myContainer;
+    ROP_AbcPackedAbc            myPackedAbc;
+    UT_Array<ROP_AbcGTShape *>  myShapes;
+    std::string                 myName;
+    exint                       myElapsedFrames;
+    bool                        myPolysAsSubd;
+    bool                        myShowUnusedPoints;
 };
 
 #endif

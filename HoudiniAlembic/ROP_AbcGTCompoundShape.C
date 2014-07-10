@@ -35,64 +35,12 @@
 
 namespace
 {
+    typedef GABC_NAMESPACE::GABC_PackedImpl     GABC_PackedImpl;
+
+    typedef ROP_AbcPackedAbc::AbcInfo           AbcInfo;
+    typedef ROP_AbcPackedAbc::AbcInfoList       AbcInfoList;
+
     typedef UT_Array<GT_PrimitiveHandle>	PrimitiveList;
-
-    static bool
-    shouldInstance(const GT_PrimitiveHandle &prim)
-    {
-	int	ptype = prim->getPrimitiveType();
-	if (ptype == GT_GEO_PACKED)
-	{
-	    const GT_GEOPrimPacked	*gt;
-	    gt = UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
-	    const GU_PrimPacked	*gu = gt->getPrim();
-
-	    // We don't want to instance a single Alembic shape
-	    if (gu->getTypeId() == GABC_NAMESPACE::GABC_PackedImpl::typeId())
-	    {
-		return false;
-	    }
-	}
-	return ptype == GT_GEO_PACKED || ptype == GT_PRIM_INSTANCE;
-    }
-
-    class abc_Refiner : public GT_Refine
-    {
-    public:
-	abc_Refiner(PrimitiveList &list,
-		const GT_RefineParms *parms,
-		bool use_instancing)
-	    : myList(list)
-	    , myParms(parms)
-	    , myUseInstancing(use_instancing)
-	{
-	}
-	// We need the primitives generated in a consistent order
-	virtual bool	allowThreading() const	{ return false; }
-	virtual void	addPrimitive(const GT_PrimitiveHandle &prim)
-	{
-	    if (!prim)
-		return;
-	    bool	ok = false;
-	    if (myUseInstancing && shouldInstance(prim))
-	    {
-		ok = true;
-	    }
-	    else
-		ok = ROP_AbcGTShape::isPrimitiveSupported(prim);
-	    if (ok)
-	    {
-		myList.append(prim);
-		return;
-	    }
-	    // We hit a primitive we don't understand, so refine it
-	    prim->refine(*this, myParms);
-	}
-    private:
-	PrimitiveList		&myList;
-	const GT_RefineParms	*myParms;
-	bool			 myUseInstancing;
-    };
 
     static void
     initializeRefineParms(GT_RefineParms &rparms, const ROP_AbcContext &ctx,
@@ -105,14 +53,139 @@ namespace
 	rparms.setShowUnusedPoints(show_unused_points);
 	rparms.setCoalesceFragments(false);
     }
+
+    static bool
+    appendAbcPackedImpl(const GT_PrimitiveHandle &prim, AbcInfoList &list)
+    {
+        int ptype = prim->getPrimitiveType();
+
+        if (ptype == GT_GEO_PACKED)
+        {
+            const GT_GEOPrimPacked     *gt;
+            const GU_PrimPacked	       *gu;
+
+            gt = UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
+            gu = gt->getPrim();
+
+            if (gu->getTypeId() == GABC_PackedImpl::typeId())
+            {
+                list.append(AbcInfo(
+                        UTverify_cast<const GABC_PackedImpl *>(
+                                gu->implementation()),
+                        gt->getInstanceTransform()));
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    static bool
+    shouldInstance(const GT_PrimitiveHandle &prim, bool check_abc)
+    {
+	int	ptype = prim->getPrimitiveType();
+
+	if (check_abc && ptype == GT_GEO_PACKED)
+	{
+	    const GT_GEOPrimPacked	*gt;
+	    gt = UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
+	    const GU_PrimPacked	*gu = gt->getPrim();
+
+	    // We don't want to instance a single Alembic shape
+	    if (gu->getTypeId() == GABC_NAMESPACE::GABC_PackedImpl::typeId())
+	    {
+		return false;
+	    }
+	}
+
+	return ptype == GT_GEO_PACKED || ptype == GT_PRIM_INSTANCE;
+    }
+
+    static bool
+    abcPrimCompare(const AbcInfo &prim1, const AbcInfo &prim2)
+    {
+        int result = strcmp(
+                prim1.getPackedImpl()->filename().c_str(),
+                prim2.getPackedImpl()->filename().c_str());
+
+        if (!result)
+        {
+            result = strcmp(
+                    prim1.getPackedImpl()->objectPath().c_str(),
+                    prim2.getPackedImpl()->objectPath().c_str());
+        }
+
+        return (result < 0);
+    }
+
+    class abc_Refiner : public GT_Refine
+    {
+    public:
+
+	abc_Refiner(AbcInfoList &abc_list,
+	        PrimitiveList &list,
+		const GT_RefineParms *parms,
+		bool keep_hierarchy,
+		bool use_instancing)
+	    : myAbcList(abc_list)
+	    , myList(list)
+	    , myParms(parms)
+	    , myKeepAbcHierarchy(keep_hierarchy)
+	    , myUseInstancing(use_instancing)
+	{
+	}
+
+	// We need the primitives generated in a consistent order
+	virtual bool	allowThreading() const	{ return false; }
+
+	virtual void	addPrimitive(const GT_PrimitiveHandle &prim)
+	{
+	    if (!prim)
+		return;
+
+            if (myKeepAbcHierarchy && appendAbcPackedImpl(prim, myAbcList))
+            {
+                return;
+            }
+
+	    bool ok = false;
+
+	    if (myUseInstancing && shouldInstance(prim, !myKeepAbcHierarchy))
+	    {
+		ok = true;
+	    }
+	    else
+	    {
+		ok = ROP_AbcGTShape::isPrimitiveSupported(prim);
+	    }
+
+	    if (ok)
+	    {
+		myList.append(prim);
+		return;
+	    }
+
+	    // We hit a primitive we don't understand, so refine it
+	    prim->refine(*this, myParms);
+	}
+
+    private:
+	AbcInfoList             &myAbcList;
+	PrimitiveList		&myList;
+	const GT_RefineParms	*myParms;
+	bool                     myKeepAbcHierarchy;
+	bool			 myUseInstancing;
+    };
 }
 
 ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &name,
 		bool polys_as_subd,
 		bool show_unused_pts)
-    : myShapes()
-    , myName(name)
+    : myShapeParent(NULL)
     , myContainer(NULL)
+    , myPackedAbc()
+    , myShapes()
+    , myName(name)
     , myElapsedFrames(0)
     , myPolysAsSubd(polys_as_subd)
     , myShowUnusedPoints(show_unused_pts)
@@ -131,11 +204,13 @@ ROP_AbcGTCompoundShape::clear()
 	delete myShapes(i);
     delete myContainer;
     myContainer = NULL;
+    myPackedAbc.clear();
+    myShapeParent = NULL;
     myShapes.setCapacity(0);
 }
 
 bool
-ROP_AbcGTCompoundShape::shapeStart(ROP_AbcGTShape *shape,
+ROP_AbcGTCompoundShape::startMyShape(ROP_AbcGTShape *shape,
         GT_PrimitiveHandle prim,
         GABC_OError &err,
         const ROP_AbcContext &ctx,
@@ -143,7 +218,7 @@ ROP_AbcGTCompoundShape::shapeStart(ROP_AbcGTShape *shape,
 {
     bool    ok = true;
 
-    if (shouldInstance(prim))
+    if (shouldInstance(prim, false))
     {
         UT_ASSERT(ctx.useInstancing());
         ok = shape->firstInstance(prim, *myShapeParent, err, ctx,
@@ -169,6 +244,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     clear();
 
     // Refine the primitive into it's atomic shapes
+    AbcInfoList         packed_abc_prims;
     PrimitiveList	prims;
     GT_RefineParms	rparms;
 
@@ -177,22 +253,32 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
 	prims.append(prim);
     else
     {
-	abc_Refiner refiner(prims, &rparms, ctx.useInstancing());
+	abc_Refiner refiner(packed_abc_prims,
+	        prims,
+	        &rparms,
+	        ctx.keepAbcHierarchy(),
+	        ctx.useInstancing());
 	prim->refine(refiner, &rparms);
+	packed_abc_prims.stableSort(abcPrimCompare);
     }
 
-    ++myElapsedFrames;
     myShapeParent = &parent;
 
     exint       prim_entries = prims.entries();
-    if (!prim_entries)
+    exint       abc_entries = packed_abc_prims.entries();
+    if (!prim_entries && !abc_entries)
+    {
+        ++myElapsedFrames;
+        myPackedAbc.addTime(ctx.cookTime());
 	return true;
+    }
 
     if (prim_entries > 1 && create_container)
     {
 	myContainer = new OXform(parent, myName, ctx.timeSampling());
 	myShapeParent = myContainer;
     }
+    myPackedAbc.setParent(myShapeParent);
 
     std::string		shape_name = myName;
     UT_WorkBuffer	shape_namebuf;
@@ -208,7 +294,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
 
     for (exint i = 0; i < myShapes.entries(); ++i)
     {
-	if (!shapeStart(myShapes(i),
+	if (!startMyShape(myShapes(i),
 	        prims(i),
 	        err,
 	        ctx,
@@ -219,6 +305,16 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
 	}
     }
 
+    if (abc_entries) {
+        if (!myPackedAbc.startPackedAbc(packed_abc_prims, ctx))
+        {
+	    clear();
+            return false;
+        }
+    }
+
+    ++myElapsedFrames;
+    myPackedAbc.addTime(ctx.cookTime());
     return true;
 }
 
@@ -228,6 +324,7 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
 			const ROP_AbcContext &ctx)
 {
     // Refine the primitive into it's atomic shapes
+    AbcInfoList         packed_abc_prims;
     PrimitiveList	prims;
     GT_RefineParms	rparms;
 
@@ -236,14 +333,20 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
 	prims.append(prim);
     else
     {
-	abc_Refiner	refiner(prims, &rparms, ctx.useInstancing());
+	abc_Refiner refiner(packed_abc_prims,
+	        prims,
+	        &rparms,
+	        ctx.keepAbcHierarchy(),
+	        ctx.useInstancing());
 	prim->refine(refiner, &rparms);
+	packed_abc_prims.stableSort(abcPrimCompare);
     }
 
-    exint       shape_entries = myShapes.entries();
+    exint       abc_entries = packed_abc_prims.entries();
     exint       prim_entries = prims.entries();
-    exint       s_pos = 0;
+    exint       shape_entries = myShapes.entries();
     exint       p_pos = 0;
+    exint       s_pos = 0;
 
     // Go through the list of existing shapes looking for one with
     // a primitive type matching the one of the current primitive.
@@ -303,7 +406,7 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
             }
             myShapes.append(new ROP_AbcGTShape(shape_name));
 
-            if (!shapeStart(myShapes(s_pos),
+            if (!startMyShape(myShapes(s_pos),
                     prims(i),
                     err,
                     ctx,
@@ -320,7 +423,18 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
         }
     }
 
+    if (abc_entries) {
+        if (!myPackedAbc.updatePackedAbc(packed_abc_prims,
+                ctx,
+                myElapsedFrames))
+        {
+            clear();
+            return false;
+        }
+    }
+
     ++myElapsedFrames;
+    myPackedAbc.addTime(ctx.cookTime());
     return true;
 }
 

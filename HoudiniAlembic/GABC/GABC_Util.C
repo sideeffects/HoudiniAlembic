@@ -427,7 +427,7 @@ namespace
 
 	/// Find an object in the object cache -- this prevents having to
 	/// traverse from the root every time we need an object.
-	GABC_IObject	findObject(const GABC_IObject &parent,
+	GABC_IObject findObject(const GABC_IObject &parent,
 			    UT_WorkBuffer &fullpath, const char *component)
 		{
 		    UT_AutoLock	lock(theOCacheLock);
@@ -685,6 +685,28 @@ GABC_Util::walk(const std::string &filename, Walker &walker,
     {
 	std::string	path(objects(i));
 	GABC_IObject	obj = findObject(filename, path);
+
+	if (obj.valid())
+	{
+	    if (!walker.preProcess(obj))
+		return false;
+	    if (!cacheEntry->walkTree(obj, walker))
+		return false;
+	}
+    }
+    return true;
+}
+
+bool
+GABC_Util::walk(const std::string &filename, Walker &walker,
+			    const UT_Set<std::string> &objects)
+{
+    ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
+    WalkPushFile		walkfile(walker, filename);
+    for (auto it = objects.begin(); it != objects.end(); ++it)
+    {
+	GABC_IObject	obj = findObject(filename, *it);
+
 	if (obj.valid())
 	{
 	    if (!walker.preProcess(obj))
