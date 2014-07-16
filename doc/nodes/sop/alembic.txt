@@ -75,7 +75,7 @@ Poly Soup Primitives:
 	Use Poly Soups For Polygon Meshes:
 		Create polygon soup primitives for Alembic Polygon Meshes where possible.  This will currently not be done if there are uniform attributes on the mesh or if there are face sets.
 	Use Poly Soups Wherever Possible:
-		Create Poly Soup primitives for both Alembic Polygon Meshes and Alembic Subdivision Surface primitives.
+		Create Poly Soup primitives for both Alembic Polygon Meshes and Alembic Subdivision Surface primitives.  If there are uniform attributes (per-face attributes) these will be lost.
 
 Transform Geometry To World Space:
         #id: includeXform
