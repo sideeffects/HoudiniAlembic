@@ -657,12 +657,6 @@ GABC_Util::getAlembicCompileNamespace()
 }
 
 bool
-GABC_Util::Walker::preProcess(const GABC_IObject &)
-{
-    return true;
-}
-
-bool
 GABC_Util::Walker::walkChildren(const GABC_IObject &obj)
 {
     exint	nkids = obj.getNumChildren();

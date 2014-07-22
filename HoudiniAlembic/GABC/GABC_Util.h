@@ -111,7 +111,7 @@ public:
 	/// @c preProcess() is called on the "root" of the walk.  The root may
 	/// @b not be the root of the Alembic file (i.e. when walking lists of
 	/// objects).  The @c preProcess() method will be called one time only.
-	virtual bool	preProcess(const GABC_IObject &node);
+	virtual bool	preProcess(const GABC_IObject &node)    { return true; }
 
 	/// Return true to continue traveral and process the children of the
 	/// given node.  Returning false will process the next sibling.  Use

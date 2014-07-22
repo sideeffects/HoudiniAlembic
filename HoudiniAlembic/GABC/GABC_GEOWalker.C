@@ -1768,11 +1768,25 @@ GABC_GEOWalker::preProcess(const GABC_IObject &root)
 	for (int r = 0; r < 4; ++r)
 	    for (int c = 0; c < 4; ++c)
 		myMatrix.x[r][c] = m(r,c);
+
+        do
+        {
+            if (parent.getAnimationType(false) != GEO_ANIMATION_CONSTANT)
+            {
+                myIsConstant = false;
+                myTransformConstant = false;
+                myAllTransformConstant = false;
+                break;
+            }
+
+            parent = parent.getParent();
+        } while (parent.valid());
     }
     else
     {
 	myMatrix = identity44d;
     }
+
     return true;
 }
 
@@ -1785,7 +1799,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
     {
 	bool			animated;
 	GABC_VisibilityType	vtype;
-	vtype =obj.visibility(animated, time(), false);
+	vtype = obj.visibility(animated, time(), false);
 	if (animated)
 	{
 	    // Since visibility is animated, the topology will change
@@ -1800,6 +1814,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
     if (IXform::matches(ohead))
     {
 	IXform	xform(obj.object(), gabcWrapExisting);
+
 	if (buildLocator() && obj.isMayaLocator())
 	{
 	    if (filterObject(obj))
@@ -2042,6 +2057,7 @@ GABC_GEOWalker::pushTransform(const M44d &xform, bool const_xform,
     stash.push(myMatrix, myTransformConstant);
     if (!const_xform)
     {
+        myIsConstant = false;
 	myTransformConstant = false;
 	myAllTransformConstant = false;
     }
