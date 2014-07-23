@@ -693,7 +693,8 @@ namespace
 	if (VAR && VAR->valid() && matchScope(VAR->getScope(), \
 		    scope, scope_size)) { \
 	    if (!namemap || \
-		namemap->matchPattern(scopeToOwner(VAR->getScope()), NAME)) { \
+		namemap->matchPattern(scopeToOwner(VAR->getScope()), NAME)) \
+            { \
 		if (ONLY_ANIMATING && VAR->isConstant()) \
 		    markFilled(alist, NAME, filled); \
 		setAttributeData(alist, NAME, \
