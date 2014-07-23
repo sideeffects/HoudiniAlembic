@@ -662,14 +662,6 @@ namespace {
 	typename		 T::sample_type psample;
 	param.getExpanded(psample, iss);
 
-        // Some attributes (ex. UVs) are point attributes for some shape
-        // types and vertex attributes for others in Alembic. Upgrade all
-        // such attributes to vertex attributes.
-	if(owner == GA_ATTRIB_POINT && gdp.findVertexAttribute(name))
-	{
-	    owner = GA_ATTRIB_VERTEX;
-	}
-
 	switch (owner)
 	{
 	    case GA_ATTRIB_POINT:
