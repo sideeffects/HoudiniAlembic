@@ -347,26 +347,95 @@ namespace {
     static void
     setNumericAttribute(GU_Detail &gdp, GA_RWAttributeRef &attrib,
 		    const T &array, int extent, exint start, exint end,
-		    bool extend_array)
+		    bool extend_array, bool set_v_from_p)
     {
 	GA_RWHandleT<GA_T>	 h(attrib.getAttribute());
 	int			 tsize = SYSmin(extent, attrib.getTupleSize());
 	const GA_AIFTuple	*tuple = attrib.getAIFTuple();
-	const ABC_T		*data = (const ABC_T *)array->getData();
+	const ABC_T		*master_data = (const ABC_T *)array->getData();
+	if (!master_data)
+	    return;
+
+	UT_ASSERT(h.isValid());
+
+	if (set_v_from_p)
+	{
+	    const ABC_T    *data;
+
+	    for (exint i = start; i < end; ++i)
+            {
+                if (extend_array)
+                {
+                    GA_Offset   pos = gdp.vertexPoint(i - start);
+                    data = (master_data + (pos * extent));
+                }
+                else
+                {
+                    data = master_data;
+                }
+
+                for (int j = 0; j < tsize; ++j)
+                {
+                    if (tuple)
+                    {
+                        tuple->set(
+                                attrib.getAttribute(),
+                                GA_Offset(i),
+                                (double)data[j],
+                                j);
+                    }
+                    else
+                    {
+                        h.set(GA_Offset(i), j, data[j]);
+                    }
+                }
+            }
+	}
+	else
+	{
+            for (exint i = start; i < end; ++i)
+            {
+                for (int j = 0; j < tsize; ++j)
+                {
+                    if (tuple)
+                    {
+                        tuple->set(
+                                attrib.getAttribute(),
+                                GA_Offset(i),
+                                (double)master_data[j],
+                                j);
+                    }
+                    else
+                    {
+                        h.set(GA_Offset(i), j, master_data[j]);
+                    }
+                }
+                if (!extend_array)
+                {
+                    master_data += extent;
+                }
+            }
+	}
+    }
+
+    // Set numeric vertex attribute from point attribute
+    template <typename T, typename GA_T, typename ABC_T>
+    static void
+    setNumericVAttrFromPAttr(GU_Detail &gdp, GA_RWAttributeRef &attrib,
+		    const T &array, int extent, exint start, exint end,
+		    bool extend_array, bool set_v_from_p)
+    {
+	GA_RWHandleT<GA_T>	 h(attrib.getAttribute());
+	int			 tsize = SYSmin(extent, attrib.getTupleSize());
+	const GA_AIFTuple	*tuple = attrib.getAIFTuple();
+	const ABC_T		*master_data = (const ABC_T *)array->getData();
+	const ABC_T		*data;
 	if (!data)
 	    return;
+
 	UT_ASSERT(h.isValid());
-	for (exint i = start; i < end; ++i)
-	{
-	    for (int j = 0; j < tsize; ++j)
-	    {
-		if (tuple)
-		    tuple->set(attrib.getAttribute(), GA_Offset(i), (double)data[j], j);
-		else h.set(GA_Offset(i), j, data[j]);
-	    }
-	    if (!extend_array)
-		data += extent;
-	}
+
+
     }
 
     static GA_TypeInfo
@@ -540,11 +609,13 @@ namespace {
     template <typename T>
     static void
     setAttribute(GU_Detail &gdp,
-		    GA_AttributeOwner owner,
-		    const char *name,
-		    const char *abcname,
-		    const T &array,
-		    exint start, exint len)
+            GA_AttributeOwner owner,
+            const char *name,
+            const char *abcname,
+            const T &array,
+            exint start,
+            exint len,
+            bool set_v_from_p = false)
     {
 	if (!*array)
 	    return;
@@ -572,17 +643,17 @@ namespace {
 			case Alembic::AbcGeom::kFloat16POD:
 			    setNumericAttribute<T, fpreal32, fpreal16>(
 				gdp, attrib, array, tsize, start, start+len,
-				extend_array);
+				extend_array, set_v_from_p);
 			    break;
 			case Alembic::AbcGeom::kFloat32POD:
 			    setNumericAttribute<T, fpreal32, fpreal32>(
 				gdp, attrib, array, tsize, start, start+len,
-				extend_array);
+				extend_array, set_v_from_p);
 			    break;
 			case Alembic::AbcGeom::kFloat64POD:
 			    setNumericAttribute<T, fpreal32, fpreal64>(
 				gdp, attrib, array, tsize, start, start+len,
-				extend_array);
+				extend_array, set_v_from_p);
 			    break;
 			default:
 			    UT_ASSERT(0 && "Bad alembic type");
@@ -595,42 +666,42 @@ namespace {
 			case Alembic::AbcGeom::kUint32POD:
 			    setNumericAttribute<T, int32, uint32>(
 				gdp, attrib, array, tsize, start, start+len,
-				extend_array);
+				extend_array, set_v_from_p);
 			    break;
 			case Alembic::AbcGeom::kInt32POD:
 			    setNumericAttribute<T, int32, int32>(
 				gdp, attrib, array, tsize, start, start+len,
-				extend_array);
+				extend_array, set_v_from_p);
 			    break;
 			case Alembic::AbcGeom::kUint64POD:
 			    setNumericAttribute<T, int32, uint64>(
 				gdp, attrib, array, tsize, start, start+len,
-				extend_array);
+				extend_array, set_v_from_p);
 			    break;
 			case Alembic::AbcGeom::kInt64POD:
 			    setNumericAttribute<T, int32, int64>(
 				gdp, attrib, array, tsize, start, start+len,
-				extend_array);
+				extend_array, set_v_from_p);
 			    break;
 			case Alembic::AbcGeom::kUint8POD:
 			    setNumericAttribute<T, int32, uint8>(
 				gdp, attrib, array, tsize, start, start+len,
-				extend_array);
+				extend_array, set_v_from_p);
 			    break;
 			case Alembic::AbcGeom::kInt8POD:
 			    setNumericAttribute<T, int32, int8>(
 				gdp, attrib, array, tsize, start, start+len,
-				extend_array);
+				extend_array, set_v_from_p);
 			    break;
 			case Alembic::AbcGeom::kUint16POD:
 			    setNumericAttribute<T, int32, uint16>(
 				gdp, attrib, array, tsize, start, start+len,
-				extend_array);
+				extend_array, set_v_from_p);
 			    break;
 			case Alembic::AbcGeom::kInt16POD:
 			    setNumericAttribute<T, int32, int16>(
 				gdp, attrib, array, tsize, start, start+len,
-				extend_array);
+				extend_array, set_v_from_p);
 			    break;
 			default:
 			    UT_ASSERT(0 && "Bad alembic type");
@@ -657,31 +728,66 @@ namespace {
     {
 	if (!param.valid())
 	    return;
-	GA_AttributeOwner	 owner = getGAOwner(param.getScope());
-	GU_Detail		&gdp = walk.detail();
-	typename		 T::sample_type psample;
+	GA_AttributeOwner	    owner = getGAOwner(param.getScope());
+	GU_Detail                  &gdp = walk.detail();
+	typename T::sample_type     psample;
+        bool                        set_v_from_p = false;
 	param.getExpanded(psample, iss);
+
+        // UVs and Normals may be stored as point or vertex attributes.
+        // If both are encountered, upgrade point attribute data to vertex
+        // attribute.
+        if (owner == GA_ATTRIB_POINT && gdp.findVertexAttribute(name))
+        {
+            owner = GA_ATTRIB_VERTEX;
+            set_v_from_p = true;
+        }
 
 	switch (owner)
 	{
 	    case GA_ATTRIB_POINT:
-		setAttribute(gdp, owner, name, abcname,
-			psample.getVals(), walk.pointCount(), npoint);
+		setAttribute(
+		        gdp,
+		        owner,
+		        name,
+		        abcname,
+			psample.getVals(),
+			walk.pointCount(),
+			npoint);
 		break;
 	    case GA_ATTRIB_VERTEX:
-		setAttribute(gdp, owner, name, abcname,
-			psample.getVals(), walk.vertexCount(), nvertex);
+		setAttribute(
+		        gdp,
+		        owner,
+		        name,
+		        abcname,
+			psample.getVals(),
+			walk.vertexCount(),
+			nvertex,
+			set_v_from_p);
 		break;
 	    case GA_ATTRIB_PRIMITIVE:
-		setAttribute(gdp, owner, name, abcname,
-			psample.getVals(), walk.primitiveCount(), nprim);
+		setAttribute(
+		        gdp,
+		        owner,
+		        name,
+		        abcname,
+			psample.getVals(),
+			walk.primitiveCount(),
+			nprim);
 		break;
 
 	    case GA_ATTRIB_DETAIL:
 		// TODO: We map detail attributes to primitive attributes, so
 		// we need to extend the array to fill all elements!
-		setAttribute(gdp, GA_ATTRIB_PRIMITIVE, name, abcname,
-			psample.getVals(), walk.primitiveCount(), nprim);
+		setAttribute(
+		        gdp,
+		        GA_ATTRIB_PRIMITIVE,
+		        name,
+		        abcname,
+			psample.getVals(),
+			walk.primitiveCount(),
+			nprim);
 		break;
 	    default:
 		UT_ASSERT(0 && "Bad GA owner");
