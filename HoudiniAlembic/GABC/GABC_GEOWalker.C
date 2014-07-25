@@ -418,26 +418,6 @@ namespace {
 	}
     }
 
-    // Set numeric vertex attribute from point attribute
-    template <typename T, typename GA_T, typename ABC_T>
-    static void
-    setNumericVAttrFromPAttr(GU_Detail &gdp, GA_RWAttributeRef &attrib,
-		    const T &array, int extent, exint start, exint end,
-		    bool extend_array, bool set_v_from_p)
-    {
-	GA_RWHandleT<GA_T>	 h(attrib.getAttribute());
-	int			 tsize = SYSmin(extent, attrib.getTupleSize());
-	const GA_AIFTuple	*tuple = attrib.getAIFTuple();
-	const ABC_T		*master_data = (const ABC_T *)array->getData();
-	const ABC_T		*data;
-	if (!data)
-	    return;
-
-	UT_ASSERT(h.isValid());
-
-
-    }
-
     static GA_TypeInfo
     isReallyVector(const char *name, int tsize)
     {
