@@ -366,7 +366,7 @@ namespace {
             {
                 if (extend_array)
                 {
-                    GA_Offset   pos = gdp.vertexPoint(i - start);
+                    GA_Offset   pos = gdp.vertexPoint(GA_Offset(i - start));
                     data = (master_data + (pos * extent));
                 }
                 else
