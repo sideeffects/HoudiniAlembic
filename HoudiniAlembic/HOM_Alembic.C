@@ -574,6 +574,8 @@ namespace
     public:
 	HoudiniCam(CameraSample &sample)
 	{
+	    fpreal squeeze = sample.getLensSqueezeRatio();
+
 	    myFocal = sample.getFocalLength();
 	    myFocus = sample.getFocusDistance();
 	    myAperture = sample.getHorizontalAperture()*10.0;
@@ -585,28 +587,32 @@ namespace
 
 	    fpreal winx = sample.getHorizontalFilmOffset() *
 		    sample.getLensSqueezeRatio()/sample.getHorizontalAperture();
-	    fpreal winy = sample.getVerticalFilmOffset() *
-		    sample.getLensSqueezeRatio()/sample.getVerticalAperture();
+	    fpreal winy = sample.getVerticalFilmOffset() /
+	            sample.getVerticalAperture();
 
 	    //TODO, full 2D transformations
 	    V2d postScale(1.0, 1.0);
 	    for ( size_t i = 0; i < sample.getNumOps(); ++i )
 	    {
 		const FilmBackXformOp	&op = sample.getOp(i);
-		if ( op.isScaleOp() )
+		if (op.isScaleOp())
 		{
-		    postScale *= op.getScale();
+		    if (!op.getHint().compare("preScale")
+		        || !op.getHint().compare("postScale")
+		        || !op.getHint().compare("cameraScale"))
+		    {
+		        postScale *= op.getScale();
+		    }
 		}
 	    }
 
 	    //TODO overscan
-	    fpreal winsizex = sample.getLensSqueezeRatio() / postScale[0];
-	    fpreal winsizey = sample.getLensSqueezeRatio() / postScale[1];
+	    fpreal winsizex = squeeze / postScale[0];
+	    myWinSize[0] = winsizex;
+	    myWinSize[1] = postScale[1];
 
 	    myWinOffset[0] = winx;
 	    myWinOffset[1] = winy;
-	    myWinSize[0] = winsizex;
-	    myWinSize[1] = winsizey;
 	}
 	void	blend(const HoudiniCam &src, fpreal w)
 	{

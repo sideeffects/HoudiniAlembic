@@ -231,11 +231,8 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
         def camChannel(parmName):
             return '%s.alembicGetCameraDict(ch("fileName"), "%s", ch("frame")/ch("fps")).get("%s")' % (_AbcModule, currentPath, parmName)
 
-        def camAperture():
-            # This fixes the inconsistency of Maya's camera aperture
-            return '%s*max(1,(ch("resx")/ch("resy")*ch("aspect"))*3./4)' % camChannel('aperture')
-
         for parmName in (
+		'aperture',
                 'focal',
                 'near',
                 'far',
@@ -245,7 +242,6 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 'winsizex',
                 'winsizey'):
              currentNode.parm(parmName).setExpression(camChannel(parmName), hou.exprLanguage.Python)
-        currentNode.parm('aperture').setExpression(camAperture(), hou.exprLanguage.Python)
     else:
         return
 
