@@ -229,10 +229,13 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
             ExpressionToParm(rootNode.parm('fps'), currentNode.parm('fps'))
 
         def camChannel(parmName):
-            return '%s.alembicGetCameraDict(ch("fileName"), "%s", ch("frame")/ch("fps")).get("%s")' % (_AbcModule, currentPath, parmName)
+                    return '%s.alembicGetCameraDict(ch("fileName"), "%s", ch("frame")/ch("fps")).get("%s")' % (_AbcModule, currentPath, parmName)
+
+        def camPixelAspect():
+                    return '%s*(ch("resy")/float(ch("resx")))' % camChannel('aspect')
 
         for parmName in (
-		'aperture',
+                'aperture',
                 'focal',
                 'near',
                 'far',
@@ -242,6 +245,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 'winsizex',
                 'winsizey'):
              currentNode.parm(parmName).setExpression(camChannel(parmName), hou.exprLanguage.Python)
+        currentNode.parm('aspect').setExpression(camPixelAspect(), hou.exprLanguage.Python)
     else:
         return
 

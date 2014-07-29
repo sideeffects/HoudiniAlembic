@@ -574,51 +574,51 @@ namespace
     public:
 	HoudiniCam(CameraSample &sample)
 	{
-	    fpreal squeeze = sample.getLensSqueezeRatio();
+	    fpreal  squeeze = sample.getLensSqueezeRatio();
+	    fpreal  winx = sample.getHorizontalFilmOffset()
+	                    / sample.getHorizontalAperture();
+	    fpreal  winy = sample.getVerticalFilmOffset()
+	                    / sample.getVerticalAperture();
 
+	    myAperture = sample.getHorizontalAperture() * 10.0 * squeeze;
 	    myFocal = sample.getFocalLength();
 	    myFocus = sample.getFocusDistance();
-	    myAperture = sample.getHorizontalAperture()*10.0;
+	    myPixelAspect = sample.getHorizontalAperture() * squeeze
+                    / sample.getVerticalAperture();
 	    myClipping[0] = sample.getNearClippingPlane();
 	    myClipping[1] = sample.getFarClippingPlane();
-
-	    double	top, bottom, left, right;
-	    sample.getScreenWindow(top, bottom, left, right);
-
-	    fpreal winx = sample.getHorizontalFilmOffset() *
-		    sample.getLensSqueezeRatio()/sample.getHorizontalAperture();
-	    fpreal winy = sample.getVerticalFilmOffset() /
-	            sample.getVerticalAperture();
 
 	    //TODO, full 2D transformations
 	    V2d postScale(1.0, 1.0);
 	    for ( size_t i = 0; i < sample.getNumOps(); ++i )
 	    {
 		const FilmBackXformOp	&op = sample.getOp(i);
-		if (op.isScaleOp())
-		{
-		    if (!op.getHint().compare("preScale")
-		        || !op.getHint().compare("postScale")
-		        || !op.getHint().compare("cameraScale"))
-		    {
-		        postScale *= op.getScale();
-		    }
-		}
+
+		if (op.isScaleOp()
+		    && ((op.getHint().compare(0, 7, "filmFit"))
+		        || ((op.getHint().compare(7, 4, "Fill"))
+		            && (op.getHint().compare(7, 4, "Horz"))
+		            && (op.getHint().compare(7, 4, "Over"))
+		            && (op.getHint().compare(7, 4, "Vert")))
+		    ))
+                {
+                    postScale *= op.getScale();
+                }
 	    }
 
 	    //TODO overscan
-	    fpreal winsizex = squeeze / postScale[0];
-	    myWinSize[0] = winsizex;
-	    myWinSize[1] = postScale[1];
 
 	    myWinOffset[0] = winx;
 	    myWinOffset[1] = winy;
+	    myWinSize[0] = 1.0 / postScale[0];
+	    myWinSize[1] = 1.0 / postScale[1];
 	}
 	void	blend(const HoudiniCam &src, fpreal w)
 	{
+	    myAperture = SYSlerp(myAperture, src.myAperture, w);
 	    myFocal = SYSlerp(myFocal, src.myFocal, w);
 	    myFocus = SYSlerp(myFocus, src.myFocus, w);
-	    myAperture = SYSlerp(myAperture, src.myAperture, w);
+	    myPixelAspect = SYSlerp(myPixelAspect, src.myPixelAspect, w);
 	    myClipping[0] = SYSlerp(myClipping[0], src.myClipping[0], w);
 	    myClipping[1] = SYSlerp(myClipping[1], src.myClipping[1], w);
 	    myWinOffset[0] = SYSlerp(myWinOffset[0], src.myWinOffset[0], w);
@@ -635,9 +635,10 @@ namespace
 	}
 	void	setDict(PY_PyObject *dict) const
 	{
+	    setItem(dict, "aperture", myAperture);
 	    setItem(dict, "focal", myFocal);
 	    setItem(dict, "focus", myFocus);
-	    setItem(dict, "aperture", myAperture);
+	    setItem(dict, "aspect", myPixelAspect);
 	    setItem(dict, "near", myClipping[0]);
 	    setItem(dict, "far", myClipping[1]);
 	    setItem(dict, "winx", myWinOffset[0]);
@@ -646,9 +647,10 @@ namespace
 	    setItem(dict, "winsizey", myWinSize[1]);
 	}
 
+	fpreal	myAperture;
 	fpreal	myFocal;
 	fpreal	myFocus;
-	fpreal	myAperture;
+	fpreal  myPixelAspect;
 	fpreal	myClipping[2];
 	fpreal	myWinOffset[2];
 	fpreal	myWinSize[2];
