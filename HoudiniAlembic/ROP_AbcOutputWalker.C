@@ -655,7 +655,7 @@ ROP_AbcOutputWalker::process(const GABC_IObject &node,
         //          ...                        ...
         //           |                          |
         //        (xform)      ==>           (xform)
-        //        /    \                    /      \
+        //        |    |                     |     |
         //    [geo1]  [geo2]         (xform_1)    (xform_2)
         //                               |            |
         //                            [geo1]       [geo2]
@@ -668,9 +668,9 @@ ROP_AbcOutputWalker::process(const GABC_IObject &node,
         //          ...                        ...
         //           |                          |
         //        (xform)      ==>           (xform)
-        //           |                       /     \
+        //           |                       |     |
         //        [geo1]                 [geo1]  (xform_1)
-        //                                          |
+        //                                         |
         //                                     [geo1_copy]
         //
         // Combined case:
@@ -678,9 +678,9 @@ ROP_AbcOutputWalker::process(const GABC_IObject &node,
         //          ...                            ...
         //           |                              |
         //        (xform)      ==>               (xform)
-        //        /    \                        /      \
+        //        |    |                         |     |
         //    [geo1]  [geo2]             (xform_1)    (xform_2)
-        //                               /      \         \
+        //                               |      |         |
         //                           [geo1]  (xform_1_1)  [geo2]
         //                                        |
         //                                   [geo1_copy]
