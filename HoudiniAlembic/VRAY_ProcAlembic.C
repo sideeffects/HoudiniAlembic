@@ -28,10 +28,10 @@
 
 #include "VRAY_ProcAlembic.h"
 #include <GABC/GABC_GEOWalker.h>
-#include <GU/GU_PrimPacked.h>
 #include <GABC/GABC_PackedImpl.h>
 #include <GABC/GABC_IObject.h>
 #include <GT/GT_Primitive.h>
+#include <GU/GU_PrimPacked.h>
 #include <UT/UT_WorkArgs.h>
 #include <UT/UT_EnvControl.h>
 #include <UT/UT_StringMMPattern.h>
@@ -421,7 +421,8 @@ loadDetail(UT_Array<GU_Detail *> &details,
 	UT_String &objectpath,
 	const UT_String &objectpattern)
 {
-    GABC_GEOWalker	walk(*details(0));
+    GABC_IError         err(UTgetInterrupt());
+    GABC_GEOWalker	walk(*details(0), err);
     bool		success = false;
     fpreal		fstart = frame, finc = 1;
     if (details.entries() > 1)
