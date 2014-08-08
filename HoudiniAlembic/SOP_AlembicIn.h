@@ -61,6 +61,19 @@ public:
     virtual const char	*inputLabel(unsigned int idx) const;
 
     virtual SOP_ObjectAppearancePtr	getObjectAppearance();
+
+    void	abcError(const char *message)
+    		{
+    		    addError(SOP_MESSAGE, message);
+    		}
+    void	abcWarning(const char *message)
+    		{
+    		    addWarning(SOP_MESSAGE, message);
+    		}
+    void	abcInfo(const char *message)
+    		{
+                    addMessage(SOP_MESSAGE, message);
+    		}
 protected:
     //--------------------------------------------------------------------------
     // Standard hdk declarations

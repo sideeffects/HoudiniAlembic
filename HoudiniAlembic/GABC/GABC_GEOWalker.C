@@ -989,8 +989,12 @@ namespace {
 	    GEO_AnimationType	atype;
 	    GT_DataArrayHandle	gt = obj.convertIProperty(arb, head,
 					    walk.time(), &atype);
-	    if (!gt)
+	    if (!gt) {
+	        walk.errorHandler().warning("The following arbGeomParam could "
+	                "not be read and was ignored: %s.",
+	                name.buffer());
 		continue;
+	    }
 	    copyArrayToAttribute(walk, gt, name, head.getName().c_str(),
 		    owner, npoint, nvertex, nprim);
 	}
@@ -1740,8 +1744,9 @@ namespace {
     }
 }
 
-GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp)
+GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err)
     : myDetail(gdp)
+    , myErrorHandler(err)
     , mySubdGroup(NULL)
     , myObjectPattern("*")
     , myNameMapPtr()
@@ -2302,7 +2307,8 @@ GABC_GEOWalker::test()
     timer.start();
     {
 	GU_Detail		gdp;
-	GABC_GEOWalker	walk(gdp);
+	GABC_IError             err(UTgetInterrupt());
+	GABC_GEOWalker	walk(gdp, err);
 	if (GABC_Util::walk("test.abc", walk))
 	{
 	    fprintf(stderr, "Build: %g\n", timer.lap());

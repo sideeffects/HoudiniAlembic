@@ -25,8 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
-#ifndef __GABC_OError__
-#define __GABC_OError__
+#ifndef __GABC_IError__
+#define __GABC_IError__
 
 #include "GABC_API.h"
 #include "GABC_Error.h"
@@ -35,13 +35,13 @@ namespace GABC_NAMESPACE
 {
 
 /// Class to handle error messages for output of Alembic geometry
-class GABC_API GABC_OError : public GABC_Error
+class GABC_API GABC_IError : public GABC_Error
 {
 public:
-    GABC_OError(UT_Interrupt *interrupt)
+    GABC_IError(UT_Interrupt *interrupt)
 	: GABC_Error(interrupt)
     {}
-    virtual ~GABC_OError() {}
+    virtual ~GABC_IError() {}
 };
 
 } // end GABC_NAMESPACE

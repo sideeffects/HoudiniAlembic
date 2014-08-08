@@ -74,7 +74,7 @@ GABC_IGTStringArray::GABC_IGTStringArray(const GABC_IArray &array)
 GT_DataArrayHandle
 GABC_NAMESPACE::GABCarray(const GABC_IArray &iarray)
 {
-    if (!iarray.valid())
+    if (!iarray.valid() || !iarray.entries())
 	return GT_DataArrayHandle();
 
     GT_DataArray	*data = NULL;

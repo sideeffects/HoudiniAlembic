@@ -52,6 +52,23 @@ namespace
 {
     typedef GABC_Util::PathList		PathList;
 
+    class SOP_AlembicInErr : public GABC_NAMESPACE::GABC_IError
+    {
+    public:
+        SOP_AlembicInErr(SOP_AlembicIn2 &node, UT_Interrupt *interrupt)
+            : GABC_IError(interrupt)
+            , myNode(node)
+        {}
+        virtual void	handleError(const char *msg)
+                                { myNode.abcError(msg); }
+        virtual void	handleWarning(const char *msg)
+                                { myNode.abcWarning(msg); }
+        virtual void	handleInfo(const char *msg)
+                                { myNode.abcInfo(msg); }
+    private:
+        SOP_AlembicIn2  &myNode;
+    };
+
     static int
     selectAlembicNodes(void *data, int index,
 	    fpreal t, const PRM_Template *)
@@ -758,7 +775,8 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     if (myEntireSceneIsConstant && !myLastParms.needsPathAttributeUpdate(parms))
 	return error();
 
-    GABC_GEOWalker	walk(*gdp);
+    SOP_AlembicInErr    error_handler(*this, UTgetInterrupt());
+    GABC_GEOWalker	walk(*gdp, error_handler);
 
     walk.setObjectPattern(parms.myObjectPattern);
     if (parms.myAnimationFilter == GABC_GEOWalker::ABC_AFILTER_STATIC)

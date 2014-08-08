@@ -25,7 +25,7 @@
  *----------------------------------------------------------------------------
  */
 
-#include "GABC_OError.h"
+#include "GABC_Error.h"
 #include <UT/UT_WorkBuffer.h>
 #include <UT/UT_Interrupt.h>
 #include <stdarg.h>
@@ -34,18 +34,18 @@ using namespace GABC_NAMESPACE;
 
 static UT_Lock	theLock;
 
-GABC_OError::~GABC_OError()
+GABC_Error::~GABC_Error()
 {
 }
 
 bool
-GABC_OError::wasInterrupted() const
+GABC_Error::wasInterrupted() const
 {
     return myInterrupt && myInterrupt->opInterrupt();
 }
 
 void
-GABC_OError::clear()
+GABC_Error::clear()
 {
     UT_AutoLock	lock(theLock);
     mySuccess = true;
@@ -53,7 +53,7 @@ GABC_OError::clear()
 }
 
 bool
-GABC_OError::errorString(const char *msg)
+GABC_Error::errorString(const char *msg)
 {
     UT_AutoLock	lock(theLock);
     handleError(msg);
@@ -61,21 +61,21 @@ GABC_OError::errorString(const char *msg)
     return false;
 }
 void
-GABC_OError::warningString(const char *msg)
+GABC_Error::warningString(const char *msg)
 {
     UT_AutoLock	lock(theLock);
     handleWarning(msg);
 }
 
 void
-GABC_OError::infoString(const char *msg)
+GABC_Error::infoString(const char *msg)
 {
     UT_AutoLock	lock(theLock);
     handleInfo(msg);
 }
 
 bool
-GABC_OError::error(const char *format, ...)
+GABC_Error::error(const char *format, ...)
 {
     UT_WorkBuffer	wbuf;
     va_list		args;
@@ -91,7 +91,7 @@ GABC_OError::error(const char *format, ...)
 }
 
 void
-GABC_OError::warning(const char *format, ...)
+GABC_Error::warning(const char *format, ...)
 {
     UT_WorkBuffer	wbuf;
     va_list		args;
@@ -105,7 +105,7 @@ GABC_OError::warning(const char *format, ...)
 }
 
 void
-GABC_OError::info(const char *format, ...)
+GABC_Error::info(const char *format, ...)
 {
     UT_WorkBuffer	wbuf;
     va_list		args;
@@ -119,7 +119,7 @@ GABC_OError::info(const char *format, ...)
 }
 
 void
-GABC_OError::handleError(const char *msg)
+GABC_Error::handleError(const char *msg)
 {
 #if UT_ASSERT_LEVEL > 0
     fprintf(stderr, "Abc error: %s\n", msg);
@@ -127,7 +127,7 @@ GABC_OError::handleError(const char *msg)
 }
 
 void
-GABC_OError::handleWarning(const char *msg)
+GABC_Error::handleWarning(const char *msg)
 {
 #if UT_ASSERT_LEVEL > 1
     fprintf(stderr, "Abc warning: %s\n", msg);
@@ -135,7 +135,7 @@ GABC_OError::handleWarning(const char *msg)
 }
 
 void
-GABC_OError::handleInfo(const char *msg)
+GABC_Error::handleInfo(const char *msg)
 {
 #if UT_ASSERT_LEVEL > 2
     fprintf(stderr, "Abc info: %s\n", msg);
@@ -143,6 +143,6 @@ GABC_OError::handleInfo(const char *msg)
 }
 
 void
-GABC_OError::handleClear()
+GABC_Error::handleClear()
 {
 }

@@ -29,6 +29,7 @@
 #define __GABC_GEOWalker__
 
 #include "GABC_API.h"
+#include "GABC_IError.h"
 #include "GABC_Include.h"
 #include "GABC_Util.h"
 #include <GA/GA_Handle.h>
@@ -112,7 +113,7 @@ public:
     };
 
 
-    GABC_GEOWalker(GU_Detail &gdp);
+    GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err);
     virtual ~GABC_GEOWalker();
 
     virtual bool	preProcess(const GABC_IObject &node);
@@ -127,6 +128,8 @@ public:
     /// Get state
     GU_Detail			&detail() const
 				    { return myDetail; }
+    GABC_IError                 &errorHandler()
+                                    { return myErrorHandler; }
     const UT_String		&objectPattern() const
 				    { return myObjectPattern; }
     const GEO_PackedNameMapPtr	&nameMapPtr() const
@@ -286,6 +289,7 @@ private:
 
 
     GU_Detail		&myDetail;
+    GABC_IError         &myErrorHandler;
     GA_PrimitiveGroup	*mySubdGroup;
     UT_String		 myObjectPattern;
     GEO_PackedNameMapPtr myNameMapPtr;	// Attribute map for ABC primitives
