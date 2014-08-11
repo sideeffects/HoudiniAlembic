@@ -26,16 +26,12 @@
  */
 
 #include "ROP_AbcGTCompoundShape.h"
-#include "ROP_AbcOutputWalker.h"
-#include "ROP_AbcPackedShape.h"
-#include "ROP_AbcPackedXform.h"
-#include "ROP_AbcXform.h"
-#include <GABC/GABC_PackedImpl.h>
+#include <UT/UT_WorkBuffer.h>
 #include <GT/GT_Refine.h>
 #include <GT/GT_RefineParms.h>
 #include <GT/GT_Primitive.h>
 #include <GT/GT_GEOPrimPacked.h>
-#include <UT/UT_WorkBuffer.h>
+#include <GABC/GABC_PackedImpl.h>
 
 namespace
 {
@@ -105,21 +101,21 @@ namespace
 	return ptype == GT_GEO_PACKED || ptype == GT_PRIM_INSTANCE;
     }
 
-    static int
-    abcPrimCompare(const AbcInfo *prim1, const AbcInfo *prim2)
+    static bool
+    abcPrimCompare(const AbcInfo &prim1, const AbcInfo &prim2)
     {
         int result = strcmp(
-                prim1->getPackedImpl()->filename().c_str(),
-                prim2->getPackedImpl()->filename().c_str());
+                prim1.getPackedImpl()->filename().c_str(),
+                prim2.getPackedImpl()->filename().c_str());
 
         if (!result)
         {
             result = strcmp(
-                    prim1->getPackedImpl()->objectPath().c_str(),
-                    prim2->getPackedImpl()->objectPath().c_str());
+                    prim1.getPackedImpl()->objectPath().c_str(),
+                    prim2.getPackedImpl()->objectPath().c_str());
         }
 
-        return result;
+        return (result < 0);
     }
 
     class abc_Refiner : public GT_Refine
@@ -206,14 +202,10 @@ ROP_AbcGTCompoundShape::clear()
 {
     for (int i = 0; i < myShapes.entries(); ++i)
 	delete myShapes(i);
-    if (myContainer)
-        delete myContainer;
-    if (myPackedAbc)
-        delete myPackedAbc;
-
+    delete myContainer;
     myContainer = NULL;
+    myPackedAbc.clear();
     myShapeParent = NULL;
-    myPackedAbc = NULL;
     myShapes.setCapacity(0);
 }
 
@@ -256,19 +248,6 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     PrimitiveList	prims;
     GT_RefineParms	rparms;
 
-    // Initialize object to handle packed Alembics if we're expecting some
-    if (ctx.keepAbcHierarchy())
-    {
-        if (ctx.exportXforms())
-        {
-            myPackedAbc = new ROP_AbcPackedXform(err);
-        }
-        else
-        {
-            myPackedAbc = new ROP_AbcPackedShape(err);
-        }
-    }
-
     initializeRefineParms(rparms, ctx, myPolysAsSubd, myShowUnusedPoints);
     if (ROP_AbcGTShape::isPrimitiveSupported(prim))
 	prims.append(prim);
@@ -280,7 +259,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
 	        ctx.keepAbcHierarchy(),
 	        ctx.useInstancing());
 	prim->refine(refiner, &rparms);
-	packed_abc_prims.sort(abcPrimCompare);
+	packed_abc_prims.stableSort(abcPrimCompare);
     }
 
     myShapeParent = &parent;
@@ -289,13 +268,8 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     exint       abc_entries = packed_abc_prims.entries();
     if (!prim_entries && !abc_entries)
     {
-        // Store this info in case the first frame is empty
         ++myElapsedFrames;
-        if (ctx.keepAbcHierarchy())
-        {
-            myPackedAbc->addTime(ctx.cookTime());
-            myPackedAbc->setParent(myShapeParent);
-        }
+        myPackedAbc.addTime(ctx.cookTime());
 	return true;
     }
 
@@ -304,10 +278,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
 	myContainer = new OXform(parent, myName, ctx.timeSampling());
 	myShapeParent = myContainer;
     }
-    if (ctx.keepAbcHierarchy())
-    {
-        myPackedAbc->setParent(myShapeParent);
-    }
+    myPackedAbc.setParent(myShapeParent);
 
     std::string		shape_name = myName;
     UT_WorkBuffer	shape_namebuf;
@@ -334,8 +305,8 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
 	}
     }
 
-    if (ctx.keepAbcHierarchy() && abc_entries) {
-        if (!myPackedAbc->startPacked(packed_abc_prims, ctx))
+    if (abc_entries) {
+        if (!myPackedAbc.startPackedAbc(packed_abc_prims, ctx))
         {
 	    clear();
             return false;
@@ -343,10 +314,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     }
 
     ++myElapsedFrames;
-    if (ctx.keepAbcHierarchy())
-    {
-        myPackedAbc->addTime(ctx.cookTime());
-    }
+    myPackedAbc.addTime(ctx.cookTime());
     return true;
 }
 
@@ -371,7 +339,7 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
 	        ctx.keepAbcHierarchy(),
 	        ctx.useInstancing());
 	prim->refine(refiner, &rparms);
-	packed_abc_prims.sort(abcPrimCompare);
+	packed_abc_prims.stableSort(abcPrimCompare);
     }
 
     exint       abc_entries = packed_abc_prims.entries();
@@ -455,31 +423,18 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
         }
     }
 
-    if (ctx.keepAbcHierarchy())
-    {
-        if (abc_entries) {
-            if (!myPackedAbc->updatePacked(packed_abc_prims, ctx, myElapsedFrames))
-            {
-                clear();
-                return false;
-            }
-        }
-        // Still need to update frames if nothing is visible
-        else
+    if (abc_entries) {
+        if (!myPackedAbc.updatePackedAbc(packed_abc_prims,
+                ctx,
+                myElapsedFrames))
         {
-            if (!myPackedAbc->updateAllHidden(ctx, myElapsedFrames))
-            {
-                clear();
-                return false;
-            }
+            clear();
+            return false;
         }
     }
 
     ++myElapsedFrames;
-    if (ctx.keepAbcHierarchy())
-    {
-        myPackedAbc->addTime(ctx.cookTime());
-    }
+    myPackedAbc.addTime(ctx.cookTime());
     return true;
 }
 

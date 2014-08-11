@@ -181,7 +181,6 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
     , myBoundMode(GABC_GEOWalker::BOX_CULL_IGNORE)
     , myPointMode(GABC_GEOWalker::ABCPRIM_CENTROID_POINT)
-    , myBuildAbcShape(true)
     , myBuildAbcXform(false)
     , myFilename()
     , myObjectPath()
@@ -251,8 +250,6 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	if (myBoundBox != src.myBoundBox)
 	    return true;
     }
-    if (myBuildAbcShape != src.myBuildAbcShape)
-	return true;
     if (myBuildAbcXform != src.myBuildAbcXform)
 	return true;
     if (myFilename != src.myFilename)
@@ -329,7 +326,7 @@ static PRM_Name prm_remapAttribName("remapAttributes", "Remap Attributes");
 
 static PRM_Name prm_loadmodeName("loadmode", "Load As");
 static PRM_Name prm_pointModeName("pointmode", "Points");
-static PRM_Name prm_abcxformName("abcxform", "Create Primitives For");
+static PRM_Name prm_abcxformName("abcxform", "Create Primitives For Transform Nodes");
 
 static PRM_Default prm_frameDefault(1, "$FF");
 static PRM_Default prm_objectPathDefault(0, "");
@@ -361,15 +358,6 @@ static PRM_Name pointModeOptions[] = {
 };
 static PRM_Default prm_pointModeDefault(2, "centroid");
 static PRM_ChoiceList menu_pointMode(PRM_CHOICELIST_SINGLE, pointModeOptions);
-
-static PRM_Name	abcxformOptions[] = {
-    PRM_Name("off",     "Shape Nodes Only"),
-    PRM_Name("on",      "Shape and Transform Nodes"),
-    PRM_Name("xform",   "Transform Nodes Only"),
-    PRM_Name()
-};
-static PRM_Default prm_abcxformDefault(0, "off");
-static PRM_ChoiceList menu_abcxform(PRM_CHOICELIST_SINGLE, abcxformOptions);
 
 static PRM_Name boxCullOptions[] = {
     PRM_Name("none",		"No Spatial Filtering"),
@@ -458,8 +446,7 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 	    &PRMviewportLODMenu),
     PRM_Template(PRM_ORD, 1, &prm_pointModeName, &prm_pointModeDefault,
 	    &menu_pointMode),
-    PRM_Template(PRM_ORD, 1, &prm_abcxformName, &prm_abcxformDefault,
-            &menu_abcxform),
+    PRM_Template(PRM_TOGGLE, 1, &prm_abcxformName, PRMzeroDefaults),
     PRM_Template(PRM_ORD, 1, &prm_polysoup, &prm_polysoupDefault,
 	    &menu_polysoup),
     PRM_Template(PRM_TOGGLE, 1, &prm_includeXformName, &prm_includeXformDefault),
@@ -618,11 +605,13 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     evalString(sval, "fileName", 0, now);
     parms.myFilename = (const char *)sval;
 
+    parms.myBuildAbcXform = false;
     switch (evalInt("loadmode", 0, now))
     {
 	case 0:
 	default:
 	    parms.myLoadMode = GABC_GEOWalker::LOAD_ABC_PRIMITIVES;
+	    parms.myBuildAbcXform = (evalInt("abcxform", 0, now) != 0);
 	    break;
 	case 1:
 	    parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_PRIMITIVES;
@@ -634,24 +623,6 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	    parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_BOXES;
 	    break;
     }
-
-    switch (evalInt("abcxform", 0, now))
-    {
-        case 0:
-        default:
-            parms.myBuildAbcShape = true;
-            parms.myBuildAbcXform = false;
-            break;
-        case 1:
-            parms.myBuildAbcShape = true;
-            parms.myBuildAbcXform = true;
-            break;
-        case 2:
-            parms.myBuildAbcShape = false;
-            parms.myBuildAbcXform = true;
-            break;
-    }
-
     parms.myBuildLocator = evalInt("loadLocator", 0, now) != 0;
     parms.myBoundMode = getCullingBox(parms.myBoundBox, context);
     switch (evalInt("pointmode", 0, now))
@@ -829,7 +800,6 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     walk.setUseVisibility(parms.myUseVisibility);
     walk.setBuildLocator(parms.myBuildLocator);
     walk.setLoadMode(parms.myLoadMode);
-    walk.setBuildAbcShape(parms.myBuildAbcShape);
     walk.setBuildAbcXform(parms.myBuildAbcXform);
     walk.setNameMapPtr(parms.myNameMapPtr);
     if (myLastParms.myPathAttribute != parms.myPathAttribute)

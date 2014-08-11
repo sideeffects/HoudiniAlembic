@@ -150,6 +150,9 @@ Full Bounding Box Tree:
         This will cause all Alembic nodes to have proper bounding boxes written.
         Computing bounds for only the shape nodes is more efficient.
 
+Keep Packed Alembic Hierarchy:
+	If this checkbox is turned on, packed Alembic geometry will be written to the Alembic archive under the same hierarchy as the Alembic file from which it was read. The root of the imported hierarchy will be placed underneath the geometry container of the Alembic import SOP in the exported archive.
+
 Use Display SOP:
 	If this checkbox is turned on, the geometry in the Display SOP will be
 	saved instead of the geometry from the Render SOP.
@@ -157,22 +160,6 @@ Use Display SOP:
 Save Attributes:
         If this checkbox is turned on, geometry attributes will be saved to the
         Alembic file as arbitrary geometry parameters.
-
-Keep Packed Alembic Hierarchy:
-	If this checkbox is turned on, packed Alembic geometry will be written to the Alembic archive under the same hierarchy as the Alembic file from which it was read. The root of the imported hierarchy will be placed underneath the geometry container of the Alembic import SOP in the exported archive.
-
-Export Transforms Instead of Shapes:
-	The Alembic SOP can import packed Alembic transforms and packed Alembic geometry. If this checkbox is turned on, packed Alembic transforms will be written to the Alembic archive under the original hierarchy (instead of geometry).
-
-Keep Children:
-	When exporting packed Alembic transforms, their children/descendants can be exported with them to the new Alembic archive under their original hierarchy.
-
-	None:
-		Children/descendants will not be exported.
-	Transforms Only:
-		All children/descendants that are transforms will be exported.
-	Shapes and Transforms:
-		All children/descendants will be exported.
 
 Point Attributes:
 	Point attributes whose name matches this pattern will be saved in the Alembic file.

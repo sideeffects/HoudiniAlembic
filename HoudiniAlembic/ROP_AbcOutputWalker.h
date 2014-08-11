@@ -29,7 +29,6 @@
 #define __ROP_AbcOutputWalker__
 
 #include "ROP_AbcContext.h"
-#include "ROP_AbcXform.h"
 #include <GABC/GABC_API.h>
 #include <GABC/GABC_Include.h>
 #include <GABC/GABC_IObject.h>
@@ -44,160 +43,21 @@ class ROP_AbcOutputWalker
 {
 public:
     class Record;
-    class PropertyMap;
 
-    enum OObjectType {
-        XFORM,
-        POLYMESH,
-        SUBD,
-        POINTS,
-        CURVES,
-        NUPATCH,
-        CAMERA
-    };
+    typedef Alembic::AbcGeom::OObject                   OObject;
+    typedef Alembic::AbcGeom::OVisibilityProperty       OVisibilityProperty;
 
-    typedef Alembic::Abc::DataType                  DataType;
-    typedef Alembic::Abc::ISampleSelector           ISampleSelector;
-    typedef Alembic::Abc::MetaData                  MetaData;
-    typedef Alembic::Abc::PropertyHeader            PropertyHeader;
-    typedef Alembic::Abc::WrapExistingFlag          WrapExistingFlag;
+    typedef GABC_NAMESPACE::GABC_IObject                GABC_IObject;
+    typedef GABC_NAMESPACE::GABC_OError	                GABC_OError;
 
-    // Reader/Write Ptrs
-    typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
-    typedef Alembic::Abc::ObjectReaderPtr           ObjectReaderPtr;
-    typedef Alembic::Abc::ObjectWriterPtr           ObjectWriterPtr;
+    typedef UT_Map<std::string, Record *>               RecordsMap;
+    typedef std::pair<std::string, Record *>            RecordsMapInsert;
+    typedef UT_Array<std::string>                       StringList;
 
-    //
-    typedef Alembic::Abc::Box3d                     Box3d;
-
-    // Array Samples
-    typedef Alembic::Abc::UcharArraySample          UcharArraySample;
-    typedef Alembic::Abc::UInt32ArraySample         UInt32ArraySample;
-    typedef Alembic::Abc::Int32ArraySample          Int32ArraySample;
-    typedef Alembic::Abc::FloatArraySample          FloatArraySample;
-    typedef Alembic::Abc::V3fArraySample            V3fArraySample;
-    typedef Alembic::Abc::ArraySamplePtr            ArraySamplePtr;
-    typedef Alembic::Abc::UcharArraySamplePtr       UcharArraySamplePtr;
-    typedef Alembic::Abc::Int32ArraySamplePtr       Int32ArraySamplePtr;
-    typedef Alembic::Abc::UInt32ArraySamplePtr      UInt32ArraySamplePtr;
-    typedef Alembic::Abc::UInt64ArraySamplePtr      UInt64ArraySamplePtr;
-    typedef Alembic::Abc::FloatArraySamplePtr       FloatArraySamplePtr;
-    typedef Alembic::Abc::N3fArraySamplePtr         N3fArraySamplePtr;
-    typedef Alembic::Abc::P3fArraySamplePtr         P3fArraySamplePtr;
-    typedef Alembic::Abc::V2fArraySamplePtr         V2fArraySamplePtr;
-    typedef Alembic::Abc::V3fArraySamplePtr         V3fArraySamplePtr;
-
-    // Properties
-    typedef Alembic::Abc::IScalarProperty           IScalarProperty;
-    typedef Alembic::Abc::OScalarProperty           OScalarProperty;
-    typedef Alembic::Abc::IArrayProperty            IArrayProperty;
-    typedef Alembic::Abc::OArrayProperty            OArrayProperty;
-    typedef Alembic::Abc::ICompoundProperty         ICompoundProperty;
-    typedef Alembic::Abc::OCompoundProperty         OCompoundProperty;
-
-    // General
-    typedef Alembic::AbcGeom::IObject               IObject;
-    typedef Alembic::AbcGeom::OObject               OObject;
-    // Xform
-    typedef Alembic::AbcGeom::IXform                IXform;
-    typedef ROP_AbcXform                            OXform;
-    typedef Alembic::AbcGeom::IXformSchema          IXformSchema;
-    typedef Alembic::AbcGeom::OXformSchema          OXformSchema;
-    typedef Alembic::AbcGeom::XformSample           XformSample;
-    // Camera
-    typedef Alembic::AbcGeom::ICamera               ICamera;
-    typedef Alembic::AbcGeom::OCamera               OCamera;
-    typedef Alembic::AbcGeom::ICameraSchema         ICameraSchema;
-    typedef Alembic::AbcGeom::OCameraSchema         OCameraSchema;
-    typedef Alembic::AbcGeom::CameraSample          CameraSample;
-    // PolyMesh
-    typedef Alembic::AbcGeom::IPolyMesh             IPolyMesh;
-    typedef Alembic::AbcGeom::IPolyMeshSchema       IPolyMeshSchema;
-    typedef Alembic::AbcGeom::OPolyMesh             OPolyMesh;
-    typedef Alembic::AbcGeom::OPolyMeshSchema       OPolyMeshSchema;
-    // Subdivision
-    typedef Alembic::AbcGeom::ISubD                 ISubD;
-    typedef Alembic::AbcGeom::ISubDSchema           ISubDSchema;
-    typedef Alembic::AbcGeom::OSubD                 OSubD;
-    typedef Alembic::AbcGeom::OSubDSchema           OSubDSchema;
-    // Points
-    typedef Alembic::AbcGeom::IPoints		    IPoints;
-    typedef Alembic::AbcGeom::IPointsSchema	    IPointsSchema;
-    typedef Alembic::AbcGeom::OPoints		    OPoints;
-    typedef Alembic::AbcGeom::OPointsSchema	    OPointsSchema;
-    // Curves
-    typedef Alembic::AbcGeom::ICurves		    ICurves;
-    typedef Alembic::AbcGeom::ICurvesSchema	    ICurvesSchema;
-    typedef Alembic::AbcGeom::OCurves		    OCurves;
-    typedef Alembic::AbcGeom::OCurvesSchema	    OCurvesSchema;
-    // NuPatch
-    typedef Alembic::AbcGeom::INuPatch		    INuPatch;
-    typedef Alembic::AbcGeom::INuPatchSchema	    INuPatchSchema;
-    typedef Alembic::AbcGeom::ONuPatch		    ONuPatch;
-    typedef Alembic::AbcGeom::ONuPatchSchema	    ONuPatchSchema;
-    // FaceSet
-    typedef Alembic::AbcGeom::IFaceSet		    IFaceSet;
-    typedef Alembic::AbcGeom::IFaceSetSchema	    IFaceSetSchema;
-    typedef Alembic::AbcGeom::OFaceSet		    OFaceSet;
-    typedef Alembic::AbcGeom::OFaceSetSchema	    OFaceSetSchema;
-
-    // Curve/NURBS
-    typedef Alembic::AbcGeom::BasisType             BasisType;
-    typedef Alembic::AbcGeom::CurvePeriodicity      CurvePeriodicity;
-    typedef Alembic::AbcGeom::CurveType             CurveType;
-
-    // Parameters
-    typedef Alembic::AbcGeom::IFloatGeomParam       IFloatGeomParam;
-    typedef Alembic::AbcGeom::OFloatGeomParam       OFloatGeomParam;
-    typedef Alembic::AbcGeom::IN3fGeomParam         IN3fGeomParam;
-    typedef Alembic::AbcGeom::ON3fGeomParam         ON3fGeomParam;
-    typedef Alembic::AbcGeom::IV2fGeomParam         IV2fGeomParam;
-    typedef Alembic::AbcGeom::OV2fGeomParam         OV2fGeomParam;
-
-    // Visibility
-    typedef Alembic::AbcGeom::IVisibilityProperty   IVisibilityProperty;
-    typedef Alembic::AbcGeom::OVisibilityProperty   OVisibilityProperty;
-
-    // GABC
-    typedef GABC_NAMESPACE::GABC_IObject            GABC_IObject;
-    typedef GABC_NAMESPACE::GABC_OError	            GABC_OError;
-
-    // Custom
-
-    // Used for computing child bounds of output hierarchy. Transforms
-    // need access to the existing XformSchema, geometry needs access to
-    // its bounding box. Since we can't easily access it later, we store
-    // it at write time and access it after all packed Alembics have been
-    // sampled for this frame.
-    union Bounds {
-        Bounds()
-        {
-            bounds.makeEmpty();
-        }
-        Bounds(const Bounds &other)
-        {
-            this->bounds = other.bounds;
-        }
-
-        OXform *xform;
-        Box3d   bounds;
-    };
-
-    typedef UT_Map<ObjectWriterPtr, Bounds>         BoundsMap;
-    typedef std::pair<ObjectWriterPtr, Bounds>      BoundsMapInsert;
-    typedef UT_Map<std::string, Record *>           RecordsMap;
-    typedef std::pair<std::string, Record *>        RecordsMapInsert;
-    typedef UT_Map<ObjectWriterPtr, OObjectType>    TypeMap;
-    typedef std::pair<ObjectWriterPtr, OObjectType> TypeMapInsert;
-
-    const static WrapExistingFlag   gabcWrapExisting
-                                            = Alembic::Abc::kWrapExisting;
-
-    // Record class used to store OObjects, their visibility
-    // properties (if they have one), their arbitrary geometry parameters,
-    // and their user properties. The Record object must store
-    // a copy of the actual visibility property because that's what Alembic
-    // gives us.
+    // Record class used to store OObjects and their visibility
+    // properties, if they have one. The Record object must store
+    // a copy of the actual visibility property because that is
+    // all Alembic will provide us with.
     class Record
     {
     public:
@@ -205,150 +65,35 @@ public:
                         : myObject(obj)
                         , myVisProperty()
                         , myVisPointer(NULL)
-                        , myArbGProperties(NULL)
-                        , myUserProperties(NULL)
                     {}
-                    Record(OObject *obj,
-                            OVisibilityProperty vis,
-                            PropertyMap *arbgprops,
-                            PropertyMap *uprops)
+                    Record(OObject *obj, OVisibilityProperty vis)
                         : myObject(obj)
                         , myVisProperty(vis)
                         , myVisPointer(&myVisProperty)
-                        , myArbGProperties(arbgprops)
-                        , myUserProperties(uprops)
                     {}
         virtual     ~Record() {
                         if (myObject)
                             delete myObject;
-                        if (myArbGProperties)
-                            delete myArbGProperties;
-                        if (myUserProperties)
-                            delete myUserProperties;
                     }
 
         OObject *                   getObject() { return myObject; }
         OVisibilityProperty *       getVisibility() { return myVisPointer; }
-        PropertyMap *               getArbGProperties()
-                                    {
-                                        return myArbGProperties;
-                                    }
-        PropertyMap *               getUserProperties()
-                                    {
-                                        return myUserProperties;
-                                    }
 
     private:
         OObject             *myObject;
         OVisibilityProperty  myVisProperty;
         OVisibilityProperty *myVisPointer;
-        PropertyMap         *myArbGProperties;
-        PropertyMap         *myUserProperties;
     };
 
-    // PropertyMap class is used to store pointers to Alembic Property
-    // objects. Ideally we would use a regular map, but these 3 classes
-    // are templated and so is their common ancestor.
-    class PropertyMap
+    class StringCollection
     {
     public:
-        typedef std::pair<std::string, OScalarProperty *>   ScalarInsert;
-        typedef std::pair<std::string, OArrayProperty *>    ArrayInsert;
-        typedef std::pair<std::string, OCompoundProperty *> CompoundInsert;
+        typedef std::pair<std::string, int>                 InsertType;
+        typedef UT_Map<std::string, int>::const_iterator    const_iterator;
+        typedef UT_Map<std::string, int>::iterator          iterator;
 
-        PropertyMap() {}
-        ~PropertyMap()
-        {
-            clear();
-        }
-
-        void clear()
-        {
-            for (auto it = myScalarMap.begin(); it != myScalarMap.end(); ++it)
-            {
-                delete it->second;
-            }
-            myScalarMap.clear();
-
-            for (auto it = myArrayMap.begin(); it != myArrayMap.end(); ++it)
-            {
-                delete it->second;
-            }
-            myArrayMap.clear();
-
-            for (auto it = myCompoundMap.begin();
-                    it != myCompoundMap.end();
-                    ++it)
-            {
-                delete it->second;
-            }
-            myCompoundMap.clear();
-        }
-
-        void insert(const std::string &name, OScalarProperty *prop)
-        {
-            myScalarMap.insert(ScalarInsert(name, prop));
-        }
-        void insert(const std::string &name, OArrayProperty *prop)
-        {
-            myArrayMap.insert(ArrayInsert(name, prop));
-        }
-        void insert(const std::string &name, OCompoundProperty *prop)
-        {
-            myCompoundMap.insert(CompoundInsert(name, prop));
-        }
-
-        OScalarProperty *findScalar(const std::string &name)
-        {
-            auto    it = myScalarMap.find(name);
-
-            if (it == myScalarMap.end())
-            {
-                return NULL;
-            }
-
-            return it->second;
-        }
-        OArrayProperty *findArray(const std::string &name)
-        {
-            auto    it = myArrayMap.find(name);
-
-            if (it == myArrayMap.end())
-            {
-                return NULL;
-            }
-
-            return it->second;
-        }
-        OCompoundProperty *findCompound(const std::string &name)
-        {
-            auto    it = myCompoundMap.find(name);
-
-            if (it == myCompoundMap.end())
-            {
-                return NULL;
-            }
-
-            return it->second;
-        }
-
-    private:
-        UT_Map<std::string, OScalarProperty *>      myScalarMap;
-        UT_Map<std::string, OArrayProperty *>       myArrayMap;
-        UT_Map<std::string, OCompoundProperty *>    myCompoundMap;
-    };
-
-    // OReaderCollection class is a set that keeps track of how many copies
-    // of a given ObjectReaderPtr are currently in the set.
-    class OReaderCollection
-    {
-    public:
-        typedef std::pair<ObjectReaderPtr, int>                 InsertType;
-        typedef UT_Map<ObjectReaderPtr, int>::const_iterator    const_iterator;
-        typedef UT_Map<ObjectReaderPtr, int>::iterator          iterator;
-
-                        OReaderCollection() {}
-        virtual         ~OReaderCollection() {}
+                        StringCollection() {}
+        virtual         ~StringCollection() {}
 
         const_iterator  begin() const
                         {
@@ -366,24 +111,24 @@ public:
                         {
                             return myMap.end();
                         }
-        int             count(const ObjectReaderPtr &ptr) const
+        int             count(const std::string &str) const
                         {
-                            if (myMap.count(ptr))
+                            if (myMap.count(str))
                             {
-                                return myMap.at(ptr);
+                                return myMap.at(str);
                             }
 
                             return 0;
                         }
-        void            insert(const ObjectReaderPtr &ptr)
+        void            insert(const std::string &str)
                         {
-                            if (myMap.count(ptr))
+                            if (myMap.count(str))
                             {
-                                myMap[ptr] += 1;
+                                myMap[str] += 1;
                             }
                             else
                             {
-                                myMap.insert(InsertType(ptr, 1));
+                                myMap.insert(InsertType(str, 1));
                             }
                         }
         void            clear()
@@ -392,134 +137,69 @@ public:
                         }
 
     private:
-        UT_Map<ObjectReaderPtr, int>    myMap;
+        UT_Map<std::string, int>    myMap;
     };
 
-                    ROP_AbcOutputWalker(const OObject *parent,
-                            BoundsMap *bounds,
-                            RecordsMap *records,
-                            TypeMap *types,
-                            GABC_OError &err,
-                            fpreal time);
+    ROP_AbcOutputWalker(const OObject *parent,
+            RecordsMap *records,
+            StringCollection *counts,
+            fpreal time);
 
-    virtual         ~ROP_AbcOutputWalker() {};
+    virtual ~ROP_AbcOutputWalker() {}
 
-    virtual bool    process(const GABC_IObject &node,
-                            const ROP_AbcContext &ctx,
-                            const GT_TransformHandle &transform,
-                            bool create_nodes,
-                            bool visible_nodes,
-                            int sample_limit) const = 0;
+    bool process(const GABC_IObject &node,
+            const ROP_AbcContext &ctx,
+            const GT_TransformHandle &transform,
+            bool create_nodes,
+            bool visible_nodes,
+            int sample_limit) const;
+    // Clear the running count of copies
+    void resetCounts()
+    {
+        myRunningCounts.clear();
+    }
+    // Lock the running count of copies from being modified
+    void setCountsFreeze(bool val)
+    {
+        myCountsFreeze = val;
+    }
 
-protected:
-    //
-    // Output helper classes
-    //
-
-    // Properties
-    static void     sampleCompoundProperties(PropertyMap *p_map,
-                            ICompoundProperty &in,
-                            OCompoundProperty &out,
-                            const ROP_AbcContext &ctx,
-                            const ISampleSelector &iss,
-                            const std::string &base_name);
-
-    // Xforms
-    static void     readXformSample(const GABC_IObject &node,
-                            OXform *obj,
-                            const ISampleSelector &iss,
-                            UT_Matrix4D &transform,
-                            bool &inherits);
-    void            writeXformSample(const GABC_IObject &node,
-                            OXform *obj,
-                            PropertyMap *arb_map,
-                            PropertyMap *p_map,
-                            const ROP_AbcContext &ctx,
-                            const ISampleSelector &iss,
-                            UT_Matrix4D &iMatrix,
-                            bool iInheritXform) const;
-    void            writeSimpleXformSample(OXform *obj,
-                            UT_Matrix4D &iMatrix,
-                            bool iInheritXform) const;
-
-    // Face Sets
-    static void     createFaceSetsPolymesh(const GABC_IObject &node,
-                            OPolyMesh *obj,
-                            const ROP_AbcContext &ctx);
-    static void     createFaceSetsSubd(const GABC_IObject &node,
-                            OSubD *obj,
-                            const ROP_AbcContext &ctx);
-    template <typename ABC_SCHEMA_IN, typename ABC_SCHEMA_OUT>
-    static void     sampleFaceSets(ABC_SCHEMA_IN &input,
-                            Alembic::AbcGeom::OSchemaObject<ABC_SCHEMA_OUT> *output_o,
-                            const ISampleSelector &iss,
-                            std::vector<std::string> &names);
-
-    // Geometry
-    void     samplePolyMesh(const GABC_IObject &node,
-                            OPolyMesh *obj,
-                            PropertyMap *arb_map,
-                            PropertyMap *p_map,
-                            const ROP_AbcContext &ctx,
-                            const ISampleSelector &iss) const;
-    void     sampleSubD(const GABC_IObject &node,
-                            OSubD *obj,
-                            PropertyMap *arb_map,
-                            PropertyMap *p_map,
-                            const ROP_AbcContext &ctx,
-                            const ISampleSelector &iss) const;
-    void     samplePoints(const GABC_IObject &node,
-                            OPoints *obj,
-                            PropertyMap *arb_map,
-                            PropertyMap *p_map,
-                            const ROP_AbcContext &ctx,
-                            const ISampleSelector &iss) const;
-    void     sampleCurves(const GABC_IObject &node,
-                            OCurves *obj,
-                            PropertyMap *arb_map,
-                            PropertyMap *p_map,
-                            const ROP_AbcContext &ctx,
-                            const ISampleSelector &iss) const;
-    void     sampleNuPatch(const GABC_IObject &node,
-                            ONuPatch *obj,
-                            PropertyMap *arb_map,
-                            PropertyMap *p_map,
-                            const ROP_AbcContext &ctx,
-                            const ISampleSelector &iss) const;
-    static void     sampleCamera(const GABC_IObject &node,
-                            OCamera *obj,
-                            PropertyMap *arb_map,
-                            PropertyMap *p_map,
-                            const ROP_AbcContext &ctx,
-                            const ISampleSelector &iss);
-
-    // Functions for creating/sampling ancestor transforms
+private:
     bool            createAncestors(const GABC_IObject &node,
                             const ROP_AbcContext &ctx) const;
-    virtual bool    processAncestors(const GABC_IObject &node,
+    bool            createNode(const GABC_IObject &node,
+                            const ROP_AbcContext &ctx,
+                            int copy) const;
+    bool            processAncestors(const GABC_IObject &node,
                             const ROP_AbcContext &ctx,
                             int sample_limit,
-                            bool visible) const = 0;
+                            bool visible) const;
+    bool            processNode(const GABC_IObject &node,
+                            const ROP_AbcContext &ctx,
+                            int copy,
+                            bool visible) const;
 
-    // Reports errors/warnings
-    GABC_OError                &myErrorHandler;
-    // The parent OObject that was provided during construction
+    // The OObject that was provided during construction
     OObject const              *const myOriginalParent;
-    // The parent OObject that should be used currently when making new OObjects
+    // The OObject that should be used as the parent for the next OObject
     mutable OObject const      *myCurrentParent;
-    // Stores Bounds objects used later for computing child bounds
-    BoundsMap                  *const myBoundsMap;
-    // Stores Records for IObjects from the current archive
-    RecordsMap                 *const myRecordsMap;
-    // Stores type information for created OObjects. This is used when computing
-    // child bounds
-    TypeMap                    *const myTypeMap;
-    // Final matrix after performing all transforms in the hierarchy leading to
-    // the current node. Used to compute the inverse transform of the hierarchy
+    // The collection of packed Alembics encountered this frame and
+    // the number of copies of each
+    StringCollection const     *const myTotalCounts;
+    // The running count of copies processed for each Alembic encountered
+    // this frame
+    mutable StringCollection    myRunningCounts;
+    // Map to read/write Records to/from. Key is object path
+    RecordsMap                 *myRecordsMap;
+    // Matrix used to compute inverse transformation of transforms in hierarchy
     mutable UT_Matrix4D         myMatrix;
+    // Matrix cache used by packed Alembics with multiple copies
+    mutable UT_Matrix4D         myStoredMatrix;
     // Flat time to add to sample time.
     // This is a consequence of us starting at frame 1
     fpreal const                myAdditionalSampleTime;
+    // Allow updates to running counts?
+    bool                        myCountsFreeze;
 };
 
 #endif

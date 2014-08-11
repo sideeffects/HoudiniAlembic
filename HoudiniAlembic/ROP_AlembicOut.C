@@ -83,7 +83,8 @@ namespace
     static PRM_Name	theFormatName("format", "Format");
     static PRM_Name	theRootName("root", "Root Object");
     static PRM_Name	theObjectsName("objects", "Objects");
-    static PRM_Name	theCollapseName("collapse", "Collapse Objects");
+    static PRM_Name	theCollapseName("collapse",
+				"Collapse Objects");
     static PRM_Name	theUseInstancingName("use_instancing",
 				"Use Alembic Instancing Where Possible");
     static PRM_Name	theSaveHiddenName("save_hidden",
@@ -96,10 +97,6 @@ namespace
 				"Full Bounding Box Tree");
     static PRM_Name	theKeepAbcHierarchyName("keep_hierarchy",
 				"Keep Packed Alembic Hierarchy");
-    static PRM_Name	theExportXformsName("export_xforms",
-				"Export Transforms Instead of Shapes");
-    static PRM_Name	theKeepChildrenName("keep_children",
-				"Keep Children");
     static PRM_Name	thePartitionModeName("partition_mode",
 				"Partition Mode");
     static PRM_Name	thePartitionAttributeName("partition_attribute",
@@ -118,8 +115,6 @@ namespace
     static PRM_Default	theFullBoundsDefault(0, "no");
     static PRM_Default	theDisplaySOPDefault(0, "no");
     static PRM_Default  theKeepAbcHierarchyDefault(0, "no");
-    static PRM_Default  theExportXformsDefault(0, "no");
-    static PRM_Default  theKeepChildrenDefault(0, "off");
     static PRM_Default	thePartitionModeDefault(0, "no");
     static PRM_Default	thePartitionAttributeDefault(0, "");
     static PRM_Default	theCollapseDefault(0, "off");
@@ -213,14 +208,6 @@ namespace
 	PRM_Name()
     };
 
-    static PRM_Name	theKeepChildrenChoices[] =
-    {
-	PRM_Name("off",	"None"),
-	PRM_Name("on",  "Transforms Only"),
-	PRM_Name("all", "Shapes and Transforms"),
-	PRM_Name()
-    };
-
     static PRM_ChoiceList	theFormatMenu(PRM_CHOICELIST_SINGLE,
 					theFormatChoices);
     static PRM_ChoiceList	theObjectsMenu(PRM_CHOICELIST_REPLACE,
@@ -233,8 +220,6 @@ namespace
 					theFaceSetModeChoices);
     static PRM_ChoiceList	theCollapseMenu(PRM_CHOICELIST_SINGLE,
 					theCollapseChoices);
-    static PRM_ChoiceList	theKeepChildrenMenu(PRM_CHOICELIST_SINGLE,
-					theKeepChildrenChoices);
 
     static PRM_Range	theVerboseRange(PRM_RANGE_RESTRICTED, 0,
 				    PRM_RANGE_UI, 3);
@@ -279,16 +264,12 @@ namespace
 	PRM_Template(PRM_TOGGLE, 1, &theUseInstancingName, PRMoneDefaults),
 	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName,
 				    &theFullBoundsDefault),
+	PRM_Template(PRM_TOGGLE, 1, &theKeepAbcHierarchyName,
+				    &theKeepAbcHierarchyDefault),
 	PRM_Template(PRM_TOGGLE, 1, &theDisplaySOPName,
 				    &theDisplaySOPDefault),
 	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
 				    &theSaveAttributesDefault),
-	PRM_Template(PRM_TOGGLE, 1, &theKeepAbcHierarchyName,
-				    &theKeepAbcHierarchyDefault),
-	PRM_Template(PRM_TOGGLE, 1, &theExportXformsName,
-				    &theExportXformsDefault),
-	PRM_Template(PRM_ORD, 1, &theKeepChildrenName, &theKeepChildrenDefault,
-				    &theKeepChildrenMenu),
 	PRM_Template(PRM_STRING, 1,
 		&theAttributePatternNames[GA_ATTRIB_POINT],
 		&theStarDefault),
@@ -385,19 +366,6 @@ ROP_AlembicOut::COLLAPSE(fpreal time)
 }
 
 int
-ROP_AlembicOut::KEEP_CHILDREN(fpreal time)
-{
-    UT_String	str;
-    evalString(str, "keep_children", 0, time);
-    if (str == "off")
-	return ROP_AbcContext::KEEP_NONE;
-    if (str == "on")
-	return ROP_AbcContext::KEEP_XFORMS;
-    UT_ASSERT(str == "all");
-    return ROP_AbcContext::KEEP_ALL;
-}
-
-int
 ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 {
     close();
@@ -478,11 +446,9 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     myContext->setSaveAttributes(SAVE_ATTRIBUTES(start));
     myContext->setUseDisplaySOP(DISPLAYSOP(start));
     myContext->setFullBounds(FULL_BOUNDS(start));
+    myContext->setKeepAbcHierarchy(KEEP_HIERARCHY(start));
     myContext->setUseInstancing(USE_INSTANCING(start));
     myContext->setSaveHidden(SAVE_HIDDEN(start));
-    myContext->setKeepAbcHierarchy(KEEP_HIERARCHY(start));
-    myContext->setExportXforms(EXPORT_XFORMS(start));
-    myContext->setKeepChildren(KEEP_CHILDREN(start));
 
     UT_String	partition_mode;
     UT_String	partition_attrib;
@@ -699,8 +665,6 @@ ROP_AlembicOut::updateParmsFlags()
     UT_String	mode;
 
     PARTITION_MODE(mode, 0);
-    changed |= enableParm("export_xforms", KEEP_HIERARCHY(0));
-    changed |= enableParm("keep_children", KEEP_HIERARCHY(0) && EXPORT_XFORMS(0));
     changed |= enableParm("partition_attribute", mode != "no");
     changed |= enableParm("shutter", MOTIONBLUR(0));
     changed |= enableParm("samples", MOTIONBLUR(0));
