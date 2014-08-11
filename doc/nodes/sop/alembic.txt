@@ -59,11 +59,16 @@ Points:
         #id: pointmode
         When loading Alembic Delayed Load primitives, you can create an unique point for each primitive, or all the Alembic primitives can share a single point.  The unique points can all be at the origin, or alternatively, located at the primitive's centroid.
 
-Create Primitives For Transform Nodes:
+Create Primitives For:
         #id: abcxform
-        
-        When loading Alembic primitives, create separate primitives for the
-        transform nodes in the Alembic scene.
+        When loading Alembic primitives, create separate primitives for:
+
+	Shape Nodes Only:
+		Geometry in the Alembic scene only.
+	Shapes and Transforms:
+		Geometry and transforms in the Alembic scene.
+	Transforms Nodes Only:
+		Transforms in the Alembic scene only.
 
 Poly Soup Primitives:
 	#id: polysoup

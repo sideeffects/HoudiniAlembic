@@ -115,11 +115,12 @@ private:
 	GABC_GEOWalker::AbcPolySoup	myPolySoup;
 	GEO_ViewportLOD			myViewportLOD;
 	UT_BoundingBox			myBoundBox;
-	bool				myBuildAbcXform;
 	std::string			myFilename;
 	UT_String			myObjectPath;
 	UT_String			myObjectPattern;
 	UT_String			mySubdGroupName;
+	bool				myBuildAbcShape;
+	bool				myBuildAbcXform;
 	bool				myIncludeXform;
 	bool				myUseVisibility;
 	bool				myBuildLocator;
