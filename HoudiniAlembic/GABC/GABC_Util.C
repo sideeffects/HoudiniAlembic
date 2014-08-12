@@ -47,13 +47,10 @@ namespace
     typedef Alembic::Abc::index_t		index_t;
     typedef Alembic::Abc::chrono_t		chrono_t;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
-    typedef Alembic::Abc::IObject               IObject;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
-    typedef Alembic::Abc::ObjectReaderPtr       ObjectReaderPtr;
     typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
     typedef Alembic::Abc::WrapExistingFlag	WrapExistingFlag;
-
     typedef Alembic::AbcGeom::IXform		IXform;
     typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
     typedef Alembic::AbcGeom::IPolyMesh		IPolyMesh;
@@ -70,7 +67,6 @@ namespace
     typedef Alembic::AbcGeom::IFaceSetSchema	IFaceSetSchema;
     typedef Alembic::AbcGeom::ICamera		ICamera;
     typedef Alembic::AbcGeom::XformSample	XformSample;
-
     typedef GABC_Util::PathList			PathList;
 
     static UT_Lock		theFileLock;
@@ -469,13 +465,6 @@ namespace
 	    return curr;
 	}
 
-	//
-	GABC_IObject getObject(ObjectReaderPtr reader)
-	{
-	    return GABC_IObject(myArchive,
-	        IObject(reader, gabcWrapExisting));
-	}
-
 	class PathListWalker : public GABC_Util::Walker
 	{
 	public:
@@ -758,15 +747,7 @@ GABC_Util::findObject(const std::string &filename,
 {
     ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
     return cacheEntry->isValid() ? cacheEntry->getObject(objectpath)
-            : GABC_IObject();
-}
-
-GABC_IObject
-GABC_Util::findObject(const std::string &filename, ObjectReaderPtr reader)
-{
-    ArchiveCacheEntryPtr    cacheEntry = LoadArchive(filename);
-    return cacheEntry->isValid() ? cacheEntry->getObject(reader)
-            : GABC_IObject();
+		: GABC_IObject();
 }
 
 bool

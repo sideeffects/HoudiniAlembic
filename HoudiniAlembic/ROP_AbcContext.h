@@ -123,24 +123,6 @@ public:
     /// @}
 
     /// @{
-    /// Whether to save out packed Alembic transforms instead of geometry
-    bool	exportXforms() const	{ return myExportXforms; }
-    void	setExportXforms(bool v)	{ myExportXforms = v; }
-    /// @}
-
-    /// @{
-    /// Whether to keep descendant nodes of packed xforms
-    enum
-    {
-	KEEP_NONE,      // Don't keep any descendants
-	KEEP_XFORMS,    // Keep only transforms
-	KEEP_ALL,       // Keep shape and transform descendants
-    };
-    int		 keepChildren() const	{ return myKeepXformKids; }
-    void	 setKeepChildren(int v)	{ myKeepXformKids = v; }
-    /// @}
-
-    /// @{
     /// Set partition attribute for splitting geometry into different shapes
     enum
     {
@@ -195,11 +177,9 @@ private:
     UT_String		 myPartitionAttribute;
     int			 myPartitionMode;
     int			 myCollapseIdentity;
-    int                  myKeepXformKids;
     bool		 myUseInstancing;
     bool		 mySaveHidden;
     bool                 myKeepAbcHierarchy;
-    bool                 myExportXforms;
 };
 
 #endif

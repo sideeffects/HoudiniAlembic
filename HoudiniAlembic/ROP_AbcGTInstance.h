@@ -28,15 +28,10 @@ class ROP_AbcGTInstance
 {
 public:
     typedef GABC_NAMESPACE::GABC_OError             GABC_OError;
-
-    typedef Alembic::Abc::M44d                      M44d;
-
     typedef Alembic::Abc::OObject	            OObject;
-
     typedef Alembic::AbcGeom::ObjectVisibility      ObjectVisibility;
     typedef Alembic::AbcGeom::OVisibilityProperty   OVisibilityProperty;
-    typedef Alembic::AbcGeom::OXform                OXform;
-    typedef Alembic::AbcGeom::XformSample           XformSample;
+    typedef Alembic::AbcGeom::OXform	            OXform;
 
     class Instance
     {
