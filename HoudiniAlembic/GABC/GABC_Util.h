@@ -52,6 +52,8 @@ public:
     typedef Alembic::Abc::Box3d			Box3d;
     typedef Alembic::Abc::M44d			M44d;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
+    typedef Alembic::Abc::ObjectReaderPtr       ObjectReaderPtr;
+
     typedef std::vector<std::string>		PathList;
 
     static const char	*getAlembicCompileNamespace();
@@ -183,6 +185,8 @@ public:
     /// Find a given GABC_IObject in an Alembic file.
     static GABC_IObject	findObject(const std::string &filename,
 				const std::string &objectpath);
+    static GABC_IObject findObject(const std::string &filename,
+                                ObjectReaderPtr reader);
 
 
     /// Walk the tree in an alembic file.  Returns false if traversal was

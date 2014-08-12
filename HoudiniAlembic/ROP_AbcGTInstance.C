@@ -15,24 +15,15 @@
  * COMMENTS:
  */
 
+#include "ROP_AbcContext.h"
 #include "ROP_AbcGTInstance.h"
-#include <UT/UT_WorkBuffer.h>
+#include "ROP_AbcGTCompoundShape.h"
 #include <GABC/GABC_Util.h>
 #include <GT/GT_PrimInstance.h>
 #include <GT/GT_GEOPrimPacked.h>
-#include "ROP_AbcContext.h"
-#include "ROP_AbcGTCompoundShape.h"
+#include <UT/UT_WorkBuffer.h>
 
 using namespace GABC_NAMESPACE;
-
-namespace
-{
-    typedef Alembic::Abc::OObject		OObject;
-    typedef Alembic::Abc::M44d			M44d;
-    typedef Alembic::AbcGeom::ObjectVisibility  ObjectVisibility;
-    typedef Alembic::AbcGeom::OXform		OXform;
-    typedef Alembic::AbcGeom::XformSample	XformSample;
-}
 
 void
 ROP_AbcGTInstance::Instance::first(const OObject &parent,

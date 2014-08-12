@@ -143,6 +143,7 @@ public:
     LoadMode	loadMode() const	{ return myLoadMode; }
     bool	buildAbcPrim() const
 			{ return myLoadMode == LOAD_ABC_PRIMITIVES; }
+    bool	buildAbcShape() const	{ return myBuildAbcShape; }
     bool	buildAbcXform() const	{ return myBuildAbcXform; }
     bool	pathAttributeChanged() const { return myPathAttributeChanged; }
     /// @}
@@ -182,6 +183,7 @@ public:
     void	setReusePrimitives(bool v);
     void	setBuildLocator(bool v)		{ myBuildLocator = v; }
     void	setLoadMode(LoadMode mode)	{ myLoadMode = mode; }
+    void	setBuildAbcShape(bool v)	{ myBuildAbcShape = v; }
     void	setBuildAbcXform(bool v)	{ myBuildAbcXform = v; }
     void	setPathAttributeChanged(bool v)	{ myPathAttributeChanged = v; }
     void	setGroupMode(GroupMode m)	{ myGroupMode = m; }
@@ -314,6 +316,7 @@ private:
     bool	myBuildLocator;		// Whether to build Maya locators
     bool	myPathAttributeChanged;	// Whether path attrib name changed
     LoadMode	myLoadMode;		// Build Alembic primitives
+    bool	myBuildAbcShape;	// Build primitives for transforms
     bool	myBuildAbcXform;	// Build primitives for transforms
 
     exint	myPointCount;		// Points added

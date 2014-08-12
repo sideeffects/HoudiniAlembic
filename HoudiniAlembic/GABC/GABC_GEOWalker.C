@@ -1921,7 +1921,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	else if (includeXform())
 	{
 	    PushTransform	push(*this, xform);
-	    if (buildAbcPrim() && buildAbcXform())
+	    if (buildAbcPrim() && buildAbcXform() && filterObject(obj))
 		makeAbcPrim(*this, obj, ohead);
 	    walkChildren(obj);
 	    return false;	// Since we walked manually, return false
@@ -1935,7 +1935,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	return true;
     }
 
-    if (filterObject(obj))
+    if (buildAbcShape() && filterObject(obj))
     {
 	switch (myLoadMode)
 	{
