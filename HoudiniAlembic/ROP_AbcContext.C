@@ -49,6 +49,8 @@ ROP_AbcContext::ROP_AbcContext()
     , myUseInstancing(true)
     , mySaveHidden(true)
     , myKeepAbcHierarchy(false)
+    , myExportXforms(false)
+    , myKeepXformKids(false)
 {
 }
 

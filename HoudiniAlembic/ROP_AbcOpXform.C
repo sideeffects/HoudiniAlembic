@@ -185,6 +185,7 @@ ROP_AbcOpXform::start(const OObject &parent,
 	return err.error("Error cooking transform %s at time %g",
 		fullpath.buffer(), ctx.cookContext().getTime());
     }
+
     myTimeDependent = node->isTimeDependent(ctx.cookContext());
     if (collapseTransform(myGeometryContainer, myTimeDependent,
 		node, myMatrix, ctx, parent))
@@ -248,7 +249,11 @@ ROP_AbcOpXform::start(const OObject &parent,
     if (ctx.fullBounds())
     {
 	box = myBox;
-	box.transform(myMatrix);
+
+	if (!myIdentity)
+	{
+	    box.transform(myMatrix);
+        }
     }
 
     updateTimeDependentKids();
@@ -324,14 +329,17 @@ ROP_AbcOpXform::update(GABC_OError &err,
 	if (kidbox != myBox)
 	{
 	    myBox = kidbox;
-	    Box3d	b3 = GABC_Util::getBox(myBox);
-	    myOXform.getSchema().getChildBoundsProperty().set(b3);
 	}
 
 	// Set up bounding box for my parent
 	box = myBox;
+
 	if (!myIdentity)
-	    box.transform(myMatrix);
+        {
+	    Box3d   b3 = GABC_Util::getBox(myBox);
+	    myOXform.getSchema().getChildBoundsProperty().set(b3);
+            box.transform(myMatrix);
+        }
     }
 
     updateTimeDependentKids();

@@ -63,6 +63,7 @@ public:
 
     GABC_IObject();
     GABC_IObject(const GABC_IObject &obj);
+    GABC_IObject(const GABC_IArchivePtr &arch, const IObject &obj);
     GABC_IObject(const GABC_IArchivePtr &arch, const std::string &objectpath);
     virtual ~GABC_IObject();
 
@@ -291,8 +292,6 @@ public:
     /// @}
 
 private:
-    GABC_IObject(const GABC_IArchivePtr &arch, const IObject &obj);
-
     void		 setObject(const IObject &o)	{ myObject = o; }
     ICompoundProperty	 getArbGeomParams() const;
     ICompoundProperty	 getUserProperties() const;
