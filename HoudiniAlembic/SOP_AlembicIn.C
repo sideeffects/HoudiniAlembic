@@ -156,9 +156,10 @@ namespace
 
 SOP_AlembicIn2::Parms::Parms()
     : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
-    , myBuildAbcXform(false)
     , myBoundMode(GABC_GEOWalker::BOX_CULL_IGNORE)
     , myPointMode(GABC_GEOWalker::ABCPRIM_CENTROID_POINT)
+    , myBuildAbcShape(true)
+    , myBuildAbcXform(false)
     , myFilename()
     , myObjectPath()
     , myObjectPattern()
@@ -210,6 +211,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myBoundMode = src.myBoundMode;
     myPointMode = src.myPointMode;
     myBoundBox = src.myBoundBox;
+    myBuildAbcShape = src.myBuildAbcShape;
     myBuildAbcXform = src.myBuildAbcXform;
     myIncludeXform = src.myIncludeXform;
     myUseVisibility = src.myUseVisibility;
