@@ -5,8 +5,7 @@
 #internal: alembic
 #icon: SOP/alembic
 
-"""Loads the geometry from an Alembic scene archive (`.abc`) file into a 
-geometry network."""
+"""Loads the geometry from an Alembic scene archive (`.abc`) file into a geometry network."""
 
 @parameters
 
@@ -97,7 +96,7 @@ Use Visibility:
 	any visible geometry.  There may be additional cost to using visibility
 	with Alembic Delayed Load primitives.
 
-Load Maya Locator:
+Load Maya Locater:
         #id: loadLocator
         
         Test for transform nodes which match how Maya saves out locater nodes and
