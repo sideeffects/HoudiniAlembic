@@ -924,21 +924,6 @@ namespace
 	}
     }
 
-    static void
-    initializeHoudiniAttributes(const GEO_Primitive &prim,
-	    GT_AttributeMap &map, GA_AttributeOwner owner)
-    {
-	const GA_Detail		&gdp = prim.getDetail();
-	const GA_AttributeDict	&dict = gdp.getAttributes().getDict(owner);
-	for (GA_AttributeDict::iterator it = dict.begin(GA_SCOPE_PUBLIC);
-		!it.atEnd(); ++it)
-	{
-	    const GA_Attribute	*attrib = it.attrib();
-	    if (attrib->getAIFTuple() || attrib->getAIFStringTuple())
-		map.add(attrib->getName(), false);
-	}
-    }
-
     static GT_AttributeListHandle
     initializeAttributeList(const GEO_Primitive *prim,
 			const GABC_IObject &obj,
@@ -994,14 +979,6 @@ namespace
 		    continue;
 		map->add(name, false);
 	    }
-	}
-
-	if (prim
-		&& (load_style & GABC_IObject::GABC_LOAD_HOUDINI)
-		&& matchScope(gabcConstantScope, scope, scope_size))
-	{
-	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_PRIMITIVE);
-	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_GLOBAL);
 	}
 
 	GT_AttributeList	*alist = NULL;
