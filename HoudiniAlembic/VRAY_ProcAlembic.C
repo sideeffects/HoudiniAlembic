@@ -110,8 +110,29 @@ namespace
 	}
 	virtual const char	*getClassName()
 				    { return "vray_ProcAlembicPrim"; }
-	virtual int	 initialize(const UT_BoundingBox *)
-				    { return myList.entries() > 0; }
+	static bool	isNullPtr(const GU_PrimPacked *p) { return !p; }
+	virtual int	initialize(const UT_BoundingBox *)
+	{
+	    // Prune out invisible segments
+	    for (int i = 0; i < myList.entries(); ++i)
+	    {
+		const GABC_PackedImpl	*prim = implementation(myList(i));
+		GABC_IObject		 iobj = prim->object();
+		if (!iobj.valid())
+		    myList(i) = NULL;
+		else
+		{
+		    bool	animated;
+		    if (iobj.visibility(animated,
+				    prim->frame(), true) == GABC_VISIBLE_HIDDEN)
+		    {
+			myList(i) = NULL;
+		    }
+		}
+	    }
+	    myList.collapseIf(isNullPtr);	// Remove invisible segments
+	    return myList.entries() > 0;
+	}
 	virtual void	 getBoundingBox(UT_BoundingBox &box)
 			 {
 			     box.initBounds();
