@@ -867,12 +867,20 @@ VRAY_ProcAlembic::render()
 		    seg = details(i)->primitives()(prim->getNum());
 		    abclist(i) = UTverify_cast<const GU_PrimPacked *>(seg);
 		}
-		openProceduralObject();
-		    addProcedural(new vray_ProcAlembicPrim(abclist,
-				myPreBlur, myPostBlur, abc_attrib,
-				myMergeInfo, myUserProperties));
-		closeObject();
-		UT_INC_COUNTER(thePrimCount);
+		VRAY_Procedural *p = new vray_ProcAlembicPrim(abclist,
+					myPreBlur, myPostBlur, abc_attrib,
+					myMergeInfo, myUserProperties);
+		if (p->initialize(NULL))
+		{
+		    openProceduralObject();
+			addProcedural(p);
+		    closeObject();
+		    UT_INC_COUNTER(thePrimCount);
+		}
+		else
+		{
+		    delete p;
+		}
 	    }
 	    else
 	    {
