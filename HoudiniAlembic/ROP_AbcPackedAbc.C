@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+#if 0
+
 #include "ROP_AbcPackedAbc.h"
 
 ROP_AbcPackedAbc::ROP_AbcPackedAbc(GABC_OError &err)
@@ -223,3 +225,5 @@ ROP_AbcPackedAbc::process(const ObjectReaderList &objects,
 
     return true;
 }
+
+#endif

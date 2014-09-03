@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+#if 0
+
 #include "ROP_AbcXformOutputWalker.h"
 
 using namespace GABC_NAMESPACE;
@@ -268,8 +270,8 @@ ROP_AbcXformOutputWalker::writeChildrenHelper(const GABC_IObject &node,
         const OObject *parent,
         const ROP_AbcContext &ctx) const
 {
-    if ((node.nodeType() != GABC_XFORM)
-            && (myKeepChildren != ROP_AbcContext::KEEP_ALL))
+    if ((node.nodeType() != GABC_XFORM))
+//            && (myKeepChildren != ROP_AbcContext::KEEP_ALL))
     {
         return true;
     }
@@ -467,7 +469,8 @@ ROP_AbcXformOutputWalker::writeChildrenHelper(const GABC_IObject &node,
 void
 ROP_AbcXformOutputWalker::storageHelper(const GABC_IObject &node) const
 {
-    if ((myKeepChildren != ROP_AbcContext::KEEP_NONE) && myStoreChildren)
+    //if ((myKeepChildren != ROP_AbcContext::KEEP_NONE) && myStoreChildren)
+    if (myStoreChildren)
     {
         // Remove the node if it's stored, and instead add its children
         auto    it = myNodeStorage.find(node.objectPath());
@@ -484,3 +487,5 @@ ROP_AbcXformOutputWalker::storageHelper(const GABC_IObject &node) const
         }
     }
 }
+
+#endif

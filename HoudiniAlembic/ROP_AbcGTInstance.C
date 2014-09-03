@@ -55,7 +55,11 @@ ROP_AbcGTInstance::Instance::setGeometry(GABC_OError &err,
 	bool add_unused_pts)
 {
     ROP_AbcGTCompoundShape	*geo = new ROP_AbcGTCompoundShape(name,
-					    subd_mode, add_unused_pts);
+                                            NULL,
+                                            NULL,
+                                            false,
+					    subd_mode,
+					    add_unused_pts);
     if (!geo->first(g, myOXform, err, ctx, true))
     {
 	delete geo;
@@ -84,9 +88,9 @@ ROP_AbcGTInstance::Instance::update(const UT_Matrix4D &xform,
 }
 
 void
-ROP_AbcGTInstance::Instance::updateHidden()
+ROP_AbcGTInstance::Instance::updateFromPrevious(ObjectVisibility vis)
 {
-    myVisibility.set(Alembic::AbcGeom::kVisibilityHidden);
+    myVisibility.set(vis);
     myOXform.getSchema().setFromPrevious();
 }
 
@@ -238,8 +242,9 @@ ROP_AbcGTInstance::update(GABC_OError &err,
 }
 
 bool
-ROP_AbcGTInstance::updateHidden(GABC_OError &err,
+ROP_AbcGTInstance::updateFromPrevious(GABC_OError &err,
         int primType,
+        ObjectVisibility vis,
         exint frames)
 {
     UT_Matrix4D m;
@@ -250,7 +255,7 @@ ROP_AbcGTInstance::updateHidden(GABC_OError &err,
 	    for (exint i = 0; i < myInstances.entries(); ++i)
 	    {
 	        for (exint j = 0; j < frames; ++j) {
-		    myInstances(i).updateHidden();
+		    myInstances(i).updateFromPrevious(vis);
 		}
 	    }
 	}
@@ -261,7 +266,7 @@ ROP_AbcGTInstance::updateHidden(GABC_OError &err,
 	    if (myInstances.entries() == 1)
 	    {
 	        for (exint j = 0; j < frames; ++j) {
-		    myInstances(0).updateHidden();
+		    myInstances(0).updateFromPrevious(vis);
                 }
 	    }
 	}

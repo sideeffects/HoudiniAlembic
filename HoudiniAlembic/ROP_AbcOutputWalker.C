@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+#if 0
+
 #include "ROP_AbcOutputWalker.h"
 
 namespace Alembic {
@@ -971,3 +973,5 @@ ROP_AbcOutputWalker::createAncestors(const GABC_IObject &node,
 
     return true;
 }
+
+#endif

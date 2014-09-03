@@ -28,10 +28,11 @@
 #ifndef __ROP_AbcGTShape__
 #define __ROP_AbcGTShape__
 
-#include "ROP_AbcObject.h"
 #include "ROP_AbcContext.h"
+#include "ROP_AbcObject.h"
 #include <GT/GT_Handles.h>
 #include <GABC/GABC_OGTGeometry.h>
+#include <UT/UT_WorkArgs.h>
 
 class ROP_AbcGTInstance;
 
@@ -41,36 +42,41 @@ class ROP_AbcGTShape : public ROP_AbcObject
 public:
     typedef GABC_NAMESPACE::GABC_OGTGeometry	GABC_OGTGeometry;
     typedef GABC_NAMESPACE::GABC_OError		GABC_OError;
-    typedef Alembic::Abc::OObject		OObject;
-    typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
 
-    ROP_AbcGTShape(const std::string &name);
+    typedef Alembic::Abc::OObject		OObject;
+
+    typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
+    typedef Alembic::AbcGeom::OXform            OXform;
+
+    typedef UT_Set<std::string>                 ShapeSet;
+    typedef UT_Map<std::string, OXform *>       XformMap;
+    typedef std::pair<std::string, OXform *>    XformMapInsert;
+
+    ROP_AbcGTShape(const std::string &name, const char * const path);
     virtual ~ROP_AbcGTShape();
 
     static bool	isPrimitiveSupported(const GT_PrimitiveHandle &prim);
 
-    /// Write the first frame to the archive
+    /// Write first frame to the archive
     bool	firstFrame(const GT_PrimitiveHandle &prim,
 			    const OObject &parent,
+			    ShapeSet * const shape_set,
+			    XformMap * const xform_map,
 			    GABC_OError &err,
 			    const ROP_AbcContext &ctx,
-                            ObjectVisibility vis);
+                            ObjectVisibility vis,
+                            bool is_instance,
+			    bool subd_mode,
+			    bool add_unused_pts);
     /// Write the next frame to the archive
     bool	nextFrame(const GT_PrimitiveHandle &prim,
 			    GABC_OError &err,
 			    const ROP_AbcContext &ctx);
-    /// Write the next frame to the archive for hidden geometry.
-    /// The next frame is just a copy of the previous frame.
-    bool	nextFrameHidden(GABC_OError &err, exint frames = 1);
-
-    /// Write first frame of an instance to the archive
-    bool	firstInstance(const GT_PrimitiveHandle &prim,
-			    const OObject &parent,
-			    GABC_OError &err,
-			    const ROP_AbcContext &ctx,
-			    bool subd_mode,
-			    bool add_unused_pts,
-                            ObjectVisibility vis);
+    /// Write the next frame to the archive with the same sample
+    /// values as the previous frame.
+    bool	nextFrameFromPrevious(GABC_OError &err,
+                        exint frames = 1,
+                        ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden);
 
     /// Return the primitive type for this shape.
     int         getPrimitiveType() const;
@@ -100,10 +106,12 @@ private:
 private:
     // Use std::string since the name is shared by the ABCGTGeometry and
     // std::string has COW semantics.
-    std::string		 myName;
-    GABC_OGTGeometry	*myShape;
-    ROP_AbcGTInstance	*myInstance;
-    int                  myPrimType;
+    GABC_OGTGeometry   *myShape;
+    ROP_AbcGTInstance  *myInstance;
+    UT_String           myPath;
+    UT_WorkArgs         myTokens;
+    std::string         myName;
+    int                 myPrimType;
 };
 
 #endif

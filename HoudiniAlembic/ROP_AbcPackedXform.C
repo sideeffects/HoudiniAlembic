@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+#if 0
+
 #include "ROP_AbcPackedXform.h"
 #include <GABC/GABC_IObject.h>
 #include <GABC/GABC_Util.h>
@@ -129,7 +131,7 @@ ROP_AbcPackedXform::startPacked(AbcInfoList &list,
                                                 file,
                                                 myErrorHandler,
                                                 additional_time,
-                                                ctx.keepChildren());
+                                                true);
 
             if (!process(objects,
                     walker,
@@ -257,7 +259,7 @@ ROP_AbcPackedXform::updatePacked(AbcInfoList &list,
                                                     file,
                                                     myErrorHandler,
                                                     additional_time,
-                                                    ctx.keepChildren());
+                                                    true);
 
                 // The first frame is processed as in startPackedAbc(),
                 // except the Alembics are not visible yet
@@ -350,7 +352,7 @@ ROP_AbcPackedXform::updatePacked(AbcInfoList &list,
                                                     file,
                                                     myErrorHandler,
                                                     additional_time,
-                                                    ctx.keepChildren());
+                                                    true);
 
                 // Update previously encountered objects that are currently
                 // visible
@@ -527,7 +529,7 @@ ROP_AbcPackedXform::updateAllHidden(const ROP_AbcContext &ctx,
                                             it->first,
                                             myErrorHandler,
                                             additional_time,
-                                            ctx.keepChildren());
+                                            true);
 
         for (auto it2 = my_readers->begin(); it2 != my_readers->end(); ++it2)
         {
@@ -561,3 +563,5 @@ ROP_AbcPackedXform::updateAllHidden(const ROP_AbcContext &ctx,
 
     return true;
 }
+
+#endif

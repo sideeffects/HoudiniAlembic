@@ -32,6 +32,7 @@
 #include "ROP_AbcPackedAbc.h"
 #include "ROP_AbcXform.h"
 #include <GABC/GABC_OError.h>
+#include <GABC/GABC_Types.h>
 
 /// Houdini geometry can be composed of multiple simple shapes.
 /// This class "splits" the houdini geometry into multiple simple shapes which
@@ -39,14 +40,21 @@
 class ROP_AbcGTCompoundShape
 {
 public:
-    typedef GABC_NAMESPACE::GABC_OError	        GABC_OError;
+    typedef GABC_NAMESPACE::GABC_NodeType       GABC_NodeType;
+    typedef GABC_NAMESPACE::GABC_OError         GABC_OError;
 
     typedef ROP_AbcXform                        OXform;
+    typedef ROP_AbcGTShape::ShapeSet            ShapeSet;
+    typedef ROP_AbcGTShape::XformMap            XformMap;
+    typedef ROP_AbcGTShape::XformMapInsert      XformMapInsert;
 
     typedef Alembic::Abc::OObject	        OObject;
     typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
 
     ROP_AbcGTCompoundShape(const std::string &name,
+            ShapeSet * const shape_set,
+            XformMap * const xform_map,
+	    bool has_path,
 	    bool polygons_as_subd,
 	    bool show_unused_points);
     ~ROP_AbcGTCompoundShape();
@@ -55,27 +63,30 @@ public:
 			const OObject &parent,
 			GABC_OError &err,
 			const ROP_AbcContext &ctx,
-			bool create_container);
+			bool create_container,
+                        ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
 
     bool	update(const GT_PrimitiveHandle &prim,
 			GABC_OError &err,
 			const ROP_AbcContext &ctx);
+    bool	updateFromPrevious(GABC_OError &err,
+                        exint frames = 1,
+                        ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden);
 
+    exint       getElapsedFrames() const { return myElapsedFrames; }
     OObject	getShape() const;
 private:
-    bool        startMyShape(ROP_AbcGTShape *shape,
-                        GT_PrimitiveHandle prim,
-                        GABC_OError &err,
-                        const ROP_AbcContext &ctx,
-                        ObjectVisibility vis);
     void	clear();
 
     const OObject              *myShapeParent;
+    OObject                     myRoot;
     OXform                     *myContainer;
-    ROP_AbcPackedAbc           *myPackedAbc;
+    ShapeSet * const            myShapeSet;
     UT_Array<ROP_AbcGTShape *>  myShapes;
-    std::string                 myName;
+    UT_String                   myPath;
+    XformMap * const            myXformMap;
     exint                       myElapsedFrames;
+    std::string                 myName;
     bool                        myPolysAsSubd;
     bool                        myShowUnusedPoints;
 };

@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+#if 0
+
 #ifndef __ROP_AbcOutputWalker__
 #define __ROP_AbcOutputWalker__
 
@@ -540,5 +542,7 @@ protected:
     // This is a consequence of us starting at frame 1
     fpreal const                myAdditionalSampleTime;
 };
+
+#endif
 
 #endif

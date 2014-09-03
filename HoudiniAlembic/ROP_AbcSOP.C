@@ -39,36 +39,21 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef std::vector<std::string>		NameList;
+    typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
 
-    class abc_PrimContainer
-    {
-    public:
-	abc_PrimContainer(const GT_PrimitiveHandle &prim,
-			bool subd_mode,
-			bool show_unused_points)
-	    : myPrim(prim)
-	    , mySubdMode(subd_mode)
-	    , myShowPts(show_unused_points)
-	{
-	}
-	GT_PrimitiveHandle	myPrim;
-	bool			mySubdMode;
-	bool			myShowPts;
-    };
-    typedef UT_Array<abc_PrimContainer>	PrimitiveList;
-
-    enum abc_SUBDMODE
-    {
-	FORCE_SUBD_OFF,
-	FORCE_SUBD_ON,
-    };
+    typedef ROP_AbcSOP::abc_PrimContainer       abc_PrimContainer;
+    typedef ROP_AbcSOP::IndexMap                IndexMap;
+    typedef ROP_AbcSOP::IndexMapInsert          IndexMapInsert;
+    typedef ROP_AbcSOP::NameList                NameList;
+    typedef ROP_AbcSOP::PartitionMap            PartitionMap;
+    typedef ROP_AbcSOP::PartitionMapInsert      PartitionMapInsert;
+    typedef ROP_AbcSOP::PrimitiveList           PrimitiveList;
 
     static void
     buildGeometry(PrimitiveList &primitives,
 	    const GU_Detail &gdp,
 	    const GA_Range &range,
-	    abc_SUBDMODE subd_mode,
+	    bool force_subd_mode,
 	    bool show_pts)
     {
 	/// Since there can be all kinds of primitives we don't understand
@@ -79,7 +64,8 @@ namespace
 	if (detail)
 	{
 	    primitives.append(abc_PrimContainer(detail,
-				    (subd_mode == FORCE_SUBD_ON), show_pts));
+	            force_subd_mode,
+	            show_pts));
 	}
     }
 
@@ -125,113 +111,46 @@ namespace
 	return true;
     }
 
-    static void
-    partitionGeometryRange(PrimitiveList &primitives,
-	    const std::string &basename,
-	    NameList &names,
-	    const SOP_Node *sop,
-	    const GU_Detail &gdp,
-	    const GA_Range &range,
-	    const ROP_AbcContext &ctx,
-	    abc_SUBDMODE subdmode,
-	    bool show_pts)
+    static const char *
+    homogenizePath(const char *path, UT_WorkBuffer storage, bool &flag)
     {
-	GA_ROAttributeRef	 attrib;
-	const char		*aname = ctx.partitionAttribute();
+        const char *pos1 = path;
+        const char *pos2;
+        bool        slash;
 
-	if (UTisstring(aname))
-	    attrib = gdp.findStringTuple(GA_ATTRIB_PRIMITIVE, aname);
-	GA_ROHandleS		 str(attrib);
-	if (!str.isValid() || !attrib.getAttribute()->getAIFSharedStringTuple())
-	{
-	    buildGeometry(primitives, gdp, range, subdmode, show_pts);
-	    return;
-	}
+        flag = false;
+        storage.clear();
 
-	UT_Array<GA_OffsetList> partitions;
-	NameList		partnames;
-	UT_WorkBuffer		namebuf;
-	partitions.append(GA_OffsetList());
-	partnames.push_back(basename);
-	for (GA_Iterator it(range); !it.atEnd(); ++it)
-	{
-	    GA_StringIndexType	idx;
-	    idx = str.getIndex(*it);
-	    if (idx < 0)
-	    {
-		partitions(0).append(*it);
-	    }
-	    else
-	    {
-		idx++;
-		while (partitions.entries() <= idx)
-		{
-		    const char	*sval = str.get(*it);
-		    sval = ctx.partitionModeValue(sval, namebuf);
-		    partitions.append(GA_OffsetList());
-		    partnames.push_back(sval);;
-		}
-		partitions(idx).append(*it);
-	    }
-	}
-	for (exint i = 0; i < partitions.entries(); ++i)
-	{
-	    if (partitions(i).entries())
-	    {
-		GA_Range	range(gdp.getPrimitiveMap(), partitions(i));
-		buildGeometry(primitives, gdp, range, subdmode, show_pts);
-		names.push_back(partnames[i]);
-	    }
-	}
-    }
+        while (true)
+        {
+            slash = false;
+            while (*pos1 == '/')
+            {
+                // If flag has been marked true before, it will be true from
+                // now on. A single slash will trip slash, then a second
+                // will trip flag.
+                flag = flag || slash;
+                slash = true;
 
-    static void
-    partitionGeometry(PrimitiveList &primitives,
-	    const std::string &basename,
-	    NameList &names,
-	    const SOP_Node *sop,
-	    const GU_Detail &gdp,
-	    const ROP_AbcContext &ctx)
-    {
-	names.clear();
-	UT_String	subdgroupname;
-	if (objectSubd(sop, ctx, subdgroupname))
-	{
-	    if (subdgroupname.isstring())
-	    {
-		// If there's a group name, only the primitives in the group
-		// should be rendered as subd surfaces.
-		const GA_PrimitiveGroup	*subdgroup;
-		subdgroup = gdp.findPrimitiveGroup(subdgroupname);
-		if (subdgroup)
-		{
-		    // Build subdivision groups first
-		    partitionGeometryRange(primitives, basename, names, sop,
-			gdp, GA_Range(*subdgroup), ctx, FORCE_SUBD_ON, false);
-		    // Now, build the polygons
-		    partitionGeometryRange(primitives, basename, names, sop,
-			gdp, GA_Range(*subdgroup, true), ctx, FORCE_SUBD_OFF, true);
-		}
-		else
-		{
-		    // If there was no group, then there are no subd surfaces
-		    partitionGeometryRange(primitives, basename, names, sop,
-			gdp, gdp.getPrimitiveRange(), ctx, FORCE_SUBD_OFF, true);
-		}
-	    }
-	    else
-	    {
-		// All polygons should be rendered as subd primitives
-		partitionGeometryRange(primitives, basename, names, sop,
-			gdp, gdp.getPrimitiveRange(), ctx, FORCE_SUBD_ON, true);
-	    }
-	}
-	else
-	{
-	    // No subdivision primitives
-	    partitionGeometryRange(primitives, basename, names, sop,
-		    gdp, gdp.getPrimitiveRange(), ctx, FORCE_SUBD_OFF, true);
-	}
+                ++pos1;
+            }
+            if (*pos1 == 0)
+            {
+                break;
+            }
+
+            pos2 = strchr(pos1, '/');
+            if (!pos2)
+            {
+                storage.append(pos1);
+                break;
+            }
+
+            storage.append(pos1, pos2 - pos1 + 1);
+            pos1 = pos2;
+        }
+
+        return storage.buffer();
     }
 
     SOP_Node *
@@ -244,6 +163,7 @@ namespace
 
 ROP_AbcSOP::ROP_AbcSOP(SOP_Node *node)
     : mySopId(node ? node->getUniqueId() : -1)
+    , myElapsedFrames(0)
     , myTimeDependent(false)
 {
 }
@@ -259,84 +179,115 @@ ROP_AbcSOP::clear()
     for (int i = 0; i < myShapes.entries(); ++i)
 	delete myShapes(i);
     myShapes.setCapacity(0);
-}
 
-static std::string
-getUniqueName(UT_Set<std::string>&names, const std::string &orgname)
-{
-    std::string		result = orgname;
-    for (int i = 1;  names.count(result) > 0; ++i)
+    for (auto it = myXformMap.begin(); it != myXformMap.end(); ++it)
     {
-	UT_WorkBuffer	uname;
-	uname.sprintf("%s_%d", orgname.c_str(), i);
-	result = uname.toStdString();
+        delete it->second;
     }
-    names.insert(result);
-    return result;
+    myXformMap.clear();
+
+    myIndexMap.clear();
+    myPartitionNames.clear();
+    myNameMap.clear();
+    myPartitionMap.clear();
+    myShapeSet.clear();
+    myPartitionIndices.clear();
+
+    GABC_OGTGeometry::clearIgnoreList();
 }
 
 bool
 ROP_AbcSOP::start(const OObject &parent,
 	GABC_OError &err, const ROP_AbcContext &ctx, UT_BoundingBox &box)
 {
-    SOP_Node	*sop = getSop(mySopId);
-    if (!sop)
-	return err.error("Unable to find SOP: %d", mySopId);
-    myParent = parent;
+    const GU_Detail	           *gdp;
+    GU_DetailHandle	            gdh;
+    NameList		            names;
+    PrimitiveList	            prims;
+    ROP_AbcGTCompoundShape	   *shape;
+    SOP_Node                       *sop = getSop(mySopId);
+    UT_Set<std::string>             uniquenames;
+    std::string		            name = getName();
 
-    std::string		 name = getName();
-    GU_DetailHandle	 gdh = sop->getCookedGeoHandle(ctx.cookContext());
-    GU_DetailHandleAutoReadLock	gdl(gdh);
-    const GU_Detail	*gdp = gdl.getGdp();
-    myTimeDependent = sop->isTimeDependent(ctx.cookContext());
+    if (!sop)
+    {
+        clear();
+        return err.error("Unable to find SOP: %d", mySopId);
+    }
+
+    gdh = sop->getCookedGeoHandle(ctx.cookContext());
+    gdp = GU_DetailHandleAutoReadLock(gdh).getGdp();
 
     if (!gdp)
     {
-	UT_String	sop_path;
-	sop->getFullPath(sop_path);
-	return err.error("Error cooking SOP: %s", sop_path.buffer());
+        clear();
+        UT_WorkBuffer	path;
+        sop->getFullPath(path);
+        return err.error("Error saving first frame: %s", path.buffer());
     }
 
-    PrimitiveList	prims;
-    NameList		names;
-    UT_Set<std::string>	uniquenames;
+    myParent = parent;
+    myTimeDependent = sop->isTimeDependent(ctx.cookContext());
 
     if (ctx.fullBounds())
     {
-	gdp->computeQuickBounds(myBox);
-	box = myBox;
+        gdp->computeQuickBounds(myBox);
+        box = myBox;
     }
-    partitionGeometry(prims, name, names, sop, *gdp, ctx);
-    if (names.size() == prims.entries())
+    if (ctx.buildFromPath())
     {
+        GABC_OGTGeometry::skipAttribute(ctx.pathAttribute());
+    }
+
+    myPartitionIndices.append(GA_OffsetList());
+    myPartitionNames.push_back(name);
+    partitionGeometry(prims,
+            names,
+            sop,
+            *gdp,
+            ctx,
+            err);
+    if (names.size())
+    {
+        bool    pathless;
+
+        UT_ASSERT(names.size() == prims.entries());
+
 	for (int i = 0; i < prims.entries(); ++i)
 	{
-	    size_t			 found = names[i].find_last_of("/");
-	    ROP_AbcGTCompoundShape	*shape;
-	    name = getUniqueName(uniquenames, names[i].substr(found+1));
-	    shape = new ROP_AbcGTCompoundShape(name,
+	    pathless = (i == 0) && !(names[i].compare(name));
+	    shape = new ROP_AbcGTCompoundShape(names[i],
+	                                &myShapeSet,
+	                                &myXformMap,
+	                                !pathless,
 					prims(i).mySubdMode,
 					prims(i).myShowPts);
 	    myShapes.append(shape);
+	    myNameMap.insert(NameMapInsert(names[i], (myShapes.entries() - 1)));
 	}
     }
     else
     {
-	UT_WorkBuffer		 gname;
-	std::string		 uname;
-	ROP_AbcGTCompoundShape	*shape;
-	gname.strcpy(name.c_str());
+	UT_WorkBuffer   name_buffer;
+
 	for (int i = 0; i < prims.entries(); ++i)
 	{
 	    if (i > 0)
-		gname.sprintf("%s_%d", name.c_str(), i);
-	    uname = getUniqueName(uniquenames, gname.buffer());
-	    shape = new ROP_AbcGTCompoundShape(uname,
+	    {
+		name_buffer.sprintf("%s_%d", name.c_str(), i);
+	        name = name_buffer.buffer();
+            }
+
+	    shape = new ROP_AbcGTCompoundShape(name,
+	                                NULL,
+	                                NULL,
+	                                false,
 					prims(i).mySubdMode,
 					prims(i).myShowPts);
 	    myShapes.append(shape);
 	}
     }
+
     for (int i = 0; i < prims.entries(); ++i)
     {
 	if (!myShapes(i)->first(prims(i).myPrim, myParent, err, ctx, false))
@@ -347,6 +298,8 @@ ROP_AbcSOP::start(const OObject &parent,
 	    return err.error("Error saving first frame: %s", path.buffer());
 	}
     }
+
+    ++myElapsedFrames;
     return true;
 }
 
@@ -354,51 +307,123 @@ bool
 ROP_AbcSOP::update(GABC_OError &err,
 	const ROP_AbcContext &ctx, UT_BoundingBox &box)
 {
-    SOP_Node	*sop = getSop(mySopId);
-    if (!sop || !myShapes.entries())
-    {
-	// If there are no shapes, we're ok...
-	return sop != NULL;
-    }
-    UT_WorkBuffer	wbuf;
-    sop->getFullPath(wbuf);
+    const GU_Detail	           *gdp;
+    GU_DetailHandle	            gdh;
+    NameList		            names;
+    NameMap::iterator               it;
+    PrimitiveList	            prims;
+    ROP_AbcGTCompoundShape	   *shape;
+    SOP_Node                       *sop = getSop(mySopId);
+    std::string		            name = getName();
 
-    GU_DetailHandle	 gdh = sop->getCookedGeoHandle(ctx.cookContext());
-    GU_DetailHandleAutoReadLock	gdl(gdh);
-    const GU_Detail	*gdp = gdl.getGdp();
-    myTimeDependent = sop->isTimeDependent(ctx.cookContext());
+    if (!sop)
+    {
+        clear();
+        return err.error("Unable to find SOP: %d", mySopId);
+    }
+
+    gdh = sop->getCookedGeoHandle(ctx.cookContext());
+    gdp = GU_DetailHandleAutoReadLock(gdh).getGdp();
 
     if (!gdp)
-	return err.error("Bad cook for SOP: %s", (const char *)sop->getName());
+    {
+        clear();
+        UT_WorkBuffer	path;
+        sop->getFullPath(path);
+        return err.error("Error saving first frame: %s", path.buffer());
+    }
 
-    PrimitiveList	prims;
-    NameList		names;
-    std::string		name = getName();
+    myTimeDependent = sop->isTimeDependent(ctx.cookContext());
 
     if (ctx.fullBounds())
     {
 	gdp->computeQuickBounds(myBox);
 	box = myBox;
     }
-    partitionGeometry(prims, name, names, sop, *gdp, ctx);
-    if (prims.entries() > myShapes.entries())
+
+    partitionGeometry(prims,
+            names,
+            sop,
+            *gdp,
+            ctx,
+            err);
+    if (names.size())
     {
-	// TODO: Add new primitives
+        bool    pathless;
+
+        UT_ASSERT(names.size() == prims.entries());
+
+        for (int i = 0; i < prims.entries(); ++i)
+        {
+            it = myNameMap.find(names[i]);
+
+            if (it == myNameMap.end())
+            {
+	        pathless = (i < 0) && names[i].compare(name);
+                shape = new ROP_AbcGTCompoundShape(names[i],
+                        &myShapeSet,
+                        &myXformMap,
+                        !pathless,
+                        prims(i).mySubdMode,
+                        prims(i).myShowPts);
+
+                if (!shape->first(prims(i).myPrim,
+                        myParent,
+                        err,
+                        ctx,
+                        false,
+                        Alembic::AbcGeom::kVisibilityHidden))
+                {
+                    clear();
+                    UT_WorkBuffer	path;
+                    sop->getFullPath(path);
+                    return err.error("Error saving next frame: %s", path.buffer());
+                }
+
+                shape->updateFromPrevious(err, (myElapsedFrames - 1));
+                shape->updateFromPrevious(err,
+                        Alembic::AbcGeom::kVisibilityDeferred);
+
+                myShapes.append(shape);
+                myNameMap.insert(NameMapInsert(names[i], (myShapes.entries() - 1)));
+            }
+            else
+            {
+                if (!myShapes(it->second)->update(prims(i).myPrim, err, ctx))
+                {
+                    clear();
+                    UT_WorkBuffer	path;
+                    sop->getFullPath(path);
+                    return err.error("Error saving next frame: %s", path.buffer());
+                }
+            }
+        }
+
+        for (int i = 0; i < myShapes.entries(); ++i)
+        {
+            if (myShapes(i)->getElapsedFrames() == myElapsedFrames)
+            {
+                myShapes(i)->updateFromPrevious(err);
+            }
+        }
     }
-    if (myShapes.entries() <= prims.entries())
+    else
     {
-	int	num = SYSmin(myShapes.entries(), prims.entries());
-	for (int i = 0; i < num; ++i)
-	{
-	    if (!myShapes(i)->update(prims(i).myPrim, err, ctx))
-	    {
-		clear();
-		UT_WorkBuffer	path;
-		sop->getFullPath(path);
-		return err.error("Error saving next frame: %s", path.buffer());
-	    }
-	}
+        UT_ASSERT(myShapes.entries() == prims.entries());
+
+        for (int i = 0; i < prims.entries(); ++i)
+        {
+            if (!myShapes(i)->update(prims(i).myPrim, err, ctx))
+            {
+                clear();
+                UT_WorkBuffer	path;
+                sop->getFullPath(path);
+                return err.error("Error saving next frame: %s", path.buffer());
+            }
+        }
     }
+
+    ++myElapsedFrames;
     return true;
 }
 
@@ -413,4 +438,190 @@ ROP_AbcSOP::getLastBounds(UT_BoundingBox &box) const
 {
     box = myBox;
     return true;
+}
+
+void
+ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
+        NameList &names,
+        const GU_Detail &gdp,
+        const GA_Range &range,
+        const ROP_AbcContext &ctx,
+        GABC_OError &err,
+        bool force_subd_mode,
+        bool show_pts)
+{
+    GA_ROHandleS            str;
+    GA_StringIndexType      idx;
+    UT_WorkBuffer           namebuf;
+    int                     pos;
+    const char             *aname;
+    const char             *strval;
+    bool                    from_path = ctx.buildFromPath();
+    bool                    flag = false;
+
+    aname = from_path ? ctx.pathAttribute() : ctx.partitionAttribute();
+
+    str = GA_ROHandleS(gdp.findStringTuple(GA_ATTRIB_PRIMITIVE, aname));
+    if (!str.isValid() || !str.getAttribute()->getAIFSharedStringTuple())
+    {
+        buildGeometry(primitives, gdp, range, force_subd_mode, show_pts);
+        return;
+    }
+
+    for (GA_Iterator it(range); !it.atEnd(); ++it)
+    {
+        idx = str.getIndex(*it);
+        if (idx < 0)
+        {
+            myPartitionIndices(0).append(*it);
+        }
+        else
+        {
+            IndexMap::iterator  iter = myIndexMap.find(idx);
+
+            if (iter != myIndexMap.end())
+            {
+                pos = iter->second;
+            }
+            else
+            {
+                strval = str.get(*it);
+                strval = from_path
+                        ? homogenizePath(strval, namebuf, flag)
+                        : ctx.partitionModeValue(strval, namebuf);
+
+                if (*strval == 0)
+                {
+                    err.warning("Invalid %s attribute value for "
+                            "primitive %ld was ignored.",
+                            aname,
+                            (*it) - 1);
+
+                    myIndexMap.insert(IndexMapInsert(idx, 0));
+                    myPartitionIndices(0).append(*it);
+                    continue;
+                }
+                else if (from_path && flag)
+                {
+                    err.warning("%s attribute value for primitive %ld has "
+                            "odd value. Value interpreted as %s.",
+                            aname,
+                            (*it) - 1,
+                            strval);
+                }
+
+                PartitionMap::iterator  iter2 = myPartitionMap.find(strval);
+
+                if (iter2 != myPartitionMap.end())
+                {
+                    pos = iter2->second;
+                }
+                else
+                {
+                    pos = myPartitionIndices.entries();
+                    myPartitionIndices.append(GA_OffsetList());
+                    myPartitionNames.push_back(strval);
+
+                    myPartitionMap.insert(PartitionMapInsert(strval, pos));
+                }
+
+                myIndexMap.insert(IndexMapInsert(idx, pos));
+            }
+
+            myPartitionIndices(pos).append(*it);
+        }
+    }
+
+    for (exint i = 0; i < myPartitionIndices.entries(); ++i)
+    {
+        if (myPartitionIndices(i).entries())
+        {
+            GA_Range    range(gdp.getPrimitiveMap(), myPartitionIndices(i));
+
+            buildGeometry(primitives, gdp, range, force_subd_mode, show_pts);
+            names.push_back(myPartitionNames[i]);
+
+            myPartitionIndices(i).clear();
+        }
+    }
+}
+
+void
+ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
+        NameList &names,
+        const SOP_Node *sop,
+        const GU_Detail &gdp,
+        const ROP_AbcContext &ctx,
+        GABC_OError &err)
+{
+    names.clear();
+    UT_String	subdgroupname;
+
+    if (objectSubd(sop, ctx, subdgroupname))
+    {
+        if (subdgroupname.isstring())
+        {
+            // If there's a group name, only the primitives in the group
+            // should be rendered as subd surfaces.
+            const GA_PrimitiveGroup	*subdgroup
+                    = gdp.findPrimitiveGroup(subdgroupname);
+            if (subdgroup)
+            {
+                // Build subdivision groups first
+                partitionGeometryRange(primitives,
+                        names,
+                        gdp,
+                        GA_Range(*subdgroup),
+                        ctx,
+                        err,
+                        true,
+                        false);
+                // Now, build the polygons
+                partitionGeometryRange(primitives,
+                        names,
+                        gdp,
+                        GA_Range(*subdgroup, true),
+                        ctx,
+                        err,
+                        false,
+                        true);
+            }
+            else
+            {
+                // If there was no group, then there are no subd surfaces
+                partitionGeometryRange(primitives,
+                        names,
+                        gdp,
+                        gdp.getPrimitiveRange(),
+                        ctx,
+                        err,
+                        false,
+                        true);
+            }
+        }
+        else
+        {
+            // All polygons should be rendered as subd primitives
+            partitionGeometryRange(primitives,
+                    names,
+                    gdp,
+                    gdp.getPrimitiveRange(),
+                    ctx,
+                    err,
+                    true,
+                    true);
+        }
+    }
+    else
+    {
+        // No subdivision primitives
+        partitionGeometryRange(primitives,
+                names,
+                gdp,
+                gdp.getPrimitiveRange(),
+                ctx,
+                err,
+                false,
+                true);
+    }
 }

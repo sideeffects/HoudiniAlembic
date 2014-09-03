@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+#if 0
+
 #ifndef __ROP_AbcXformOutputWalker__
 #define __ROP_AbcXformOutputWalker__
 
@@ -89,5 +91,7 @@ private:
     // Add children of transforms to storage?
     mutable bool        myStoreChildren;
 };
+
+#endif
 
 #endif

@@ -28,9 +28,9 @@
 #ifndef __ROP_AbcContext__
 #define __ROP_AbcContext__
 
+#include <Alembic/AbcGeom/All.h>
 #include <GABC/GABC_Include.h>
 #include <GABC/GABC_OOptions.h>
-#include <Alembic/AbcGeom/All.h>
 #include <OP/OP_Context.h>
 #include <UT/UT_Array.h>
 #include <UT/UT_String.h>
@@ -116,28 +116,19 @@ public:
     /// @}
 
     /// @{
-    /// Whether to save out packed Alembics using their hierarchy information
-    /// from the import Alembic archive.
-    bool	keepAbcHierarchy() const	{ return myKeepAbcHierarchy; }
-    void	setKeepAbcHierarchy(bool v)	{ myKeepAbcHierarchy = v; }
+    ///
+    bool        buildFromPath() const       { return myBuildFromPath; }
+    void        setBuildFromPath(bool v)    { myBuildFromPath = v; }
     /// @}
 
     /// @{
-    /// Whether to save out packed Alembic transforms instead of geometry
-    bool	exportXforms() const	{ return myExportXforms; }
-    void	setExportXforms(bool v)	{ myExportXforms = v; }
-    /// @}
-
-    /// @{
-    /// Whether to keep descendant nodes of packed xforms
-    enum
-    {
-	KEEP_NONE,      // Don't keep any descendants
-	KEEP_XFORMS,    // Keep only transforms
-	KEEP_ALL,       // Keep shape and transform descendants
-    };
-    int		 keepChildren() const	{ return myKeepXformKids; }
-    void	 setKeepChildren(int v)	{ myKeepXformKids = v; }
+    ///
+    const char	*pathAttribute() const	{ return myPathAttribute; }
+    void	 setPathAttribute(const char *s) { myPathAttribute.harden(s); }
+    void	 clearPathAttribute()
+		 {
+		     myPathAttribute.clear();
+		 }
     /// @}
 
     /// @{
@@ -188,18 +179,17 @@ public:
     /// @}
 
 private:
-    TimeSamplingPtr	 myTimeSampling;
-    UT_Array<fpreal>	 myBlurTimes; // Sub-frame offsets for motion blur
-    OP_Context		 myCookContext;
-    SOP_Node		*mySingletonSOP;
-    UT_String		 myPartitionAttribute;
-    int			 myPartitionMode;
-    int			 myCollapseIdentity;
-    int                  myKeepXformKids;
-    bool		 myUseInstancing;
-    bool		 mySaveHidden;
-    bool                 myKeepAbcHierarchy;
-    bool                 myExportXforms;
+    TimeSamplingPtr     myTimeSampling;
+    UT_Array<fpreal>    myBlurTimes; // Sub-frame offsets for motion blur
+    OP_Context          myCookContext;
+    SOP_Node           *mySingletonSOP;
+    UT_String           myPartitionAttribute;
+    UT_String           myPathAttribute;
+    int                 myPartitionMode;
+    int                 myCollapseIdentity;
+    bool                myUseInstancing;
+    bool                mySaveHidden;
+    bool                myBuildFromPath;
 };
 
 #endif

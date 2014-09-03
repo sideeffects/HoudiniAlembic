@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+#if 0
+
 #ifndef __ROP_AbcPackedShape__
 #define __ROP_AbcPackedShape__
 
@@ -60,5 +62,7 @@ public:
     bool    updateAllHidden(const ROP_AbcContext &ctx,
                     exint elapsed_frames);
 };
+
+#endif
 
 #endif

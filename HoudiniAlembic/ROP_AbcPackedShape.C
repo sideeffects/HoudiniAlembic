@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+#if 0
+
 #include "ROP_AbcPackedShape.h"
 
 namespace {
@@ -510,3 +512,5 @@ ROP_AbcPackedShape::updateAllHidden(const ROP_AbcContext &ctx,
 
     return true;
 }
+
+#endif

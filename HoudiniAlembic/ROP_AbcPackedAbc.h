@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+#if 0
+
 #ifndef __ROP_AbcPackedAbc__
 #define __ROP_AbcPackedAbc__
 
@@ -186,5 +188,7 @@ protected:
     // corresponds to frame i
     UT_Array<fpreal>    myTimes;
 };
+
+#endif
 
 #endif

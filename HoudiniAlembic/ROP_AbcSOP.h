@@ -28,10 +28,13 @@
 #ifndef __ROP_AbcSOP__
 #define __ROP_AbcSOP__
 
-#include "ROP_AbcObject.h"
 #include "ROP_AbcContext.h"
-#include <UT/UT_Array.h>
+#include "ROP_AbcGTCompoundShape.h"
+#include "ROP_AbcObject.h"
+#include <GA/GA_Range.h>
+#include <GA/GA_OffsetList.h>
 #include <GT/GT_Handles.h>
+#include <UT/UT_Array.h>
 
 class SOP_Node;
 class ROP_AbcGTShape;
@@ -42,7 +45,38 @@ class ROP_AbcGTCompoundShape;
 class ROP_AbcSOP : public ROP_AbcObject
 {
 public:
-    typedef Alembic::Abc::OObject		OObject;
+    class abc_PrimContainer;
+
+    typedef Alembic::Abc::OObject                   OObject;
+
+    typedef ROP_AbcGTCompoundShape::ShapeSet        ShapeSet;
+    typedef ROP_AbcGTCompoundShape::XformMap        XformMap;
+    typedef ROP_AbcGTCompoundShape::XformMapInsert  XformMapInsert;
+
+    typedef UT_Map<int, int>                        IndexMap;
+    typedef std::pair<int, int>                     IndexMapInsert;
+    typedef std::vector<std::string>                NameList;
+    typedef UT_Map<std::string, int>                NameMap;
+    typedef std::pair<std::string, int>             NameMapInsert;
+    typedef UT_Map<std::string, int>                PartitionMap;
+    typedef std::pair<std::string, int>             PartitionMapInsert;
+    typedef UT_Array<abc_PrimContainer>             PrimitiveList;
+
+    class abc_PrimContainer
+    {
+    public:
+	abc_PrimContainer(const GT_PrimitiveHandle &prim,
+			bool subd_mode,
+			bool show_unused_points)
+	    : myPrim(prim)
+	    , mySubdMode(subd_mode)
+	    , myShowPts(show_unused_points)
+	{}
+
+	GT_PrimitiveHandle	myPrim;
+	bool			mySubdMode;
+	bool			myShowPts;
+    };
 
     ROP_AbcSOP(SOP_Node *node);
     virtual ~ROP_AbcSOP();
@@ -63,10 +97,32 @@ public:
 
 private:
     void		clear();
+    void                partitionGeometryRange(PrimitiveList &primitives,
+                                NameList &names,
+                                const GU_Detail &gdp,
+                                const GA_Range &range,
+                                const ROP_AbcContext &ctx,
+                                GABC_OError &err,
+                                bool force_subd_mode,
+                                bool show_pts);
+    void                partitionGeometry(PrimitiveList &primitives,
+                                NameList &names,
+                                const SOP_Node *sop,
+                                const GU_Detail &gdp,
+                                const ROP_AbcContext &ctx,
+                                GABC_OError &err);
 
+    IndexMap                            myIndexMap;
+    NameList                            myPartitionNames;
+    NameMap                             myNameMap;
     OObject				myParent;
+    PartitionMap                        myPartitionMap;
+    ShapeSet                            myShapeSet;
+    UT_Array<GA_OffsetList>             myPartitionIndices;
     UT_Array<ROP_AbcGTCompoundShape *>	myShapes;
     UT_BoundingBox			myBox;
+    XformMap                            myXformMap;
+    exint                               myElapsedFrames;
     int					mySopId;
     bool				myTimeDependent;
 };

@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+#if 0
+
 #include "ROP_AbcShapeOutputWalker.h"
 
 using namespace GABC_NAMESPACE;
@@ -605,3 +607,5 @@ ROP_AbcShapeOutputWalker::processNode(const GABC_IObject &node,
 
     return true;
 }
+
+#endif

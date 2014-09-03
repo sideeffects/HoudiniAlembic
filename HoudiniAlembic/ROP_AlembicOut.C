@@ -79,6 +79,63 @@ namespace
 		    menu, max, spare ? spare->getValue("opfilter") : 0);
     }
 
+    static void
+    buildAttribMenu(
+        void *data, PRM_Name *menu_entries, int menu_size,
+        const PRM_SpareData *, const PRM_Parm *)
+    {
+        ROP_AlembicOut *me = (ROP_AlembicOut *)data;
+
+        me->clearErrors();
+
+        UT_StringArray vals;
+        OP_Context context(CHgetEvalTime());
+        if(me->nInputs() > 0 && me->lockInput(0, context) < UT_ERROR_ABORT)
+        {
+            SOP_Node   *node = CAST_SOPNODE(me->getInput(0));
+            if (node)
+            {
+                const GU_Detail *ref = node->getCookedGeo(context);
+                if(ref)
+                {
+                    for(auto it = ref->getAttributeDict(GA_ATTRIB_PRIMITIVE).begin();
+                            !it.atEnd();
+                            ++it)
+                    {
+                        const GA_Attribute *atr = it.attrib();
+
+                        if(atr->getStorageClass() != GA_STORECLASS_STRING
+                            || atr->getTupleSize() > 1
+                            || atr->getScope() != GA_SCOPE_PUBLIC)
+                        {
+                            continue;
+                        }
+
+                        const char *name = atr->getName();
+                        vals.append(name);
+                    }
+
+                    vals.sort();
+                }
+            }
+
+    	    me->unlockInput(0);
+        }
+
+        int i = 0;
+        while(i < vals.entries() && i + 1 < menu_size)
+        {
+            menu_entries[i].setToken(vals(i));
+            menu_entries[i].setLabel(vals(i));
+            ++i;
+        }
+        menu_entries[i].setToken(0);
+        menu_entries[i].setLabel(0);
+    }
+
+    static PRM_Name     separator1Name("_sep1", "");
+    static PRM_Name     separator2Name("_sep2", "");
+    static PRM_Name     separator3Name("_sep3", "");
     static PRM_Name	theFilenameName("filename", "Alembic File");
     static PRM_Name	theFormatName("format", "Format");
     static PRM_Name	theRootName("root", "Root Object");
@@ -94,12 +151,9 @@ namespace
 				"Use Display SOP");
     static PRM_Name	theFullBoundsName("full_bounds",
 				"Full Bounding Box Tree");
-    static PRM_Name	theKeepAbcHierarchyName("keep_hierarchy",
-				"Keep Packed Alembic Hierarchy");
-    static PRM_Name	theExportXformsName("export_xforms",
-				"Export Transforms Instead of Shapes");
-    static PRM_Name	theKeepChildrenName("keep_children",
-				"Keep Children");
+    static PRM_Name     theBuildHierarchyFromPathName("build_from_path",
+                                "Build Hierarchy From Attribute");
+    static PRM_Name     thePathAttribName("path_attrib", "Path Attribute");
     static PRM_Name	thePartitionModeName("partition_mode",
 				"Partition Mode");
     static PRM_Name	thePartitionAttributeName("partition_attribute",
@@ -117,9 +171,7 @@ namespace
     static PRM_Default	theSaveAttributesDefault(1, "yes");
     static PRM_Default	theFullBoundsDefault(0, "no");
     static PRM_Default	theDisplaySOPDefault(0, "no");
-    static PRM_Default  theKeepAbcHierarchyDefault(0, "no");
-    static PRM_Default  theExportXformsDefault(0, "no");
-    static PRM_Default  theKeepChildrenDefault(0, "off");
+    static PRM_Default  theBuildHierarchyFromPathDefault(0, "no");
     static PRM_Default	thePartitionModeDefault(0, "no");
     static PRM_Default	thePartitionAttributeDefault(0, "");
     static PRM_Default	theCollapseDefault(0, "off");
@@ -213,14 +265,6 @@ namespace
 	PRM_Name()
     };
 
-    static PRM_Name	theKeepChildrenChoices[] =
-    {
-	PRM_Name("off",	"None"),
-	PRM_Name("on",  "Transforms Only"),
-	PRM_Name("all", "Shapes and Transforms"),
-	PRM_Name()
-    };
-
     static PRM_ChoiceList	theFormatMenu(PRM_CHOICELIST_SINGLE,
 					theFormatChoices);
     static PRM_ChoiceList	theObjectsMenu(PRM_CHOICELIST_REPLACE,
@@ -233,8 +277,8 @@ namespace
 					theFaceSetModeChoices);
     static PRM_ChoiceList	theCollapseMenu(PRM_CHOICELIST_SINGLE,
 					theCollapseChoices);
-    static PRM_ChoiceList	theKeepChildrenMenu(PRM_CHOICELIST_SINGLE,
-					theKeepChildrenChoices);
+    static PRM_ChoiceList       thePathAttribMenu(PRM_CHOICELIST_REPLACE,
+                                        buildAttribMenu);
 
     static PRM_Range	theVerboseRange(PRM_RANGE_RESTRICTED, 0,
 				    PRM_RANGE_UI, 3);
@@ -273,6 +317,11 @@ namespace
 				    &theObjectsMenu, 0, 0,
 				    &theObjectList),
 	PRM_Template(PRM_TOGGLE, 1, &theInitSim),
+
+
+        PRM_Template(PRM_SEPARATOR, 1, &separator1Name),
+
+
 	PRM_Template(PRM_ORD, 1, &theCollapseName, &theCollapseDefault,
 				    &theCollapseMenu),
 	PRM_Template(PRM_TOGGLE, 1, &theSaveHiddenName, PRMoneDefaults),
@@ -283,12 +332,25 @@ namespace
 				    &theDisplaySOPDefault),
 	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
 				    &theSaveAttributesDefault),
-	PRM_Template(PRM_TOGGLE, 1, &theKeepAbcHierarchyName,
-				    &theKeepAbcHierarchyDefault),
-	PRM_Template(PRM_TOGGLE, 1, &theExportXformsName,
-				    &theExportXformsDefault),
-	PRM_Template(PRM_ORD, 1, &theKeepChildrenName, &theKeepChildrenDefault,
-				    &theKeepChildrenMenu),
+
+
+        PRM_Template(PRM_SEPARATOR, 1, &separator2Name),
+
+
+	PRM_Template(PRM_TOGGLE, 1, &theBuildHierarchyFromPathName,
+				    &theBuildHierarchyFromPathDefault),
+        PRM_Template(PRM_STRING, 1, &thePathAttribName, 0, &thePathAttribMenu),
+	PRM_Template(PRM_ORD, 1, &thePartitionModeName,
+				    &thePartitionModeDefault,
+				    &thePartitionModeMenu),
+	PRM_Template(PRM_STRING, 1, &thePartitionAttributeName,
+				    &thePartitionAttributeDefault,
+				    &thePartitionAttributeMenu),
+
+
+        PRM_Template(PRM_SEPARATOR, 1, &separator3Name),
+
+
 	PRM_Template(PRM_STRING, 1,
 		&theAttributePatternNames[GA_ATTRIB_POINT],
 		&theStarDefault),
@@ -305,12 +367,6 @@ namespace
 				    &theFaceSetModeDefault,
 				    &theFaceSetModeMenu),
 	PRM_Template(PRM_STRING, 1, &theSubdGroupName),
-	PRM_Template(PRM_ORD, 1, &thePartitionModeName,
-				    &thePartitionModeDefault,
-				    &thePartitionModeMenu),
-	PRM_Template(PRM_STRING, 1, &thePartitionAttributeName,
-				    &thePartitionAttributeDefault,
-				    &thePartitionAttributeMenu),
 	PRM_Template(PRM_INT,	1, &theVerboseName, &theVerboseDefault,
 				    0, &theVerboseRange),
         PRM_Template(PRM_TOGGLE, 1, &theMotionBlurName, &theMotionBlurDefault),
@@ -382,19 +438,6 @@ ROP_AlembicOut::COLLAPSE(fpreal time)
 	return ROP_AbcContext::COLLAPSE_ALL;
     UT_ASSERT(str == "on");
     return ROP_AbcContext::COLLAPSE_IDENTITY;
-}
-
-int
-ROP_AlembicOut::KEEP_CHILDREN(fpreal time)
-{
-    UT_String	str;
-    evalString(str, "keep_children", 0, time);
-    if (str == "off")
-	return ROP_AbcContext::KEEP_NONE;
-    if (str == "on")
-	return ROP_AbcContext::KEEP_XFORMS;
-    UT_ASSERT(str == "all");
-    return ROP_AbcContext::KEEP_ALL;
 }
 
 int
@@ -480,22 +523,51 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     myContext->setFullBounds(FULL_BOUNDS(start));
     myContext->setUseInstancing(USE_INSTANCING(start));
     myContext->setSaveHidden(SAVE_HIDDEN(start));
-    myContext->setKeepAbcHierarchy(KEEP_HIERARCHY(start));
-    myContext->setExportXforms(EXPORT_XFORMS(start));
-    myContext->setKeepChildren(KEEP_CHILDREN(start));
 
-    UT_String	partition_mode;
-    UT_String	partition_attrib;
-    int		partition_mode_val;
-
-    PARTITION_MODE(partition_mode, start);
-    myContext->clearPartitionAttribute();
-    if (mapPartitionMode(partition_mode, partition_mode_val))
+    if (sop)
     {
-	PARTITION_ATTRIBUTE(partition_attrib, start);
-	myContext->setPartitionMode(partition_mode_val);
-	myContext->setPartitionAttribute(partition_attrib);
+        myContext->setBuildFromPath(BUILD_HIERARCHY_FROM_PATH(start));
     }
+    if (myContext->buildFromPath())
+    {
+        GA_Attribute       *attrib;
+        OP_Context          context(CHgetEvalTime());
+    	UT_String           path;
+
+    	evalString(path, "path_attrib", 0, start);
+
+        const GU_Detail    *ref = sop->getCookedGeo(context);
+        attrib = ref->getAttributeDict(GA_ATTRIB_PRIMITIVE)
+                .find(GA_SCOPE_PUBLIC, path);
+
+        if (!attrib)
+        {
+            abcError("Cannot find path attribute in primitive attributes.");
+        }
+        else if (attrib->getTupleSize() > 1
+                || attrib->getStorageClass() != GA_STORECLASS_STRING)
+        {
+            abcError("Path attribute is not a string tuple size 1.");
+        }
+
+    	myContext->setPathAttribute(path);
+    }
+    else
+    {
+        UT_String	partition_mode;
+        UT_String	partition_attrib;
+        int		partition_mode_val;
+
+        PARTITION_MODE(partition_mode, start);
+        myContext->clearPartitionAttribute();
+        if (mapPartitionMode(partition_mode, partition_mode_val))
+        {
+            PARTITION_ATTRIBUTE(partition_attrib, start);
+            myContext->setPartitionMode(partition_mode_val);
+            myContext->setPartitionAttribute(partition_attrib);
+        }
+    }
+
     for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
     {
 	UT_String	pattern;
@@ -696,18 +768,24 @@ ROP_AlembicOut::updateParmsFlags()
 {
     bool	changed = ROP_Node::updateParmsFlags();
     bool	issop = CAST_SOPNODE(getInput(0)) != NULL;
+    bool        build_hier = BUILD_HIERARCHY_FROM_PATH(0);
     UT_String	mode;
 
     PARTITION_MODE(mode, 0);
-    changed |= enableParm("export_xforms", KEEP_HIERARCHY(0));
-    changed |= enableParm("keep_children", KEEP_HIERARCHY(0) && EXPORT_XFORMS(0));
-    changed |= enableParm("partition_attribute", mode != "no");
+    changed |= enableParm("build_from_path", issop);
+    changed |= enableParm("path_attrib", build_hier);
+    changed |= enableParm("partition_mode", !build_hier);
+    changed |= enableParm("partition_attribute",
+                (!build_hier && (mode != "no")));
     changed |= enableParm("shutter", MOTIONBLUR(0));
     changed |= enableParm("samples", MOTIONBLUR(0));
 
-    changed |= setVisibleState("root", !issop);
-    changed |= setVisibleState("objects", !issop);
+    changed |= setVisibleState("build_from_path", issop);
+    changed |= setVisibleState("path_attrib", issop);
+
     changed |= setVisibleState("displaysop", !issop);
+    changed |= setVisibleState("objects", !issop);
+    changed |= setVisibleState("root", !issop);
 
     return changed;
 }

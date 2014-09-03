@@ -66,7 +66,7 @@ public:
 	                                const std::string &name);
 	void                    update(const UT_Matrix4D &xform,
                                         ObjectVisibility vis);
-	void                    updateHidden();
+	void                    updateFromPrevious(ObjectVisibility vis);
 
 	OXform	               &oxform() { return myOXform; }
 
@@ -84,15 +84,14 @@ public:
 			const GT_PrimitiveHandle &prim,
 			bool subd_mode,
 			bool add_unused_pts,
-                        ObjectVisibility vis
-                                = Alembic::AbcGeom::kVisibilityDeferred);
+                        ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
     bool	update(GABC_OError &err,
 			const ROP_AbcContext &ctx,
 			const GT_PrimitiveHandle &prim,
-                        ObjectVisibility vis
-                                = Alembic::AbcGeom::kVisibilityDeferred);
-    bool	updateHidden(GABC_OError &err,
+                        ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
+    bool	updateFromPrevious(GABC_OError &err,
                         int primType,
+                        ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
                         exint frames = 1);
 
     OObject	getOObject() const;

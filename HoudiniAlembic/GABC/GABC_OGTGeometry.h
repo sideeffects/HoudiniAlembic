@@ -54,27 +54,44 @@ public:
     typedef Alembic::AbcGeom::OPoints		    OPoints;
     typedef Alembic::AbcGeom::ONuPatch		    ONuPatch;
 
-     GABC_OGTGeometry(const std::string &name);
-    ~GABC_OGTGeometry();
+    /// A simple set of strings
+    class IgnoreList
+    {
+    public:
+        IgnoreList()
+            : myStrings()
+        {}
+        IgnoreList(const char *arg0, ...);
+        ~IgnoreList() {}
 
-    /// Return true if the primitive can be processed
-    static bool		isPrimitiveSupported(const GT_PrimitiveHandle &prim);
+        void	addCommonSkips()
+                {
+                    // Always skip P and __topology
+                    myStrings.insert("P", (void *)0);
+                    myStrings.insert("__topology", (void *)0);
+                    myStrings.insert("__primitive_id", (void *)0);
+                    myStrings.insert("__point_id", (void *)0);
+                    myStrings.insert("__vertex_id", (void *)0);
+                }
 
-    bool	start(const GT_PrimitiveHandle &prim,
-			const OObject &parent,
-			GABC_OError &err,
-			const GABC_OOptions &ctx,
-	                ObjectVisibility vis
-	                        = Alembic::AbcGeom::kVisibilityDeferred);
-    bool	update(const GT_PrimitiveHandle &prim,
-		        GABC_OError &err,
-		        const GABC_OOptions &ctx,
-	                ObjectVisibility vis
-	                        = Alembic::AbcGeom::kVisibilityDeferred);
-    bool	updateHidden(GABC_OError &err, exint frames = 1);
+        void    clear()
+                {
+                    myStrings.clear();
+                }
 
-    /// Return the OObject for this shape
-    OObject	getOObject() const;
+        void    addSkip(const char *skip)
+                {
+                    myStrings.insert(skip, (void *)0);
+                }
+
+        bool	contains(const char *token) const
+                {
+                    return myStrings.count(token) > 0;
+                }
+
+    private:
+        UT_SymbolMap<void *, false>	myStrings;
+    };
 
     /// The intrinsic cache is used to cache array values frame to frame when
     /// optimizing the .abc file for space.  Only arrays which change will be
@@ -130,6 +147,7 @@ public:
 	GT_DataArrayHandle	myUKnots;
 	GT_DataArrayHandle	myVKnots;
     };
+
     /// Secondary cache is used to cache values for subdivision tags and trim
     /// curves.  This is an optional cache and is only created for some
     /// primitive types.
@@ -241,8 +259,36 @@ public:
 			GT_DataArrayHandle &cache);
 	GT_DataArrayHandle	myData[9];
     };
+
+     GABC_OGTGeometry(const std::string &name);
+    ~GABC_OGTGeometry();
+
+    ///
+    static void     clearIgnoreList();
+    ///
+    static void     skipAttribute(const char *skip);
+    /// Return true if the primitive can be processed
+    static bool     isPrimitiveSupported(const GT_PrimitiveHandle &prim);
+
+    bool            start(const GT_PrimitiveHandle &prim,
+                            const OObject &parent,
+                            GABC_OError &err,
+                            const GABC_OOptions &ctx,
+                            ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
+    bool            update(const GT_PrimitiveHandle &prim,
+                            GABC_OError &err,
+                            const GABC_OOptions &ctx,
+                            ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
+    bool            updateFromPrevious(GABC_OError &err,
+                            ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
+                            exint frames = 1);
+
+    /// Return the OObject for this shape
+    OObject	    getOObject() const;
+
     /// Return the secondary cache (allocating if needed)
-    SecondaryCache	&getSecondaryCache();
+    SecondaryCache  &getSecondaryCache();
+
 protected:
     void	makeFaceSets(const GT_PrimitiveHandle &prim,
 			const GABC_OOptions &ctx);
@@ -264,22 +310,27 @@ private:
 	DETAIL_PROPERTIES,
 	MAX_PROPERTIES
     };
+
+    static IgnoreList       myDefaultSkip;
+
     union {
-	OPolyMesh	*myPolyMesh;
-	OSubD		*mySubD;
-	OCurves		*myCurves;
-	OPoints		*myPoints;
-	ONuPatch	*myNuPatch;
-	void		*myVoidPtr;
+	OPolyMesh	   *myPolyMesh;
+	OSubD		   *mySubD;
+	OCurves		   *myCurves;
+	OPoints		   *myPoints;
+	ONuPatch	   *myNuPatch;
+	void		   *myVoidPtr;
     } myShape;
-    std::string			 myName;
-    PropertyMap			 myProperties[MAX_PROPERTIES];
-    IntrinsicCache		 myCache; // Cache for space optimization
-    SecondaryCache		*mySecondaryCache;
-    UT_Array<std::string>	 myFaceSetNames;
-    OVisibilityProperty          myVisibility;
-    int				 myType;
+
+    IntrinsicCache          myCache; // Cache for space optimization
+    OVisibilityProperty     myVisibility;
+    PropertyMap             myProperties[MAX_PROPERTIES];
+    SecondaryCache         *mySecondaryCache;
+    UT_Array<std::string>   myFaceSetNames;
+    std::string             myName;
+    int                     myType;
 };
-}
+
+} // GABC_NAMESPACE
 
 #endif

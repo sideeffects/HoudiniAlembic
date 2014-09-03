@@ -25,6 +25,8 @@
  *----------------------------------------------------------------------------
  */
 
+#if 0
+
 #ifndef __ROP_AbcShapeOutputWalker__
 #define __ROP_AbcShapeOutputWalker__
 
@@ -90,5 +92,7 @@ private:
     // Allow updates to running counts?
     bool                        myCountsFreeze;
 };
+
+#endif
 
 #endif

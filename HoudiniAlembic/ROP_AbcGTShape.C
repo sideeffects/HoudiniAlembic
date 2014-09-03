@@ -25,18 +25,23 @@
  *----------------------------------------------------------------------------
  */
 
+#include "ROP_AbcGTInstance.h"
 #include "ROP_AbcGTShape.h"
 #include <GABC/GABC_OGTGeometry.h>
-#include "ROP_AbcGTInstance.h"
 
 using namespace GABC_NAMESPACE;
 
-ROP_AbcGTShape::ROP_AbcGTShape(const std::string &name)
+ROP_AbcGTShape::ROP_AbcGTShape(const std::string &name, const char * const path)
     : myShape(NULL)
     , myInstance(NULL)
     , myName(name)
     , myPrimType(GT_PRIM_UNDEFINED)
 {
+    if (path)
+    {
+        myPath = UT_String(path);
+        myPath.tokenize(myTokens, '/');
+    }
 }
 
 ROP_AbcGTShape::~ROP_AbcGTShape()
@@ -48,8 +53,9 @@ void
 ROP_AbcGTShape::clear()
 {
     delete myShape;
-    delete myInstance;
     myShape = NULL;
+
+    delete myInstance;
     myInstance = NULL;
 }
 
@@ -62,14 +68,85 @@ ROP_AbcGTShape::isPrimitiveSupported(const GT_PrimitiveHandle &prim)
 bool
 ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
 	const OObject &parent,
+        ShapeSet * const shape_set,
+        XformMap * const xform_map,
 	GABC_OError &err,
 	const ROP_AbcContext &ctx,
-	ObjectVisibility vis)
+        ObjectVisibility vis,
+        bool is_instance,
+	bool subd_mode,
+	bool add_unused_pts)
 {
+    const OObject      *pobj = &parent;
+    OXform             *xform;
+    XformMap::iterator  it;
+    std::string         partial_path = "";
+    int                 numt = myTokens.entries();
+    const char         *current_token;
+
     clear();
+
+    if (myTokens.entries())
+    {
+        for (int i = 0; i < (numt - 1); ++i)
+        {
+            current_token = myTokens.getArg(i);
+            partial_path.append("/");
+            partial_path.append(current_token);
+
+            it = xform_map->find(partial_path);
+
+            if (it == xform_map->end())
+            {
+                if (shape_set->count(partial_path))
+                {
+                    err.error("Transform and geometry have same path %s.",
+                            partial_path.c_str());
+                    return false;
+                }
+
+                xform = new OXform(*pobj, current_token, ctx.timeSampling());
+                xform_map->insert(XformMapInsert(partial_path, xform));
+            }
+            else
+            {
+                xform = it->second;
+            }
+
+            pobj = xform;
+        }
+
+        partial_path.append("/");
+        partial_path.append(myTokens.getArg(numt - 1));
+
+        it = xform_map->find(partial_path);
+        if (it != xform_map->end())
+        {
+            err.error("Transform and geometry have same path %s.",
+                    partial_path.c_str());
+            return false;
+        }
+
+        shape_set->insert(partial_path);
+    }
+
     myPrimType = prim->getPrimitiveType();
-    myShape = new GABC_OGTGeometry(myName);
-    return myShape->start(prim, parent, err, ctx, vis);
+
+    if (is_instance) {
+        myInstance = new ROP_AbcGTInstance(myName);
+        return myInstance->first(*pobj,
+                err,
+                ctx,
+                prim,
+                subd_mode,
+                add_unused_pts,
+                vis);
+    }
+    else
+    {
+        myShape = new GABC_OGTGeometry(myName);
+        return myShape->start(prim, *pobj, err, ctx, vis);
+    }
 }
 
 bool
@@ -89,7 +166,9 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
 }
 
 bool
-ROP_AbcGTShape::nextFrameHidden(GABC_OError &err, exint frames)
+ROP_AbcGTShape::nextFrameFromPrevious(GABC_OError &err,
+        exint frames,
+        ObjectVisibility vis)
 {
     if (frames < 0)
     {
@@ -99,28 +178,13 @@ ROP_AbcGTShape::nextFrameHidden(GABC_OError &err, exint frames)
 
     if (myShape)
     {
-	return myShape->updateHidden(err, frames);
+	return myShape->updateFromPrevious(err, vis, frames);
     }
     if (myInstance)
     {
-	return myInstance->updateHidden(err, myPrimType, frames);
+	return myInstance->updateFromPrevious(err, myPrimType, vis, frames);
     }
     return false;
-}
-
-bool
-ROP_AbcGTShape::firstInstance(const GT_PrimitiveHandle &prim,
-	const OObject &parent,
-	GABC_OError &err,
-	const ROP_AbcContext &ctx,
-	bool subd_mode,
-	bool add_unused_pts,
-        ObjectVisibility vis)
-{
-    clear();
-    myPrimType = prim->getPrimitiveType();
-    myInstance = new ROP_AbcGTInstance(myName);
-    return myInstance->first(parent, err, ctx, prim, subd_mode, add_unused_pts, vis);
 }
 
 int
