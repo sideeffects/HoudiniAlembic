@@ -492,8 +492,8 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
 
                 if (*strval == 0)
                 {
-                    err.warning("Invalid %s attribute value for "
-                            "primitive %lld was ignored.",
+                    err.warning("Invalid %s attribute value for primitive "
+			    "%" SYS_PRId64 " was ignored.",
                             aname,
                             ((int64)(*it) - 1));
 
@@ -503,8 +503,8 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
                 }
                 else if (from_path && flag)
                 {
-                    err.warning("%s attribute value for primitive %lld has "
-                            "odd value. Value interpreted as %s.",
+                    err.warning("%s attribute value for primitive %" SYS_PRId64
+			    " has odd value. Value interpreted as %s.",
                             aname,
                             ((int64)(*it) - 1),
                             strval);
