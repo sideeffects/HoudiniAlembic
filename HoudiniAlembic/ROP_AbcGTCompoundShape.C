@@ -430,7 +430,7 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
             }
             myShapes.append(new ROP_AbcGTShape(shape_name, myPath));
 
-            if (!myShapes(i)->firstFrame(deforming(i),
+            if (!myShapes(s_pos)->firstFrame(deforming(i),
                     *myShapeParent,
                     myShapeSet,
                     myXformMap,
@@ -446,7 +446,7 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
             }
 
             myShapes(s_pos)->nextFrameFromPrevious(err, myElapsedFrames - 1);
-            myShapes(s_pos)->nextFrameFromPrevious(err,
+            myShapes(s_pos)->nextFrameFromPrevious(err, 1,
                     Alembic::AbcGeom::kVisibilityDeferred);
 
             ++s_pos;
@@ -480,6 +480,7 @@ ROP_AbcGTCompoundShape::updateFromPrevious(GABC_OError &err,
         }
     }
 
+    myElapsedFrames += frames;
     return true;
 }
 
