@@ -493,9 +493,9 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
                 if (*strval == 0)
                 {
                     err.warning("Invalid %s attribute value for "
-                            "primitive %ld was ignored.",
+                            "primitive %lld was ignored.",
                             aname,
-                            (long)((*it) - 1));
+                            ((int64)(*it) - 1));
 
                     myIndexMap.insert(IndexMapInsert(idx, 0));
                     myPartitionIndices(0).append(*it);
@@ -503,10 +503,10 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
                 }
                 else if (from_path && flag)
                 {
-                    err.warning("%s attribute value for primitive %ld has "
+                    err.warning("%s attribute value for primitive %lld has "
                             "odd value. Value interpreted as %s.",
                             aname,
-                            (long)((*it) - 1),
+                            ((int64)(*it) - 1),
                             strval);
                 }
 
