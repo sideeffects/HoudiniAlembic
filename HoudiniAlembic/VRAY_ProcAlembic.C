@@ -108,7 +108,7 @@ namespace
 	virtual ~vray_ProcAlembicPrim()
 	{
 	}
-	virtual const char	*getClassName()
+	virtual const char	*className() const
 				    { return "vray_ProcAlembicPrim"; }
 	static bool	isNullPtr(const GU_PrimPacked *p) { return !p; }
 	virtual int	initialize(const UT_BoundingBox *)
@@ -411,7 +411,7 @@ VRAY_ProcAlembic::create(const char *)
 }
 
 const char *
-VRAY_ProcAlembic::getClassName()
+VRAY_ProcAlembic::className() const
 {
     return "VRAY_ProcAlembic";
 }

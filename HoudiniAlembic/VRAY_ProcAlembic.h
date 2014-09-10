@@ -87,7 +87,7 @@ public:
     static VRAY_Procedural	*create(const char *);
     static VRAY_ProceduralArg	 theArgs[];
 
-    virtual const char	*getClassName();
+    virtual const char	*className() const;
 
     virtual int		initialize(const UT_BoundingBox *box);
     virtual void	getBoundingBox(UT_BoundingBox &box);
