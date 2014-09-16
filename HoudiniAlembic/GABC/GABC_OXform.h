@@ -25,59 +25,86 @@
  *----------------------------------------------------------------------------
  */
 
-#ifndef __ROP_AbcXform__
-#define __ROP_AbcXform__
+#ifndef __GABC_OXform__
+#define __GABC_OXform__
 
+#include "GABC_Util.h"
 #include <Alembic/Abc/Foundation.h>
 #include <Alembic/AbcGeom/OXform.h>
 #include <Alembic/AbcGeom/XformSample.h>
+#include <UT/UT_Matrix4.h>
 
-// Extension of standard Alembic OXformSchema. Stores matrix
-// from most recent XformSample. This is used to calculate child bounds.
-class ROP_AbcXformSchema : public Alembic::AbcGeom::OXformSchema
+namespace GABC_NAMESPACE
 {
-    typedef Alembic::Abc::M44d              M44d;
 
+// Extension of the base OXformSchema. Needed to be able to set the matrix
+// of a XformSample for a frame without writing the data (can't call
+// setMatrix() multiple times for an XformSample).
+class GABC_OXformSchema : public Alembic::AbcGeom::OXformSchema
+{
     typedef Alembic::Abc::Argument          Argument;
+
+    typedef Alembic::Abc::M44d              M44d;
 
     typedef Alembic::AbcGeom::OXformSchema  OXformSchema;
     typedef Alembic::AbcGeom::XformSample   XformSample;
 
 public:
-    ROP_AbcXformSchema() {}
+    GABC_OXformSchema() {}
 
     template <class CPROP_PTR>
-    ROP_AbcXformSchema( CPROP_PTR iParent,
+    GABC_OXformSchema( CPROP_PTR iParent,
             const std::string &iName,
             const Argument &iArg0 = Argument(),
             const Argument &iArg1 = Argument(),
             const Argument &iArg2 = Argument() )
         : OXformSchema(iParent, iName, iArg0, iArg1, iArg2)
-    {}
+    {
+        myNextXform.identity();
+    }
 
     template <class CPROP_PTR>
-    explicit ROP_AbcXformSchema( CPROP_PTR iParent,
+    explicit GABC_OXformSchema( CPROP_PTR iParent,
             const Argument &iArg0 = Argument(),
             const Argument &iArg1 = Argument(),
             const Argument &iArg2 = Argument() )
         : OXformSchema(iParent, iArg0, iArg1, iArg2)
-    {}
+    {
+        myNextXform.identity();
+    }
 
-    M44d &  getRecentXform()
-            {
-                return myRecentXform;
-            }
-    void    set(XformSample &ioSamp)
-            {
-                myRecentXform = ioSamp.getMatrix();
-                OXformSchema::set(ioSamp);
-            }
+    // Set() now records the XformSample that should be used for the next frame
+    // sample. SetMatrix() records the transformation matrix that the sample
+    // should use. Call finalize() to write out the recorded sample and matrix.
+    const UT_Matrix4D  &getNextXform()
+                        {
+                            return myNextXform;
+                        }
+    void                set(XformSample &ioSamp)
+                        {
+                            myNextSample = ioSamp;
+                        }
+    void                setMatrix(UT_Matrix4D &mat)
+                        {
+                            myNextXform = mat;
+                        }
+    void                finalize()
+                        {
+                            myNextSample.setMatrix(GABC_Util::getM(myNextXform));
+                            OXformSchema::set(myNextSample);
+
+                            myNextSample.reset();
+                            myNextXform.identity();
+                        }
 
 private:
-    M44d    myRecentXform;
+    UT_Matrix4D myNextXform;
+    XformSample myNextSample;
 };
 
-typedef Alembic::Abc::OSchemaObject<ROP_AbcXformSchema> ROP_AbcXform;
-typedef Alembic::Util::shared_ptr< ROP_AbcXform > ROP_AbcXformPtr;
+typedef Alembic::Abc::OSchemaObject<GABC_OXformSchema> GABC_OXform;
+typedef Alembic::Util::shared_ptr< GABC_OXform > GABC_OXformPtr;
+
+}
 
 #endif

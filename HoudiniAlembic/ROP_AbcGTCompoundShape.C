@@ -28,9 +28,9 @@
 #include "ROP_AbcGTCompoundShape.h"
 #include "ROP_AbcPackedShape.h"
 #include "ROP_AbcPackedXform.h"
-#include "ROP_AbcXform.h"
 #include <GABC/GABC_OError.h>
 #include <GABC/GABC_OGTGeometry.h>
+#include <GABC/GABC_OXform.h>
 #include <GABC/GABC_PackedImpl.h>
 #include <GT/GT_Refine.h>
 #include <GT/GT_RefineParms.h>
@@ -63,6 +63,16 @@ namespace
         }
 
         return current;
+    }
+
+    static const GABC_PackedImpl *
+    getGABCImpl(const GT_PrimitiveHandle &prim)
+    {
+        const GT_GEOPrimPacked *gt = UTverify_cast<const GT_GEOPrimPacked *>(
+                                        prim.get());
+        const GU_PrimPacked    *gu = gt->getPrim();
+
+        return UTverify_cast<const GABC_PackedImpl *>(gu->implementation());
     }
 
     static void
@@ -145,11 +155,11 @@ namespace
 	    if (!prim)
 		return;
 
-//            if (isPackedAlembic(prim))
-//            {
-//                myPacked.append(prim);
-//                return;
-//            }
+            if (isPackedAlembic(prim))
+            {
+                myPacked.append(prim);
+                return;
+            }
 
             if ((myUseInstancing && isPacked(prim))
                     || ROP_AbcGTShape::isPrimitiveSupported(prim))
@@ -172,20 +182,24 @@ namespace
 }
 
 ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &name,
-                ShapeSet * const shape_set,
+                InverseMap * const inv_map,
+                GeoSet * const shape_set,
                 XformMap * const xform_map,
 		bool has_path,
 		bool polys_as_subd,
 		bool show_unused_pts)
-    : myShapeParent(NULL)
+    : myInverseMap(inv_map)
+    , myGeoSet(shape_set)
+    , myShapeParent(NULL)
     , myContainer(NULL)
-    , myShapeSet(shape_set)
-    , myShapes()
+    , myPath(has_path ? UT_String(name) : UT_String())
     , myXformMap(xform_map)
     , myElapsedFrames(0)
+    , myNumShapes(0)
     , myPolysAsSubd(polys_as_subd)
     , myShowUnusedPoints(show_unused_pts)
 {
+    // If the shape has a path, extract the name
     if (has_path)
     {
         int pos = name.find_last_of('/');
@@ -198,8 +212,6 @@ ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &name,
         {
             myName = name;
         }
-
-        myPath = name;
     }
     else
     {
@@ -215,19 +227,17 @@ ROP_AbcGTCompoundShape::~ROP_AbcGTCompoundShape()
 void
 ROP_AbcGTCompoundShape::clear()
 {
-    for (int i = 0; i < myShapes.entries(); ++i)
-    {
-	delete myShapes(i);
-    }
-
     if (myContainer)
         delete myContainer;
 
     myShapeParent = NULL;
     myContainer = NULL;
-    myShapes.setCapacity(0);
+
+    myDeforming.clear();
+    myPacked.clear();
 
     myElapsedFrames = 0;
+    myNumShapes = 0;
 }
 
 bool
@@ -246,6 +256,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     GT_RefineParms	rparms;
     PrimitiveList	deforming;
     PrimitiveList       packed;
+    ROP_AbcGTShape     *shape;
     UT_WorkBuffer       shape_namebuf;
     std::string         shape_name;
     exint               num_dfrm;
@@ -271,12 +282,15 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
 
     num_dfrm = deforming.entries();
     num_pckd = packed.entries();
+    // Move on if there's no shapes this frame.
     if (!num_dfrm && !num_pckd)
     {
         ++myElapsedFrames;
 	return true;
     }
 
+    // If we're using a path, the parent for the OObjects should be
+    // the root node.
     if (myPath)
     {
         myRoot = findRoot(myShapeParent);
@@ -292,36 +306,121 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     }
 
     //
+    //  START PACKED
+    //
+
+    if (num_pckd)
+    {
+        bool    calc_inverse = (ctx.packedAlembicPriority()
+                        == ROP_AbcContext::PRIORITY_TRANSFORM);
+
+        shape = new ROP_AbcGTShape(myName,
+                myPath,
+                myInverseMap,
+                myGeoSet,
+                myXformMap,
+                ROP_AbcGTShape::ALEMBIC);
+        if (!shape->firstFrame(packed(0),
+                *myShapeParent,
+                vis,
+                ctx,
+                err,
+                true,
+                myPolysAsSubd,
+                myShowUnusedPoints))
+        {
+            clear();
+            return false;
+        }
+
+        myPacked.insert(getGABCImpl(packed(0))->objectPath(), shape);
+        ++myNumShapes;
+
+        for (exint i = 1; i < num_pckd; ++i)
+        {
+            shape_namebuf.sprintf("%s_%d", myName.c_str(), (int)myNumShapes);
+            shape_name = shape_namebuf.buffer();
+
+            shape = new ROP_AbcGTShape(shape_name,
+                    myPath,
+                    myInverseMap,
+                    myGeoSet,
+                    myXformMap,
+                    ROP_AbcGTShape::ALEMBIC);
+            if (!shape->firstFrame(packed(i),
+                    *myShapeParent,
+                    vis,
+                    ctx,
+                    err,
+                    calc_inverse,
+                    myPolysAsSubd,
+                    myShowUnusedPoints))
+            {
+                clear();
+                return false;
+            }
+
+            myPacked.insert(getGABCImpl(packed(i))->objectPath(), shape);
+            ++myNumShapes;
+        }
+    }
+
+    //
     //  START DEFORMING
     //
 
-    shape_name = myName;
-    for (exint i = 0; i < num_dfrm; ++i)
+    if (num_dfrm && !myNumShapes)
     {
-	if (i > 0)
-	{
-	    shape_namebuf.sprintf("%s_%d", myName.c_str(), (int)i);
-	    shape_name = shape_namebuf.buffer();
-	}
-	myShapes.append(new ROP_AbcGTShape(shape_name, myPath));
-    }
-
-    for (exint i = 0; i < num_dfrm; ++i)
-    {
-	if (!myShapes(i)->firstFrame(deforming(i),
-                *myShapeParent,
-                myShapeSet,
+        shape = new ROP_AbcGTShape(myName,
+                myPath,
+                myInverseMap,
+                myGeoSet,
                 myXformMap,
-                err,
-                ctx,
+                isPacked(deforming(0)) ? ROP_AbcGTShape::INSTANCE
+                        : ROP_AbcGTShape::GEOMETRY);
+        if (!shape->firstFrame(deforming(0),
+                *myShapeParent,
                 vis,
-                isPacked(deforming(i)),
+                ctx,
+                err,
+                false,
                 myPolysAsSubd,
                 myShowUnusedPoints))
-	{
-	    clear();
-	    return false;
-	}
+        {
+            clear();
+            return false;
+        }
+
+        myDeforming.insert(deforming(0)->getPrimitiveType(), shape);
+        ++myNumShapes;
+    }
+    for (exint i = (myNumShapes == 1) ? 1 : 0; i < num_dfrm; ++i)
+    {
+        shape_namebuf.sprintf("%s_%d", myName.c_str(), (int)myNumShapes);
+        shape_name = shape_namebuf.buffer();
+
+        shape = new ROP_AbcGTShape(shape_name,
+                myPath,
+                myInverseMap,
+                myGeoSet,
+                myXformMap,
+                isPacked(deforming(i)) ? ROP_AbcGTShape::INSTANCE
+                        : ROP_AbcGTShape::GEOMETRY);
+        if (!shape->firstFrame(deforming(i),
+                *myShapeParent,
+                vis,
+                ctx,
+                err,
+                false,
+                myPolysAsSubd,
+                myShowUnusedPoints))
+        {
+            clear();
+            return false;
+        }
+
+        myDeforming.insert(deforming(i)->getPrimitiveType(), shape);
+        ++myNumShapes;
     }
 
     //
@@ -341,12 +440,12 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
     GT_RefineParms	rparms;
     PrimitiveList	deforming;
     PrimitiveList       packed;
+    ROP_AbcGTShape     *shape;
     UT_WorkBuffer       shape_namebuf;
     std::string         shape_name;
     exint               num_dfrm;
-    exint               num_shapes;
-    exint               p_pos;
-    exint               s_pos;
+    exint               num_pckd;
+    bool                calc_inverse;
 
     initializeRefineParms(rparms, ctx, myPolysAsSubd, myShowUnusedPoints);
 
@@ -365,93 +464,137 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
     }
 
     num_dfrm = deforming.entries();
-    num_shapes = myShapes.entries();
+    num_pckd = packed.entries();
+
+    // Packed Alembics and deforming geometry are updated in the same way.
+    // Try to read the next shape in the GTShape list for their object
+    // path/primitive type. If one exists, update it for the current frame.
+    //
+    // If not, create a new GTShape. Write the current info out for the
+    // first frame and mark it as hidden. Copy the data as hidden up to the
+    // current frame, then copy it again for the current frame but mark it
+    // as visible.
+    //
+    // Lastly, go through and update any shapes we did not encounter this
+    // frame as hidden.
+    //
+    // Because there is no unique info to differentiate between packed Alembic
+    // copies, or between different deforming geometry of the same
+    // primitive type, if their visibility values are animated, then data
+    // for later primitives may fall through to earlier ones. As of now, there
+    // is no way to deal with this. Luckily, this edge case shouldn't
+    // happen often.
 
     //
-    // UPDATE DEFORMING
+    //  UPDATE PACKED
     //
 
-    p_pos = 0;
-    s_pos = 0;
-    // Go through the list of existing shapes looking for one with
-    // a primitive type matching the one of the current primitive.
-    // When one is found, update the sample of the shape using the
-    // current primitive then move on to the next one.
-    //
-    // There may be primitives further along in the list that match
-    // the type of the shapes we skip over, but there is no elegant
-    // way that I can currently think of to address this.
-    while (p_pos < num_dfrm && s_pos < num_shapes)
+    myPacked.reset();
+    for (exint i = 0; i < num_pckd; ++i)
     {
-        int     prim_type = deforming(p_pos)->getPrimitiveType();
-        int     shape_type = myShapes(s_pos)->getPrimitiveType();
+        calc_inverse = ((i == 0)
+                || (ctx.packedAlembicPriority()
+                        == ROP_AbcContext::PRIORITY_TRANSFORM));
+        shape = myPacked.getNext(getGABCImpl(packed(i))->objectPath());
 
-        if (prim_type == shape_type)
+        if (shape)
         {
-            // Redundant safety check?
-            if (!myShapes(s_pos)->nextFrame(deforming(p_pos), err, ctx))
+            if (!shape->nextFrame(packed(i), ctx, err, calc_inverse))
             {
                 clear();
                 return false;
             }
-
-            ++s_pos;
-            ++p_pos;
         }
         else
         {
-            myShapes(s_pos)->nextFrameFromPrevious(err);
-            ++s_pos;
-        }
-    }
+            shape_namebuf.sprintf("%s_%d", myName.c_str(), (int)myNumShapes);
+            shape_name = shape_namebuf.buffer();
+            ++myNumShapes;
 
-    // The lists of current primitives and existing shapes might not
-    // match up nicely. If we've updated using all of the primitives,
-    // mark the remaining shapes as hidden.
-    //
-    // If we checked all of the existing shapes and still have
-    // primitives remaining, create new shapes to house them.
-    //
-    // At most only one of the two blocks below should be called.
-    while (s_pos < num_shapes)
-    {
-        myShapes(s_pos)->nextFrameFromPrevious(err);
-        ++s_pos;
-    }
-    if (p_pos < num_dfrm)
-    {
-        shape_name = myName;
-        for (exint i = p_pos; i < num_dfrm; ++i)
-        {
-            if (s_pos > 0)
-            {
-                shape_namebuf.sprintf("%s_%d", myName.c_str(), (int)s_pos);
-                shape_name = shape_namebuf.buffer();
-            }
-            myShapes.append(new ROP_AbcGTShape(shape_name, myPath));
-
-            if (!myShapes(s_pos)->firstFrame(deforming(i),
-                    *myShapeParent,
-                    myShapeSet,
+            shape = new ROP_AbcGTShape(shape_name,
+                    myPath,
+                    myInverseMap,
+                    myGeoSet,
                     myXformMap,
-                    err,
-                    ctx,
+                    ROP_AbcGTShape::ALEMBIC);
+
+            if (!shape->firstFrame(packed(i),
+                    *myShapeParent,
                     Alembic::AbcGeom::kVisibilityHidden,
-                    isPacked(deforming(i)),
+                    ctx,
+                    err,
+                    calc_inverse,
                     myPolysAsSubd,
                     myShowUnusedPoints))
             {
                 clear();
                 return false;
             }
-
-            myShapes(s_pos)->nextFrameFromPrevious(err, myElapsedFrames - 1);
-            myShapes(s_pos)->nextFrameFromPrevious(err, 1,
+            shape->nextFrameFromPrevious(err,
+                    Alembic::AbcGeom::kVisibilityHidden,
+                    myElapsedFrames - 1);
+            shape->nextFrameFromPrevious(err,
                     Alembic::AbcGeom::kVisibilityDeferred);
 
-            ++s_pos;
+            myPacked.insert(getGABCImpl(packed(i))->objectPath(), shape);
         }
     }
+    myPacked.updateHidden(err);
+
+    //
+    //  UPDATE DEFORMING
+    //
+
+    calc_inverse = false;
+    myDeforming.reset();
+    for (exint i = 0; i < num_dfrm; ++i)
+    {
+        shape = myDeforming.getNext(deforming(i)->getPrimitiveType());
+
+        if (shape)
+        {
+            if (!shape->nextFrame(deforming(i), ctx, err, calc_inverse))
+            {
+                clear();
+                return false;
+            }
+        }
+        else
+        {
+            shape_namebuf.sprintf("%s_%d", myName.c_str(), (int)myNumShapes);
+            shape_name = shape_namebuf.buffer();
+            ++myNumShapes;
+
+            shape = new ROP_AbcGTShape(shape_name,
+                    myPath,
+                    myInverseMap,
+                    myGeoSet,
+                    myXformMap,
+                    isPacked(deforming(i)) ? ROP_AbcGTShape::INSTANCE
+                            : ROP_AbcGTShape::GEOMETRY);
+
+            if (!shape->firstFrame(deforming(i),
+                    *myShapeParent,
+                    Alembic::AbcGeom::kVisibilityHidden,
+                    ctx,
+                    err,
+                    calc_inverse,
+                    myPolysAsSubd,
+                    myShowUnusedPoints))
+            {
+                clear();
+                return false;
+            }
+            shape->nextFrameFromPrevious(err,
+                    Alembic::AbcGeom::kVisibilityHidden,
+                    myElapsedFrames - 1);
+            shape->nextFrameFromPrevious(err,
+                    Alembic::AbcGeom::kVisibilityDeferred);
+
+            myDeforming.insert(deforming(i)->getPrimitiveType(), shape);
+        }
+    }
+    myDeforming.updateHidden(err);
 
     //
     //  END
@@ -463,32 +606,32 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
 
 bool
 ROP_AbcGTCompoundShape::updateFromPrevious(GABC_OError &err,
-        exint frames,
-        ObjectVisibility vis)
+        ObjectVisibility vis,
+        exint frames)
 {
     if (frames < 0)
     {
-        err.error("Attempted to update less than 0 frames.");
+        UT_ASSERT(0 && "Attempted to update less than 0 frames.");
         return false;
     }
 
-    for (int i = 0; i < myShapes.entries(); ++i)
-    {
-        if (!myShapes(i)->nextFrameFromPrevious(err, frames, vis))
-        {
-            return false;
-        }
-    }
+    myPacked.reset();
+    myPacked.updateFromPrevious(err, vis, frames);
+    myDeforming.reset();
+    myDeforming.updateFromPrevious(err, vis, frames);
 
     myElapsedFrames += frames;
     return true;
 }
 
 Alembic::Abc::OObject
-ROP_AbcGTCompoundShape::getShape() const
+ROP_AbcGTCompoundShape::getShape()
 {
     if (myContainer)
+    {
 	return *myContainer;
-    UT_ASSERT(myShapes.entries() == 1);
-    return myShapes(0)->getOObject();
+    }
+
+    UT_ASSERT(myNumShapes == 1);
+    return myDeforming.getFirst()->getOObject();
 }

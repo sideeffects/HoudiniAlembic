@@ -1408,8 +1408,8 @@ GABC_OGTGeometry::isPrimitiveSupported(const GT_PrimitiveHandle &prim)
 bool
 GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 	const OObject &parent,
-	GABC_OError &err,
 	const GABC_OOptions &ctx,
+	GABC_OError &err,
 	ObjectVisibility vis)
 {
     UT_ASSERT(src);
@@ -1457,13 +1457,13 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
     }
 
     makeProperties(prim, ctx);
-    return update(prim, err, ctx, vis);
+    return update(prim, ctx, err, vis);
 }
 
 bool
 GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
-	GABC_OError &err,
 	const GABC_OOptions &ctx,
+	GABC_OError &err,
 	ObjectVisibility vis)
 {
     UT_ASSERT(src);
@@ -1489,7 +1489,7 @@ GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
 	    fillFaceSets(myFaceSetNames,
 			myShape.myPolyMesh->getSchema(),
 			((GT_PrimPolygonMesh *)(prim.get()))->faceSetMap());
-	    return true;
+	    break;
 
 	case GT_PRIM_SUBDIVISION_MESH:
 	    fillSubD(*this, *myShape.mySubD,
@@ -1499,38 +1499,35 @@ GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
 	    fillFaceSets(myFaceSetNames,
 			myShape.mySubD->getSchema(),
 			((GT_PrimSubdivisionMesh *)(prim.get()))->faceSetMap());
-	    return true;
+	    break;
 
 	case GT_PRIM_POINT_MESH:
 	    fillPoints(*myShape.myPoints,
 			*(GT_PrimPointMesh *)(prim.get()),
 			myCache, ctx);
 	    writeProperties(prim, ctx);
-	    return true;
+	    break;
 
 	case GT_PRIM_CURVE_MESH:
 	    fillCurves(*myShape.myCurves,
 			*(GT_PrimCurveMesh *)(prim.get()),
 			myCache, ctx);
 	    writeProperties(prim, ctx);
-	    return true;
+	    break;
 
 	case GT_PRIM_NUPATCH:
 	    fillNuPatch(*this, *myShape.myNuPatch,
 			*(GT_PrimNuPatch *)(prim.get()),
 			myCache, ctx);
 	    writeProperties(prim, ctx);
-	    return true;
+	    break;
 
 	default:
-	    UT_ASSERT(0);
-	    break;
+	    UT_ASSERT(0 && "Unhandled primitive");
+	    return false;
     }
 
-    err.error("Invalid primitive type (%s): %d",
-            prim->className(),
-            prim->getPrimitiveType());
-    return false;
+    return true;
 }
 
 bool
@@ -1544,6 +1541,12 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
 	return false;
     }
 
+    if (frames < 0)
+    {
+        UT_ASSERT(0 && "Attempted to update less than 0 frames.");
+        return false;
+    }
+
     switch (myType)
     {
 	case GT_PRIM_POLYGON_MESH:
@@ -1554,7 +1557,7 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
                 fillFaceSetsFromPrevious(myFaceSetNames,
                         myShape.myPolyMesh->getSchema());
             }
-	    return true;
+	    break;
 
 	case GT_PRIM_SUBDIVISION_MESH:
 	    for (exint i = 0; i < frames; ++i) {
@@ -1564,7 +1567,7 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
                 fillFaceSetsFromPrevious(myFaceSetNames,
                         myShape.mySubD->getSchema());
             }
-	    return true;
+	    break;
 
 	case GT_PRIM_POINT_MESH:
 	    for (exint i = 0; i < frames; ++i) {
@@ -1572,7 +1575,7 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
 	        myShape.myPoints->getSchema().setFromPrevious();
                 writePropertiesFromPrevious();
             }
-	    return true;
+	    break;
 
 	case GT_PRIM_CURVE_MESH:
 	    for (exint i = 0; i < frames; ++i) {
@@ -1580,7 +1583,7 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
 	        myShape.myCurves->getSchema().setFromPrevious();
                 writePropertiesFromPrevious();
             }
-	    return true;
+	    break;
 
 	case GT_PRIM_NUPATCH:
 	    for (exint i = 0; i < frames; ++i) {
@@ -1588,15 +1591,14 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
 	        myShape.myNuPatch->getSchema().setFromPrevious();
                 writePropertiesFromPrevious();
             }
-	    return true;
+	    break;
 
 	default:
-	    UT_ASSERT(0);
-	    break;
+	    UT_ASSERT(0 && "Unhandled primitive");
+	    return false;
     }
 
-    err.error("Invalid primitive type: %d", myType);
-    return false;
+    return true;
 }
 
 Alembic::Abc::OObject
