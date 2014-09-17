@@ -28,14 +28,12 @@
 #include "ROP_AbcSOP.h"
 #include "ROP_AbcGTCompoundShape.h"
 #include "ROP_AbcGTShape.h"
-#include <GABC/GABC_OError.h>
-#include <GABC/GABC_OXform.h>
-#include <GABC/GABC_PackedImpl.h>
+#include <SOP/SOP_Node.h>
 #include <GT/GT_Refine.h>
 #include <GT/GT_GEODetail.h>
 #include <GT/GT_Primitive.h>
 #include <GT/GT_RefineParms.h>
-#include <SOP/SOP_Node.h>
+#include <GABC/GABC_OError.h>
 
 using namespace GABC_NAMESPACE;
 
@@ -44,6 +42,8 @@ namespace
     typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
 
     typedef ROP_AbcSOP::abc_PrimContainer       abc_PrimContainer;
+    typedef ROP_AbcSOP::IndexMap                IndexMap;
+    typedef ROP_AbcSOP::IndexMapInsert          IndexMapInsert;
     typedef ROP_AbcSOP::NameList                NameList;
     typedef ROP_AbcSOP::PartitionMap            PartitionMap;
     typedef ROP_AbcSOP::PartitionMapInsert      PartitionMapInsert;
@@ -53,9 +53,6 @@ namespace
     buildGeometry(PrimitiveList &primitives,
 	    const GU_Detail &gdp,
 	    const GA_Range &range,
-            const std::string &identifier,
-            bool has_partition,
-            bool check_alembic,
 	    bool force_subd_mode,
 	    bool show_pts)
     {
@@ -66,28 +63,7 @@ namespace
 	GT_PrimitiveHandle	detail = GT_GEODetail::makeDetail(&gdp, &range);
 	if (detail)
 	{
-            bool    has_alembic = false;
-
-	    if (check_alembic)
-	    {
-                // Check the range for packed Alembic primitives.
-                // This is used for sorting primitives; partitions with
-                // packed Alembics must come first.
-                for (GA_Iterator it(range); !it.atEnd(); ++it)
-                {
-                    if (gdp.getPrimitive(*it)->getTypeId()
-                            == GABC_PackedImpl::typeId())
-                    {
-                        has_alembic = true;
-                        break;
-                    }
-                }
-            }
-
 	    primitives.append(abc_PrimContainer(detail,
-	            &identifier,
-	            has_alembic,
-	            has_partition,
 	            force_subd_mode,
 	            show_pts));
 	}
@@ -177,61 +153,6 @@ namespace
         return storage.buffer();
     }
 
-    // Sort primitives using strcmp semantics.
-    //
-    // When placing a packed Alembic directly using a path, the first packed
-    // Alembic has its transform matrix merged with its parents' transform
-    // matrix. This is because in most cases, we only have one shape underneath
-    // a transform. By merging the matrices, we improve the speed and
-    // archive file size.
-    //
-    // However, there may be multiple shapes under a single transform. In
-    // addition, these shapes may be a mix of packed Alembics and deforming
-    // geometry. In this case, we need to apply an inverse transform to the
-    // deforming geometry and the parent transforms of additional packed
-    // Alembics.
-    //
-    // Thus, partitions with shorter paths must be processed first so that
-    // the parent transform matrices are available to their children for
-    // computing the inverse. In addition, partitions with packed Alembics
-    // must come before partitions without any, so that the inverse of the
-    // first packed Alembics transform is available when we write deforming
-    // geometry.
-    static int
-    comparePrims(const abc_PrimContainer *a, const abc_PrimContainer *b)
-    {
-        // Partitions with the shorter path come first.
-        UT_String       str_a(*(a->myIdentifier));
-        UT_String       str_b(*(b->myIdentifier));
-        UT_WorkArgs     tokens_a, tokens_b;
-
-        str_a.tokenize(tokens_a, '/');
-        str_b.tokenize(tokens_b, '/');
-
-        if (tokens_a.entries() < tokens_b.entries())
-        {
-            return -1;
-        }
-        else if (tokens_a.entries() > tokens_b.entries())
-        {
-            return 1;
-        }
-
-        // If same partitions have same path length, then partitions with
-        // packed Alembics come first
-        if (a->myHasAlembic && !b->myHasAlembic)
-        {
-            return -1;
-        }
-        else if (!a->myHasAlembic && b->myHasAlembic)
-        {
-            return 1;
-        }
-
-        // Same path length, both/neither have Alembics, order doesn't matter
-        return 0;
-    }
-
     SOP_Node *
     getSop(int id)
     {
@@ -256,9 +177,7 @@ void
 ROP_AbcSOP::clear()
 {
     for (int i = 0; i < myShapes.entries(); ++i)
-    {
 	delete myShapes(i);
-    }
     myShapes.setCapacity(0);
 
     for (auto it = myXformMap.begin(); it != myXformMap.end(); ++it)
@@ -267,12 +186,12 @@ ROP_AbcSOP::clear()
     }
     myXformMap.clear();
 
-    myInverseMap.clear();
-    myGeoSet.clear();
-    myNameMap.clear();
-    myPartitionIndices.clear();
-    myPartitionMap.clear();
+    myIndexMap.clear();
     myPartitionNames.clear();
+    myNameMap.clear();
+    myPartitionMap.clear();
+    myShapeSet.clear();
+    myPartitionIndices.clear();
 
     GABC_OGTGeometry::clearIgnoreList();
 }
@@ -283,6 +202,7 @@ ROP_AbcSOP::start(const OObject &parent,
 {
     const GU_Detail	           *gdp;
     GU_DetailHandle	            gdh;
+    NameList		            names;
     PrimitiveList	            prims;
     ROP_AbcGTCompoundShape	   *shape;
     SOP_Node                       *sop = getSop(mySopId);
@@ -322,61 +242,64 @@ ROP_AbcSOP::start(const OObject &parent,
     myPartitionIndices.append(GA_OffsetList());
     myPartitionNames.push_back(name);
     partitionGeometry(prims,
+            names,
             sop,
             *gdp,
             ctx,
             err);
-    if (ctx.buildFromPath())
+    if (names.size())
     {
-        prims.sort(comparePrims);
+        bool    pathless;
+
+        UT_ASSERT(names.size() == prims.entries());
+
+	for (int i = 0; i < prims.entries(); ++i)
+	{
+	    pathless = (i == 0) && !(names[i].compare(name));
+	    shape = new ROP_AbcGTCompoundShape(names[i],
+	                                &myShapeSet,
+	                                &myXformMap,
+	                                !pathless,
+					prims(i).mySubdMode,
+					prims(i).myShowPts);
+	    myShapes.append(shape);
+	    myNameMap.insert(NameMapInsert(names[i], (myShapes.entries() - 1)));
+	}
+    }
+    else
+    {
+	UT_WorkBuffer   name_buffer;
+
+	for (int i = 0; i < prims.entries(); ++i)
+	{
+	    if (i > 0)
+	    {
+		name_buffer.sprintf("%s_%d", name.c_str(), i);
+	        name = name_buffer.buffer();
+            }
+
+	    shape = new ROP_AbcGTCompoundShape(name,
+	                                NULL,
+	                                NULL,
+	                                false,
+					prims(i).mySubdMode,
+					prims(i).myShowPts);
+	    myShapes.append(shape);
+	}
     }
 
     for (int i = 0; i < prims.entries(); ++i)
     {
-        // Create new compound shapes
-        shape = new ROP_AbcGTCompoundShape(*(prims(i).myIdentifier),
-                &myInverseMap,
-                &myGeoSet,
-                &myXformMap,
-                prims(i).myHasPartition,
-                prims(i).mySubdMode,
-                prims(i).myShowPts);
-
-        if (!shape->first(prims(i).myPrim, myParent, err, ctx, false))
-        {
-            clear();
-            UT_WorkBuffer   path;
-            sop->getFullPath(path);
-            return err.error("Error saving first frame: %s", path.buffer());
-        }
-
-        myShapes.append(shape);
-
-        // Map partition names to specific compound shapes
-        if (ctx.buildFromPath())
-        {
-            myNameMap.insert(NameMapInsert(*(prims(i).myIdentifier), i));
-        }
+	if (!myShapes(i)->first(prims(i).myPrim, myParent, err, ctx, false))
+	{
+	    clear();
+	    UT_WorkBuffer	path;
+	    sop->getFullPath(path);
+	    return err.error("Error saving first frame: %s", path.buffer());
+	}
     }
 
     ++myElapsedFrames;
-
-    // Update any OXform objects that were created and set for this
-    // frame but not written out.
-    if (ctx.buildFromPath())
-    {
-        for (auto it = myXformMap.begin(); it != myXformMap.end(); ++it)
-        {
-            GABC_OXformSchema  &schema = it->second->getSchema();
-
-            if (schema.getNumSamples() < myElapsedFrames)
-            {
-                schema.finalize();
-            }
-        }
-        myInverseMap.clear();
-    }
-
     return true;
 }
 
@@ -386,6 +309,7 @@ ROP_AbcSOP::update(GABC_OError &err,
 {
     const GU_Detail	           *gdp;
     GU_DetailHandle	            gdh;
+    NameList		            names;
     NameMap::iterator               it;
     PrimitiveList	            prims;
     ROP_AbcGTCompoundShape	   *shape;
@@ -418,35 +342,31 @@ ROP_AbcSOP::update(GABC_OError &err,
     }
 
     partitionGeometry(prims,
+            names,
             sop,
             *gdp,
             ctx,
             err);
-    if (ctx.buildFromPath())
+    if (names.size())
     {
-        prims.sort(comparePrims);
-    }
+        bool    pathless;
 
-    for (int i = 0; i < prims.entries(); ++i)
-    {
-        // Use myNameMap if we're partitioning the data.
-        if (!myNameMap.empty())
+        UT_ASSERT(names.size() == prims.entries());
+
+        for (int i = 0; i < prims.entries(); ++i)
         {
-            it = myNameMap.find(*(prims(i).myIdentifier));
+            it = myNameMap.find(names[i]);
 
-            // Create a new compound shape if one does not exist
-            // for the current partition.
             if (it == myNameMap.end())
             {
-                shape = new ROP_AbcGTCompoundShape(*(prims(i).myIdentifier),
-                        &myInverseMap,
-                        &myGeoSet,
+	        pathless = (i < 0) && names[i].compare(name);
+                shape = new ROP_AbcGTCompoundShape(names[i],
+                        &myShapeSet,
                         &myXformMap,
-                        prims(i).myHasPartition,
+                        !pathless,
                         prims(i).mySubdMode,
                         prims(i).myShowPts);
 
-                // Write out the first frame with hidden visibility
                 if (!shape->first(prims(i).myPrim,
                         myParent,
                         err,
@@ -455,83 +375,55 @@ ROP_AbcSOP::update(GABC_OError &err,
                         Alembic::AbcGeom::kVisibilityHidden))
                 {
                     clear();
-                    UT_WorkBuffer   path;
+                    UT_WorkBuffer	path;
                     sop->getFullPath(path);
                     return err.error("Error saving next frame: %s", path.buffer());
                 }
-                // Copy the data up to the current frame, still hidden
-                shape->updateFromPrevious(err,
-                        Alembic::AbcGeom::kVisibilityHidden,
-                        myElapsedFrames - 1);
-                // Copy the data for the current frame, this time visible
+
+                shape->updateFromPrevious(err, (myElapsedFrames - 1));
                 shape->updateFromPrevious(err,
                         Alembic::AbcGeom::kVisibilityDeferred);
 
-                // Add the partition to the list and the map
                 myShapes.append(shape);
-                myNameMap.insert(NameMapInsert(*(prims(i).myIdentifier),
-                        (myShapes.entries() - 1)));
+                myNameMap.insert(NameMapInsert(names[i], (myShapes.entries() - 1)));
             }
-            // Otherwise, just update the existing shape
             else
             {
                 if (!myShapes(it->second)->update(prims(i).myPrim, err, ctx))
                 {
                     clear();
-                    UT_WorkBuffer   path;
+                    UT_WorkBuffer	path;
                     sop->getFullPath(path);
                     return err.error("Error saving next frame: %s", path.buffer());
                 }
             }
         }
-        // If we're not using partitions, just update the existing shapes
-        // in the same order they were written in the first frame.
-        else
-        {
-            // The number of existing shapes should match the number of existing
-            // primitives always
-            UT_ASSERT(myShapes.entries() == prims.entries());
 
-            for (int i = 0; i < prims.entries(); ++i)
+        for (int i = 0; i < myShapes.entries(); ++i)
+        {
+            if (myShapes(i)->getElapsedFrames() == myElapsedFrames)
             {
-                if (!myShapes(i)->update(prims(i).myPrim, err, ctx))
-                {
-                    clear();
-                    UT_WorkBuffer   path;
-                    sop->getFullPath(path);
-                    return err.error("Error saving next frame: %s", path.buffer());
-                }
+                myShapes(i)->updateFromPrevious(err);
             }
         }
     }
-
-    // Update all hidden shapes
-    for (int i = 0; i < myShapes.entries(); ++i)
+    else
     {
-        if (myShapes(i)->getElapsedFrames() == myElapsedFrames)
+        UT_ASSERT(myShapes.entries() == prims.entries());
+
+        for (int i = 0; i < prims.entries(); ++i)
         {
-            myShapes(i)->updateFromPrevious(err);
+            if (!myShapes(i)->update(prims(i).myPrim, err, ctx))
+            {
+                clear();
+                UT_WorkBuffer	path;
+                sop->getFullPath(path);
+                return err.error("Error saving next frame: %s", path.buffer());
+            }
         }
     }
 
     ++myElapsedFrames;
-
-    // Update any OXform objects that were created and set for this
-    // frame but not written out.
-    if (ctx.buildFromPath())
-    {
-        for (auto it = myXformMap.begin(); it != myXformMap.end(); ++it)
-        {
-            GABC_OXformSchema  &schema = it->second->getSchema();
-
-            if (schema.getNumSamples() < myElapsedFrames)
-            {
-                schema.finalize();
-            }
-        }
-        myInverseMap.clear();
-    }
-
     return true;
 }
 
@@ -550,6 +442,7 @@ ROP_AbcSOP::getLastBounds(UT_BoundingBox &box) const
 
 void
 ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
+        NameList &names,
         const GU_Detail &gdp,
         const GA_Range &range,
         const ROP_AbcContext &ctx,
@@ -571,14 +464,7 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
     str = GA_ROHandleS(gdp.findStringTuple(GA_ATTRIB_PRIMITIVE, aname));
     if (!str.isValid() || !str.getAttribute()->getAIFSharedStringTuple())
     {
-        buildGeometry(primitives,
-                gdp,
-                range,
-                getName(),
-                false,
-                false,
-                force_subd_mode,
-                show_pts);
+        buildGeometry(primitives, gdp, range, force_subd_mode, show_pts);
         return;
     }
 
@@ -589,76 +475,71 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
         {
             myPartitionIndices(0).append(*it);
         }
-        // Originally mapped string index to PrimitiveList, but the string
-        // table is not constant. Thus, need to map processed strings to
-        // PrimitiveList.
         else
         {
-            // Read and process the path string.
-            strval = str.get(*it);
-            strval = from_path
-                    ? homogenizePath(strval, namebuf, flag)
-                    : ctx.partitionModeValue(strval, namebuf);
+            IndexMap::iterator  iter = myIndexMap.find(idx);
 
-            // Report warnings if the path string was invalid or odd
-            // (multiple consecutive '/'s)
-            if (*strval == 0)
+            if (iter != myIndexMap.end())
             {
-                err.warning("Invalid %s attribute value for primitive "
-                        "%" SYS_PRId64 " was ignored.",
-                        aname,
-                        ((int64)(*it) - 1));
-
-                myPartitionIndices(0).append(*it);
-                continue;
+                pos = iter->second;
             }
-            else if (from_path && flag)
-            {
-                err.warning("%s attribute value for primitive %" SYS_PRId64
-                        " has odd value. Value interpreted as %s.",
-                        aname,
-                        ((int64)(*it) - 1),
-                        strval);
-            }
-
-            PartitionMap::iterator  iter2 = myPartitionMap.find(strval);
-
-            // If we've seen this string before, fetch the position of the
-            // corresponding list of primitives.
-            if (iter2 != myPartitionMap.end())
-            {
-                pos = iter2->second;
-            }
-            // Otherwise: create a new list of primitives, record its
-            //            index, and store the partition identifier
             else
             {
-                pos = myPartitionIndices.entries();
-                myPartitionIndices.append(GA_OffsetList());
-                myPartitionNames.push_back(strval);
+                strval = str.get(*it);
+                strval = from_path
+                        ? homogenizePath(strval, namebuf, flag)
+                        : ctx.partitionModeValue(strval, namebuf);
 
-                myPartitionMap.insert(PartitionMapInsert(strval, pos));
+                if (*strval == 0)
+                {
+                    err.warning("Invalid %s attribute value for primitive "
+			    "%" SYS_PRId64 " was ignored.",
+                            aname,
+                            ((int64)(*it) - 1));
+
+                    myIndexMap.insert(IndexMapInsert(idx, 0));
+                    myPartitionIndices(0).append(*it);
+                    continue;
+                }
+                else if (from_path && flag)
+                {
+                    err.warning("%s attribute value for primitive %" SYS_PRId64
+			    " has odd value. Value interpreted as %s.",
+                            aname,
+                            ((int64)(*it) - 1),
+                            strval);
+                }
+
+                PartitionMap::iterator  iter2 = myPartitionMap.find(strval);
+
+                if (iter2 != myPartitionMap.end())
+                {
+                    pos = iter2->second;
+                }
+                else
+                {
+                    pos = myPartitionIndices.entries();
+                    myPartitionIndices.append(GA_OffsetList());
+                    myPartitionNames.push_back(strval);
+
+                    myPartitionMap.insert(PartitionMapInsert(strval, pos));
+                }
+
+                myIndexMap.insert(IndexMapInsert(idx, pos));
             }
 
             myPartitionIndices(pos).append(*it);
         }
     }
 
-    // Group the primitives for each partition into a GT_Primitive
     for (exint i = 0; i < myPartitionIndices.entries(); ++i)
     {
         if (myPartitionIndices(i).entries())
         {
             GA_Range    range(gdp.getPrimitiveMap(), myPartitionIndices(i));
 
-            buildGeometry(primitives,
-                    gdp,
-                    range,
-                    myPartitionNames[i],
-                    (i != 0),
-                    from_path,
-                    force_subd_mode,
-                    show_pts);
+            buildGeometry(primitives, gdp, range, force_subd_mode, show_pts);
+            names.push_back(myPartitionNames[i]);
 
             myPartitionIndices(i).clear();
         }
@@ -667,11 +548,13 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
 
 void
 ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
+        NameList &names,
         const SOP_Node *sop,
         const GU_Detail &gdp,
         const ROP_AbcContext &ctx,
         GABC_OError &err)
 {
+    names.clear();
     UT_String	subdgroupname;
 
     if (objectSubd(sop, ctx, subdgroupname))
@@ -686,6 +569,7 @@ ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
             {
                 // Build subdivision groups first
                 partitionGeometryRange(primitives,
+                        names,
                         gdp,
                         GA_Range(*subdgroup),
                         ctx,
@@ -694,6 +578,7 @@ ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
                         false);
                 // Now, build the polygons
                 partitionGeometryRange(primitives,
+                        names,
                         gdp,
                         GA_Range(*subdgroup, true),
                         ctx,
@@ -705,6 +590,7 @@ ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
             {
                 // If there was no group, then there are no subd surfaces
                 partitionGeometryRange(primitives,
+                        names,
                         gdp,
                         gdp.getPrimitiveRange(),
                         ctx,
@@ -717,6 +603,7 @@ ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
         {
             // All polygons should be rendered as subd primitives
             partitionGeometryRange(primitives,
+                    names,
                     gdp,
                     gdp.getPrimitiveRange(),
                     ctx,
@@ -729,6 +616,7 @@ ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
     {
         // No subdivision primitives
         partitionGeometryRange(primitives,
+                names,
                 gdp,
                 gdp.getPrimitiveRange(),
                 ctx,

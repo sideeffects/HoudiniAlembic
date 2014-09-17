@@ -131,8 +131,8 @@ Collapse Objects:
 		NOTE:
 		        Any transformations on these nodes will be lost during the save.
 	
-	Collapse All Objects (Direct Hierarchy Placement):
-		All geometry containers and subnets will not be written to the Alembic file. This option is useful directly placing each primitive into the archive.
+	Collapse All Objects (Packed Alembic Roundtripping):
+		All geometry containers and subnets will not be written to the Alembic file. This option is useful for modifying and roundtripping packed Alembic geometry using SOPs.
 
 		NOTE:
 			Any transformations on these nodes will be lost during the save.
@@ -158,49 +158,21 @@ Save Attributes:
         If this checkbox is turned on, geometry attributes will be saved to the
         Alembic file as arbitrary geometry parameters.
 
-Build Hierarchy From Attribute:
-	Use a primitive string attribute to directly specify the path to of a primitive in the output archive.
+Keep Packed Alembic Hierarchy:
+	If this checkbox is turned on, packed Alembic geometry will be written to the Alembic archive under the same hierarchy as the Alembic file from which it was read. The root of the imported hierarchy will be placed underneath the geometry container of the Alembic import SOP in the exported archive.
 
-Path Attribute:
-	The name of the attribute containing the path.
+Export Transforms Instead of Shapes:
+    The Alembic SOP can import packed Alembic transforms and packed Alembic geometry. If this checkbox is turned on, packed Alembic transforms will be written to the Alembic archive under the original hierarchy (instead of geometry).
 
-Packed Alembic Priority:
-	The tranformation of the first packed Alembic primitive under any transform if merged with that of its parent. Due to this, subsequent packed Alembics need an additional "buffer" transform between them and their parent to make sure their transformation is preserved.
+Keep Children:
+	When exporting packed Alembic transforms, their children/descendants can be exported with them to the new Alembic archive under their original hierarchy.
 
-	Hiearchy:
-		Ignore the transformations of subsequent packed Alembics. Output them at the specified path without a "buffer" transform to preserve the hierarchy as specified by the path attribute.
-
-	Transformation:
-		Create the "buffer" transform between subsequent Alembics and their parent. Modify the hierarchy to preserve their unique transformation.
-
-Partition Mode:
-        When saving a complex piece of geometry, it is possible to partition the
-        geometry into multiple shape nodes by splitting up the primitives based on
-        a string attribute.  There are several different ways to interpret the
-        string values.
-
-	No Geometry Partitioning:
-		The geometry will be output as a single Alembic shape node.
-	Use Attribute Value:
-		The value of the string attribute is used to name the shape
-		node.  This mode is ideal when using the `name` attribute.
-	Use Shape Node Component Of Path Attribute Value:
-		When loading an Alembic file, you can store the Alembic path in
-		a string attribute.  This option will partition the geometry
-		based on the names of the shape nodes stored in the attribute.
-	Use Transform Node Component Of Path Attribute Value:
-		This option will partition the geometry based on the names of
-		the transform nodes stored in the attribute.
-	Use Combination Of Transform/Shape Node:
-		Combines both the transform and shape node names to form the
-		name for the new shape node.
-
-Partition Attribute:
-        Specifies a string attribute which is used to partition a single geometry
-        into multiple Alembic shape nodes. For example, you can use the `name` or
-        the `abcPath` attribute to split a single piece of Houdini geometry into
-        different Alembic shape nodes based on the string value.
-
+	None:
+		Children/descendants will not be exported.
+        Transforms Only:
+                All children/descendants that are transforms will be exported.
+        Shapes and Transforms:
+                All children/descendants will be exported.
 
 Point Attributes:
 	Point attributes whose name matches this pattern will be saved in the Alembic file.
@@ -239,6 +211,34 @@ Subdivision Group:
 	`ri_rendersubd` will cause polygons to be saved as subdivision
 	primitives.  If specified, the `vm_subdgroup` will be used to select
 	which polygons will be rendered as subdivision surfaces.
+
+Partition Mode:
+        When saving a complex piece of geometry, it is possible to partition the
+        geometry into multiple shape nodes by splitting up the primitives based on
+        a string attribute.  There are several different ways to interpret the
+        string values.
+
+	No Geometry Partitioning:
+		The geometry will be output as a single Alembic shape node.
+	Use Attribute Value:
+		The value of the string attribute is used to name the shape
+		node.  This mode is ideal when using the `name` attribute.
+	Use Shape Node Component Of Path Attribute Value:
+		When loading an Alembic file, you can store the Alembic path in
+		a string attribute.  This option will partition the geometry
+		based on the names of the shape nodes stored in the attribute.
+	Use Transform Node Component Of Path Attribute Value:
+		This option will partition the geometry based on the names of
+		the transform nodes stored in the attribute.
+	Use Combination Of Transform/Shape Node:
+		Combines both the transform and shape node names to form the
+		name for the new shape node.
+
+Partition Attribute:
+        Specifies a string attribute which is used to partition a single geometry
+        into multiple Alembic shape nodes. For example, you can use the `name` or
+        the `abcPath` attribute to split a single piece of Houdini geometry into
+        different Alembic shape nodes based on the string value.
 
 Verbosity:
         Add information to the Alembic ROP based on objects written to the archive.

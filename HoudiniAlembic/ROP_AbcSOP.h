@@ -47,43 +47,33 @@ class ROP_AbcSOP : public ROP_AbcObject
 public:
     class abc_PrimContainer;
 
-    typedef Alembic::Abc::OObject                       OObject;
+    typedef Alembic::Abc::OObject                   OObject;
 
-    typedef ROP_AbcGTCompoundShape::InverseMap          InverseMap;
-    typedef ROP_AbcGTCompoundShape::InverseMapInsert    InverseMapInsert;
-    typedef ROP_AbcGTCompoundShape::GeoSet              GeoSet;
-    typedef ROP_AbcGTCompoundShape::XformMap            XformMap;
-    typedef ROP_AbcGTCompoundShape::XformMapInsert      XformMapInsert;
+    typedef ROP_AbcGTCompoundShape::ShapeSet        ShapeSet;
+    typedef ROP_AbcGTCompoundShape::XformMap        XformMap;
+    typedef ROP_AbcGTCompoundShape::XformMapInsert  XformMapInsert;
 
-    typedef std::vector<std::string>                    NameList;
-    typedef UT_Map<std::string, int>                    NameMap;
-    typedef std::pair<std::string, int>                 NameMapInsert;
-    typedef UT_Map<std::string, int>                    PartitionMap;
-    typedef std::pair<std::string, int>                 PartitionMapInsert;
-    typedef UT_Array<abc_PrimContainer>                 PrimitiveList;
+    typedef UT_Map<int, int>                        IndexMap;
+    typedef std::pair<int, int>                     IndexMapInsert;
+    typedef std::vector<std::string>                NameList;
+    typedef UT_Map<std::string, int>                NameMap;
+    typedef std::pair<std::string, int>             NameMapInsert;
+    typedef UT_Map<std::string, int>                PartitionMap;
+    typedef std::pair<std::string, int>             PartitionMapInsert;
+    typedef UT_Array<abc_PrimContainer>             PrimitiveList;
 
-    // Need to store some additional information about the primitives
     class abc_PrimContainer
     {
     public:
 	abc_PrimContainer(const GT_PrimitiveHandle &prim,
-	        const std::string *identifier,
-	        bool has_alembic,
-	        bool has_partition,
-                bool subd_mode,
-                bool show_unused_points)
+			bool subd_mode,
+			bool show_unused_points)
 	    : myPrim(prim)
-	    , myIdentifier(identifier)
-	    , myHasAlembic(has_alembic)
-	    , myHasPartition(has_partition)
 	    , mySubdMode(subd_mode)
 	    , myShowPts(show_unused_points)
 	{}
 
 	GT_PrimitiveHandle	myPrim;
-	const std::string      *myIdentifier;
-	bool                    myHasAlembic;
-	bool                    myHasPartition;
 	bool			mySubdMode;
 	bool			myShowPts;
     };
@@ -108,6 +98,7 @@ public:
 private:
     void		clear();
     void                partitionGeometryRange(PrimitiveList &primitives,
+                                NameList &names,
                                 const GU_Detail &gdp,
                                 const GA_Range &range,
                                 const ROP_AbcContext &ctx,
@@ -115,17 +106,18 @@ private:
                                 bool force_subd_mode,
                                 bool show_pts);
     void                partitionGeometry(PrimitiveList &primitives,
+                                NameList &names,
                                 const SOP_Node *sop,
                                 const GU_Detail &gdp,
                                 const ROP_AbcContext &ctx,
                                 GABC_OError &err);
 
-    InverseMap                          myInverseMap;
-    GeoSet                              myGeoSet;
+    IndexMap                            myIndexMap;
     NameList                            myPartitionNames;
     NameMap                             myNameMap;
     OObject				myParent;
     PartitionMap                        myPartitionMap;
+    ShapeSet                            myShapeSet;
     UT_Array<GA_OffsetList>             myPartitionIndices;
     UT_Array<ROP_AbcGTCompoundShape *>	myShapes;
     UT_BoundingBox			myBox;

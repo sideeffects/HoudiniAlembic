@@ -57,7 +57,6 @@ ROP_AbcGTInstance::Instance::setGeometry(GABC_OError &err,
     ROP_AbcGTCompoundShape	*geo = new ROP_AbcGTCompoundShape(name,
                                             NULL,
                                             NULL,
-                                            NULL,
                                             false,
 					    subd_mode,
 					    add_unused_pts);
@@ -184,9 +183,9 @@ ROP_AbcGTInstance::first(const OObject &parent,
 }
 
 bool
-ROP_AbcGTInstance::update(const GT_PrimitiveHandle &prim,
+ROP_AbcGTInstance::update(GABC_OError &err,
         const ROP_AbcContext &ctx,
-        GABC_OError &err,
+        const GT_PrimitiveHandle &prim,
         ObjectVisibility vis)
 {
     UT_Matrix4D m;

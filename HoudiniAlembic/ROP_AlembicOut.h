@@ -88,10 +88,6 @@ protected:
 		    { return evalInt("full_bounds", 0, time) != 0; }
     bool	BUILD_HIERARCHY_FROM_PATH(fpreal time)
 		    { return evalInt("build_from_path", 0, time) != 0; }
-    void        PATH_ATTRIBUTE(UT_String &sval, fpreal time)
-                    { evalString(sval, "path_attrib", 0, time); }
-    void        PACKED_ABC_PRIORITY(UT_String &sval, fpreal time)
-                    { evalString(sval, "packed_priority", 0, time); }
     void	FACESET_MODE(UT_String &sval, fpreal time)
 		    { evalString(sval, "facesets", 0, time); }
     void	PARTITION_MODE(UT_String &sval, fpreal time)

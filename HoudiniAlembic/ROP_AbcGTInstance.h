@@ -85,9 +85,9 @@ public:
 			bool subd_mode,
 			bool add_unused_pts,
                         ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
-    bool	update(const GT_PrimitiveHandle &prim,
+    bool	update(GABC_OError &err,
 			const ROP_AbcContext &ctx,
-                        GABC_OError &err,
+			const GT_PrimitiveHandle &prim,
                         ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
     bool	updateFromPrevious(GABC_OError &err,
                         int primType,

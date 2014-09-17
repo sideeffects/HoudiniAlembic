@@ -25,88 +25,23 @@
  *----------------------------------------------------------------------------
  */
 
-#include "ROP_AbcContext.h"
 #include "ROP_AbcGTInstance.h"
 #include "ROP_AbcGTShape.h"
-#include <GABC/GABC_OGTAbc.h>
 #include <GABC/GABC_OGTGeometry.h>
-#include <GABC/GABC_OXform.h>
-#include <GABC/GABC_PackedImpl.h>
-#include <GT/GT_GEOPrimPacked.h>
-#include <GU/GU_PrimPacked.h>
 
 using namespace GABC_NAMESPACE;
 
-namespace {
-    typedef GABC_OXform     OXform;
-
-    static UT_Matrix4D
-    getTransform(const GT_PrimitiveHandle &prim)
-    {
-        GT_TransformHandle      transform;
-        UT_Matrix4D             mat;
-
-        transform = UTverify_cast<const GT_GEOPrimPacked *>(prim.get())
-                ->getInstanceTransform();
-
-        if (transform)
-        {
-            transform->getMatrix(mat);
-        }
-        else
-        {
-            mat.identity();
-        }
-
-        return mat;
-    }
-
-    static GABC_NodeType
-    getNodeType(const GT_PrimitiveHandle &prim)
-    {
-        if (prim->getPrimitiveType() == GT_GEO_PACKED)
-        {
-            const GT_GEOPrimPacked *gt = UTverify_cast<const GT_GEOPrimPacked *>(
-                                            prim.get());
-            const GU_PrimPacked    *gu = gt->getPrim();
-            const GABC_PackedImpl  *gabc = UTverify_cast<const GABC_PackedImpl *>(
-                                            gu->implementation());
-
-            return gabc->object().nodeType();
-        }
-
-        return GABC_UNKNOWN;
-    }
-
-    static exint
-    getNumSamples(OXform *xform)
-    {
-        return xform->getSchema().getNumSamples();
-    }
-}
-
-ROP_AbcGTShape::ROP_AbcGTShape(const std::string &name,
-        const char * const path,
-        InverseMap * const inv_map,
-        GeoSet * const shape_set,
-        XformMap * const xform_map,
-        const ShapeType type)
-    : myInverseMap(inv_map)
-    , myGeoSet(shape_set)
-    , myType(type)
-    , myXformMap(xform_map)
+ROP_AbcGTShape::ROP_AbcGTShape(const std::string &name, const char * const path)
+    : myShape(NULL)
+    , myInstance(NULL)
     , myName(name)
-    , myElapsedFrames(0)
     , myPrimType(GT_PRIM_UNDEFINED)
 {
-    // Split the path (if we're using one) into its transform components.
     if (path)
     {
         myPath = UT_String(path);
         myPath.tokenize(myTokens, '/');
     }
-
-    myObj.myVoidPtr = NULL;
 }
 
 ROP_AbcGTShape::~ROP_AbcGTShape()
@@ -117,34 +52,11 @@ ROP_AbcGTShape::~ROP_AbcGTShape()
 void
 ROP_AbcGTShape::clear()
 {
-    switch (myType)
-    {
-        case INSTANCE:
-            if (myObj.myInstance)
-            {
-                delete myObj.myInstance;
-            }
-            break;
+    delete myShape;
+    myShape = NULL;
 
-        case GEOMETRY:
-            if (myObj.myShape)
-            {
-                delete myObj.myShape;
-            }
-            break;
-
-        case ALEMBIC:
-            if (myObj.myAlembic)
-            {
-                delete myObj.myAlembic;
-            }
-            break;
-
-        default:
-            UT_ASSERT(0 && "GTShape declared without type");
-    }
-
-    myObj.myVoidPtr = NULL;
+    delete myInstance;
+    myInstance = NULL;
 }
 
 bool
@@ -155,62 +67,38 @@ ROP_AbcGTShape::isPrimitiveSupported(const GT_PrimitiveHandle &prim)
 
 bool
 ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
-        const OObject &parent,
-        const ObjectVisibility vis,
-        const ROP_AbcContext &ctx,
-        GABC_OError &err,
-        bool calc_inverse,
-        const bool subd_mode,
-        const bool add_unused_pts)
+	const OObject &parent,
+        ShapeSet * const shape_set,
+        XformMap * const xform_map,
+	GABC_OError &err,
+	const ROP_AbcContext &ctx,
+        ObjectVisibility vis,
+        bool is_instance,
+	bool subd_mode,
+	bool add_unused_pts)
 {
-    const OObject          *pobj = &parent;
-    OXform                 *xform = NULL;
-    UT_Matrix4D             inverse_mat(1.0);
-    UT_Matrix4D             packed_mat(1.0);
-    InverseMap::iterator    i_it;
-    XformMap::iterator      x_it;
-    std::string             partial_path = "";
-    fpreal                  time;
-    int                     numt = myTokens.entries();
-    int                     numx = numt - 1;
-    const char             *current_token;
-    bool                    is_xform = (getNodeType(prim) == GABC_XFORM);
+    const OObject      *pobj = &parent;
+    OXform             *xform;
+    XformMap::iterator  it;
+    std::string         partial_path = "";
+    int                 numt = myTokens.entries();
+    const char         *current_token;
 
     clear();
-    ++myElapsedFrames;
 
-    // If we're using a path:
     if (myTokens.entries())
     {
-        // If 'calc_inverse' is true, we compute the inverse of the ancestor
-        // transformations as we go, to find the relative transform of an
-        // object.
-        //
-        // We never do this for deforming geometry. For packed Alembics,
-        // whether we do it or not depends on whether this is the first
-        // packed Alembic we've encountered for this path and whether we
-        // should preserve it's transform. For transforms, we always do it.
-        if (!calc_inverse && is_xform)
-        {
-            calc_inverse = true;
-        }
-
-        // Go through the tokens, building up the path.
-        for (int i = 0; i < numx; ++i)
+        for (int i = 0; i < (numt - 1); ++i)
         {
             current_token = myTokens.getArg(i);
             partial_path.append("/");
             partial_path.append(current_token);
 
-            x_it = myXformMap->find(partial_path);
-            if (x_it == myXformMap->end())
+            it = xform_map->find(partial_path);
+
+            if (it == xform_map->end())
             {
-                // We cannot have a transform have the same name as a
-                // a shape: it would cause problems as we have to make
-                // sure that the transform always comes first, so that
-                // future paths that use it are still valid. Easier to
-                // simply not allow it.
-                if (myGeoSet->count(partial_path))
+                if (shape_set->count(partial_path))
                 {
                     err.error("Transform and geometry have same path %s.",
                             partial_path.c_str());
@@ -218,512 +106,84 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
                 }
 
                 xform = new OXform(*pobj, current_token, ctx.timeSampling());
-                myXformMap->insert(XformMapInsert(partial_path, xform));
+                xform_map->insert(XformMapInsert(partial_path, xform));
             }
             else
             {
-                xform = x_it->second;
-
-                // Only compute the inverse if we find an existing transform.
-                // Otherwise the transform matrix is just the identity matrix.
-                if (calc_inverse)
-                {
-                    UT_ASSERT(myType == ALEMBIC);
-
-                    xform->getSchema().getNextXform().invert(inverse_mat);
-                    packed_mat = inverse_mat * packed_mat;
-                }
-            }
-
-            // If the transform we're currently processing hasn't been
-            // updated for this frame, AND it's either a) not the direct
-            // parent to the object we're currently processing, b) we're
-            // processing a packed transform, or c) we're processing
-            // deforming geometry, THEN write the transform data for the
-            // current frame.
-            if ((getNumSamples(xform) < myElapsedFrames)
-                    &&  ((i < numx - 1) || is_xform || (myType != ALEMBIC)))
-            {
-                xform->getSchema().finalize();
+                xform = it->second;
             }
 
             pobj = xform;
         }
 
-        current_token = myTokens.getArg(numx);
-
-        // If we've computed the inverse of the ancestor transforms:
-        if (calc_inverse)
-        {
-            // Use it to get the relative transform for the packed Alembic
-            // we're processing.
-            packed_mat = packed_mat * getTransform(prim);
-
-            // If we're processing a transform:
-            if (is_xform) {
-                // Create the transform object and set its transform.
-                xform = new OXform(*pobj, myName, ctx.timeSampling());
-                xform->getSchema().setMatrix(packed_mat);
-            }
-            // If we're processing an Alembic shape, it has a parent
-            // transform, and this shape is the first one encountered
-            // under this parent xform:
-            else if (xform && (getNumSamples(xform) < myElapsedFrames))
-            {
-                // Merge the computed transform with the parent transform.
-                packed_mat = packed_mat * xform->getSchema().getNextXform();
-                xform->getSchema().setMatrix(packed_mat);
-                xform->getSchema().finalize();
-
-                packed_mat.invert(inverse_mat);
-                myInverseMap->insert(InverseMapInsert(partial_path,
-                        inverse_mat));
-            }
-            // If we're processing an Alembic shape and we're prioritizing
-            // transforms over hierarchy:
-            //
-            // NOTE: We can end up here if either the current shape is not the
-            //       first packed Alembic under the parent transform, or there
-            //       is not parent transform.
-            else if (ctx.packedAlembicPriority()
-                    == ROP_AbcContext::PRIORITY_TRANSFORM)
-            {
-                UT_ASSERT(!xform || (getNumSamples(xform) == myElapsedFrames));
-
-                // The path we'll use to store this extra transform in the map
-                std::string     extra_xform_path = partial_path;
-                extra_xform_path.append(current_token);
-                extra_xform_path.append("/");
-                extra_xform_path.append(myName);
-
-                // If a parent transform exists, we'll need to fetch the
-                // inverse of the transformation we merged into it to compute
-                // the relative transform.
-                if (xform)
-                {
-                    i_it = myInverseMap->find(partial_path);
-                    if (i_it == myInverseMap->end())
-                    {
-                        UT_ASSERT(0 && "Not first packed Alembic under parent,"
-                                " but no inverse transform stored.");
-                        return false;
-                    }
-                    packed_mat = packed_mat * i_it->second;
-                }
-
-                // Need to create a buffer transform even if subsequent
-                // packed Alembics have the same transformation. This is because
-                // they may not have the same transformation in future frames,
-                // and it will be too late to create a buffer transform
-                // since the shape will already be parented to the wrong
-                // transform.
-                xform = new OXform(*pobj, myName, ctx.timeSampling());
-                xform->getSchema().setMatrix(packed_mat);
-                xform->getSchema().finalize();
-
-                myXformMap->insert(XformMapInsert(extra_xform_path, xform));
-                pobj = xform;
-
-                // Currently this warning is posted anytime multiple packed
-                // Alembics are stored under the same path. We COULD make it
-                // so that it's only printed when the multiple Alembics have
-                // different transforms, but then we'd have to calculate the
-                // inverse transform on all packed Alembics all the time.
-                err.warning("Placing packed Alembic under path %s/%s/%s to"
-                        " preserve transform.",
-                        partial_path.c_str(),
-                        myName.c_str(),
-                        myName.c_str());
-            }
-            // If we're processing an Alembic shape and we're prioritizing
-            // hierarchy over transforms:
-            else
-            {
-                // This warning also posted whenever multiple packed Alembics
-                // stored under the same path
-                err.warning("Ignoring transform for packed Alembic %s/%s to"
-                        " preserve hierarchy.",
-                        partial_path.c_str(),
-                        myName.c_str());
-            }
-        }
-        // If we did not compute the inverse of the ancestor transforms and
-        // we're processing deforming geometry:
-        else if (myType != ALEMBIC)
-        {
-            i_it = myInverseMap->find(partial_path);
-
-            if (i_it != myInverseMap->end())
-            {
-                prim->setPrimitiveTransform(GT_TransformHandle(
-                        new GT_Transform(&(i_it->second), 1)));
-            }
-        }
-        // If we did not compute the inverse of the ancestor transforms and
-        // we're processing a packed Alembic (This only happens when
-        // prioritizing hierarchy over transforms):
-        else
-        {
-            err.warning("Ignoring transform for packed Alembic %s/%s to"
-                    " preserve hierarchy.",
-                    partial_path.c_str(),
-                    myName.c_str());
-        }
-
-        // Complete the path
         partial_path.append("/");
-        partial_path.append(current_token);
+        partial_path.append(myTokens.getArg(numt - 1));
 
-        if (is_xform)
+        it = xform_map->find(partial_path);
+        if (it != xform_map->end())
         {
-            // If processing a transform, check that there is no shape or
-            // existing transform with the same name.
-            //
-            // We can't have multiple transforms with the same path;
-            // one will have to have its name/path changed and won't
-            // be used by any shapes, so there's no point.
-            if (myGeoSet->count(partial_path))
-            {
-                err.error("Transform and geometry have same path %s.",
-                        partial_path.c_str());
-                return false;
-            }
-
-            x_it = myXformMap->find(partial_path);
-            if (x_it != myXformMap->end())
-            {
-                err.error("Multiple transforms have path %s.",
-                        partial_path.c_str());
-                return false;
-            }
-
-            myXformMap->insert(XformMapInsert(partial_path, xform));
+            err.error("Transform and geometry have same path %s.",
+                    partial_path.c_str());
+            return false;
         }
-        else
-        {
-            // If processing a shape, check that no transform exists with
-            // this path.
-            x_it = myXformMap->find(partial_path);
-            if (x_it != myXformMap->end())
-            {
-                err.error("Transform and geometry have same path %s.",
-                        partial_path.c_str());
-                return false;
-            }
-            myGeoSet->insert(partial_path);
-        }
+
+        shape_set->insert(partial_path);
     }
 
     myPrimType = prim->getPrimitiveType();
 
-    //
-    //  CREATE OBJ AND SAMPLE FIRST FRAME
-    //
-
-    switch (myType)
-    {
-        case INSTANCE:
-            myObj.myInstance = new ROP_AbcGTInstance(myName);
-            return myObj.myInstance->first(*pobj,
-                    err,
-                    ctx,
-                    prim,
-                    subd_mode,
-                    add_unused_pts,
-                    vis);
-
-        case GEOMETRY:
-            myObj.myShape = new GABC_OGTGeometry(myName);
-            return myObj.myShape->start(prim, *pobj, ctx, err, vis);
-
-        case ALEMBIC:
-            // Need to know at what time to sample the input Alembic archive.
-            time = ctx.cookTime()
-                + ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
-
-            myObj.myAlembic = new GABC_OGTAbc(myName);
-
-            if (is_xform)
-            {
-                // Transforms use their own function; they don't need to
-                // have a new OObject made since they have one already, and
-                // we don't need to check their type (we already know it).
-                return myObj.myAlembic->startXform(prim,
-                        xform,
-                        time,
-                        ctx,
-                        err,
-                        vis);
-            }
-            else
-            {
-                return myObj.myAlembic->start(prim, *pobj, time, ctx, err, vis);
-            }
-
-        default:
-            UT_ASSERT(0 && "Unknown type, how did this happen?");
-            break;
+    if (is_instance) {
+        myInstance = new ROP_AbcGTInstance(myName);
+        return myInstance->first(*pobj,
+                err,
+                ctx,
+                prim,
+                subd_mode,
+                add_unused_pts,
+                vis);
     }
-
-    return false;
+    else
+    {
+        myShape = new GABC_OGTGeometry(myName);
+        return myShape->start(prim, *pobj, err, ctx, vis);
+    }
 }
 
 bool
 ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
-	const ROP_AbcContext &ctx,
 	GABC_OError &err,
-	bool calc_inverse)
+	const ROP_AbcContext &ctx)
 {
-    OXform                 *xform = NULL;
-    UT_Matrix4D             inverse_mat;
-    UT_Matrix4D             packed_mat;
-    InverseMap::iterator    i_it;
-    XformMap::iterator      x_it;
-    std::string             partial_path = "";
-    fpreal                  time;
-    int                     numt = myTokens.entries();
-    int                     numx = numt - 1;
-    const char             *current_token;
-    bool                    is_xform = (getNodeType(prim) == GABC_XFORM);
-
-    ++myElapsedFrames;
-    packed_mat.identity();
-
-    // Same thing as when creating the first frame, but this time don't need
-    // to make new transforms. They should already exist.
-    if (myTokens.entries())
+    if (myShape)
     {
-        if (!calc_inverse && is_xform)
-        {
-            calc_inverse = true;
-        }
-
-        for (int i = 0; i < numx; ++i)
-        {
-            current_token = myTokens.getArg(i);
-            partial_path.append("/");
-            partial_path.append(current_token);
-
-            x_it = myXformMap->find(partial_path);
-            if (x_it == myXformMap->end())
-            {
-                UT_ASSERT(0 && "Missing transform!");
-                return false;
-            }
-
-            xform = x_it->second;
-
-            if (calc_inverse)
-            {
-                UT_ASSERT(myType == ALEMBIC);
-
-                xform->getSchema().getNextXform().invert(inverse_mat);
-                packed_mat = inverse_mat * packed_mat;
-            }
-
-            UT_ASSERT(getNumSamples(xform) >= (myElapsedFrames - 1));
-
-            if ((getNumSamples(xform) < myElapsedFrames)
-                    &&  ((i < numx - 1) || is_xform || (myType != ALEMBIC)))
-            {
-                xform->getSchema().finalize();
-            }
-        }
-
-        current_token = myTokens.getArg(numx);
-
-        if (calc_inverse)
-        {
-            packed_mat = packed_mat * getTransform(prim);
-
-            if (is_xform) {
-                // DO NOTHING
-            }
-            // First packed Alembic, regardless of prioritization
-            else if (xform && (getNumSamples(xform) < myElapsedFrames))
-            {
-                packed_mat = packed_mat * xform->getSchema().getNextXform();
-                xform->getSchema().setMatrix(packed_mat);
-                xform->getSchema().finalize();
-
-                packed_mat.invert(inverse_mat);
-                myInverseMap->insert(InverseMapInsert(partial_path,
-                        inverse_mat));
-            }
-            // Subsequent packed Alembic, prioritizing transform
-            //
-            // A new transform is created even if the packed Alembic has
-            // the same transform as the previous one, because there's no
-            // garauntee it will in future frames.
-            else if (ctx.packedAlembicPriority()
-                    == ROP_AbcContext::PRIORITY_TRANSFORM)
-            {
-                UT_ASSERT(!xform || (getNumSamples(xform) == myElapsedFrames));
-
-                std::string     extra_xform_path = partial_path;
-                extra_xform_path.append(current_token);
-                extra_xform_path.append("/");
-                extra_xform_path.append(myName);
-
-                if (xform)
-                {
-                    i_it = myInverseMap->find(partial_path);
-                    if (i_it == myInverseMap->end())
-                    {
-                        UT_ASSERT(0 && "Not first packed Alembic under parent,"
-                                " but no inverse transform stored.");
-                        return false;
-                    }
-                    packed_mat = packed_mat * i_it->second;
-                }
-
-                x_it = myXformMap->find(extra_xform_path);
-                if (x_it == myXformMap->end())
-                {
-                    UT_ASSERT(0 && "Missing transform!");
-                    return false;
-                }
-                xform = x_it->second;
-                xform->getSchema().setMatrix(packed_mat);
-                xform->getSchema().finalize();
-            }
-        }
-        else if (myType != ALEMBIC)
-        {
-            i_it = myInverseMap->find(partial_path);
-
-            if (i_it != myInverseMap->end())
-            {
-                prim->setPrimitiveTransform(GT_TransformHandle(
-                        new GT_Transform(&(i_it->second), 1)));
-            }
-        }
-
-        // If we're processing a transform, we need to update its matrix.
-        if (is_xform)
-        {
-            partial_path.append("/");
-            partial_path.append(current_token);
-
-            x_it = myXformMap->find(partial_path);
-            if (x_it == myXformMap->end())
-            {
-                UT_ASSERT(0 && "Missing transform!");
-                return false;
-            }
-            xform = x_it->second;
-            xform->getSchema().setMatrix(packed_mat);
-        }
+	return myShape->update(prim, err, ctx);
     }
-
-    switch (myType)
+    if (myInstance)
     {
-        case INSTANCE:
-            return myObj.myInstance->update(prim, ctx, err);
-
-        case GEOMETRY:
-            return myObj.myShape->update(prim, ctx, err);
-
-        case ALEMBIC:
-            time = ctx.cookTime()
-                + ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
-
-            return myObj.myAlembic->update(prim, time, ctx, err);
-
-        default:
-            UT_ASSERT(0 && "Unknown type, how did this happen?");
+	return myInstance->update(err, ctx, prim);
     }
-
     return false;
 }
 
 bool
 ROP_AbcGTShape::nextFrameFromPrevious(GABC_OError &err,
-        ObjectVisibility vis,
-        exint frames)
+        exint frames,
+        ObjectVisibility vis)
 {
-    OXform                 *xform = NULL;
-    XformMap::iterator      x_it;
-    std::string             partial_path = "";
-    int                     numt = myTokens.entries();
-    int                     numx = numt - 1;
-    const char             *current_token;
-
     if (frames < 0)
     {
-        UT_ASSERT(0 && "Attempted to update less than 0 frames.");
+        err.error("Attempted to update less than 0 frames.");
         return false;
     }
 
-    if (!frames)
+    if (myShape)
     {
-        return true;
+	return myShape->updateFromPrevious(err, vis, frames);
     }
-
-    myElapsedFrames += frames;
-
-    if (myTokens.entries())
+    if (myInstance)
     {
-        for (int i = 0; i < numx; ++i)
-        {
-            current_token = myTokens.getArg(i);
-            partial_path.append("/");
-            partial_path.append(current_token);
-
-            x_it = myXformMap->find(partial_path);
-            if (x_it == myXformMap->end())
-            {
-                UT_ASSERT(0 && "Missing transform!");
-                return false;
-            }
-
-            xform = x_it->second;
-            if (getNumSamples(xform) < myElapsedFrames)
-            {
-                for (exint i = 0; i < frames; ++i)
-                {
-                    xform->getSchema().setFromPrevious();
-                }
-
-                UT_ASSERT(getNumSamples(xform) == myElapsedFrames);
-            }
-        }
-
-        // Check for the extra transforms that subsequent Alembics have
-        // when we prioritize transforms over hierarchy.
-        if (myType == ALEMBIC)
-        {
-            partial_path.append("/");
-            partial_path.append(myTokens.getArg(numx));
-            partial_path.append("/");
-            partial_path.append(myName);
-
-            x_it = myXformMap->find(partial_path);
-            if (x_it != myXformMap->end())
-            {
-                x_it->second->getSchema().setFromPrevious();
-            }
-        }
+	return myInstance->updateFromPrevious(err, myPrimType, vis, frames);
     }
-
-    switch (myType)
-    {
-        case INSTANCE:
-            return myObj.myInstance->updateFromPrevious(err,
-                    myPrimType,
-                    vis,
-                    frames);
-
-        case GEOMETRY:
-            return myObj.myShape->updateFromPrevious(err, vis, frames);
-
-        case ALEMBIC:
-            return myObj.myAlembic->updateFromPrevious(err, vis, frames);
-
-        default:
-            UT_ASSERT(0 && "Unknown type, how did this happen?");
-    }
-
     return false;
 }
 
@@ -764,21 +224,8 @@ ROP_AbcGTShape::getLastBounds(UT_BoundingBox &) const
 Alembic::Abc::OObject
 ROP_AbcGTShape::getOObject() const
 {
-    switch (myType)
-    {
-        case INSTANCE:
-            return myObj.myInstance->getOObject();
-
-        case GEOMETRY:
-            return myObj.myShape->getOObject();
-
-        case ALEMBIC:
-            UT_ASSERT(0 && "Exported geometry will be incorrect");
-            break;
-
-        default:
-            UT_ASSERT(0 && "Unknown type, how did this happen?");
-    }
-
-    return Alembic::Abc::OObject();
+    if (myInstance)
+	return myInstance->getOObject();
+    UT_ASSERT(myShape && "Exported geometry will be incorrect");
+    return myShape ? myShape->getOObject() : Alembic::Abc::OObject();
 }

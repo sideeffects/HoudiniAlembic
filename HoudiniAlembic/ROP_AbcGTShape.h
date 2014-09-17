@@ -31,10 +31,7 @@
 #include "ROP_AbcContext.h"
 #include "ROP_AbcObject.h"
 #include <GT/GT_Handles.h>
-#include <GABC/GABC_OError.h>
-#include <GABC/GABC_OGTAbc.h>
 #include <GABC/GABC_OGTGeometry.h>
-#include <GABC/GABC_OXform.h>
 #include <UT/UT_WorkArgs.h>
 
 class ROP_AbcGTInstance;
@@ -43,34 +40,19 @@ class ROP_AbcGTInstance;
 class ROP_AbcGTShape : public ROP_AbcObject
 {
 public:
-    enum ShapeType {
-        GEOMETRY,
-        INSTANCE,
-        ALEMBIC
-    };
+    typedef GABC_NAMESPACE::GABC_OGTGeometry	GABC_OGTGeometry;
+    typedef GABC_NAMESPACE::GABC_OError		GABC_OError;
 
     typedef Alembic::Abc::OObject		OObject;
 
     typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
+    typedef Alembic::AbcGeom::OXform            OXform;
 
-    typedef GABC_NAMESPACE::GABC_OError		GABC_OError;
-    typedef GABC_NAMESPACE::GABC_OGTAbc         GABC_OGTAbc;
-    typedef GABC_NAMESPACE::GABC_OGTGeometry	GABC_OGTGeometry;
-
-    typedef GABC_NAMESPACE::GABC_OXform         OXform;
-
-    typedef UT_Map<std::string, UT_Matrix4D>    InverseMap;
-    typedef std::pair<std::string, UT_Matrix4D> InverseMapInsert;
-    typedef UT_Set<std::string>                 GeoSet;
+    typedef UT_Set<std::string>                 ShapeSet;
     typedef UT_Map<std::string, OXform *>       XformMap;
     typedef std::pair<std::string, OXform *>    XformMapInsert;
 
-    ROP_AbcGTShape(const std::string &name,
-            const char * const path,
-            InverseMap * const inv_map,
-            GeoSet * const shape_set,
-            XformMap * const xform_map,
-            const ShapeType type);
+    ROP_AbcGTShape(const std::string &name, const char * const path);
     virtual ~ROP_AbcGTShape();
 
     static bool	isPrimitiveSupported(const GT_PrimitiveHandle &prim);
@@ -78,22 +60,23 @@ public:
     /// Write first frame to the archive
     bool	firstFrame(const GT_PrimitiveHandle &prim,
 			    const OObject &parent,
-                            const ObjectVisibility vis,
-			    const ROP_AbcContext &ctx,
+			    ShapeSet * const shape_set,
+			    XformMap * const xform_map,
 			    GABC_OError &err,
-			    bool calc_inverse,
-			    const bool subd_mode,
-			    const bool add_unused_pts);
+			    const ROP_AbcContext &ctx,
+                            ObjectVisibility vis,
+                            bool is_instance,
+			    bool subd_mode,
+			    bool add_unused_pts);
     /// Write the next frame to the archive
     bool	nextFrame(const GT_PrimitiveHandle &prim,
-			    const ROP_AbcContext &ctx,
 			    GABC_OError &err,
-			    bool calc_inverse);
+			    const ROP_AbcContext &ctx);
     /// Write the next frame to the archive with the same sample
     /// values as the previous frame.
     bool	nextFrameFromPrevious(GABC_OError &err,
-                        ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
-                        exint frames = 1);
+                        exint frames = 1,
+                        ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden);
 
     /// Return the primitive type for this shape.
     int         getPrimitiveType() const;
@@ -121,25 +104,14 @@ private:
 
     void	clear();
 private:
-    union {
-        GABC_OGTGeometry   *myShape;
-        ROP_AbcGTInstance  *myInstance;
-        GABC_OGTAbc        *myAlembic;
-        void               *myVoidPtr;
-    } myObj;
-
-    InverseMap          * const myInverseMap;
-    GeoSet              * const myGeoSet;
-    const ShapeType     myType;
-    UT_String           myPath;
-    UT_WorkArgs         myTokens;
-    XformMap            * const myXformMap;
     // Use std::string since the name is shared by the ABCGTGeometry and
     // std::string has COW semantics.
-    const std::string   myName;
-    exint               myElapsedFrames;
+    GABC_OGTGeometry   *myShape;
+    ROP_AbcGTInstance  *myInstance;
+    UT_String           myPath;
+    UT_WorkArgs         myTokens;
+    std::string         myName;
     int                 myPrimType;
-
 };
 
 #endif
