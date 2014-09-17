@@ -30,8 +30,8 @@
 
 #include "GABC_API.h"
 #include "GABC_Include.h"
-#include <GT/GT_Primitive.h>
 #include <Alembic/AbcGeom/All.h>
+#include <GT/GT_Primitive.h>
 
 namespace GABC_NAMESPACE
 {
@@ -272,12 +272,12 @@ public:
 
     bool            start(const GT_PrimitiveHandle &prim,
                             const OObject &parent,
-                            GABC_OError &err,
                             const GABC_OOptions &ctx,
+                            GABC_OError &err,
                             ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
     bool            update(const GT_PrimitiveHandle &prim,
-                            GABC_OError &err,
                             const GABC_OOptions &ctx,
+                            GABC_OError &err,
                             ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
     bool            updateFromPrevious(GABC_OError &err,
                             ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,

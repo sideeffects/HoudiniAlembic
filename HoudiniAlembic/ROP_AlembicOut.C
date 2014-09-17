@@ -154,6 +154,8 @@ namespace
     static PRM_Name     theBuildHierarchyFromPathName("build_from_path",
                                 "Build Hierarchy From Attribute");
     static PRM_Name     thePathAttribName("path_attrib", "Path Attribute");
+    static PRM_Name     thePackedAbcPriorityName("packed_priority",
+                                "Packed Alembic Priority");
     static PRM_Name	thePartitionModeName("partition_mode",
 				"Partition Mode");
     static PRM_Name	thePartitionAttributeName("partition_attribute",
@@ -172,6 +174,7 @@ namespace
     static PRM_Default	theFullBoundsDefault(0, "no");
     static PRM_Default	theDisplaySOPDefault(0, "no");
     static PRM_Default  theBuildHierarchyFromPathDefault(0, "no");
+    static PRM_Default  thePackedAbcPriorityDefault(0, "hier");
     static PRM_Default	thePartitionModeDefault(0, "no");
     static PRM_Default	thePartitionAttributeDefault(0, "");
     static PRM_Default	theCollapseDefault(0, "off");
@@ -185,6 +188,29 @@ namespace
 	PRM_Name("ogawa",	"Ogawa"),
 	PRM_Name()
     };
+
+    static PRM_Name	thePackedAbcPriorityChoices[] =
+    {
+        PRM_Name("hier",        "Hierarchy"),
+        PRM_Name("xform",       "Transformation"),
+        PRM_Name()
+    };
+    static bool
+    mapPackedAbcPriority(const char *mode, int &value)
+    {
+        if (!strcmp(mode, "hier"))
+        {
+            value = ROP_AbcContext::PRIORITY_HIERARCHY;
+        }
+        else
+        {
+            UT_ASSERT(!strcmp(mode, "xform"));
+
+            value = ROP_AbcContext::PRIORITY_TRANSFORM;
+        }
+
+        return true;
+   }
 
     static PRM_Name	thePartitionModeChoices[] =
     {
@@ -261,7 +287,7 @@ namespace
 	PRM_Name("off",	"Do Not Collapse Identity Objects"),
 	PRM_Name("on",  "Collapse Non-Animating Identity Objects"),
 	PRM_Name("geo", "Collapse All Geometry Container Objects"),
-	PRM_Name("all", "Collapse All Objects (Packed Alembic Roundtripping)"),
+	PRM_Name("all", "Collapse All Objects (Direct Hierarchy Placement)"),
 	PRM_Name()
     };
 
@@ -269,6 +295,8 @@ namespace
 					theFormatChoices);
     static PRM_ChoiceList	theObjectsMenu(PRM_CHOICELIST_REPLACE,
 					buildBundleMenu);
+    static PRM_ChoiceList	thePackedAbcPriorityMenu(PRM_CHOICELIST_SINGLE,
+					thePackedAbcPriorityChoices);
     static PRM_ChoiceList	thePartitionModeMenu(PRM_CHOICELIST_SINGLE,
 					thePartitionModeChoices);
     static PRM_ChoiceList	thePartitionAttributeMenu(PRM_CHOICELIST_REPLACE,
@@ -340,6 +368,9 @@ namespace
 	PRM_Template(PRM_TOGGLE, 1, &theBuildHierarchyFromPathName,
 				    &theBuildHierarchyFromPathDefault),
         PRM_Template(PRM_STRING, 1, &thePathAttribName, 0, &thePathAttribMenu),
+        PRM_Template(PRM_ORD, 1, &thePackedAbcPriorityName,
+                                    &thePackedAbcPriorityDefault,
+                                    &thePackedAbcPriorityMenu),
 	PRM_Template(PRM_ORD, 1, &thePartitionModeName,
 				    &thePartitionModeDefault,
 				    &thePartitionModeMenu),
@@ -524,22 +555,28 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     myContext->setUseInstancing(USE_INSTANCING(start));
     myContext->setSaveHidden(SAVE_HIDDEN(start));
 
+    // Can only place objects directly into hierarchy from a SOP network.
+    // Direct hierarchy placement and partitioning use the same code,
+    // can only do one or the other. Now that direct hierarchy placement
+    // is available, I don't see much use for partitioning at all, but
+    // it remains for backwards compatability.
     if (sop)
     {
         myContext->setBuildFromPath(BUILD_HIERARCHY_FROM_PATH(start));
     }
     if (myContext->buildFromPath())
     {
-        GA_Attribute       *attrib;
         OP_Context          context(CHgetEvalTime());
-    	UT_String           path;
-
-    	evalString(path, "path_attrib", 0, start);
-
+        GA_Attribute       *attrib;
         const GU_Detail    *ref = sop->getCookedGeo(context);
-        attrib = ref->getAttributeDict(GA_ATTRIB_PRIMITIVE)
-                .find(GA_SCOPE_PUBLIC, path);
+        UT_String           packed_priority;
+    	UT_String           path_attrib;
+        int                 packed_priority_val;
 
+        PATH_ATTRIBUTE(path_attrib, start);
+
+        attrib = ref->getAttributeDict(GA_ATTRIB_PRIMITIVE)
+                .find(GA_SCOPE_PUBLIC, path_attrib);
         if (!attrib)
         {
             abcError("Cannot find path attribute in primitive attributes.");
@@ -550,7 +587,11 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
             abcError("Path attribute is not a string tuple size 1.");
         }
 
-    	myContext->setPathAttribute(path);
+    	PACKED_ABC_PRIORITY(packed_priority, start);
+        mapPackedAbcPriority(packed_priority, packed_priority_val);
+
+    	myContext->setPathAttribute(path_attrib);
+        myContext->serPackedAlembicPriority(packed_priority_val);
     }
     else
     {
@@ -774,6 +815,7 @@ ROP_AlembicOut::updateParmsFlags()
     PARTITION_MODE(mode, 0);
     changed |= enableParm("build_from_path", issop);
     changed |= enableParm("path_attrib", build_hier);
+    changed |= enableParm("packed_priority", build_hier);
     changed |= enableParm("partition_mode", !build_hier);
     changed |= enableParm("partition_attribute",
                 (!build_hier && (mode != "no")));
@@ -782,6 +824,7 @@ ROP_AlembicOut::updateParmsFlags()
 
     changed |= setVisibleState("build_from_path", issop);
     changed |= setVisibleState("path_attrib", issop);
+    changed |= setVisibleState("packed_priority", issop);
 
     changed |= setVisibleState("displaysop", !issop);
     changed |= setVisibleState("objects", !issop);

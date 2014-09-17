@@ -116,19 +116,23 @@ public:
     /// @}
 
     /// @{
-    ///
-    bool        buildFromPath() const       { return myBuildFromPath; }
-    void        setBuildFromPath(bool v)    { myBuildFromPath = v; }
-    /// @}
+    /// Set path attribute for writing geometry to a specific hierarchy.
+    bool        buildFromPath() const           { return myBuildFromPath; }
+    void        setBuildFromPath(bool v)        { myBuildFromPath = v; }
+    const char *pathAttribute() const           { return myPathAttribute; }
+    void        setPathAttribute(const char *s) { myPathAttribute.harden(s); }
+    void        clearPathAttribute()            { myPathAttribute.clear(); }
 
-    /// @{
-    ///
-    const char	*pathAttribute() const	{ return myPathAttribute; }
-    void	 setPathAttribute(const char *s) { myPathAttribute.harden(s); }
-    void	 clearPathAttribute()
-		 {
-		     myPathAttribute.clear();
-		 }
+    enum
+    {
+        // When multiple packed Alembics are present under the same parent
+        // transform, we can modify the path to keep their unique transformation
+        // or we can ignore the transformation to keep their path unmodified.
+        PRIORITY_HIERARCHY,     // Ignore transform, keep hierarchy path
+        PRIORITY_TRANSFORM      // Keep transform, modify hierarchy path
+    };
+    int         packedAlembicPriority() const   { return myPackedAbcPriority; }
+    void        serPackedAlembicPriority(int p) { myPackedAbcPriority = p; }
     /// @}
 
     /// @{
@@ -185,6 +189,7 @@ private:
     SOP_Node           *mySingletonSOP;
     UT_String           myPartitionAttribute;
     UT_String           myPathAttribute;
+    int                 myPackedAbcPriority;
     int                 myPartitionMode;
     int                 myCollapseIdentity;
     bool                myUseInstancing;
