@@ -132,7 +132,7 @@ Collapse Objects:
 		        Any transformations on these nodes will be lost during the save.
 	
 	Collapse All Objects (Direct Hierarchy Placement):
-		All geometry containers and subnets will not be written to the Alembic file. This option is useful directly placing each primitive into the archive.
+		All geometry containers and subnets will not be written to the Alembic file. This option is useful for directly placing each primitive into the archive.
 
 		NOTE:
 			Any transformations on these nodes will be lost during the save.
@@ -165,7 +165,7 @@ Path Attribute:
 	The name of the attribute containing the path.
 
 Packed Alembic Priority:
-	The tranformation of the first packed Alembic primitive under any transform if merged with that of its parent. Due to this, subsequent packed Alembics need an additional "buffer" transform between them and their parent to make sure their transformation is preserved.
+	The transformation of the first packed Alembic primitive under any transform if merged with that of its parent. Due to this, subsequent packed Alembics need an additional "buffer" transform between them and their parent to make sure their transformation is preserved.
 
 	Hiearchy:
 		Ignore the transformations of subsequent packed Alembics. Output them at the specified path without a "buffer" transform to preserve the hierarchy as specified by the path attribute.
