@@ -29,7 +29,6 @@
 #define __ROP_AbcGTCompoundShape__
 
 #include "ROP_AbcGTShape.h"
-#include "ROP_AbcPackedAbc.h"
 #include <GABC/GABC_OError.h>
 #include <GABC/GABC_OXform.h>
 #include <GABC/GABC_Types.h>

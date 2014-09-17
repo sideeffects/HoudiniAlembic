@@ -26,8 +26,6 @@
  */
 
 #include "ROP_AbcGTCompoundShape.h"
-#include "ROP_AbcPackedShape.h"
-#include "ROP_AbcPackedXform.h"
 #include <GABC/GABC_OError.h>
 #include <GABC/GABC_OGTGeometry.h>
 #include <GABC/GABC_OXform.h>
