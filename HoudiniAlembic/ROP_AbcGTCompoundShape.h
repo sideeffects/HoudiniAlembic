@@ -236,7 +236,7 @@ private:
     OXform                     *myContainer;
     GTShapeMap<int>             myDeforming;
     GTShapeMap<std::string>     myPacked;
-    const UT_String             myPath;
+    const UT_DeepString         myPath;
     XformMap                    * const myXformMap;
     exint                       myElapsedFrames;
     exint                       myNumShapes;
