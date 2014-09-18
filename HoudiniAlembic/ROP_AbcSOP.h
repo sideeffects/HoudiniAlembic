@@ -67,7 +67,7 @@ public:
     {
     public:
 	abc_PrimContainer(const GT_PrimitiveHandle &prim,
-	        const std::string *identifier,
+	        const std::string &identifier,
 	        bool has_alembic,
 	        bool has_partition,
                 bool subd_mode,
@@ -81,7 +81,7 @@ public:
 	{}
 
 	GT_PrimitiveHandle	myPrim;
-	const std::string      *myIdentifier;
+	std::string             myIdentifier;
 	bool                    myHasAlembic;
 	bool                    myHasPartition;
 	bool			mySubdMode;

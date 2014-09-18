@@ -179,7 +179,7 @@ namespace
     };
 }
 
-ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &name,
+ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &identifier,
                 InverseMap * const inv_map,
                 GeoSet * const shape_set,
                 XformMap * const xform_map,
@@ -190,7 +190,7 @@ ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &name,
     , myGeoSet(shape_set)
     , myShapeParent(NULL)
     , myContainer(NULL)
-    , myPath(has_path ? UT_String(name) : UT_String())
+    , myPath(has_path ? UT_String(identifier) : UT_String())
     , myXformMap(xform_map)
     , myElapsedFrames(0)
     , myNumShapes(0)
@@ -200,20 +200,20 @@ ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &name,
     // If the shape has a path, extract the name
     if (has_path)
     {
-        int pos = name.find_last_of('/');
+        int pos = identifier.find_last_of('/');
         // The last '/' will never be in the first position.
         if (pos > 0)
         {
-            myName = name.substr(pos + 1);
+            myName = identifier.substr(pos + 1);
         }
         else
         {
-            myName = name;
+            myName = identifier;
         }
     }
     else
     {
-        myName = name;
+        myName = identifier;
     }
 }
 

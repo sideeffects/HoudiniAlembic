@@ -201,7 +201,7 @@ public:
         GTShapeListMap    myMap;
     };
 
-    ROP_AbcGTCompoundShape(const std::string &name,
+    ROP_AbcGTCompoundShape(const std::string &identifier,
             InverseMap * const inv_map,
             GeoSet * const shape_set,
             XformMap * const xform_map,

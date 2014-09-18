@@ -66,7 +66,9 @@ namespace
 	GT_PrimitiveHandle	detail = GT_GEODetail::makeDetail(&gdp, &range);
 	if (detail)
 	{
-            bool    has_alembic = false;
+	    const std::string  *id_ptr = &identifier;
+	    std::string         subd_id;
+            bool                has_alembic = false;
 
 	    if (check_alembic)
 	    {
@@ -84,8 +86,15 @@ namespace
                 }
             }
 
+            if (force_subd_mode && !show_pts)
+            {
+                subd_id.append(identifier);
+                subd_id.append("_subd");
+                id_ptr = &subd_id;
+            }
+
 	    primitives.append(abc_PrimContainer(detail,
-	            &identifier,
+	            *id_ptr,
 	            has_alembic,
 	            has_partition,
 	            force_subd_mode,
@@ -201,8 +210,8 @@ namespace
     comparePrims(const abc_PrimContainer *a, const abc_PrimContainer *b)
     {
         // Partitions with the shorter path come first.
-        UT_String       str_a(*(a->myIdentifier));
-        UT_String       str_b(*(b->myIdentifier));
+        UT_String       str_a(a->myIdentifier);
+        UT_String       str_b(b->myIdentifier);
         UT_WorkArgs     tokens_a, tokens_b;
 
         str_a.tokenize(tokens_a, '/');
@@ -334,7 +343,7 @@ ROP_AbcSOP::start(const OObject &parent,
     for (int i = 0; i < prims.entries(); ++i)
     {
         // Create new compound shapes
-        shape = new ROP_AbcGTCompoundShape(*(prims(i).myIdentifier),
+        shape = new ROP_AbcGTCompoundShape(prims(i).myIdentifier,
                 &myInverseMap,
                 &myGeoSet,
                 &myXformMap,
@@ -355,7 +364,7 @@ ROP_AbcSOP::start(const OObject &parent,
         // Map partition names to specific compound shapes
         if (ctx.buildFromPath())
         {
-            myNameMap.insert(NameMapInsert(*(prims(i).myIdentifier), i));
+            myNameMap.insert(NameMapInsert(prims(i).myIdentifier, i));
         }
     }
 
@@ -432,13 +441,13 @@ ROP_AbcSOP::update(GABC_OError &err,
         // Use myNameMap if we're partitioning the data.
         if (!myNameMap.empty())
         {
-            it = myNameMap.find(*(prims(i).myIdentifier));
+            it = myNameMap.find(prims(i).myIdentifier);
 
             // Create a new compound shape if one does not exist
             // for the current partition.
             if (it == myNameMap.end())
             {
-                shape = new ROP_AbcGTCompoundShape(*(prims(i).myIdentifier),
+                shape = new ROP_AbcGTCompoundShape(prims(i).myIdentifier,
                         &myInverseMap,
                         &myGeoSet,
                         &myXformMap,
@@ -469,7 +478,7 @@ ROP_AbcSOP::update(GABC_OError &err,
 
                 // Add the partition to the list and the map
                 myShapes.append(shape);
-                myNameMap.insert(NameMapInsert(*(prims(i).myIdentifier),
+                myNameMap.insert(NameMapInsert(prims(i).myIdentifier,
                         (myShapes.entries() - 1)));
             }
             // Otherwise, just update the existing shape
