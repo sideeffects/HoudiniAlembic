@@ -190,7 +190,10 @@ ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &identifier,
     , myGeoSet(shape_set)
     , myShapeParent(NULL)
     , myContainer(NULL)
-    , myPath(has_path ? UT_String(identifier) : UT_String())
+    // Without the always deep flag, the temp UT_String will make a deep copy
+    // but then myPath will just copy its address - a shallow copy turned
+    // dangling pointer!
+    , myPath(has_path ? UT_String(UT_String::ALWAYS_DEEP, identifier) : UT_String())
     , myXformMap(xform_map)
     , myElapsedFrames(0)
     , myNumShapes(0)
