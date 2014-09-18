@@ -861,10 +861,11 @@ VRAY_ProcAlembic::render()
 		if (aprim && aprim->getTypeId() == abctype)
 		    abc_attrib = UTverify_cast<const GU_PrimPacked *>(aprim);
 		abclist(0) = UTverify_cast<const GU_PrimPacked *>(prim);
+                GA_Index primind = prim->getMapIndex();
 		for (int i = 1; i < nsegments; ++i)
 		{
-		    const GEO_Primitive	*seg;
-		    seg = details(i)->primitives()(prim->getNum());
+		    const GEO_Primitive*seg
+                        = details(i)->getGEOPrimitiveByIndex(primind);
 		    abclist(i) = UTverify_cast<const GU_PrimPacked *>(seg);
 		}
 		VRAY_Procedural *p = new vray_ProcAlembicPrim(abclist,
