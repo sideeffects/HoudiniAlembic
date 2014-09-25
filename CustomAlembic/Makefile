@@ -27,8 +27,8 @@ LABEL_PREFIX = "Custom "
 OPTIMIZER = -g
 include $(HFS)/toolkit/makefiles/Makefile.linux
 
-ABCPATH = /usr/local/alembic-1.1.5
-ABCINC = $(ABCPATH)/include
+ABCINC = /usr/local/alembic-1.1.5/include
+ABCINC = $(HFS)/toolkit/include
 ABCDEF = \
     -DGABC_NAMESPACE=$(GABC_NAMESPACE) \
     -DGABC_PRIMITIVE_TOKEN='"CustomAlembicRef"' \
@@ -91,7 +91,7 @@ OFILES	= $(GABCOFILES) $(PLUGINS:.C=.o)
 TARGETS	= $(GABCLIB) $(PLUGINS:.C=.so)
 
 %.o:	%.C
-	g++ $(ABCFLAGS) $(OBJFLAGS) -c -o $@ $<
+	g++ -std=c++0x -DCXX11_ENABLED=1 $(ABCFLAGS) $(OBJFLAGS) -c -o $@ $<
 
 all:	$(GABCLIB) $(PLUGINS:.C=.so)
 
@@ -117,6 +117,9 @@ clean:
 
 untar:
 	tar xvf $(HH)/public/Alembic/HoudiniAlembic.tgz
+
+test:	$(GABCOFILES)
+	@echo All objects compiled properly
 
 rmtargets:
 	rm -rf $(TARGETS)
