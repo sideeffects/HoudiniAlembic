@@ -211,7 +211,7 @@ buildPrimSelection(GU_Detail *gdp, const std::vector<std::string> &group_names)
 	    const GA_PrimitiveGroup *group = gdp->findPrimitiveGroup(
 						    group_names[i].c_str());
 	    if (group)
-		primSelection->modifyGroup(*group, GU_AddSelect);
+		primSelection->modifyGroup(*gdp, *group, GU_AddSelect);
 	}
     }
     gdp->selection(primSelection);
