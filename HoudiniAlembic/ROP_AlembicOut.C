@@ -471,6 +471,14 @@ ROP_AlembicOut::COLLAPSE(fpreal time)
     return ROP_AbcContext::COLLAPSE_IDENTITY;
 }
 
+void
+ROP_AlembicOut::buildRenderDependencies(const ROP_RenderDepParms &p)
+{
+    ROP_RenderDepParms	parms = p;
+    parms.setFullAscendingFrameRange(*this);
+    ROP_Node::buildRenderDependencies(parms);
+}
+
 int
 ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 {

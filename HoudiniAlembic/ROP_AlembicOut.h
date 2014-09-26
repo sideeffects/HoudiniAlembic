@@ -49,6 +49,11 @@ public:
     virtual void	getDescriptiveParmName(UT_String &str) const
 			{ str = "filename"; }
 
+    /// We need to hint to the merge ROP that we can't be called on frame at a
+    /// time.
+    virtual void	buildRenderDependencies(
+				const ROP_RenderDepParms &p);
+
     void	abcError(const char *message)
 		{
 		    addError(ROP_MESSAGE, message);
