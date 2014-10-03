@@ -1453,7 +1453,6 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
     }
 
     makeArbProperties(prim, ctx);
-    makeUserProperties(prim, ctx);
     return update(prim, ctx, err, vis);
 }
 
