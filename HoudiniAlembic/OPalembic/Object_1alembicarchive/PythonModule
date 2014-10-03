@@ -103,7 +103,7 @@ def _setUserProperties(currentNode, name, fileName, loadType):
 
         # If the properties are static or we're loading metadata, create the
         # user property dictionaries.
-        if props || loadType == 2:
+        if props or (loadType == 2):
             dictionary = _abc.alembicUserPropertyDictionaries(fileName, name, 0, loadType)
 
         # If the properties are static, set them.
