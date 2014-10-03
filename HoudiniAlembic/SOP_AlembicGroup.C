@@ -200,12 +200,12 @@ buildPrimSelection(GU_Detail *gdp, const std::vector<std::string> &group_names)
     delete gdp->selection();
     gdp->selection(0);
     if (group_names.size() == 1)
-	primSelection = new GU_PrimSelection(*gdp, group_names[0].c_str(), 0,
-					     "__sopprimgroup");
+	primSelection = new GU_PrimSelection(
+			gdp->findPrimitiveGroup(group_names[0].c_str()));
     else
     {
-	primSelection = new GU_PrimSelection(*gdp, "_gu_pmselection_", 0,
-					     "__sopprimgroup");
+	primSelection = new GU_PrimSelection(
+			gdp->findPrimitiveGroup("_gu_pmselection_"));
 	for (int i = 0; i < group_names.size(); i++)
 	{
 	    const GA_PrimitiveGroup *group = gdp->findPrimitiveGroup(
