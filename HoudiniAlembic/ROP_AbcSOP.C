@@ -252,6 +252,7 @@ namespace
 ROP_AbcSOP::ROP_AbcSOP(SOP_Node *node)
     : mySopId(node ? node->getUniqueId() : -1)
     , myElapsedFrames(0)
+    , myPathAttribName(NULL)
     , myTimeDependent(false)
 {
 }
@@ -283,7 +284,10 @@ ROP_AbcSOP::clear()
     myPartitionMap.clear();
     myPartitionNames.clear();
 
-    GABC_OGTGeometry::clearIgnoreList();
+    if (myPathAttribName) {
+        GABC_OGTGeometry::theDefaultSkip.deleteSkip(myPathAttribName);
+    }
+    GABC_OGTGeometry::theDefaultSkip.deleteSkip("abc_userProperties");
 }
 
 bool
@@ -325,7 +329,8 @@ ROP_AbcSOP::start(const OObject &parent,
     }
     if (ctx.buildFromPath())
     {
-        GABC_OGTGeometry::skipAttribute(ctx.pathAttribute());
+        myPathAttribName = ctx.pathAttribute();
+        GABC_OGTGeometry::theDefaultSkip.addSkip(myPathAttribName);
     }
 
     myPartitionIndices.append(GA_OffsetList());

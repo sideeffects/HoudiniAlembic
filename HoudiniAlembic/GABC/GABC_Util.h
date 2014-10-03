@@ -30,15 +30,13 @@
 
 #include "GABC_API.h"
 #include "GABC_Include.h"
+#include "GABC_IArchive.h"
+#include "GABC_IObject.h"
 #include "GABC_Types.h"
-
-// Houdini includes
 #include <SYS/SYS_Types.h>
 #include <UT/UT_Matrix4.h>
 #include <UT/UT_BoundingBox.h>
 #include <UT/UT_SharedPtr.h>
-#include "GABC_IArchive.h"
-#include "GABC_IObject.h"
 
 class UT_StringArray;
 
@@ -48,38 +46,16 @@ namespace GABC_NAMESPACE
 class GABC_API GABC_Util
 {
 public:
+    class ArchiveEventHandler;
+
     typedef Alembic::Abc::V3d			V3d;
     typedef Alembic::Abc::Box3d			Box3d;
     typedef Alembic::Abc::M44d			M44d;
     typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
     typedef Alembic::Abc::ObjectReaderPtr       ObjectReaderPtr;
 
+    typedef UT_SharedPtr<ArchiveEventHandler>	ArchiveEventHandlerPtr;
     typedef std::vector<std::string>		PathList;
-
-    static const char	*getAlembicCompileNamespace();
-
-    /// Create a Box3d from a UT_BoundingBox
-    static Box3d	getBox(const UT_BoundingBox &box)
-    {
-	return Box3d(V3d(box.xmin(), box.ymin(), box.zmin()),
-		    V3d(box.xmax(), box.ymax(), box.zmax()));
-    }
-    /// Create a UT_BoundingBox from a Box3d
-    static UT_BoundingBox	getBox(const Box3d &box)
-    {
-	return UT_BoundingBox(box.min[0], box.min[1], box.min[2],
-		box.max[0], box.max[1], box.max[2]);
-    }
-    /// Create a UT_Matrix4D from an M44d
-    static UT_Matrix4D		getM(const M44d &m)
-    {
-	return UT_Matrix4D(m.x);
-    }
-    /// Create an M44d from a UT_Matrix4D
-    static M44d	getM(const UT_Matrix4D &m)
-    {
-	return M44d((const double (*)[4])m.data());
-    }
 
     /// Class used in traversal of Alembic trees
     ///
@@ -165,40 +141,83 @@ public:
     private:
 	void	*myArchive;
     };
-    typedef UT_SharedPtr<ArchiveEventHandler>	ArchiveEventHandlerPtr;
+
+    //
+    //  Alembic Namespace Name
+    //
+
+    /// Get Alembic namespace name as string
+    static const char	*getAlembicCompileNamespace();
+
+    //
+    //  Bounding Box Conversion
+    //
+
+    /// Create a Box3d from a UT_BoundingBox
+    static Box3d	getBox(const UT_BoundingBox &box)
+    {
+	return Box3d(V3d(box.xmin(), box.ymin(), box.zmin()),
+		    V3d(box.xmax(), box.ymax(), box.zmax()));
+    }
+    /// Create a UT_BoundingBox from a Box3d
+    static UT_BoundingBox	getBox(const Box3d &box)
+    {
+	return UT_BoundingBox(box.min[0], box.min[1], box.min[2],
+		box.max[0], box.max[1], box.max[2]);
+    }
+
+    //
+    //  Cache
+    //
+
+    /// Clear the cache.  If no filename is given, the entire cache will be
+    /// cleared.
+    static void		clearCache(const char *filename=NULL);
+    /// Set the cache size
+    static void		setFileCacheSize(int nfiles);
+    /// Get the file cache size
+    static int		fileCacheSize();
+
+    //
+    //  Events
+    //
 
     /// Add an event handler to be notified of events on the given filename
     /// The method returns false if the archive hasn't been loaded yet.
     static bool		addEventHandler(const std::string &filename,
 				const ArchiveEventHandlerPtr &handler);
 
-    /// Clear the cache.  If no filename is given, the entire cache will be
-    /// cleared.
-    static void		clearCache(const char *filename=NULL);
-
-    /// Set the cache size
-    static void		setFileCacheSize(int nfiles);
-
-    /// Get the file cache size
-    static int		fileCacheSize();
+    //
+    //  Find Objects in Alembic Hierarchy
+    //
 
     /// Find a given GABC_IObject in an Alembic file.
     static GABC_IObject	findObject(const std::string &filename,
 				const std::string &objectpath);
     static GABC_IObject findObject(const std::string &filename,
                                 ObjectReaderPtr reader);
+    /// Return a list of all the objects in an Alembic file
+    static const PathList	&getObjectList(const std::string &filename,
+					bool include_face_sets=false);
 
+    //
+    //  Matrix Conversion
+    //
 
-    /// Walk the tree in an alembic file.  Returns false if traversal was
-    /// interrupted, otherwise returns true.
-    static bool		walk(const std::string &filename, Walker &walker);
+    /// Create a UT_Matrix4D from an M44d
+    static UT_Matrix4D		getM(const M44d &m)
+    {
+	return UT_Matrix4D(m.x);
+    }
+    /// Create an M44d from a UT_Matrix4D
+    static M44d	getM(const UT_Matrix4D &m)
+    {
+	return M44d((const double (*)[4])m.data());
+    }
 
-    /// Process a list of unique objects in an Alembic file (including their
-    /// children)
-    static bool		walk(const std::string &filename, Walker &walker,
-				const UT_StringArray &objects);
-    static bool		walk(const std::string &filename, Walker &walker,
-				const UT_Set<std::string> &objects);
+    //
+    //  Transforms
+    //
 
     /// Get the local transform for a given node in an Alembic file.  The @c
     /// isConstant flag will be true if the local transform is constant (even
@@ -210,7 +229,6 @@ public:
 				UT_Matrix4D &xform,
 				bool &isConstant,
 				bool &inheritsXform);
-
     /// Get the world transform for a given node in an Alembic file.  If the
     /// given node is a shape node, the transform up to its parent will be
     /// computed.  If the transform is constant (including all parents), the @c
@@ -224,7 +242,6 @@ public:
 				UT_Matrix4D &xform,
 				bool &isConstant,
 				bool &inheritsXform);
-
     /// Get the world transform for an GABC_IObject in an Alembic file.  If the
     /// given node is a shape node, the transform up to its parent will be
     /// returned.
@@ -235,16 +252,38 @@ public:
 				UT_Matrix4D &xform,
 				bool &isConstant,
 				bool &inheritsXform);
-
     /// Test whether an object is static or has an animated transform
     static bool		isTransformAnimated(
 				const std::string &filename,
 				const GABC_IObject &object);
 
-    /// Return a list of all the objects in an Alembic file
-    static const PathList	&getObjectList(const std::string &filename,
-					bool include_face_sets=false);
+    //
+    //  Walk Alembic Hierarchy
+    //
+
+    /// Walk the tree in an alembic file.  Returns false if traversal was
+    /// interrupted, otherwise returns true.
+    static bool		walk(const std::string &filename, Walker &walker);
+    /// Process a list of unique objects in an Alembic file (including their
+    /// children)
+    static bool		walk(const std::string &filename, Walker &walker,
+				const UT_StringArray &objects);
+    static bool		walk(const std::string &filename, Walker &walker,
+				const UT_Set<std::string> &objects);
+
+    //
+    // User Properties
+    //
+
+    /// Write user properties to two JSON dictionaries, one containing
+    /// values and another containing the metadata for the properties.
+    static bool         writeUserPropertyDictionary(UT_JSONWriter *data_writer,
+                                UT_JSONWriter *meta_writer,
+                                const GABC_IObject &obj,
+                                ICompoundProperty &uprops,
+                                fpreal time);
 };
-}
+
+} // GABC_NAMESPACE
 
 #endif

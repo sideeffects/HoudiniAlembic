@@ -68,6 +68,7 @@
 #include <PY/PY_Python.h>
 #include <PY/PY_InterpreterAutoLock.h>
 #include <GABC/GABC_IArchive.h>
+#include <GABC/GABC_GEOWalker.h>
 #include <GABC/GABC_Util.h>
 #include <Alembic/AbcGeom/All.h>
 #include <HOM/HOM_Module.h>
@@ -76,20 +77,45 @@
 #include <GT/GT_DataArray.h>
 
 using namespace GABC_NAMESPACE;
+
 namespace
 {
-    typedef GABC_IObject			IObject;
+    // Basic types
     typedef Alembic::Abc::index_t		index_t;
     typedef Alembic::Abc::chrono_t		chrono_t;
+
     typedef Alembic::Abc::V2d			V2d;
+
+    // Properties
+    typedef Alembic::Abc::ICompoundProperty     ICompoundProperty;
+    typedef Alembic::Abc::IArrayProperty        IArrayProperty;
+    typedef Alembic::Abc::IScalarProperty       IScalarProperty;
+
+    // Headers
+    typedef Alembic::Abc::PropertyHeader        PropertyHeader;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
+
+    // Sampling
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
+
+    // Geometry
     typedef Alembic::AbcGeom::IXform		IXform;
+    typedef Alembic::AbcGeom::IXform		IPolyMesh;
+    typedef Alembic::AbcGeom::IXform		ISubD;
+    typedef Alembic::AbcGeom::IXform		IPoints;
+    typedef Alembic::AbcGeom::IXform		ICurves;
+    typedef Alembic::AbcGeom::IXform		INuPatch;
+
+    // Camera
     typedef Alembic::AbcGeom::ICamera		ICamera;
     typedef Alembic::AbcGeom::ICameraSchema	ICameraSchema;
     typedef Alembic::AbcGeom::CameraSample	CameraSample;
     typedef Alembic::AbcGeom::FilmBackXformOp	FilmBackXformOp;
+
+    // Wrap Existing
+    typedef Alembic::Abc::WrapExistingFlag      WrapExistingFlag;
+    static const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
     static PY_PyObject *
     alembicGetXform(PY_PyObject *self, PY_PyObject *args, int result_size,
@@ -257,7 +283,7 @@ namespace
 	return "unknown";
     }
 
-    static const char	*Doc_ArbGeometry =
+    static const char	*Doc_AlembicArbGeometry =
 	"(value, isConstant, scope) = alembicArbGeometry(abcPath, objectPath, name, sampleTime)\n"
 	"\n"
 	"Returns None or a tuple (value,isConstant,scope).  The tuple\n"
@@ -297,7 +323,115 @@ namespace
 	return rcode;
     }
 
-    static const char	*Doc_UserProperty =
+    bool
+    isConstantUserProperty(ICompoundProperty &icp)
+    {
+        exint   num_props = icp.getNumProperties();
+        bool    isConstant = true;
+
+        for (exint i = 0; ((i < num_props) && isConstant); ++i)
+        {
+            const PropertyHeader    &header = icp.getPropertyHeader(i);
+
+            if (header.isArray())
+            {
+                IArrayProperty      prop(icp, header.getName());
+                isConstant = prop.isConstant();
+            }
+            else if (header.isScalar())
+            {
+                IScalarProperty	    prop(icp, header.getName());
+                isConstant = prop.isConstant();
+            }
+            else
+            {
+                ICompoundProperty   prop(icp, header.getName());
+                isConstant = isConstantUserProperty(prop);
+            }
+
+            if (!isConstant)
+            {
+                break;
+            }
+        }
+
+        return isConstant;
+    }
+
+    static const char   *Doc_AlembicHasUserProperties =
+        "alembicHasUserProperties(abcPath, objectPath)\n"
+        "\n"
+        "Returns None if the object has no user properties. Otherwise,\n"
+        "returns whether the userProperties are constant over time or not.\n";
+
+    PY_PyObject *
+    Py_AlembicHasUserProperties(PY_PyObject *self, PY_PyObject *args)
+    {
+        ICompoundProperty   icp;
+        GABC_IObject	    obj;
+        GT_DataArrayHandle  data;
+        const char         *filename;
+        const char         *objectPath;
+
+        if (!PY_PyArg_ParseTuple(args, "ss", &filename, &objectPath))
+        {
+            return NULL;
+        }
+
+        obj = GABC_Util::findObject(filename, objectPath);
+        switch (obj.nodeType())
+        {
+            case GABC_XFORM:
+                icp = IXform(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+                break;
+
+            // Only called for transforms currently
+            //
+//            case GABC_POLYMESH:
+//                icp = IPolyMesh(obj.object(), gabcWrapExisting)
+//                        .getSchema()
+//                        .getUserProperties();
+//                break;
+//
+//            case GABC_SUBD:
+//                icp = ISubD(obj.object(), gabcWrapExisting)
+//                        .getSchema()
+//                        .getUserProperties();
+//                break;
+//
+//            case GABC_CURVES:
+//                icp = ICurves(obj.object(), gabcWrapExisting)
+//                        .getSchema()
+//                        .getUserProperties();
+//                break;
+//
+//            case GABC_POINTS:
+//                icp = IPoints(obj.object(), gabcWrapExisting)
+//                        .getSchema()
+//                        .getUserProperties();
+//                break;
+//
+//            case GABC_NUPATCH:
+//                icp = INuPatch(obj.object(), gabcWrapExisting)
+//                        .getSchema()
+//                        .getUserProperties();
+//                break;
+
+            default:
+                icp = ICompoundProperty();
+        }
+
+        if (!icp || icp.getNumProperties() == 0)
+        {
+            PY_Py_RETURN_NONE;
+        }
+
+        return isConstantUserProperty(icp) ? PY_Py_True() : PY_Py_False();
+    }
+
+    static const char	*Doc_AlembicUserProperty =
 	"(value, isConstant) = alembicUserProperty(abcPath, objectPath, name, sampleTime)\n"
 	"\n"
 	"Returns None or a tuple (value,isConstant).  The tuple contains the\n"
@@ -333,7 +467,136 @@ namespace
 	return rcode;
     }
 
-    static const char	*Doc_Visibility =
+    static const char   *Doc_AlembicUserPropertyDicts =
+        "alembicUserPropertyDictionary(abcPath, objectPath, sampleTime)\n"
+        "\n"
+        "Returns None or a Tuple containing two JSON dictionaries. The first \n"
+        "dictionary contains a map of user properties to values. The second\n"
+        "dictionary contains a map of user properties to metadata used to\n"
+        "interpret the first dictionary.\n"
+        "\n"
+        "NOTE: User properties can be loaded without metadata. In this case\n"
+        "the second dictionary is just an empty string.\n";
+
+    PY_PyObject *
+    Py_AlembicUserPropertyDicts(PY_PyObject *self, PY_PyObject *args)
+    {
+        ICompoundProperty   uprops;
+        GABC_IObject	    obj;
+        UT_JSONWriter      *data_writer;
+        UT_JSONWriter      *meta_writer;
+        UT_WorkBuffer       data_dictionary;
+        UT_WorkBuffer       meta_dictionary;
+        const char         *filename;
+        const char         *objectPath;
+        double              sampleTime;
+        int                 up_loadmode;
+
+        if (!PY_PyArg_ParseTuple(args,
+                "ssdi",
+                &filename,
+                &objectPath,
+                &sampleTime,
+                &up_loadmode))
+        {
+            return NULL;
+        }
+
+        obj = GABC_Util::findObject(filename, objectPath);
+        if (!obj.valid())
+        {
+            PY_Py_RETURN_NONE;
+        }
+
+        switch (obj.nodeType())
+        {
+            case GABC_XFORM:
+                uprops = IXform(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+                break;
+
+            // Only called for transforms currently
+            //
+//            case GABC_POLYMESH:
+//                uprops = IPolyMesh(obj.object(), gabcWrapExisting)
+//                        .getSchema()
+//                        .getUserProperties();
+//                break;
+//
+//            case GABC_SUBD:
+//                uprops = ISubD(obj.object(), gabcWrapExisting)
+//                        .getSchema()
+//                        .getUserProperties();
+//                break;
+//
+//            case GABC_CURVES:
+//                uprops = ICurves(obj.object(), gabcWrapExisting)
+//                        .getSchema()
+//                        .getUserProperties();
+//                break;
+//
+//            case GABC_POINTS:
+//                uprops = IPoints(obj.object(), gabcWrapExisting)
+//                        .getSchema()
+//                        .getUserProperties();
+//                break;
+//
+//            case GABC_NUPATCH:
+//                uprops = INuPatch(obj.object(), gabcWrapExisting)
+//                        .getSchema()
+//                        .getUserProperties();
+//                break;
+
+            default:
+                uprops = ICompoundProperty();
+        }
+
+        if (!uprops || uprops.getNumProperties() == 0)
+        {
+            PY_Py_RETURN_NONE;
+        }
+
+        data_writer = UT_JSONWriter::allocWriter(data_dictionary);
+        meta_writer = (up_loadmode == GABC_GEOWalker::UP_LOAD_ALL)
+                ? UT_JSONWriter::allocWriter(meta_dictionary)
+                : NULL;
+        if (!GABC_Util::writeUserPropertyDictionary(data_writer,
+                meta_writer,
+                obj,
+                uprops,
+                sampleTime))
+        {
+            delete data_writer;
+            if (meta_writer)
+            {
+                delete meta_writer;
+            }
+
+            PY_Py_RETURN_NONE;
+        }
+
+        delete data_writer;
+        if (meta_writer)
+        {
+            delete meta_writer;
+        }
+
+        PY_PyObject    *result = PY_PyTuple_New(2);
+        PY_PyTuple_SetItem(result, 0, PY_PyString_FromString(data_dictionary.buffer()));
+        if (up_loadmode == GABC_GEOWalker::UP_LOAD_ALL)
+        {
+            PY_PyTuple_SetItem(result, 1, PY_PyString_FromString(meta_dictionary.buffer()));
+        }
+        else
+        {
+            PY_PyTuple_SetItem(result, 1, PY_PyString_FromString(""));
+        }
+
+        return result;
+    }
+
+    static const char	*Doc_AlembicVisibility =
 	"(value, isConstant) = alembicVisibility(abcPath, objectPath, sampleTime, [check_ancestor=False])\n"
 	"\n"
 	"Returns None or a tuple (value,isConstant).  The tuple contains the\n"
@@ -386,13 +649,13 @@ namespace
 	~PyWalker()
 	{
 	}
-	virtual bool	process(const IObject &root)
+	virtual bool	process(const GABC_IObject &root)
 			{
 			    myRoot = walkNode(root);
 			    return false;
 			}
 
-	PY_PyObject	*walkNode(const IObject &obj)
+	PY_PyObject	*walkNode(const GABC_IObject &obj)
 	{
 	    const char		*otype = "<unknown>";
 	    switch (obj.nodeType())
@@ -432,7 +695,7 @@ namespace
 		    break;
 	    }
 
-	    exint nkids = const_cast<IObject *>(&obj)->getNumChildren();
+	    exint nkids = const_cast<GABC_IObject *>(&obj)->getNumChildren();
 	    PY_PyObject *result = PY_PyTuple_New(3);
 	    PY_PyObject *kids = PY_PyTuple_New(nkids);;
 
@@ -444,7 +707,7 @@ namespace
 	    for (exint i = 0; i < nkids; ++i)
 	    {
 		PY_PyTuple_SET_ITEM(kids, i,
-			walkNode(const_cast<IObject *>(&obj)->getChild(i)));
+			walkNode(const_cast<GABC_IObject *>(&obj)->getChild(i)));
 	    }
 	    return result;
 	}
@@ -695,7 +958,7 @@ namespace
 
 	try
 	{
-	    IObject	obj = GABC_Util::findObject(archivePath, objectPath);
+	    GABC_IObject    obj = GABC_Util::findObject(archivePath, objectPath);
 
 	    if (obj.valid() && ICamera::matches(obj.getHeader()))
 	    {
@@ -758,12 +1021,16 @@ HOMextendLibrary()
                 PY_METH_VARARGS(), Doc_AlembicGetCameraDict },
 
 	{ "alembicArbGeometry", Py_AlembicArbGeometry,
-		PY_METH_VARARGS(), Doc_ArbGeometry },
+		PY_METH_VARARGS(), Doc_AlembicArbGeometry },
+        { "alembicHasUserProperties", Py_AlembicHasUserProperties,
+                PY_METH_VARARGS(), Doc_AlembicHasUserProperties},
 	{ "alembicUserProperty", Py_AlembicUserProperty,
-		PY_METH_VARARGS(), Doc_UserProperty },
+		PY_METH_VARARGS(), Doc_AlembicUserProperty },
+        { "alembicUserPropertyDictionaries", Py_AlembicUserPropertyDicts,
+                PY_METH_VARARGS(), Doc_AlembicUserPropertyDicts},
 
 	{ "alembicVisibility",	Py_AlembicVisibility,
-		PY_METH_VARARGS(), Doc_Visibility },
+		PY_METH_VARARGS(), Doc_AlembicVisibility },
 
         { NULL, NULL, 0, NULL }
     };

@@ -318,6 +318,18 @@
 	}
 	export	none
     }
+    parm {
+        name        "loadUserProps"
+        label       "User Properties"
+        type        ordinal
+        default     { 0 }
+        menu        {
+            "none"  "Do Not Load"
+            "data"  "Load Values Only"
+            "both"  "Load Values and Metadata"
+        }
+        export      none
+    }
     multiparm {
 	name	"remapAttributes"
 	label	"Remap Attributes"

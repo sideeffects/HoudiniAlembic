@@ -88,6 +88,38 @@ def _checkAnimatedVisibility(filename, objectpath):
     vis = _abc.alembicVisibility(filename, objectpath, 0, 1)
     return not vis[1] and vis[0] != -1
 
+def _setUserProperties(currentNode, name, fileName, loadType):
+    # Exit quick if user properties shouldn't be loaded
+    if loadType == 0:
+        return
+
+    # Check for user properties on node. Returns None if no user properties,
+    # true if properties are static, and false if properties are animated.
+    props = _abc.alembicHasUserProperties(fileName, name)
+
+    if props != None:
+        # Add spare parameter for user property values
+        currentNode.addSpareParmTuple(hou.StringParmTemplate('userProps', 'User Properties', 1, ['']))
+
+        # If the properties are static or we're loading metadata, create the
+        # user property dictionaries.
+        if props || loadType == 2
+            dictionary = _abc.alembicUserPropertyDictionaries(fileName, name, 0, loadType)
+
+        # If the properties are static, set them.
+        if props:
+            currentNode.parm('userProps').set(dictionary[0])
+        # If the properties are animated, set the expression to fetch them.
+        else:
+            expr = '%s.alembicUserPropertyDictionaries("%s", "%s", ch("frame")/ch("fps"), 1)[0]' % (_AbcModule, fileName, name)
+            currentNode.parm('userProps').setExpression(expr, hou.exprLanguage.Python)
+
+        # If we're loading metadata, create a spare parameter for the
+        # metadata and set the static value.
+        if loadType == 2:
+            currentNode.addSpareParmTuple(hou.StringParmTemplate('userPropsMeta', 'User Properties Metadata', 1, ['']))
+            currentNode.parm('userPropsMeta').set(dictionary[1])
+
 def _setVisibility(node, filename, objectpath, chprefix):
     vis = _abc.alembicVisibility(filename, objectpath, 0, 1)
     if vis[1] and vis[0] == 1:
@@ -165,12 +197,14 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
             ExpressionToParm(rootNode.parm('frame'), sopNode.parm('frame'))
             ExpressionToParm(rootNode.parm('fps'), sopNode.parm('fps'))
             ExpressionToParm(rootNode.parm('loadmode'), sopNode.parm('loadmode'))
+            ExpressionToParm(rootNode.parm('loadUserProps'), sopNode.parm('loadUserProps'))
 
         objectPath = currentPath
         if ' ' in objectPath:
             objectPath = ''.join(['"', currentPath, '"'])
         sopNode.parm('objectPath').set(objectPath)
         sopNode.parm('includeXform').set(0)
+        sopNode.parm('loadUserProps').set(1)
         sopNode.parm('groupnames').set('none')  # Don't build groups
     elif typeName == 'xform' or typeName == 'cxform':
         if buildSubnet:
@@ -182,7 +216,10 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 currentNode.setInput(0, parentNode)
             else:
                 currentNode.setInput(0, parentNode.indirectInputs()[0])
+
         _setNodeName(currentNode, name)
+        _setUserProperties(currentNode, name, fileName, rootNode.evalParm('loadUserProps'))
+
         animated = typeName != 'cxform'
         if flatVisibility:
             if _checkAnimatedVisibility(fileName, currentPath):
@@ -297,6 +334,7 @@ def WalkAndPush(rootNode, parentNode):
             _pushScalarParm('frame', rootNode, kid)
             _pushScalarParm('fps', rootNode, kid)
             _pushScalarParm('loadmode', rootNode, kid)
+            _pushScalarParm('loadUserProps', rootNode, kid)
             _pushRemapAttributesParm(rootNode, kid)
         WalkAndPush(rootNode, kid)
 

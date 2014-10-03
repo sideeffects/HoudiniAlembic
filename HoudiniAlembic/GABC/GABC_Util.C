@@ -28,6 +28,7 @@
 #include "GABC_Util.h"
 #include <Alembic/AbcGeom/All.h>
 #include <Alembic/AbcCoreHDF5/All.h>
+#include <GT/GT_AttributeList.h>
 #include <UT/UT_CappedCache.h>
 #include <UT/UT_WorkBuffer.h>
 #include <UT/UT_StringArray.h>
@@ -43,35 +44,151 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef Alembic::Abc::M44d			M44d;
-    typedef Alembic::Abc::index_t		index_t;
-    typedef Alembic::Abc::chrono_t		chrono_t;
-    typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
-    typedef Alembic::Abc::IObject               IObject;
-    typedef Alembic::Abc::ISampleSelector	ISampleSelector;
-    typedef Alembic::Abc::ObjectHeader		ObjectHeader;
-    typedef Alembic::Abc::ObjectReaderPtr       ObjectReaderPtr;
-    typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
-    typedef Alembic::Abc::WrapExistingFlag	WrapExistingFlag;
+    typedef Alembic::Abc::index_t		    index_t;
+    typedef Alembic::Abc::chrono_t		    chrono_t;
+    typedef Alembic::Abc::M44d			    M44d;
 
-    typedef Alembic::AbcGeom::IXform		IXform;
-    typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
-    typedef Alembic::AbcGeom::IPolyMesh		IPolyMesh;
-    typedef Alembic::AbcGeom::ISubD		ISubD;
-    typedef Alembic::AbcGeom::ICurves		ICurves;
-    typedef Alembic::AbcGeom::IPoints		IPoints;
-    typedef Alembic::AbcGeom::INuPatch		INuPatch;
-    typedef Alembic::AbcGeom::IFaceSet		IFaceSet;
-    typedef Alembic::AbcGeom::IPolyMeshSchema	IPolyMeshSchema;
-    typedef Alembic::AbcGeom::ISubDSchema	ISubDSchema;
-    typedef Alembic::AbcGeom::ICurvesSchema	ICurvesSchema;
-    typedef Alembic::AbcGeom::IPointsSchema	IPointsSchema;
-    typedef Alembic::AbcGeom::INuPatchSchema	INuPatchSchema;
-    typedef Alembic::AbcGeom::IFaceSetSchema	IFaceSetSchema;
-    typedef Alembic::AbcGeom::ICamera		ICamera;
-    typedef Alembic::AbcGeom::XformSample	XformSample;
+    typedef Alembic::Abc::ISampleSelector	    ISampleSelector;
+    typedef Alembic::Abc::TimeSamplingPtr	    TimeSamplingPtr;
 
-    typedef GABC_Util::PathList			PathList;
+    typedef Alembic::Abc::IObject                   IObject;
+    typedef Alembic::Abc::ObjectHeader		    ObjectHeader;
+    typedef Alembic::Abc::ObjectReaderPtr           ObjectReaderPtr;
+
+    typedef Alembic::Abc::DataType                  DataType;
+    typedef Alembic::Abc::PlainOldDataType          PlainOldDataType;
+    typedef Alembic::Abc::WrapExistingFlag	    WrapExistingFlag;
+
+    // PROPERTIES
+    typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
+    typedef Alembic::Abc::ICompoundProperty	    ICompoundProperty;
+    typedef Alembic::Abc::PropertyHeader            PropertyHeader;
+
+    // ARRAY PROPERTIES
+    typedef Alembic::Abc::IV2sArrayProperty         IV2sArrayProperty;
+    typedef Alembic::Abc::IV2iArrayProperty         IV2iArrayProperty;
+    typedef Alembic::Abc::IV2fArrayProperty         IV2fArrayProperty;
+    typedef Alembic::Abc::IV2dArrayProperty         IV2dArrayProperty;
+
+    typedef Alembic::Abc::IV3sArrayProperty         IV3sArrayProperty;
+    typedef Alembic::Abc::IV3iArrayProperty         IV3iArrayProperty;
+    typedef Alembic::Abc::IV3fArrayProperty         IV3fArrayProperty;
+    typedef Alembic::Abc::IV3dArrayProperty         IV3dArrayProperty;
+
+    typedef Alembic::Abc::IP2sArrayProperty         IP2sArrayProperty;
+    typedef Alembic::Abc::IP2iArrayProperty         IP2iArrayProperty;
+    typedef Alembic::Abc::IP2fArrayProperty         IP2fArrayProperty;
+    typedef Alembic::Abc::IP2dArrayProperty         IP2dArrayProperty;
+
+    typedef Alembic::Abc::IP3sArrayProperty         IP3sArrayProperty;
+    typedef Alembic::Abc::IP3iArrayProperty         IP3iArrayProperty;
+    typedef Alembic::Abc::IP3fArrayProperty         IP3fArrayProperty;
+    typedef Alembic::Abc::IP3dArrayProperty         IP3dArrayProperty;
+
+    typedef Alembic::Abc::IBox2sArrayProperty       IBox2sArrayProperty;
+    typedef Alembic::Abc::IBox2iArrayProperty       IBox2iArrayProperty;
+    typedef Alembic::Abc::IBox2fArrayProperty       IBox2fArrayProperty;
+    typedef Alembic::Abc::IBox2dArrayProperty       IBox2dArrayProperty;
+
+    typedef Alembic::Abc::IBox3sArrayProperty       IBox3sArrayProperty;
+    typedef Alembic::Abc::IBox3iArrayProperty       IBox3iArrayProperty;
+    typedef Alembic::Abc::IBox3fArrayProperty       IBox3fArrayProperty;
+    typedef Alembic::Abc::IBox3dArrayProperty       IBox3dArrayProperty;
+
+    typedef Alembic::Abc::IM33fArrayProperty        IM33fArrayProperty;
+    typedef Alembic::Abc::IM33dArrayProperty        IM33dArrayProperty;
+    typedef Alembic::Abc::IM44fArrayProperty        IM44fArrayProperty;
+    typedef Alembic::Abc::IM44dArrayProperty        IM44dArrayProperty;
+
+    typedef Alembic::Abc::IQuatfArrayProperty       IQuatfArrayProperty;
+    typedef Alembic::Abc::IQuatdArrayProperty       IQuatdArrayProperty;
+
+    typedef Alembic::Abc::IC3hArrayProperty         IC3hArrayProperty;
+    typedef Alembic::Abc::IC3fArrayProperty         IC3fArrayProperty;
+    typedef Alembic::Abc::IC3cArrayProperty         IC3cArrayProperty;
+
+    typedef Alembic::Abc::IC4hArrayProperty         IC4hArrayProperty;
+    typedef Alembic::Abc::IC4fArrayProperty         IC4fArrayProperty;
+    typedef Alembic::Abc::IC4cArrayProperty         IC4cArrayProperty;
+
+    typedef Alembic::Abc::IN2fArrayProperty         IN2fArrayProperty;
+    typedef Alembic::Abc::IN2dArrayProperty         IN2dArrayProperty;
+
+    typedef Alembic::Abc::IN3fArrayProperty         IN3fArrayProperty;
+    typedef Alembic::Abc::IN3dArrayProperty         IN3dArrayProperty;
+
+    // SCALAR PROPERTIES
+    typedef Alembic::Abc::IV2sProperty              IV2sProperty;
+    typedef Alembic::Abc::IV2iProperty              IV2iProperty;
+    typedef Alembic::Abc::IV2fProperty              IV2fProperty;
+    typedef Alembic::Abc::IV2dProperty              IV2dProperty;
+
+    typedef Alembic::Abc::IV3sProperty              IV3sProperty;
+    typedef Alembic::Abc::IV3iProperty              IV3iProperty;
+    typedef Alembic::Abc::IV3fProperty              IV3fProperty;
+    typedef Alembic::Abc::IV3dProperty              IV3dProperty;
+
+    typedef Alembic::Abc::IP2sProperty              IP2sProperty;
+    typedef Alembic::Abc::IP2iProperty              IP2iProperty;
+    typedef Alembic::Abc::IP2fProperty              IP2fProperty;
+    typedef Alembic::Abc::IP2dProperty              IP2dProperty;
+
+    typedef Alembic::Abc::IP3sProperty              IP3sProperty;
+    typedef Alembic::Abc::IP3iProperty              IP3iProperty;
+    typedef Alembic::Abc::IP3fProperty              IP3fProperty;
+    typedef Alembic::Abc::IP3dProperty              IP3dProperty;
+
+    typedef Alembic::Abc::IBox2sProperty            IBox2sProperty;
+    typedef Alembic::Abc::IBox2iProperty            IBox2iProperty;
+    typedef Alembic::Abc::IBox2fProperty            IBox2fProperty;
+    typedef Alembic::Abc::IBox2dProperty            IBox2dProperty;
+
+    typedef Alembic::Abc::IBox3sProperty            IBox3sProperty;
+    typedef Alembic::Abc::IBox3iProperty            IBox3iProperty;
+    typedef Alembic::Abc::IBox3fProperty            IBox3fProperty;
+    typedef Alembic::Abc::IBox3dProperty            IBox3dProperty;
+
+    typedef Alembic::Abc::IM33fProperty             IM33fProperty;
+    typedef Alembic::Abc::IM33dProperty             IM33dProperty;
+    typedef Alembic::Abc::IM44fProperty             IM44fProperty;
+    typedef Alembic::Abc::IM44dProperty             IM44dProperty;
+
+    typedef Alembic::Abc::IQuatfProperty            IQuatfProperty;
+    typedef Alembic::Abc::IQuatdProperty            IQuatdProperty;
+
+    typedef Alembic::Abc::IC3hProperty              IC3hProperty;
+    typedef Alembic::Abc::IC3fProperty              IC3fProperty;
+    typedef Alembic::Abc::IC3cProperty              IC3cProperty;
+
+    typedef Alembic::Abc::IC4hProperty              IC4hProperty;
+    typedef Alembic::Abc::IC4fProperty              IC4fProperty;
+    typedef Alembic::Abc::IC4cProperty              IC4cProperty;
+
+    typedef Alembic::Abc::IN2fProperty              IN2fProperty;
+    typedef Alembic::Abc::IN2dProperty              IN2dProperty;
+
+    typedef Alembic::Abc::IN3fProperty              IN3fProperty;
+    typedef Alembic::Abc::IN3dProperty              IN3dProperty;
+
+    // INPUT OBJECTS AND SCHEMAS
+    typedef Alembic::AbcGeom::IXform		    IXform;
+    typedef Alembic::AbcGeom::IPolyMesh		    IPolyMesh;
+    typedef Alembic::AbcGeom::ISubD		    ISubD;
+    typedef Alembic::AbcGeom::ICurves		    ICurves;
+    typedef Alembic::AbcGeom::IPoints		    IPoints;
+    typedef Alembic::AbcGeom::INuPatch		    INuPatch;
+    typedef Alembic::AbcGeom::IFaceSet		    IFaceSet;
+    typedef Alembic::AbcGeom::IXformSchema	    IXformSchema;
+    typedef Alembic::AbcGeom::IPolyMeshSchema	    IPolyMeshSchema;
+    typedef Alembic::AbcGeom::ISubDSchema	    ISubDSchema;
+    typedef Alembic::AbcGeom::ICurvesSchema	    ICurvesSchema;
+    typedef Alembic::AbcGeom::IPointsSchema	    IPointsSchema;
+    typedef Alembic::AbcGeom::INuPatchSchema	    INuPatchSchema;
+    typedef Alembic::AbcGeom::IFaceSetSchema	    IFaceSetSchema;
+    typedef Alembic::AbcGeom::ICamera		    ICamera;
+    typedef Alembic::AbcGeom::XformSample	    XformSample;
+
+    typedef GABC_Util::PathList			    PathList;
 
     static UT_Lock		theFileLock;
     static UT_Lock		theOCacheLock;
@@ -263,22 +380,22 @@ namespace
 	}
 
 	bool	addHandler(const ArchiveEventHandlerPtr &handler)
-		{
-		    if (myArchive && handler)
-		    {
-			myHandlers.insert(handler);
-			handler->setArchivePtr(myArchive.get());
-			return true;
-		    }
-		    return false;
-		}
+        {
+            if (myArchive && handler)
+            {
+                myHandlers.insert(handler);
+                handler->setArchivePtr(myArchive.get());
+                return true;
+            }
+            return false;
+        }
 
 	bool	walk(GABC_Util::Walker &walker)
-		{
-		    if (!walker.preProcess(root()))
-			return false;
-		    return walkTree(root(), walker);
-		}
+        {
+            if (!walker.preProcess(root()))
+                return false;
+            return walkTree(root(), walker);
+        }
 
 	inline void	ensureValidTransformCache()
 	{
@@ -331,42 +448,42 @@ namespace
 
 	/// Check to see if there's a const local transform cached
 	bool	staticLocalTransform(const char *fullpath, M44d &xform)
-		{
-		    ensureValidTransformCache();
-		    AbcTransformMap::const_map_iterator it;
-		    it = myStaticXforms.find(fullpath);
-		    if (it != myStaticXforms.map_end())
-		    {
-			xform = it->second.getLocal();
-			return true;
-		    }
-		    return false;
-		}
+        {
+            ensureValidTransformCache();
+            AbcTransformMap::const_map_iterator it;
+            it = myStaticXforms.find(fullpath);
+            if (it != myStaticXforms.map_end())
+            {
+                xform = it->second.getLocal();
+                return true;
+            }
+            return false;
+        }
 	/// Check to see if there's a const world transform cached
 	bool	staticWorldTransform(const char *fullpath, M44d &xform)
-		{
-		    ensureValidTransformCache();
-		    AbcTransformMap::const_map_iterator it;
-		    it = myStaticXforms.find(fullpath);
-		    if (it != myStaticXforms.map_end())
-		    {
-			xform = it->second.getWorld();
-			return true;
-		    }
-		    return false;
-		}
+        {
+            ensureValidTransformCache();
+            AbcTransformMap::const_map_iterator it;
+            it = myStaticXforms.find(fullpath);
+            if (it != myStaticXforms.map_end())
+            {
+                xform = it->second.getWorld();
+                return true;
+            }
+            return false;
+        }
 
 	/// Get an object's local transform
 	void	getLocalTransform(M44d &x, const GABC_IObject &obj, fpreal now,
 			bool &isConstant, bool &inheritsXform)
-		{
-		    if (!obj.localTransform(now, x, isConstant, inheritsXform))
-		    {
-			isConstant = true;
-			inheritsXform = true;
-			x.makeIdentity();
-		    }
-		}
+        {
+            if (!obj.localTransform(now, x, isConstant, inheritsXform))
+            {
+                isConstant = true;
+                inheritsXform = true;
+                x.makeIdentity();
+            }
+        }
 
 	bool	isObjectAnimated(const GABC_IObject &obj)
 	{
@@ -380,78 +497,78 @@ namespace
 	/// Find the full world transform for an object
 	bool	getWorldTransform(M44d &x, const GABC_IObject &obj, fpreal now,
 			bool &isConstant, bool &inheritsXform)
-		{
-		    UT_AutoLock	lock(theXCacheLock);
-		    isConstant = true;
-		    // First, check if we have a static 
-		    std::string	path = obj.getFullName();
-		    if (staticWorldTransform(path.c_str(), x))
-			return true;
+        {
+            UT_AutoLock	lock(theXCacheLock);
+            isConstant = true;
+            // First, check if we have a static
+            std::string	path = obj.getFullName();
+            if (staticWorldTransform(path.c_str(), x))
+                return true;
 
-		    // Now check to see if it's in the dynamic cache
-		    ArchiveObjectKey	key(path.c_str(), now);
-		    UT_CappedItemHandle	item = myDynamicXforms.findItem(key);
-		    if (item)
-		    {
-			ArchiveTransformItem	*xitem;
-			xitem =UTverify_cast<ArchiveTransformItem*>(item.get());
-			x = xitem->getWorld();
-			isConstant = xitem->isConstant();
-			inheritsXform = xitem->inheritsXform();
-		    }
-		    else
-		    {
-			// Get our local transform
-			M44d		localXform;
-			GABC_IObject	dad = obj.getParent();
+            // Now check to see if it's in the dynamic cache
+            ArchiveObjectKey	key(path.c_str(), now);
+            UT_CappedItemHandle	item = myDynamicXforms.findItem(key);
+            if (item)
+            {
+                ArchiveTransformItem	*xitem;
+                xitem =UTverify_cast<ArchiveTransformItem*>(item.get());
+                x = xitem->getWorld();
+                isConstant = xitem->isConstant();
+                inheritsXform = xitem->inheritsXform();
+            }
+            else
+            {
+                // Get our local transform
+                M44d		localXform;
+                GABC_IObject	dad = obj.getParent();
 
-			getLocalTransform(localXform, obj, now,
-				isConstant, inheritsXform);
-			if (dad.valid() && inheritsXform)
-			{
-			    M44d	dm;
-			    bool	dadConst;
-			    getWorldTransform(dm, dad, now, dadConst,
-				    inheritsXform);
-			    if (!dadConst)
-				isConstant = false;
-			    if (inheritsXform)
-				x = localXform * dm;
-			}
-			else
-			{
-			    x = localXform;	// World transform same as local
-			}
-			myDynamicXforms.addItem(key,
-			    new ArchiveTransformItem(localXform, x,
-					    isConstant, inheritsXform));
-		    }
-		    return true;
-		}
+                getLocalTransform(localXform, obj, now,
+                        isConstant, inheritsXform);
+                if (dad.valid() && inheritsXform)
+                {
+                    M44d	dm;
+                    bool	dadConst;
+                    getWorldTransform(dm, dad, now, dadConst,
+                            inheritsXform);
+                    if (!dadConst)
+                        isConstant = false;
+                    if (inheritsXform)
+                        x = localXform * dm;
+                }
+                else
+                {
+                    x = localXform;	// World transform same as local
+                }
+                myDynamicXforms.addItem(key,
+                    new ArchiveTransformItem(localXform, x,
+                                    isConstant, inheritsXform));
+            }
+            return true;
+        }
 
 	/// Find an object in the object cache -- this prevents having to
 	/// traverse from the root every time we need an object.
 	GABC_IObject findObject(const GABC_IObject &parent,
 			    UT_WorkBuffer &fullpath, const char *component)
-		{
-		    UT_AutoLock	lock(theOCacheLock);
-		    fullpath.append("/");
-		    fullpath.append(component);
-		    ArchiveObjectKey	key(fullpath.buffer());
-		    GABC_IObject	kid;
-		    UT_CappedItemHandle item = myCache.findItem(key);
-		    if (item)
-		    {
-			kid = UTverify_cast<ArchiveObjectItem *>(item.get())->getObject();
-		    }
-		    else
-		    {
-			kid = parent.getChild(component);
-			if (kid.valid())
-			    myCache.addItem(key, new ArchiveObjectItem(kid));
-		    }
-		    return kid;
-		}
+        {
+            UT_AutoLock	lock(theOCacheLock);
+            fullpath.append("/");
+            fullpath.append(component);
+            ArchiveObjectKey	key(fullpath.buffer());
+            GABC_IObject	kid;
+            UT_CappedItemHandle item = myCache.findItem(key);
+            if (item)
+            {
+                kid = UTverify_cast<ArchiveObjectItem *>(item.get())->getObject();
+            }
+            else
+            {
+                kid = parent.getChild(component);
+                if (kid.valid())
+                    myCache.addItem(key, new ArchiveObjectItem(kid));
+            }
+            return kid;
+        }
 
 	/// Given a path to the object, return the object
 	GABC_IObject getObject(const std::string &objectPath)
@@ -653,18 +770,643 @@ namespace
 	delete g_archiveCache;
 	g_archiveCache = new ArchiveCache;
     }
+
+    std::string
+    static getInterpretation(const PropertyHeader &head, const DataType &dt)
+    {
+        PlainOldDataType    pod = dt.getPod();
+        std::string         interpretation = "UNIDENTIFIED";
+        int                 extent = dt.getExtent();
+
+        if (head.isArray())
+        {
+            if (extent == 1)
+            {
+                interpretation = "";
+            }
+            else if (extent == 2)
+            {
+                if (pod == Alembic::Abc::kInt16POD)
+                {
+                    if (IV2sArrayProperty::matches(head))
+                    {
+                        interpretation = IV2sArrayProperty::getInterpretation();
+                    }
+                    else if (IP2sArrayProperty::matches(head))
+                    {
+                        interpretation = IP2sArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kInt32POD)
+                {
+                    if (IV2iArrayProperty::matches(head))
+                    {
+                        interpretation = IV2iArrayProperty::getInterpretation();
+                    }
+                    else if (IP2iArrayProperty::matches(head))
+                    {
+                        interpretation = IP2iArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat32POD)
+                {
+                    if (IV2fArrayProperty::matches(head))
+                    {
+                        interpretation = IV2fArrayProperty::getInterpretation();
+                    }
+                    else if (IP2fArrayProperty::matches(head))
+                    {
+                        interpretation = IP2fArrayProperty::getInterpretation();
+                    }
+                    else if (IN2fArrayProperty::matches(head))
+                    {
+                        interpretation = IN2fArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat64POD)
+                {
+                    if (IV2dArrayProperty::matches(head))
+                    {
+                        interpretation = IV2dArrayProperty::getInterpretation();
+                    }
+                    else if (IP2dArrayProperty::matches(head))
+                    {
+                        interpretation = IP2dArrayProperty::getInterpretation();
+                    }
+                    else if (IN2dArrayProperty::matches(head))
+                    {
+                        interpretation = IN2dArrayProperty::getInterpretation();
+                    }
+                }
+            }
+            else if (extent == 3)
+            {
+                if (pod == Alembic::Abc::kUint8POD)
+                {
+                    if (IC3cArrayProperty::matches(head))
+                    {
+                        interpretation = IC3cArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kInt16POD)
+                {
+                    if (IV3sArrayProperty::matches(head))
+                    {
+                        interpretation = IV3sArrayProperty::getInterpretation();
+                    }
+                    else if (IP3sArrayProperty::matches(head))
+                    {
+                        interpretation = IP3sArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kInt32POD)
+                {
+                    if (IV3iArrayProperty::matches(head))
+                    {
+                        interpretation = IV3iArrayProperty::getInterpretation();
+                    }
+                    else if (IP3iArrayProperty::matches(head))
+                    {
+                        interpretation = IP3iArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat16POD)
+                {
+                    if (IC3hArrayProperty::matches(head))
+                    {
+                        interpretation = IC3hArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat32POD)
+                {
+                    if (IV3fArrayProperty::matches(head))
+                    {
+                        interpretation = IV3fArrayProperty::getInterpretation();
+                    }
+                    else if (IP3fArrayProperty::matches(head))
+                    {
+                        interpretation = IP3fArrayProperty::getInterpretation();
+                    }
+                    else if (IN3fArrayProperty::matches(head))
+                    {
+                        interpretation = IN3fArrayProperty::getInterpretation();
+                    }
+                    else if (IC3fArrayProperty::matches(head))
+                    {
+                        interpretation = IC3fArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat64POD)
+                {
+                    if (IV3dArrayProperty::matches(head))
+                    {
+                        interpretation = IV3dArrayProperty::getInterpretation();
+                    }
+                    else if (IP3dArrayProperty::matches(head))
+                    {
+                        interpretation = IP3dArrayProperty::getInterpretation();
+                    }
+                    else if (IN3dArrayProperty::matches(head))
+                    {
+                        interpretation = IN3dArrayProperty::getInterpretation();
+                    }
+                }
+            }
+            else if (extent == 4)
+            {
+                if (pod == Alembic::Abc::kUint8POD)
+                {
+                    if (IC4cArrayProperty::matches(head))
+                    {
+                        interpretation = IC4cArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kInt16POD)
+                {
+                    if (IBox2sArrayProperty::matches(head))
+                    {
+                        interpretation = IBox2sArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kInt32POD)
+                {
+                    if (IBox2iArrayProperty::matches(head))
+                    {
+                        interpretation = IBox2iArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat16POD)
+                {
+                    if (IC4hArrayProperty::matches(head))
+                    {
+                        interpretation = IC4hArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat32POD)
+                {
+                    if (IBox2fArrayProperty::matches(head))
+                    {
+                        interpretation = IBox2fArrayProperty::getInterpretation();
+                    }
+                    else if (IQuatfArrayProperty::matches(head))
+                    {
+                        interpretation = IQuatfArrayProperty::getInterpretation();
+                    }
+                    else if (IC4fArrayProperty::matches(head))
+                    {
+                        interpretation = IC4fArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat64POD)
+                {
+                    if (IBox2fArrayProperty::matches(head))
+                    {
+                        interpretation = IBox2dArrayProperty::getInterpretation();
+                    }
+                    else if (IQuatfArrayProperty::matches(head))
+                    {
+                        interpretation = IQuatdArrayProperty::getInterpretation();
+                    }
+                }
+            }
+            else if (extent == 6)
+            {
+                if (pod == Alembic::Abc::kInt16POD)
+                {
+                    if (IBox2sArrayProperty::matches(head))
+                    {
+                        interpretation = IBox2sArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kInt32POD)
+                {
+                    if (IBox2iArrayProperty::matches(head))
+                    {
+                        interpretation = IBox2iArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat32POD)
+                {
+                    if (IBox2fArrayProperty::matches(head))
+                    {
+                        interpretation = IBox2fArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat64POD)
+                {
+                    if (IBox2fArrayProperty::matches(head))
+                    {
+                        interpretation = IBox2dArrayProperty::getInterpretation();
+                    }
+                }
+            }
+            else if (extent == 9)
+            {
+                if (pod == Alembic::Abc::kFloat32POD)
+                {
+                    if (IM33fArrayProperty::matches(head))
+                    {
+                        interpretation = IM33fArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat64POD)
+                {
+                    if (IM44fArrayProperty::matches(head))
+                    {
+                        interpretation = IM44fArrayProperty::getInterpretation();
+                    }
+                }
+            }
+            else if (extent == 16)
+            {
+                if (pod == Alembic::Abc::kFloat32POD)
+                {
+                    if (IM33dArrayProperty::matches(head))
+                    {
+                        interpretation = IM33dArrayProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat64POD)
+                {
+                    if (IM44dArrayProperty::matches(head))
+                    {
+                        interpretation = IM44dArrayProperty::getInterpretation();
+                    }
+                }
+            }
+        }
+        else
+        {
+            UT_ASSERT(head.isScalar());
+
+            if (extent == 1)
+            {
+                interpretation = "";
+            }
+            else if (extent == 2)
+            {
+                if (pod == Alembic::Abc::kInt16POD)
+                {
+                    if (IV2sProperty::matches(head))
+                    {
+                        interpretation = IV2sProperty::getInterpretation();
+                    }
+                    else if (IP2sProperty::matches(head))
+                    {
+                        interpretation = IP2sProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kInt32POD)
+                {
+                    if (IV2iProperty::matches(head))
+                    {
+                        interpretation = IV2iProperty::getInterpretation();
+                    }
+                    else if (IP2iProperty::matches(head))
+                    {
+                        interpretation = IP2iProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat32POD)
+                {
+                    if (IV2fProperty::matches(head))
+                    {
+                        interpretation = IV2fProperty::getInterpretation();
+                    }
+                    else if (IP2fProperty::matches(head))
+                    {
+                        interpretation = IP2fProperty::getInterpretation();
+                    }
+                    else if (IN2fProperty::matches(head))
+                    {
+                        interpretation = IN2fProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat64POD)
+                {
+                    if (IV2dProperty::matches(head))
+                    {
+                        interpretation = IV2dProperty::getInterpretation();
+                    }
+                    else if (IP2dProperty::matches(head))
+                    {
+                        interpretation = IP2dProperty::getInterpretation();
+                    }
+                    else if (IN2dProperty::matches(head))
+                    {
+                        interpretation = IN2dProperty::getInterpretation();
+                    }
+                }
+            }
+            else if (extent == 3)
+            {
+                if (pod == Alembic::Abc::kUint8POD)
+                {
+                    if (IC3cProperty::matches(head))
+                    {
+                        interpretation = IC3cProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kInt16POD)
+                {
+                    if (IV3sProperty::matches(head))
+                    {
+                        interpretation = IV3sProperty::getInterpretation();
+                    }
+                    else if (IP3sProperty::matches(head))
+                    {
+                        interpretation = IP3sProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kInt32POD)
+                {
+                    if (IV3iProperty::matches(head))
+                    {
+                        interpretation = IV3iProperty::getInterpretation();
+                    }
+                    else if (IP3iProperty::matches(head))
+                    {
+                        interpretation = IP3iProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat16POD)
+                {
+                    if (IC3hProperty::matches(head))
+                    {
+                        interpretation = IC3hProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat32POD)
+                {
+                    if (IV3fProperty::matches(head))
+                    {
+                        interpretation = IV3fProperty::getInterpretation();
+                    }
+                    else if (IP3fProperty::matches(head))
+                    {
+                        interpretation = IP3fProperty::getInterpretation();
+                    }
+                    else if (IN3fProperty::matches(head))
+                    {
+                        interpretation = IN3fProperty::getInterpretation();
+                    }
+                    else if (IC3fProperty::matches(head))
+                    {
+                        interpretation = IC3fProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat64POD)
+                {
+                    if (IV3dProperty::matches(head))
+                    {
+                        interpretation = IV3dProperty::getInterpretation();
+                    }
+                    else if (IP3dProperty::matches(head))
+                    {
+                        interpretation = IP3dProperty::getInterpretation();
+                    }
+                    else if (IN3dProperty::matches(head))
+                    {
+                        interpretation = IN3dProperty::getInterpretation();
+                    }
+                }
+            }
+            else if (extent == 4)
+            {
+                if (pod == Alembic::Abc::kUint8POD)
+                {
+                    if (IC4cProperty::matches(head))
+                    {
+                        interpretation = IC4cProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kInt16POD)
+                {
+                    if (IBox2sProperty::matches(head))
+                    {
+                        interpretation = IBox2sProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kInt32POD)
+                {
+                    if (IBox2iProperty::matches(head))
+                    {
+                        interpretation = IBox2iProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat16POD)
+                {
+                    if (IC4hProperty::matches(head))
+                    {
+                        interpretation = IC4hProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat32POD)
+                {
+                    if (IBox2fProperty::matches(head))
+                    {
+                        interpretation = IBox2fProperty::getInterpretation();
+                    }
+                    else if (IQuatfProperty::matches(head))
+                    {
+                        interpretation = IQuatfProperty::getInterpretation();
+                    }
+                    else if (IC4fProperty::matches(head))
+                    {
+                        interpretation = IC4fProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat64POD)
+                {
+                    if (IBox2fProperty::matches(head))
+                    {
+                        interpretation = IBox2dProperty::getInterpretation();
+                    }
+                    else if (IQuatfProperty::matches(head))
+                    {
+                        interpretation = IQuatdProperty::getInterpretation();
+                    }
+                }
+            }
+            else if (extent == 6)
+            {
+                if (pod == Alembic::Abc::kInt16POD)
+                {
+                    if (IBox2sProperty::matches(head))
+                    {
+                        interpretation = IBox2sProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kInt32POD)
+                {
+                    if (IBox2iProperty::matches(head))
+                    {
+                        interpretation = IBox2iProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat32POD)
+                {
+                    if (IBox2fProperty::matches(head))
+                    {
+                        interpretation = IBox2fProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat64POD)
+                {
+                    if (IBox2fProperty::matches(head))
+                    {
+                        interpretation = IBox2dProperty::getInterpretation();
+                    }
+                }
+            }
+            else if (extent == 9)
+            {
+                if (pod == Alembic::Abc::kFloat32POD)
+                {
+                    if (IM33fProperty::matches(head))
+                    {
+                        interpretation = IM33fProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat64POD)
+                {
+                    if (IM44fProperty::matches(head))
+                    {
+                        interpretation = IM44fProperty::getInterpretation();
+                    }
+                }
+            }
+            else if (extent == 16)
+            {
+                if (pod == Alembic::Abc::kFloat32POD)
+                {
+                    if (IM33dProperty::matches(head))
+                    {
+                        interpretation = IM33dProperty::getInterpretation();
+                    }
+                }
+                else if (pod == Alembic::Abc::kFloat64POD)
+                {
+                    if (IM44dProperty::matches(head))
+                    {
+                        interpretation = IM44dProperty::getInterpretation();
+                    }
+                }
+            }
+        }
+
+        return interpretation;
+    }
+
+    // Corresponds to GT_Storage in GT_Types.h
+    //
+    // Does not map GT_STORE_INVALID, no GT_DataArray should return that as
+    // its type without error.
+    static std::string  GT_STORAGE_NAMES[GT_NUM_STORAGE_TYPES] = {
+            "uint8",    // GT_STORE_UINT8
+            "int32",    // GT_STORE_INT32
+            "int64",    // GT_STORE_INT64
+            "real16",   // GT_STORE_REAL16
+            "real32",   // GT_STORE_REAL32
+            "real64",   // GT_STORE_REAL64
+            "string"};  // GT_STORE_STRING
+
+    static bool
+    writeUserPropertyHelper(UT_JSONWriter *data_writer,
+            UT_JSONWriter *meta_writer,
+            const GABC_IObject &obj,
+            ICompoundProperty &uprops,
+            std::string &base,
+            fpreal time)
+    {
+        CompoundPropertyReaderPtr   cprp = GetCompoundPropertyReaderPtr(uprops);
+        UT_WorkBuffer               metadata;
+        std::string                 interpretation;
+        std::string                 name;
+        exint                       num_props = uprops
+                                            ? uprops.getNumProperties()
+                                            : 0;
+        bool                        success = true;
+
+        for (exint i = 0; i < num_props; ++i)
+        {
+            const PropertyHeader    &head = uprops.getPropertyHeader(i);
+
+            name = base.empty() ? head.getName() : base + "/" + head.getName();
+
+            if (head.isCompound())
+            {
+                ICompoundProperty   child(cprp->getCompoundProperty(i),
+                                            gabcWrapExisting);
+
+                success = writeUserPropertyHelper(data_writer,
+                        meta_writer,
+                        obj,
+                        child,
+                        name,
+                        time);
+            }
+            else
+            {
+                const DataType     &dt = head.getDataType();
+                GT_DataArrayHandle  da = obj.convertIProperty(uprops,
+                                            head,
+                                            time);
+
+                success = data_writer->jsonKey(name.c_str());
+                if (!da || !da->save(*data_writer, false)) {
+                    return false;
+                }
+
+                if (meta_writer)
+                {
+                    success = meta_writer->jsonKey(name.c_str());
+                    success = meta_writer->jsonBeginArray();
+
+                    if (head.isScalar())
+                    {
+                        metadata.sprintf("%s[%d]",
+                                GT_STORAGE_NAMES[da->getStorage()].c_str(),
+                                dt.getExtent());
+                    }
+                    else
+                    {
+                        UT_ASSERT(head.isArray());
+
+                        metadata.sprintf("%s[%d][%ld]",
+                                GT_STORAGE_NAMES[da->getStorage()].c_str(),
+                                dt.getExtent(),
+                                da->entries());
+                    }
+                    success = meta_writer->jsonString(metadata.buffer());
+
+                    interpretation = getInterpretation(head, dt);
+                    if (!interpretation.empty())
+                    {
+                        success = meta_writer->jsonString(
+                                interpretation.c_str());
+                    }
+
+                    success = meta_writer->jsonEndArray(false);
+                }
+            }
+
+            if (!success)
+            {
+                break;
+            }
+        }
+
+        return success;
+    }
 }
+
+//-----------------------------------------------
+//  Walker
+//-----------------------------------------------
 
 GABC_Util::Walker::~Walker()
 {
-}
-
-#define YSTR(X)	#X		// Stringize
-#define XSTR(X)	YSTR(X)		// Expand the stringized version
-const char *
-GABC_Util::getAlembicCompileNamespace()
-{
-    return XSTR(ALEMBIC_VERSION_NS);
 }
 
 bool
@@ -678,6 +1420,18 @@ GABC_Util::Walker::walkChildren(const GABC_IObject &obj)
 	    return false;
     }
     return true;
+}
+
+//------------------------------------------------
+//  GABC_Util
+//------------------------------------------------
+
+#define YSTR(X)	#X		// Stringize
+#define XSTR(X)	YSTR(X)		// Expand the stringized version
+const char *
+GABC_Util::getAlembicCompileNamespace()
+{
+    return XSTR(ALEMBIC_VERSION_NS);
 }
 
 bool
@@ -923,4 +1677,38 @@ GABC_Util::getObjectList(const std::string &filename, bool with_fsets)
     }
     static PathList	theEmptyList;
     return theEmptyList;
+}
+
+bool
+GABC_Util::writeUserPropertyDictionary(UT_JSONWriter *data_writer,
+        UT_JSONWriter *meta_writer,
+        const GABC_IObject &obj,
+        ICompoundProperty &uprops,
+        fpreal time)
+{
+    std::string base;
+    bool        success;
+
+    success = data_writer->jsonBeginMap();
+    if (meta_writer)
+    {
+        success = meta_writer->jsonBeginMap();
+    }
+    if (!success)
+        return false;
+
+    success = writeUserPropertyHelper(data_writer,
+            meta_writer,
+            obj,
+            uprops,
+            base,
+            time);
+
+    success = data_writer->jsonEndMap();
+    if (meta_writer)
+    {
+        success = meta_writer->jsonEndMap();
+    }
+
+    return success;
 }

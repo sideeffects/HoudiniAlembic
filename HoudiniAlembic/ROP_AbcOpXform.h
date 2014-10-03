@@ -59,15 +59,15 @@ public:
     /// @}
 
 private:
-    void		 setVisibility(const ROP_AbcContext &ctx);
-    UT_Matrix4D		 myMatrix;
-    UT_BoundingBox	 myBox;
-    OXform		 myOXform;
-    OVisibilityProperty	 myVisibility;
-    int			 myNodeId;
-    bool		 myTimeDependent;
-    bool		 myIdentity;
-    bool		 myGeometryContainer;
+    void                setVisibility(const ROP_AbcContext &ctx);
+    UT_Matrix4D         myMatrix;
+    UT_BoundingBox      myBox;
+    OXform              myOXform;
+    OVisibilityProperty myVisibility;
+    int                 myNodeId;
+    bool                myTimeDependent;
+    bool                myIdentity;
+    bool                myGeometryContainer;
 };
 
 #endif

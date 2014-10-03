@@ -107,26 +107,27 @@ private:
 
 	Parms	&operator=(const Parms &src);
 
-	GABC_GEOWalker::LoadMode		myLoadMode;
-	GABC_GEOWalker::BoxCullMode		myBoundMode;
-	GABC_GEOWalker::AbcPrimPointMode	myPointMode;
-	GABC_GEOWalker::GroupMode	myGroupMode;
-	GABC_GEOWalker::AFilter		myAnimationFilter;
-	GABC_GEOWalker::AbcPolySoup	myPolySoup;
-	GEO_ViewportLOD			myViewportLOD;
-	UT_BoundingBox			myBoundBox;
-	std::string			myFilename;
-	UT_String			myObjectPath;
-	UT_String			myObjectPattern;
-	UT_String			mySubdGroupName;
-	bool				myBuildAbcShape;
-	bool				myBuildAbcXform;
-	bool				myIncludeXform;
-	bool				myUseVisibility;
-	bool				myBuildLocator;
-	UT_String			myPathAttribute;
-	UT_String			myFilenameAttribute;
-	GEO_PackedNameMapPtr		myNameMapPtr;
+	GABC_GEOWalker::AbcPolySoup         myPolySoup;
+	GABC_GEOWalker::AbcPrimPointMode    myPointMode;
+	GABC_GEOWalker::AFilter             myAnimationFilter;
+	GABC_GEOWalker::BoxCullMode         myBoundMode;
+	GABC_GEOWalker::GroupMode           myGroupMode;
+	GABC_GEOWalker::LoadMode            myLoadMode;
+	GABC_GEOWalker::LoadUserPropsMode   myLoadUserProps;
+	GEO_PackedNameMapPtr                myNameMapPtr;
+	GEO_ViewportLOD                     myViewportLOD;
+	UT_BoundingBox                      myBoundBox;
+	UT_String                           myFilenameAttribute;
+	UT_String                           myObjectPath;
+	UT_String                           myObjectPattern;
+	UT_String                           myPathAttribute;
+	UT_String                           mySubdGroupName;
+	std::string                         myFilename;
+	bool                                myBuildAbcShape;
+	bool                                myBuildAbcXform;
+	bool                                myIncludeXform;
+	bool                                myUseVisibility;
+	bool                                myBuildLocator;
     };
 
     class EventHandler : public ArchiveEventHandler

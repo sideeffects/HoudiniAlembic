@@ -53,13 +53,14 @@ namespace GABC_NAMESPACE
 class GABC_API GABC_IObject : public GABC_IItem
 {
 public:
-    typedef Alembic::Abc::M44d			M44d;
-    typedef Alembic::Abc::IObject		IObject;
-    typedef Alembic::Abc::ObjectHeader		ObjectHeader;
-    typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
-    typedef Alembic::Abc::PropertyHeader	PropertyHeader;
-    typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
-    typedef Alembic::AbcGeom::GeometryScope	GeometryScope;
+    typedef Alembic::Abc::M44d			    M44d;
+    typedef Alembic::Abc::IObject		    IObject;
+    typedef Alembic::Abc::ObjectHeader		    ObjectHeader;
+    typedef Alembic::Abc::ICompoundProperty	    ICompoundProperty;
+    typedef Alembic::Abc::PropertyHeader	    PropertyHeader;
+    typedef Alembic::Abc::TimeSamplingPtr	    TimeSamplingPtr;
+    typedef Alembic::AbcGeom::GeometryScope	    GeometryScope;
+    typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
 
     GABC_IObject();
     GABC_IObject(const GABC_IObject &obj);
@@ -217,7 +218,7 @@ public:
     /// property and the property header.
     ///
     /// If supplied, the animation type is filled out.
-    GT_DataArrayHandle	convertIProperty(ICompoundProperty arb,
+    GT_DataArrayHandle	convertIProperty(ICompoundProperty &arb,
 					const PropertyHeader &head,
 					fpreal time,
 					GEO_AnimationType *atype=NULL) const;

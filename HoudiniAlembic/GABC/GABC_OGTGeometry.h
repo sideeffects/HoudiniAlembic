@@ -30,6 +30,7 @@
 
 #include "GABC_API.h"
 #include "GABC_Include.h"
+#include "GABC_Util.h"
 #include <Alembic/AbcGeom/All.h>
 #include <GT/GT_Primitive.h>
 
@@ -45,7 +46,7 @@ class GABC_API GABC_OGTGeometry
 {
 public:
     typedef Alembic::Abc::OObject		    OObject;
-    typedef UT_SymbolMap<GABC_OProperty *>	    PropertyMap;
+
     typedef Alembic::AbcGeom::ObjectVisibility	    ObjectVisibility;
     typedef Alembic::AbcGeom::OVisibilityProperty   OVisibilityProperty;
     typedef Alembic::AbcGeom::OPolyMesh		    OPolyMesh;
@@ -53,6 +54,8 @@ public:
     typedef Alembic::AbcGeom::OCurves		    OCurves;
     typedef Alembic::AbcGeom::OPoints		    OPoints;
     typedef Alembic::AbcGeom::ONuPatch		    ONuPatch;
+
+    typedef UT_SymbolMap<GABC_OProperty *>	    PropertyMap;
 
     /// A simple set of strings
     class IgnoreList
@@ -82,6 +85,11 @@ public:
         void    addSkip(const char *skip)
                 {
                     myStrings.insert(skip, (void *)0);
+                }
+
+        bool    deleteSkip(const char *skip)
+                {
+                    return myStrings.deleteSymbol(skip);
                 }
 
         bool	contains(const char *token) const
@@ -121,12 +129,12 @@ public:
 
 	GT_DataArrayHandle	&vertexList()	{ return myVertexList; }
 	GT_DataArrayHandle	&counts()	{ return myCounts; }
-	GT_DataArrayHandle	&P()	{ return myP; }
-	GT_DataArrayHandle	&Pw()	{ return myPw; }
-	GT_DataArrayHandle	&N()	{ return myN; }
-	GT_DataArrayHandle	&uv()	{ return myUV; }
-	GT_DataArrayHandle	&v()	{ return myVel; }
-	GT_DataArrayHandle	&id()	{ return myId; }
+	GT_DataArrayHandle	&P()            { return myP; }
+	GT_DataArrayHandle	&Pw()           { return myPw; }
+	GT_DataArrayHandle	&N()            { return myN; }
+	GT_DataArrayHandle	&uv()           { return myUV; }
+	GT_DataArrayHandle	&v()            { return myVel; }
+	GT_DataArrayHandle	&id()           { return myId; }
 	GT_DataArrayHandle	&width()	{ return myWidth; }
 	GT_DataArrayHandle	&uknots()	{ return myUKnots; }
 	GT_DataArrayHandle	&vknots()	{ return myVKnots; }
@@ -260,13 +268,11 @@ public:
 	GT_DataArrayHandle	myData[9];
     };
 
+    static IgnoreList    theDefaultSkip;
+
      GABC_OGTGeometry(const std::string &name);
     ~GABC_OGTGeometry();
 
-    ///
-    static void     clearIgnoreList();
-    ///
-    static void     skipAttribute(const char *skip);
     /// Return true if the primitive can be processed
     static bool     isPrimitiveSupported(const GT_PrimitiveHandle &prim);
 
@@ -292,11 +298,11 @@ public:
 protected:
     void	makeFaceSets(const GT_PrimitiveHandle &prim,
 			const GABC_OOptions &ctx);
-    void	makeProperties(const GT_PrimitiveHandle &prim,
+    void	makeArbProperties(const GT_PrimitiveHandle &prim,
 			const GABC_OOptions &ctx);
-    void	writeProperties(const GT_PrimitiveHandle &prim,
+    void	writeArbProperties(const GT_PrimitiveHandle &prim,
 			const GABC_OOptions &ctx);
-    void	writePropertiesFromPrevious();
+    void	writeArbPropertiesFromPrevious();
     void	clearProperties();
     void	clearShape();
     void	clearCache();
@@ -311,8 +317,6 @@ private:
 	MAX_PROPERTIES
     };
 
-    static IgnoreList       myDefaultSkip;
-
     union {
 	OPolyMesh	   *myPolyMesh;
 	OSubD		   *mySubD;
@@ -324,7 +328,7 @@ private:
 
     IntrinsicCache          myCache; // Cache for space optimization
     OVisibilityProperty     myVisibility;
-    PropertyMap             myProperties[MAX_PROPERTIES];
+    PropertyMap             myArbProperties[MAX_PROPERTIES];
     SecondaryCache         *mySecondaryCache;
     UT_Array<std::string>   myFaceSetNames;
     std::string             myName;

@@ -112,6 +112,13 @@ public:
 	ABC_POLYSOUP_SUBD,	// Polygon soups & subdivision primitives
     };
 
+    /// How to load user properties
+    enum LoadUserPropsMode
+    {
+        UP_LOAD_NONE,  // Don't load user properties
+        UP_LOAD_DATA,  // Load only user property values
+        UP_LOAD_ALL,   // Load user property values and metadata
+    };
 
     GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err);
     virtual ~GABC_GEOWalker();
@@ -140,6 +147,7 @@ public:
     bool	useVisibility() const	{ return myUseVisibility; }
     bool	reusePrimitives() const	{ return myReusePrimitives; }
     bool	buildLocator() const	{ return myBuildLocator; }
+    LoadUserPropsMode   loadUserProps() const   { return myLoadUserProps; }
     LoadMode	loadMode() const	{ return myLoadMode; }
     bool	buildAbcPrim() const
 			{ return myLoadMode == LOAD_ABC_PRIMITIVES; }
@@ -186,6 +194,7 @@ public:
     void	setBuildAbcShape(bool v)	{ myBuildAbcShape = v; }
     void	setBuildAbcXform(bool v)	{ myBuildAbcXform = v; }
     void	setPathAttributeChanged(bool v)	{ myPathAttributeChanged = v; }
+    void	setUserProps(LoadUserPropsMode m) { myLoadUserProps = m; }
     void	setGroupMode(GroupMode m)	{ myGroupMode = m; }
     void	setAnimationFilter(AFilter m)	{ myAnimationFilter = m; }
     void	setBounds(BoxCullMode mode, const UT_BoundingBox &box);
@@ -289,47 +298,47 @@ private:
     GA_Offset		 abcSharedPoint() const
 				{ return myAbcSharedPoint; }
 
+    // Enum values
+    AbcPolySoup             myPolySoup;
+    AbcPrimPointMode        myAbcPrimPointMode;
+    AFilter                 myAnimationFilter;      // Animating object filter
+    BoxCullMode             myBoxCullMode;
+    GroupMode               myGroupMode;            // How to construct group names
+    LoadMode                myLoadMode;             // Build Alembic primitives
+    LoadUserPropsMode       myLoadUserProps;        // How to load user properties
 
-    GU_Detail		&myDetail;
-    GABC_IError         &myErrorHandler;
-    GA_PrimitiveGroup	*mySubdGroup;
-    UT_String		 myObjectPattern;
-    GEO_PackedNameMapPtr myNameMapPtr;	// Attribute map for ABC primitives
-    GA_RWHandleS	 myPathAttribute;
-    UT_BoundingBox	 myCullBox;
-    UT_Interrupt	*myBoss;
-    int			 myBossId;
-    M44d		 myMatrix;
-    GA_Size		 myLastFaceCount;	// Number of faces in last mesh
-    GA_Offset		 myLastFaceStart;	// Start of faces in last mash
-    GA_Offset		 myAbcSharedPoint;	
-    AbcPrimPointMode	 myAbcPrimPointMode;
-    AbcPolySoup		 myPolySoup;
-    GEO_ViewportLOD	 myViewportLOD;
-
-    fpreal	myTime;			// Alembic evaluation time
-    GroupMode	myGroupMode;		// How to construct group names
-    BoxCullMode	myBoxCullMode;
-    AFilter	myAnimationFilter;	// Animating object filter
-    bool	myIncludeXform;		// Transform geometry
-    bool	myUseVisibility;	// Use visibility
-    bool	myBuildLocator;		// Whether to build Maya locators
-    bool	myPathAttributeChanged;	// Whether path attrib name changed
-    LoadMode	myLoadMode;		// Build Alembic primitives
-    bool	myBuildAbcShape;	// Build primitives for transforms
-    bool	myBuildAbcXform;	// Build primitives for transforms
-
-    exint	myPointCount;		// Points added
-    exint	myVertexCount;		// Vertices added
-    exint	myPrimitiveCount;	// Primitive's added count
-    bool	myReusePrimitives;	// Reuse primitives in input geometry
+    GA_Offset               myAbcSharedPoint;
+    GA_Offset               myLastFaceStart;        // Start of faces in last mash
+    GA_PrimitiveGroup      *mySubdGroup;
+    GA_RWHandleS            myPathAttribute;
+    GA_Size                 myLastFaceCount;        // Number of faces in last mesh
+    GABC_IError             &myErrorHandler;
+    GEO_PackedNameMapPtr    myNameMapPtr;           // Attribute map for ABC primitives
+    GEO_ViewportLOD         myViewportLOD;
+    GU_Detail              &myDetail;
+    M44d                    myMatrix;
+    UT_BoundingBox          myCullBox;
+    UT_Interrupt           *myBoss;
+    UT_String               myObjectPattern;
+    fpreal                  myTime;                 // Alembic evaluation time
+    exint                   myPointCount;           // Points added
+    exint                   myPrimitiveCount;       // Primitive's added count
+    exint                   myVertexCount;          // Vertices added
+    int                     myBossId;
+    bool                    myBuildAbcXform;        // Build primitives for transforms
+    bool                    myBuildAbcShape;        // Build primitives for transforms
+    bool                    myBuildLocator;         // Whether to build Maya locators
+    bool                    myIncludeXform;         // Transform geometry
+    bool                    myPathAttributeChanged; // Whether path attrib name changed
+    bool                    myReusePrimitives;      // Reuse primitives in input geometry
+    bool                    myUseVisibility;        // Use visibility
 
     // Modified during traversal
-    bool	myIsConstant;		// Whether all objects are constant
-    bool	myTopologyConstant;	// Whether topology is constant
-    bool	myTransformConstant;	// All xforms down the tree are const
-    bool	myAllTransformConstant;	// All transforms in scene are const
-    bool	myRebuiltNURBS;		// Whether NURBS were rebuilt
+    bool                    myIsConstant;           // Whether all objects are constant
+    bool                    myTopologyConstant;     // Whether topology is constant
+    bool                    myTransformConstant;    // All xforms down the tree are const
+    bool                    myAllTransformConstant; // All transforms in scene are const
+    bool                    myRebuiltNURBS;         // Whether NURBS were rebuilt
 };
 }
 

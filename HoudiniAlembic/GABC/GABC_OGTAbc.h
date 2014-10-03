@@ -175,26 +175,26 @@ public:
     GABC_OGTAbc(const std::string &name);
     ~GABC_OGTAbc();
 
-    bool            start(const GT_PrimitiveHandle &prim,
-                            const OObject &parent,
-                            fpreal cook_time,
-                            const GABC_OOptions &ctx,
-                            GABC_OError &err,
-                            ObjectVisibility vis);
-    bool            startXform(const GT_PrimitiveHandle &prim,
-                            OXform *xform,
-                            fpreal cook_time,
-                            const GABC_OOptions &ctx,
-                            GABC_OError &err,
-                            ObjectVisibility vis);
-    bool            update(const GT_PrimitiveHandle &prim,
-                            fpreal cook_time,
-                            const GABC_OOptions &ctx,
-                            GABC_OError &err,
-                            ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
-    bool            updateFromPrevious(GABC_OError &err,
-                            ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
-                            exint frames = 1);
+    bool    start(const GT_PrimitiveHandle &prim,
+                    const OObject &parent,
+                    fpreal cook_time,
+                    const GABC_OOptions &ctx,
+                    GABC_OError &err,
+                    ObjectVisibility vis);
+    bool    startXform(const GT_PrimitiveHandle &prim,
+                    OXform *xform,
+                    fpreal cook_time,
+                    const GABC_OOptions &ctx,
+                    GABC_OError &err,
+                    ObjectVisibility vis);
+    bool    update(const GT_PrimitiveHandle &prim,
+                    fpreal cook_time,
+                    const GABC_OOptions &ctx,
+                    GABC_OError &err,
+                    ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
+    bool    updateFromPrevious(GABC_OError &err,
+                    ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
+                    exint frames = 1);
 
 private:
     void            clear();

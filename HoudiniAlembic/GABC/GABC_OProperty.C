@@ -25,13 +25,13 @@
  *----------------------------------------------------------------------------
  */
 
+#include "GABC_OOptions.h"
 #include "GABC_OProperty.h"
 #include <GT/GT_DANumeric.h>
 #include <UT/UT_StringArray.h>
 #include <UT/UT_StackBuffer.h>
 #include <UT/UT_ScopedPtr.h>
 #include <UT/UT_EnvControl.h>
-#include "GABC_OOptions.h"
 
 using namespace GABC_NAMESPACE;
 
@@ -315,7 +315,7 @@ GABC_OProperty::start(OCompoundProperty &parent,
 	    if (myTupleSize >= 16)
 	    {
 		DECL_REALFD(OM44fGeomParam, OM44dGeomParam);
-		myTupleSize = 16;	// Clamp to 9
+		myTupleSize = 16;	// Clamp to 16
 	    }
 	    break;
 	case GT_TYPE_ST:

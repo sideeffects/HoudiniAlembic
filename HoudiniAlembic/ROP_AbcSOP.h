@@ -132,6 +132,7 @@ private:
     XformMap                            myXformMap;
     exint                               myElapsedFrames;
     int					mySopId;
+    const char                         *myPathAttribName;
     bool				myTimeDependent;
 };
 

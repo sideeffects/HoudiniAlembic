@@ -167,6 +167,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myIncludeXform(true)
     , myUseVisibility(true)
     , myBuildLocator(false)
+    , myLoadUserProps(GABC_GEOWalker::UP_LOAD_NONE)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
     , myPolySoup(GABC_GEOWalker::ABC_POLYSOUP_POLYMESH)
@@ -191,6 +192,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myIncludeXform(true)
     , myUseVisibility(true)
     , myBuildLocator(false)
+    , myLoadUserProps(GABC_GEOWalker::UP_LOAD_NONE)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
     , myPolySoup(GABC_GEOWalker::ABC_POLYSOUP_POLYMESH)
@@ -216,6 +218,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myIncludeXform = src.myIncludeXform;
     myUseVisibility = src.myUseVisibility;
     myBuildLocator = src.myBuildLocator;
+    myLoadUserProps = src.myLoadUserProps;
     myGroupMode = src.myGroupMode;
     myAnimationFilter = src.myAnimationFilter;
     myPolySoup = src.myPolySoup;
@@ -278,6 +281,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	return true;
     if (myBuildLocator != src.myBuildLocator)
 	return true;
+    if (myLoadUserProps != src.myLoadUserProps)
+	return true;
     // myPathAttribute can change
     // myFilenameAttribute can change
     if (myNameMapPtr && src.myNameMapPtr)
@@ -318,6 +323,8 @@ static PRM_Name prm_objectPathName("objectPath", "Object Path");
 static PRM_Name	prm_pickObjectPathName("pickobjectPath", "Pick");
 static PRM_Name prm_includeXformName("includeXform", "Transform Geometry To World Space");
 static PRM_Name prm_useVisibilityName("usevisibility", "Use Visibility");
+static PRM_Name prm_loadLocatorName("loadLocator", "Load Maya Locator");
+static PRM_Name prm_userPropsName("loadUserProps", "User Properties");
 static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
 static PRM_Name prm_animationfilter("animationfilter", "Animating Objects");
 static PRM_Name prm_polysoup("polysoup", "Poly Soup Primitives");
@@ -338,6 +345,7 @@ static PRM_Default prm_objectPathDefault(0, "");
 static PRM_Default prm_fpsDefault(24, "$FPS");
 static PRM_Default prm_includeXformDefault(true);
 static PRM_Default prm_useVisibilityDefault(true);
+static PRM_Default prm_loadLocatorDefault(false);
 static PRM_Default prm_pathattribDefault(0, "path");
 static PRM_Default prm_fileattribDefault(0, "abcFileName");
 
@@ -389,6 +397,15 @@ static PRM_Name	boxcullSize("boxsize", "Box Size");
 static PRM_Range boxcullSizeRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 10);
 static PRM_Name	boxcullCenter("boxcenter", "Box Center");
 
+static PRM_Name userPropsOptions[] = {
+    PRM_Name("none",	"Do Not Load"),
+    PRM_Name("data",	"Load Values Only" ),
+    PRM_Name("both",	"Load Values and Metadata" ),
+    PRM_Name( 0 )
+};
+static PRM_Default prm_userPropsDefault(0, "none");
+static PRM_ChoiceList menu_userProps(PRM_CHOICELIST_SINGLE, userPropsOptions);
+
 static PRM_Name groupNameOptions[] = {
     PRM_Name("none",	"No Groups"),
     PRM_Name("shape",	"Name Group By Shape Node Path" ),
@@ -417,11 +434,9 @@ static PRM_Default prm_polysoupDefault(1, "polymesh");
 static PRM_ChoiceList menu_polysoup(PRM_CHOICELIST_SINGLE, polysoupOptions);
 static PRM_Default prm_viewportlodDefault(0, "full");
 
-static PRM_Name prm_loadLocatorName("loadLocator", "Load Maya Locator");
 static PRM_Name prm_objecPatternName("objectPattern", "Object Pattern");
 static PRM_Name prm_subdgroupName("subdgroup", "Subdivision Group");
 static PRM_Default prm_starDefault(0, "*");
-static PRM_Default prm_loadLocatorDefault(false);
 
 // The order here must match the order of the GA_AttributeOwner enum
 static PRM_Name	theAttributePatternNames[GA_ATTRIB_OWNER_N] = {
@@ -495,6 +510,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 		&prm_starDefault),
     PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_DETAIL],
 		&prm_starDefault),
+    PRM_Template(PRM_ORD, 1, &prm_userPropsName, &prm_userPropsDefault,
+            &menu_userProps),
     PRM_Template(PRM_TOGGLE, 1, &prm_addpath, PRMoneDefaults),
     PRM_Template(PRM_STRING, 1, &prm_pathattrib, &prm_pathattribDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_addfile, PRMzeroDefaults),
@@ -654,7 +671,6 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
             break;
     }
 
-    parms.myBuildLocator = evalInt("loadLocator", 0, now) != 0;
     parms.myBoundMode = getCullingBox(parms.myBoundBox, context);
     switch (evalInt("pointmode", 0, now))
     {
@@ -675,10 +691,22 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     evalString(parms.mySubdGroupName, "subdgroup", 0, now);
     parms.myIncludeXform = evalInt("includeXform", 0, now) != 0;
     parms.myUseVisibility = evalInt("usevisibility", 0, now) != 0;
+    parms.myBuildLocator = evalInt("loadLocator", 0, now) != 0;
     if (evalInt("addpath", 0, now))
 	evalString(parms.myPathAttribute, "pathattrib", 0, now);
     if (evalInt("addfile", 0, now))
 	evalString(parms.myFilenameAttribute, "fileattrib", 0, now);
+
+    evalString(sval, "loadUserProps", 0, now);
+    if (sval == "none")
+	parms.myLoadUserProps = GABC_GEOWalker::UP_LOAD_NONE;
+    else if (sval == "data")
+	parms.myLoadUserProps = GABC_GEOWalker::UP_LOAD_DATA;
+    else
+    {
+        UT_ASSERT(sval == "both");
+	parms.myLoadUserProps = GABC_GEOWalker::UP_LOAD_ALL;
+    }
 
     evalString(sval, "groupnames", 0, now);
     if (sval == "none")
@@ -851,6 +879,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 		    myLastParms.myFilenameAttribute);
 	}
     }
+    walk.setUserProps(parms.myLoadUserProps);
     walk.setGroupMode(parms.myGroupMode);
     walk.setAnimationFilter(parms.myAnimationFilter);
     walk.setPolySoup(parms.myPolySoup);

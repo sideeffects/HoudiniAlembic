@@ -2754,7 +2754,7 @@ GABC_IObject::getArbGeomParams() const
 }
 
 GT_DataArrayHandle
-GABC_IObject::convertIProperty(ICompoundProperty parent,
+GABC_IObject::convertIProperty(ICompoundProperty &parent,
 			    const PropertyHeader &header,
 			    fpreal t,
 			    GEO_AnimationType *atype) const

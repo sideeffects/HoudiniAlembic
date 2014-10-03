@@ -62,6 +62,8 @@ namespace {
     typedef Imath::V3f			        V3f;
     typedef Imath::V3d				V3d;
     typedef Imath::V4f                          V4f;
+
+    typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
     typedef Alembic::Abc::DataType		DataType;
     typedef Alembic::Abc::ISampleSelector	ISampleSelector;
     typedef Alembic::Abc::ObjectHeader		ObjectHeader;
@@ -76,26 +78,28 @@ namespace {
     typedef Alembic::Abc::ArraySamplePtr	ArraySamplePtr;
     typedef Alembic::Abc::WrapExistingFlag	WrapExistingFlag;
 
+    typedef Alembic::AbcGeom::BasisType         BasisType;
+    typedef Alembic::AbcGeom::GeometryScope	GeometryScope;
+
     typedef Alembic::AbcGeom::IXform		IXform;
     typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
     typedef Alembic::AbcGeom::XformSample	XformSample;
-
-    typedef Alembic::AbcGeom::BasisType         BasisType;
-    typedef Alembic::AbcGeom::GeometryScope	GeometryScope;
     typedef Alembic::AbcGeom::ISubD		ISubD;
     typedef Alembic::AbcGeom::ISubDSchema	ISubDSchema;
     typedef Alembic::AbcGeom::IPolyMesh		IPolyMesh;
     typedef Alembic::AbcGeom::IPolyMeshSchema	IPolyMeshSchema;
     typedef Alembic::AbcGeom::ICurves		ICurves;
     typedef Alembic::AbcGeom::ICurvesSchema	ICurvesSchema;
+    typedef ICurvesSchema::Sample               ICurvesSample;
     typedef Alembic::AbcGeom::IPoints		IPoints;
     typedef Alembic::AbcGeom::IPointsSchema	IPointsSchema;
     typedef Alembic::AbcGeom::INuPatch		INuPatch;
     typedef Alembic::AbcGeom::INuPatchSchema	INuPatchSchema;
+    typedef INuPatchSchema::Sample		INuPatchSample;
     typedef Alembic::AbcGeom::IFaceSet		IFaceSet;
     typedef Alembic::AbcGeom::IFaceSetSchema	IFaceSetSchema;
-    typedef INuPatchSchema::Sample		INuPatchSample;
-    typedef ICurvesSchema::Sample               ICurvesSample;
+
+    typedef Alembic::Util::PlainOldDataType     PlainOldDataType;
 
     // Types used for NURBS rationalization, but undefined by Alembic
     typedef Alembic::Abc::P4fTPTraits                   P4fTPTraits;
@@ -973,9 +977,10 @@ namespace {
     }
     
     void
-    fillArb(GABC_GEOWalker &walk, const GABC_IObject &obj,
-		ICompoundProperty arb,
-		exint npoint, exint nvertex, exint nprim)
+    fillArb(GABC_GEOWalker &walk,
+            const GABC_IObject &obj,
+            ICompoundProperty arb,
+            exint npoint, exint nvertex, exint nprim)
     {
 	exint	narb = arb ? arb.getNumProperties() : 0;
 
@@ -987,8 +992,10 @@ namespace {
 	    if (!walk.translateAttributeName(owner, name))
 		continue;
 	    GEO_AnimationType	atype;
-	    GT_DataArrayHandle	gt = obj.convertIProperty(arb, head,
-					    walk.time(), &atype);
+	    GT_DataArrayHandle	gt = obj.convertIProperty(arb,
+	                                head,
+                                        walk.time(),
+                                        &atype);
 	    if (!gt) {
 	        walk.errorHandler().warning("The following arbGeomParam could "
 	                "not be read and was ignored: %s.",
@@ -998,6 +1005,106 @@ namespace {
 	    copyArrayToAttribute(walk, gt, name, head.getName().c_str(),
 		    owner, npoint, nvertex, nprim);
 	}
+    }
+
+    void
+    fillUserProperties(GABC_GEOWalker &walk,
+            const GABC_IObject &obj,
+            ICompoundProperty uprops)
+    {
+        GA_RWAttributeRef   attrib;
+        GA_RWHandleS        str_attrib;
+        GU_Detail          &gdp = walk.detail();
+        UT_JSONWriter      *data_writer;
+        UT_JSONWriter      *meta_writer;
+        UT_WorkBuffer       data_dictionary;
+        UT_WorkBuffer       meta_dictionary;
+        bool                load_metadata = (walk.loadUserProps()
+                                    == GABC_GEOWalker::UP_LOAD_ALL);
+
+        // One writer for values and one for metadata. If the metadata
+        // writer is NULL, metadata will be ignored.
+        data_writer = UT_JSONWriter::allocWriter(data_dictionary);
+        meta_writer = load_metadata
+                ? UT_JSONWriter::allocWriter(meta_dictionary)
+                : NULL;
+
+        // Create the dictionaries.
+        if (!GABC_Util::writeUserPropertyDictionary(data_writer,
+                meta_writer,
+                obj,
+                uprops,
+                walk.time()))
+        {
+            walk.errorHandler().warning("Error reading user properties. "
+                "Ignoring user properties.");
+        }
+        else
+        {
+            // Fetch/create the attribute handles and set their values.
+            attrib = gdp.findStringTuple(GA_ATTRIB_PRIMITIVE,
+                    "abc_userProperties",
+                    1);
+
+            if (!attrib.isValid())
+            {
+                attrib = gdp.addTuple(GA_STORE_STRING,
+                        GA_ATTRIB_PRIMITIVE,
+                        "abc_userProperties",
+                        1);
+            }
+
+            str_attrib = GA_RWHandleS(attrib);
+            if (!str_attrib.isValid())
+            {
+                walk.errorHandler().warning("Error creating user properties "
+                        "attribute.");
+                delete data_writer;
+                data_writer = NULL;
+            }
+            else
+            {
+                str_attrib.set(walk.primitiveCount(),
+                        0,
+                        data_dictionary.buffer());
+            }
+
+            if (load_metadata)
+            {
+                attrib = gdp.findStringTuple(GA_ATTRIB_PRIMITIVE,
+                        "abc_userPropertiesMetadata",
+                        1);
+
+                if (!attrib.isValid())
+                {
+                    attrib = gdp.addTuple(GA_STORE_STRING,
+                            GA_ATTRIB_PRIMITIVE,
+                            "abc_userPropertiesMetadata",
+                            1);
+                }
+
+                str_attrib = GA_RWHandleS(attrib);
+                if (!str_attrib.isValid())
+                {
+                    walk.errorHandler().warning("Error creating user properties"
+                            " metadata attribute.");
+                    delete meta_writer;
+                    meta_writer = NULL;
+                }
+                else
+                {
+                    str_attrib.set(walk.primitiveCount(),
+                            0,
+                            meta_dictionary.buffer());
+                }
+            }
+        }
+
+        delete data_writer;
+        if (meta_writer)
+        {
+            delete meta_writer;
+        }
     }
 
     void
@@ -1035,6 +1142,52 @@ namespace {
 	    walk.setNonConstant();
 	}
 	walk.setPointLocation(packed, pt);
+
+	if (walk.loadUserProps())
+	{
+	    switch (obj.nodeType())
+            {
+                case GABC_POLYMESH:
+                    fillUserProperties(walk,
+                            obj,
+                            IPolyMesh(obj.object(), gabcWrapExisting).getSchema().getUserProperties());
+                    break;
+
+                case GABC_SUBD:
+                    fillUserProperties(walk,
+                            obj,
+                            ISubD(obj.object(), gabcWrapExisting).getSchema().getUserProperties());
+                    break;
+
+                case GABC_CURVES:
+                    fillUserProperties(walk,
+                            obj,
+                            ICurves(obj.object(), gabcWrapExisting).getSchema().getUserProperties());
+                    break;
+
+                case GABC_POINTS:
+                    fillUserProperties(walk,
+                            obj,
+                            IPoints(obj.object(), gabcWrapExisting).getSchema().getUserProperties());
+                    break;
+
+                case GABC_NUPATCH:
+                    fillUserProperties(walk,
+                            obj,
+                            INuPatch(obj.object(), gabcWrapExisting).getSchema().getUserProperties());
+                    break;
+
+                case GABC_XFORM:
+                    fillUserProperties(walk,
+                            obj,
+                            IXform(obj.object(), gabcWrapExisting).getSchema().getUserProperties());
+                    break;
+
+                default:
+                    UT_ASSERT(0 && "How did I get past the first switch?");
+            }
+        }
+
 	walk.trackPtVtxPrim(obj, 0, 0, 1, false);
     }
 
@@ -1127,7 +1280,7 @@ namespace {
 	ISubD			subd(obj.object(), gabcWrapExisting);
 	ISubDSchema		&ps = subd.getSchema();
 	P3fArraySamplePtr	P = ps.getPositionsProperty().getValue(iss);
-	Int32ArraySamplePtr	counts=ps.getFaceCountsProperty().getValue(iss);
+	Int32ArraySamplePtr	counts = ps.getFaceCountsProperty().getValue(iss);
 	Int32ArraySamplePtr	indices = ps.getFaceIndicesProperty().getValue(iss);
 	exint			npoint = P->size();
 	exint			nvertex = indices->size();
@@ -1189,6 +1342,10 @@ namespace {
 		    npoint, nvertex, nprim);
 	}
 	fillArb(walk, obj, ps.getArbGeomParams(), npoint, nvertex, nprim);
+	if (walk.loadUserProps())
+	{
+            fillUserProperties(walk, obj, ps.getUserProperties());
+        }
 
 	walk.trackLastFace(nprim);
 	walk.trackSubd(nprim);
@@ -1233,7 +1390,7 @@ namespace {
 	IPolyMesh		polymesh(obj.object(), gabcWrapExisting);
 	IPolyMeshSchema		&ps = polymesh.getSchema();
 	P3fArraySamplePtr	P = ps.getPositionsProperty().getValue(iss);
-	Int32ArraySamplePtr	counts=ps.getFaceCountsProperty().getValue(iss);
+	Int32ArraySamplePtr	counts = ps.getFaceCountsProperty().getValue(iss);
 	Int32ArraySamplePtr	indices = ps.getFaceIndicesProperty().getValue(iss);
 	exint			npoint = P->size();
 	exint			nvertex = indices->size();
@@ -1300,6 +1457,10 @@ namespace {
 		    npoint, nvertex, nprim);
 	}
 	fillArb(walk, obj, ps.getArbGeomParams(), npoint, nvertex, nprim);
+	if (walk.loadUserProps())
+	{
+            fillUserProperties(walk, obj, ps.getUserProperties());
+        }
 
 	walk.trackLastFace(nprim);
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
@@ -1419,6 +1580,10 @@ namespace {
 		    npoint, nvertex, nprim);
 	}
 	fillArb(walk, obj, cs.getArbGeomParams(), npoint, nvertex, nprim);
+	if (walk.loadUserProps())
+	{
+            fillUserProperties(walk, obj, cs.getUserProperties());
+        }
 
 	walk.trackLastFace(nprim);
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
@@ -1550,6 +1715,10 @@ namespace {
 		    npoint, nvertex, nprim);
 	}
 	fillArb(walk, obj, ps.getArbGeomParams(), npoint, nvertex, nprim);
+	if (walk.loadUserProps())
+	{
+            fillUserProperties(walk, obj, ps.getUserProperties());
+        }
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
@@ -1632,6 +1801,10 @@ namespace {
 		    npoint, nvertex, nprim);
 	}
 	fillArb(walk, obj, ps.getArbGeomParams(), npoint, nvertex, nprim);
+	if (walk.loadUserProps())
+	{
+            fillUserProperties(walk, obj, ps.getUserProperties());
+        }
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
