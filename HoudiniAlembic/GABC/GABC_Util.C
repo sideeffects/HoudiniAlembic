@@ -1373,7 +1373,7 @@ namespace
                     {
                         UT_ASSERT(head.isArray());
 
-                        metadata.sprintf("%s[%d][%lld]",
+                        metadata.sprintf("%s[%d][%" SYS_PRId64 "]",
                                 GT_STORAGE_NAMES[da->getStorage()].c_str(),
                                 dt.getExtent(),
                                 da->entries());
