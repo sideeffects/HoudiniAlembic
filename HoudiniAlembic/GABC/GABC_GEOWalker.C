@@ -1064,7 +1064,7 @@ namespace {
             }
             else
             {
-                str_attrib.set(walk.primitiveCount(),
+                str_attrib.set(GA_Offset(walk.primitiveCount()),
                         0,
                         data_dictionary.buffer());
             }
@@ -1093,7 +1093,7 @@ namespace {
                 }
                 else
                 {
-                    str_attrib.set(walk.primitiveCount(),
+                    str_attrib.set(GA_Offset(walk.primitiveCount()),
                             0,
                             meta_dictionary.buffer());
                 }
