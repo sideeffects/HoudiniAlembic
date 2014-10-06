@@ -34,7 +34,10 @@
 #include <SYS/SYS_AtomicInt.h>
 #include <UT/UT_Lock.h>
 #include <UT/UT_Set.h>
+#include <UT/UT_IStream.h>
+#include <FS/FS_Reader.h>
 #include <Alembic/Abc/IArchive.h>
+#include <SYS/SYS_BoostStreams.h>
 
 // Change this when Ogawa is supported
 #if ALEMBIC_LIBRARY_VERSION >= 10200
@@ -47,15 +50,85 @@
 
 namespace GABC_NAMESPACE
 {
+
 class GABC_IItem;
+
+class GABC_IStreamDevice
+{
+public:
+    typedef char			char_type;
+    typedef bios::stream_offset		stream_offset;
+    struct category
+	: public bios::device_tag
+	, public bios::seekable
+	, public bios::closable_tag
+    {
+    };
+
+    GABC_IStreamDevice(const char *path, const UT_Options *opts=NULL)
+    {
+	myReader = new FS_Reader(path, opts);
+	myStream = myReader->isGood() ? myReader->getStream() : NULL;
+    }
+    GABC_IStreamDevice(const GABC_IStreamDevice &src)
+	: myReader(src.myReader)
+	, myStream(src.myStream)
+    {
+    }
+    ~GABC_IStreamDevice()
+    {
+    }
+    bool		isValid() const	{ return myStream; }
+    std::streamsize	write(const char *, std::streamsize) { return -1; }
+    void		close()
+    {
+	myReader->close();
+	myStream = 0;
+    }
+
+    std::streamsize	read(char *buffer, std::streamsize n)
+    {
+	return myStream ? myStream->bread(buffer, n) : -1;
+    }
+    bool		putback(char_type c)
+    {
+	return myStream ? myStream->ungetc() == 1 : false;
+    }
+    stream_offset	seek(stream_offset off, std::ios_base::seekdir way)
+    {
+	bool	ok = false;
+	if (myStream)
+	{
+	    if (way == std::ios_base::beg)
+	    {
+		ok = myStream->seekg(off, UT_IStream::UT_SEEK_BEG);
+	    }
+	    else if (way == std::ios_base::cur)
+	    {
+		ok = myStream->seekg(off, UT_IStream::UT_SEEK_CUR);
+	    }
+	    else
+	    {
+		UT_ASSERT(way == std::ios_base::end);
+		ok = myStream->seekg(off, UT_IStream::UT_SEEK_END);
+	    }
+	}
+	return ok ? myStream->tellg() : -1;
+    }
+private:
+    UT_SharedPtr<FS_Reader>	 myReader;
+    UT_IStream			*myStream;
+};
 
 /// Wrapper around an Alembic archive.  This provides thread-safe access to
 /// Alembic data.
 class GABC_API GABC_IArchive
 {
 public:
-    typedef Alembic::Abc::IArchive	IArchive;
-    typedef UT_Set<GABC_IItem *>	SetType;
+    typedef GABC_IStreamDevice			gabc_istream;
+    typedef bios::stream_buffer<gabc_istream>	gabc_streambuf;
+    typedef Alembic::Abc::IArchive		IArchive;
+    typedef UT_Set<GABC_IItem *>		SetType;
 
     /// Destructor
     ~GABC_IArchive();
@@ -119,9 +192,16 @@ private:
     // Wouldn't it be nice if it could have a per-file lock?
     static UT_Lock	*theLock;
 
+    bool		 openStream(const std::string &path,
+				const UT_Options *options=NULL);
+    void		 clearStream();
+
     SYS_AtomicInt32	 myRefCount;
     std::string		 myFilename;
     std::string		 myError;
+    gabc_istream	*myReader;
+    gabc_streambuf	*myStreamBuf;
+    std::istream	*myStream;
     IArchive		 myArchive;
     SetType		 myObjects;
     bool		 myPurged;

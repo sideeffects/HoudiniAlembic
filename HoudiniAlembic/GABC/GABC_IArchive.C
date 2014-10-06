@@ -34,9 +34,8 @@
 
 #if defined(GABC_OGAWA)
     #include <Alembic/AbcCoreFactory/All.h>
-#else
-    #include <Alembic/AbcCoreHDF5/All.h>
 #endif
+#include <Alembic/AbcCoreHDF5/All.h>
 
 using namespace GABC_NAMESPACE;
 
@@ -102,23 +101,44 @@ GABC_IArchive::closeAndDelete()
 GABC_IArchive::GABC_IArchive(const std::string &path)
     : myFilename(path)
     , myPurged(false)
+    , myReader(NULL)
+    , myStreamBuf(NULL)
+    , myStream(NULL)
 {
     UT_INC_COUNTER(theCount);
     if (UTisstring(path.c_str()) && UTaccess(path.c_str(), R_OK) == 0)
     {
-	try
-	{
 #if defined(GABC_OGAWA)
-	    IFactory	factory;
-	    myArchive = factory.getArchive(path);
-#else
-	    myArchive = IArchive(Alembic::AbcCoreHDF5::ReadArchive(), path);
-#endif
-	}
-	catch (const std::exception &e)
+	if (openStream(path, NULL))
 	{
-	    myError = e.what();
-	    myArchive = IArchive();
+	    IFactory	factory;
+	    std::vector<std::istream *> stream_list;
+	    stream_list.push_back(myStream);
+	    IFactory::CoreType	archive_type;
+	    try
+	    {
+		myArchive = factory.getArchive(stream_list, archive_type);
+	    }
+	    catch (const std::exception &e)
+	    {
+		// It may still be an HDF5 archive
+		clearStream();
+		myArchive = IArchive();
+	    }
+	}
+#endif
+	// Try HDF5 -- the stream interface only works with Ogawa
+	if (!myArchive.valid())
+	{
+	    try
+	    {
+		myArchive = IArchive(Alembic::AbcCoreHDF5::ReadArchive(), path);
+	    }
+	    catch (const std::exception &e)
+	    {
+		myError = e.what();
+		myArchive = IArchive();
+	    }
 	}
     }
 }
@@ -129,6 +149,35 @@ GABC_IArchive::~GABC_IArchive()
     GABC_AlembicLock	lock(*this);	// Lock for member data deletion
     if (!purged())
 	purgeObjects();	// Clear all my objects out
+    clearStream();
+}
+
+bool
+GABC_IArchive::openStream(const std::string &path, const UT_Options *opts)
+{
+    myReader = new gabc_istream(path.c_str(), NULL);
+    if (!myReader->isValid())
+    {
+	UT_WorkBuffer	wbuf;
+	wbuf.sprintf("Unable to open '%s'", path.c_str());
+	myError = wbuf.toStdString();
+	clearStream();
+	return false;
+    }
+    myStreamBuf = new gabc_streambuf(*myReader);
+    myStream = new std::istream(myStreamBuf);
+    return true;
+}
+
+void
+GABC_IArchive::clearStream()
+{
+    delete myReader;
+    delete myStreamBuf;
+    delete myStream;
+    myReader = NULL;
+    myStreamBuf = NULL;
+    myStream = NULL;
 }
 
 void
@@ -176,6 +225,7 @@ GABC_IArchive::purgeObjects()
 	(*it)->purge();
     }
     myArchive = IArchive();
+    clearStream();
     theArchiveCache.erase(myFilename);
 }
 
