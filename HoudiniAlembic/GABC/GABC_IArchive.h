@@ -148,6 +148,9 @@ public:
     /// Get the root object
     GABC_IObject	getTop() const;
 
+    /// Access to the underlying archive
+    const IArchive	&archive() const	{ return myArchive; }
+
     /// Purge all objects references
     void		purgeObjects();
 

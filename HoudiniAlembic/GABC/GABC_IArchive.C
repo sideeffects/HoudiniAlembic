@@ -106,7 +106,7 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
     , myStream(NULL)
 {
     UT_INC_COUNTER(theCount);
-    if (UTisstring(path.c_str()) && UTaccess(path.c_str(), R_OK) == 0)
+    if (UTisstring(path.c_str()))
     {
 #if defined(GABC_OGAWA)
 	if (openStream(path, NULL))
@@ -128,7 +128,7 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
 	}
 #endif
 	// Try HDF5 -- the stream interface only works with Ogawa
-	if (!myArchive.valid())
+	if (!myArchive.valid() && UTaccess(path.c_str(), R_OK) == 0)
 	{
 	    try
 	    {
