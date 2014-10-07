@@ -54,6 +54,22 @@ Load As:
         Bounding Boxes:
                 Load only the bounding boxes of the Alembic primitives.
 
+Display As:
+	#id: viewportlod
+
+	How the Alembic geometry is displayed in the viewport.
+
+	Full Geometry:
+		The Alembic geometry is fully displayed.
+	Point Cloud:
+		Only the points are displayed.
+	Bounding Box:
+		Only the geometry bounding boxes are displayed.
+	Centroid:
+		Only the geometry centroid is displayed.
+	Hidden:
+		No geometry is displayed.
+
 Points:
         #id: pointmode
         When loading Alembic Delayed Load primitives, you can create an unique point for each primitive, or all the Alembic primitives can share a single point.  The unique points can all be at the origin, or alternatively, located at the primitive's centroid.
@@ -196,6 +212,22 @@ NOTE:
         All intrinsic attributes on Alembic nodes will be created in all cases. For
         example, the `velocity` attribute on points will be created regardless of
         whether it matches the __Point Attribute__ pattern.
+
+User Properties:
+	#id: loadUserProps
+
+	How Alembic user properties should be handled.
+
+	Do Not Load:
+		User properties are not loaded.
+	Load Values Only:
+		User property values are loaded as a JSON dictionary into a
+		primitive string attribute.
+	Load Values and Metadata:
+		User property values are loaded as a JSON dictionary into a
+		primitive string attribute. User property metadata, useful for
+		interpreting and processing the values, is loaded as a JSON
+		dictionary into a separate primitive string attribute.
 
 Add Path Attribute:
         #id: addpath
