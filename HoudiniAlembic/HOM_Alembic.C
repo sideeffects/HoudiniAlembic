@@ -741,16 +741,24 @@ namespace
     PY_PyObject *
     Py_AlembicGetSceneHierarchy(PY_PyObject *self, PY_PyObject *args)
     {
-        const char * archivePath = NULL;
-        const char * objectPath = NULL;
+        PY_PyObject    *result;
+        const char     *archivePath = NULL;
+        const char     *objectPath = NULL;
         if (!PY_PyArg_ParseTuple(args, "ss", &archivePath, &objectPath))
-	    return NULL;
+	    PY_Py_RETURN_NONE;
 
 	PyWalker	walker;
 	UT_StringArray	objects;
 	objects.append(objectPath);
 	GABC_Util::walk(archivePath, walker, objects);
-	return walker.getObject();
+
+	result = walker.getObject();
+	if (result)
+	{
+	    return walker.getObject();
+	}
+
+	PY_Py_RETURN_NONE;
     }
 
     //-*************************************************************************

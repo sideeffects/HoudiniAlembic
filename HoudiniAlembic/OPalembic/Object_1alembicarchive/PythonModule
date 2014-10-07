@@ -24,13 +24,13 @@ def BuildHierarchyRoot(rootNode):
         return
 
     buildSubnet = rootNode.evalParm('buildSubnet')
-
-    tree = _abc.alembicGetSceneHierarchy(fileName, "")
     channelRefs = rootNode.evalParm('channelRef')
     flatVisibility = rootNode.evalParm('flattenVisibility')
-
     pathList = [x for x in rootNode.evalParm('objectPath').strip('/').split('/') if x]
 
+    tree = _abc.alembicGetSceneHierarchy(fileName, "")
+    if not tree:
+        return
     for entry in tree[2]:
         WalkHierarchy(fileName,
                         rootNode,
@@ -41,7 +41,9 @@ def BuildHierarchyRoot(rootNode):
                         buildSubnet,
                         channelRefs,
                         flatVisibility)
+
     rootNode.layoutChildren()
+
     if not channelRefs:
         PushParametersToChildren(rootNode)
 
