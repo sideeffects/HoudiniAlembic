@@ -1478,11 +1478,11 @@ namespace
     basisWarning(const GABC_IObject &obj, const char *basis)
     {
 	UT_ErrorLog::mantraWarningOnce(
-		    "Alembic file %s (%s) has invalid cubic %s %s",
+		    "Alembic file %s (%s) has invalid %s curves - converting "
+		        "to linear",
 		    obj.archive()->filename().c_str(),
 		    obj.getFullName().c_str(),
-		    basis,
-		    "curves - converting to linear");
+		    basis);
     }
 
     static void

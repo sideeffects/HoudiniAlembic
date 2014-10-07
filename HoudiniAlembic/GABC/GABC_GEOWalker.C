@@ -58,59 +58,68 @@ namespace Alembic {
 using namespace GABC_NAMESPACE;
 
 namespace {
-    typedef Imath::M44d				M44d;
-    typedef Imath::V3f			        V3f;
-    typedef Imath::V3d				V3d;
-    typedef Imath::V4f                          V4f;
+    typedef Imath::M44d				    M44d;
+    typedef Imath::V3f			            V3f;
+    typedef Imath::V3d				    V3d;
+    typedef Imath::V4f                              V4f;
 
     typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
-    typedef Alembic::Abc::DataType		DataType;
-    typedef Alembic::Abc::ISampleSelector	ISampleSelector;
-    typedef Alembic::Abc::ObjectHeader		ObjectHeader;
-    typedef Alembic::Abc::P3fArraySample	P3fArraySample;
-    typedef Alembic::Abc::UcharArraySamplePtr	UcharArraySamplePtr;
-    typedef Alembic::Abc::Int32ArraySamplePtr	Int32ArraySamplePtr;
-    typedef Alembic::Abc::FloatArraySamplePtr	FloatArraySamplePtr;
-    typedef Alembic::Abc::P3fArraySamplePtr	P3fArraySamplePtr;
-    typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
-    typedef Alembic::Abc::IArrayProperty	IArrayProperty;
-    typedef Alembic::Abc::PropertyHeader	PropertyHeader;
-    typedef Alembic::Abc::ArraySamplePtr	ArraySamplePtr;
-    typedef Alembic::Abc::WrapExistingFlag	WrapExistingFlag;
+    typedef Alembic::Abc::DataType		    DataType;
+    typedef Alembic::Abc::ISampleSelector	    ISampleSelector;
+    typedef Alembic::Abc::ObjectHeader		    ObjectHeader;
+    typedef Alembic::Abc::P3fArraySample	    P3fArraySample;
+    typedef Alembic::Abc::UcharArraySamplePtr	    UcharArraySamplePtr;
+    typedef Alembic::Abc::Int32ArraySamplePtr	    Int32ArraySamplePtr;
+    typedef Alembic::Abc::FloatArraySamplePtr	    FloatArraySamplePtr;
+    typedef Alembic::Abc::P3fArraySamplePtr	    P3fArraySamplePtr;
+    typedef Alembic::Abc::ICompoundProperty	    ICompoundProperty;
+    typedef Alembic::Abc::IArrayProperty	    IArrayProperty;
+    typedef Alembic::Abc::PropertyHeader	    PropertyHeader;
+    typedef Alembic::Abc::ArraySamplePtr	    ArraySamplePtr;
+    typedef Alembic::Abc::WrapExistingFlag	    WrapExistingFlag;
 
-    typedef Alembic::AbcGeom::BasisType         BasisType;
-    typedef Alembic::AbcGeom::GeometryScope	GeometryScope;
+    typedef Alembic::AbcGeom::BasisType             BasisType;
+    typedef Alembic::AbcGeom::CurvePeriodicity      CurvePeriodicity;
+    typedef Alembic::AbcGeom::GeometryScope	    GeometryScope;
 
-    typedef Alembic::AbcGeom::IXform		IXform;
-    typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
-    typedef Alembic::AbcGeom::XformSample	XformSample;
-    typedef Alembic::AbcGeom::ISubD		ISubD;
-    typedef Alembic::AbcGeom::ISubDSchema	ISubDSchema;
-    typedef Alembic::AbcGeom::IPolyMesh		IPolyMesh;
-    typedef Alembic::AbcGeom::IPolyMeshSchema	IPolyMeshSchema;
-    typedef Alembic::AbcGeom::ICurves		ICurves;
-    typedef Alembic::AbcGeom::ICurvesSchema	ICurvesSchema;
-    typedef ICurvesSchema::Sample               ICurvesSample;
-    typedef Alembic::AbcGeom::IPoints		IPoints;
-    typedef Alembic::AbcGeom::IPointsSchema	IPointsSchema;
-    typedef Alembic::AbcGeom::INuPatch		INuPatch;
-    typedef Alembic::AbcGeom::INuPatchSchema	INuPatchSchema;
-    typedef INuPatchSchema::Sample		INuPatchSample;
-    typedef Alembic::AbcGeom::IFaceSet		IFaceSet;
-    typedef Alembic::AbcGeom::IFaceSetSchema	IFaceSetSchema;
+    typedef Alembic::AbcGeom::IXform		    IXform;
+    typedef Alembic::AbcGeom::IXformSchema	    IXformSchema;
+    typedef Alembic::AbcGeom::XformSample	    XformSample;
+    typedef Alembic::AbcGeom::ISubD		    ISubD;
+    typedef Alembic::AbcGeom::ISubDSchema	    ISubDSchema;
+    typedef Alembic::AbcGeom::IPolyMesh		    IPolyMesh;
+    typedef Alembic::AbcGeom::IPolyMeshSchema	    IPolyMeshSchema;
+    typedef Alembic::AbcGeom::ICurves		    ICurves;
+    typedef Alembic::AbcGeom::ICurvesSchema	    ICurvesSchema;
+    typedef ICurvesSchema::Sample                   ICurvesSample;
+    typedef Alembic::AbcGeom::IPoints		    IPoints;
+    typedef Alembic::AbcGeom::IPointsSchema	    IPointsSchema;
+    typedef Alembic::AbcGeom::INuPatch		    INuPatch;
+    typedef Alembic::AbcGeom::INuPatchSchema	    INuPatchSchema;
+    typedef INuPatchSchema::Sample		    INuPatchSample;
+    typedef Alembic::AbcGeom::IFaceSet		    IFaceSet;
+    typedef Alembic::AbcGeom::IFaceSetSchema	    IFaceSetSchema;
 
-    typedef Alembic::Util::PlainOldDataType     PlainOldDataType;
+    typedef Alembic::Util::PlainOldDataType         PlainOldDataType;
 
     // Types used for NURBS rationalization, but undefined by Alembic
     typedef Alembic::Abc::P4fTPTraits                   P4fTPTraits;
     typedef Alembic::Abc::TypedArraySample<P4fTPTraits> P4fArraySample;
     typedef Alembic::Util::shared_ptr<P4fArraySample>   P4fArraySamplePtr;
 
-    const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
-    const M44d	identity44d(1, 0, 0, 0,
-			    0, 1, 0, 0,
-			    0, 0, 1, 0,
-			    0, 0, 0, 1);
+    const WrapExistingFlag  gabcWrapExisting = Alembic::Abc::kWrapExisting;
+    const M44d	            identity44d(1, 0, 0, 0,
+			                0, 1, 0, 0,
+                                        0, 0, 1, 0,
+			                0, 0, 0, 1);
+    // Corresponds to thr Alembic BasisType enum
+    const std::string       curveNamesArray[6] = {
+                                    "NoBasis",      // kNoBasis
+                                    "Bezier",       // kBezierBasis
+                                    "B-Spline",     // kBsplineBasis
+                                    "Catmull-Rom",  // kCatmullromBasis
+                                    "Hermite",      // kHermiteBasis
+                                    "Power"};       // kPowerBasis
 
     class PushTransform
     {
@@ -844,23 +853,114 @@ namespace {
 				    GEO_PATCH_QUADS);
     }
 
+    bool
+    validBasis(BasisType type, int nvertices, int order, bool closed)
+    {
+        UT_ASSERT(order > 0);
+
+        if ((closed && (nvertices < (order - 1)))
+            || (!closed && (nvertices < order)))
+        {
+            return false;
+        }
+
+        if (!closed)
+        {
+            --nvertices;
+        }
+
+        // Currently we only load NURBS and bezier curves, everything else
+        // falls through to linear. Thus, only need further basis checks
+        // if loading Bezier curves.
+        if (type == Alembic::AbcGeom::kBezierBasis)
+        {
+            return nvertices % (order - 1) == 0;
+        }
+
+        return true;
+    }
+
     void
     appendCurves(GABC_GEOWalker &walk,
+            const GABC_IObject &obj,
             BasisType type,
             Int32ArraySamplePtr counts,
             exint npoint,
-            int order)
+            UcharArraySamplePtr orders,
+            int uorder,
+            bool closed)
     {
-	GU_Detail	&gdp = walk.detail();
-	exint		 startpoint = appendPoints(walk, npoint);
-	exint		 ncurves = counts->size();
-        GEO_PolyCounts	 pcounts;
-        exint		 nvtx = 0;
+        GEO_PolyCounts  pcounts;
+	GU_Detail      &gdp = walk.detail();
+	UT_Array<int>   porders;
+	exint           ncurves = counts->size();
+        exint           nvtx = 0;
+	exint           startpoint = appendPoints(walk, npoint);
+        int             c_val;
+        int             o_val;
+        bool            err_flag = true;
+
+        // Must have a uniform order or a list of varying orders
+        UT_ASSERT(uorder || !isEmpty(orders));
+
         for (exint i = 0; i < ncurves; ++i)
         {
-            nvtx += (*counts)[i];
-            pcounts.append((*counts)[i]);
+            c_val = (*counts)[i];
+
+            nvtx += c_val;
+            pcounts.append(c_val);
         }
+
+        if (!uorder)
+        {
+            for (exint i = 0; i < ncurves; ++i)
+            {
+                o_val = (*orders)[i];
+
+                if (o_val > 2 && o_val < GA_MAXORDER)
+                {
+                    porders.append(o_val);
+                }
+                else
+                {
+                    if (err_flag)
+                    {
+                        walk.errorHandler().warning("One or more %s curves in "
+                                "%s have invalid order - order set to 2",
+                                curveNamesArray[type].c_str(),
+                                obj.getFullName().c_str());
+                        err_flag = false;
+                    }
+                    porders.append(2);
+                }
+
+                if (!validBasis(type, (*counts)[i], o_val, closed))
+                {
+                    walk.errorHandler().warning("Invalid basis for %s curves "
+                            "in %s - converting curves to linear",
+                            curveNamesArray[type].c_str(),
+                            obj.getFullName().c_str());
+                    type = Alembic::AbcGeom::kNoBasis;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for (exint i = 0; i < ncurves; ++i)
+            {
+                if (!validBasis(type, (*counts)[i], uorder, closed))
+                {
+                    walk.errorHandler().warning("Invalid basis for %s curves "
+                            "in %s - converting curves to linear",
+                            curveNamesArray[type].c_str(),
+                            obj.getFullName().c_str());
+                    type = Alembic::AbcGeom::kNoBasis;
+                    break;
+                }
+            }
+        }
+
         UT_StackBuffer<int>	indices(nvtx);
         for (int i = 0; i < nvtx; ++i)
             indices[i] = i;
@@ -868,17 +968,35 @@ namespace {
 	switch (type)
 	{
 	    case Alembic::AbcGeom::kBezierBasis:
-	        GEO_PrimRBezCurve::buildBlock(&gdp, GA_Offset(startpoint),
-                        npoint, pcounts, indices, order);
+	        GEO_PrimRBezCurve::buildBlock(&gdp,
+	                GA_Offset(startpoint),
+                        npoint,
+                        pcounts,
+                        indices,
+                        porders,
+                        uorder,
+                        closed);
 	        break;
+
 	    case Alembic::AbcGeom::kBsplineBasis:
-	        GEO_PrimNURBCurve::buildBlock(&gdp, GA_Offset(startpoint),
-                        npoint, pcounts, indices, order);
+	        GEO_PrimNURBCurve::buildBlock(&gdp,
+	                GA_Offset(startpoint),
+                        npoint,
+                        pcounts,
+                        indices,
+                        porders,
+                        uorder,
+                        closed,
+                        !closed);
 	        break;
-            case Alembic::AbcGeom::kNoBasis:
+
             default:
-                GU_PrimPoly::buildBlock(&gdp, GA_Offset(startpoint),
-                        npoint, pcounts, indices, false);
+                GU_PrimPoly::buildBlock(&gdp,
+                        GA_Offset(startpoint),
+                        npoint,
+                        pcounts,
+                        indices,
+                        false);
 	}
     }
 
@@ -1473,35 +1591,44 @@ namespace {
 	ICurves			curves(obj.object(), gabcWrapExisting);
 	ICurvesSchema		&cs = curves.getSchema();
 	ICurvesSample		c_sample = cs.getValue(iss);
-	P3fArraySamplePtr	points = cs.getPositionsProperty()
-	                                .getValue(iss);
-	Int32ArraySamplePtr	nvtx = cs.getNumVerticesProperty()
-	                                .getValue(iss);
+	P3fArraySamplePtr	points = cs.getPositionsProperty().getValue(iss);
+	Int32ArraySamplePtr	nvtx = cs.getNumVerticesProperty().getValue(iss);
+        UcharArraySamplePtr     orders;
 	FloatArraySamplePtr     knots = c_sample.getKnots();
         BasisType               type = c_sample.getBasis();
+	CurvePeriodicity        period = c_sample.getWrap();
         exint			npoint = points->size();
 	exint			nvertex = npoint;
 	exint			nprim = nvtx->size();
-	int                     uorder;
+	exint                   norders;
+	int                     uorder = 0;
 
 	switch (c_sample.getType())
         {
             case Alembic::AbcGeom::kCubic:
                 uorder = 4;
                 break;
+
             case Alembic::AbcGeom::kLinear:
                 uorder = 2;
                 break;
+
             case Alembic::AbcGeom::kVariableOrder:
-            {
-                UcharArraySamplePtr     abcOrders = c_sample.getOrders();
-                if (!isEmpty(abcOrders))
+                orders = c_sample.getOrders();
+                if (!isEmpty(orders))
                 {
-                    uorder = abcOrders->get()[0];
-                    break;
+                    norders = orders->size();
+                    if (norders == nprim)
+                    {
+                        uorder = 0;
+                        break;
+                    }
                 }
-            }
+
             default:
+                walk.errorHandler().warning("Error reading order for %s - "
+                        "converting curves to linear",
+                        obj.getFullName().c_str());
                 uorder = 2;
                 type = Alembic::AbcGeom::kNoBasis;
         }
@@ -1525,7 +1652,14 @@ namespace {
 	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() == walk.primitiveCount());
-	    appendCurves(walk, type, nvtx, npoint, uorder);
+	    appendCurves(walk,
+	            obj,
+	            type,
+	            nvtx,
+	            npoint,
+	            orders,
+	            uorder,
+	            (period == Alembic::AbcGeom::kPeriodic));
 	}
 
 	if (type == Alembic::AbcGeom::kBsplineBasis && !isEmpty(knots))
