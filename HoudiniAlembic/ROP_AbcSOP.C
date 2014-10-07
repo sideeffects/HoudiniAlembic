@@ -60,7 +60,7 @@ namespace
 	    bool show_pts)
     {
 	/// Since there can be all kinds of primitives we don't understand
-	/// (i.e. all custom ones, Tetra, etc. we build a GT primitive for the
+	/// (i.e. all custom ones, Tetra, etc.), we build a GT primitive for the
 	/// detail.  We can refine this into simpler primitives until we *do*
 	/// understand them.
 	GT_PrimitiveHandle	detail = GT_GEODetail::makeDetail(&gdp, &range);
@@ -237,8 +237,9 @@ namespace
             return 1;
         }
 
-        // Same path length, both/neither have Alembics, order doesn't matter
-        return 0;
+        // Same path length, both/neither have Alembics, sort alphabetically.
+        // This creates consistent order of shapes on all platforms.
+        return strcmp(a->myIdentifier.c_str(), b->myIdentifier.c_str());
     }
 
     SOP_Node *
