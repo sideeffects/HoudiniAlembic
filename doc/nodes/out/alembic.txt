@@ -8,9 +8,6 @@
 The Alembic ROP can export your scene as an Alembic archive.
 See the following link for further information about the [Alembic format|http://code.google.com/p/alembic/].
 
-NOTE:
-    This is a preliminary exporter. A more full featured exporter will be included in the future. The future version will likely be SOHO based. 
-
 @parameters
 
 Render:
