@@ -162,13 +162,13 @@ Path Attribute:
 	The name of the attribute containing the path.
 
 Packed Alembic Priority:
-	The transformation of the first packed Alembic primitive under any Xform is merged with that of its parent. Due to this, subsequent packed Alembics need an additional "buffer" Xform between them and their parent to make sure their transformation is preserved.
+	The transformation of the first packed Alembic primitive under any [Alembic Xform|Node:sop/alembicxform] object is merged with that of its parent. Subsequent packed Alembics need an additional "buffer" Alembic Xform object between them and their parent to make sure their transformation is preserved.
 
 	Hiearchy:
-		Ignore the transformations of subsequent packed Alembics. Output them at the specified path without a "buffer" Xform to preserve the hierarchy as specified by the path attribute.
+		Ignore the transformations of subsequent packed Alembics. Output them at the specified path without a "buffer" Alembic Xform object to preserve the hierarchy as specified by the path attribute.
 
 	Transformation:
-		Create the "buffer" Xform between subsequent Alembics and their parent. Modify the hierarchy to preserve their unique transformation.
+		Create the "buffer" Alembic Xform object between subsequent Alembic nodes and their parent. Modify the hierarchy to preserve their unique transformation.
 
 Partition Mode:
         When saving a complex piece of geometry, it is possible to partition the
