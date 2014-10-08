@@ -319,6 +319,20 @@
 	export	none
     }
     parm {
+	name	"viewportlod"
+	label	"Display As"
+	type	ordinal
+	default	{ 0  }
+	menu	{
+	    "full"	"Full Geometry"
+	    "points"	"Point Cloud"
+	    "box"	"Bounding Box"
+	    "centroid"	"Centroid"
+	    "hidden"	"Hidden"
+	}
+	export	none
+    }
+    parm {
         name        "loadUserProps"
         label       "User Properties"
         type        ordinal

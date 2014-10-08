@@ -199,6 +199,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
             ExpressionToParm(rootNode.parm('frame'), sopNode.parm('frame'))
             ExpressionToParm(rootNode.parm('fps'), sopNode.parm('fps'))
             ExpressionToParm(rootNode.parm('loadmode'), sopNode.parm('loadmode'))
+            ExpressionToParm(rootNode.parm('viewportlod'), sopNode.parm('viewportlod'))
             ExpressionToParm(rootNode.parm('loadUserProps'), sopNode.parm('loadUserProps'))
 
         objectPath = currentPath
@@ -336,6 +337,7 @@ def WalkAndPush(rootNode, parentNode):
             _pushScalarParm('frame', rootNode, kid)
             _pushScalarParm('fps', rootNode, kid)
             _pushScalarParm('loadmode', rootNode, kid)
+            _pushScalarParm('viewportlod', rootNode, kid)
             _pushScalarParm('loadUserProps', rootNode, kid)
             _pushRemapAttributesParm(rootNode, kid)
         WalkAndPush(rootNode, kid)
