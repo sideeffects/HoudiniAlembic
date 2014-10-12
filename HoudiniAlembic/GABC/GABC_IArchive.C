@@ -119,7 +119,7 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
 	    {
 		myArchive = factory.getArchive(stream_list, archive_type);
 	    }
-	    catch (const std::exception &e)
+	    catch (const std::exception &)
 	    {
 		// It may still be an HDF5 archive
 		clearStream();
