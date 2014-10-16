@@ -1787,6 +1787,7 @@ namespace {
 	locatorAttribute(walk, "parentTrans", lt.x, lt.y, lt.z);
 	locatorAttribute(walk, "parentRot", lr.x, lr.y, lr.z);
 	locatorAttribute(walk, "parentScale", ls.x, ls.y, ls.z);
+        fillArb(walk, obj, xform.getSchema().getArbGeomParams(), 1, 1, 1);
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
