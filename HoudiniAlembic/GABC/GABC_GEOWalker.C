@@ -2093,14 +2093,23 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err)
 	myBoss->opStart("Building geometry from Alembic tree",
 			0, 0, &myBossId);
     }
-    myCullBox.makeInvalid();	// 
+    myCullBox.makeInvalid();
+
+    myVisibilityStack.push(GABC_VISIBLE_VISIBLE);
 }
 
 GABC_GEOWalker::~GABC_GEOWalker()
 {
     // In theory, this should be true even if we were interrupted.
     if (myBoss)
+    {
 	myBoss->opEnd(myBossId);
+    }
+
+    while (!myVisibilityStack.empty())
+    {
+        myVisibilityStack.pop();
+    }
 }
 
 void
@@ -2193,12 +2202,16 @@ GABC_GEOWalker::preProcess(const GABC_IObject &root)
 bool
 GABC_GEOWalker::process(const GABC_IObject &obj)
 {
-    const ObjectHeader	&ohead = obj.getHeader();
+    const ObjectHeader     &ohead = obj.getHeader();
+    GABC_VisibilityType     vtype = GABC_VISIBLE_DEFER;
+    // Let the walker process children naturally by default
+    bool                    process_children = true;
+    bool                    vis = useVisibility();
 
-    if (useVisibility())
+    if (vis)
     {
-	bool			animated;
-	GABC_VisibilityType	vtype;
+	bool    animated;
+
 	vtype = obj.visibility(animated, time(), false);
 	if (animated)
 	{
@@ -2206,14 +2219,16 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	    setNonConstant();
 	    setNonConstantTopology();
 	}
-	if (vtype == GABC_VISIBLE_HIDDEN)
-	    return false;	// Don't process children
+
+	if (vtype != GABC_VISIBLE_DEFER)
+	{
+	    myVisibilityStack.push(vtype);
+        }
     }
 
-    //fprintf(stderr, "Process: %s\n", (const char *)obj.getFullName().c_str());
     if (IXform::matches(ohead))
     {
-	IXform	xform(obj.object(), gabcWrapExisting);
+	IXform  xform(obj.object(), gabcWrapExisting);
 
 	if (buildLocator() && obj.isMayaLocator())
 	{
@@ -2224,26 +2239,24 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 		else
 		    makeLocator(*this, xform, obj);
 	    }
-	    return true;	// Process locator children
 	}
-	else if (includeXform())
-	{
-	    PushTransform	push(*this, xform);
-	    if (buildAbcPrim() && buildAbcXform() && filterObject(obj))
-		makeAbcPrim(*this, obj, ohead);
-	    walkChildren(obj);
-	    return false;	// Since we walked manually, return false
-	}
-	else if (buildAbcPrim() && buildAbcXform())
+	else if (buildAbcPrim() && buildAbcXform() && filterObject(obj)
+            && (!vis || (myVisibilityStack.top() == GABC_VISIBLE_VISIBLE)))
 	{
 	    makeAbcPrim(*this, obj, ohead);
-	    // Fall through to process children
 	}
-	// Let the walker just process children naturally
-	return true;
-    }
 
-    if (buildAbcShape() && filterObject(obj))
+	if (includeXform())
+	{
+	    PushTransform   push(*this, xform);
+	    walkChildren(obj);
+
+	    // Since we walked manually, return false
+	    process_children = false;
+	}
+    }
+    else if (buildAbcShape() && filterObject(obj)
+        && (!vis || (myVisibilityStack.top() == GABC_VISIBLE_VISIBLE)))
     {
 	switch (myLoadMode)
 	{
@@ -2340,7 +2353,12 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	}
     }
 
-    return true;
+    if (vtype != GABC_VISIBLE_DEFER)
+    {
+        myVisibilityStack.pop();
+    }
+
+    return process_children;
 }
 
 bool
@@ -2466,6 +2484,7 @@ GABC_GEOWalker::pushTransform(const M44d &xform, bool const_xform,
     else
 	myMatrix = xform;
 }
+
 void
 GABC_GEOWalker::popTransform(const GABC_GEOWalker::TransformState &stash)
 {

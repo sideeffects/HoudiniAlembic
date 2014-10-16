@@ -123,22 +123,44 @@ def _setUserProperties(currentNode, name, fileName, loadType):
             currentNode.parm('userPropsMeta').set(dictionary[1])
 
 def _setVisibility(node, filename, objectpath, chprefix):
-    vis = _abc.alembicVisibility(filename, objectpath, 0, 1)
-    if vis[1] and vis[0] == 1:
-        # Always visibile (constant visibility, and displayed)
-        return False
-    if not vis[1] and vis[0] != -1:
+    vis = _abc.alembicVisibility(filename, objectpath, 0)
+
+    if vis == None:
+        # Always visible - this is likely to occur when we reach the Alembic
+        # root.
+        return False;
+
+    elif vis[1]:
+        if vis[0] == 1:
+            # Always visibile (constant visibility)
+            return False
+
+        elif vis[0] == 0:
+            # Never visible (constant hidden)
+            _setParmValue(node, 'tdisplay', 1)
+            _setParmValue(node, 'display', 0)
+
+        elif vis[0] == -1:
+            # Always whatever parent is (constant deferred)
+            ppath = objectpath[0:objectpath.rfind('/')]
+
+            if ppath != "":
+                return _setVisibility(node,
+                        filename,
+                        ppath,
+                        chprefix)
+
+    elif not vis[1]:
         # Animated visibility
         _setParmValue(node, 'fileName', filename)
         _setParmValue(node, 'tdisplay', 1)
+
         disp = node.parm('display')
-        # Visibility is set on leaf geometry node
-        expr = '%s.alembicVisibility(ch("%sfileName"), "%s", ch("%sframe")/ch("%sfps"), 1)[0] != 0' % (_AbcModule, chprefix, objectpath, chprefix, chprefix)
+        expr = '%s.alembicVisibility(ch("%sfileName"), "%s", ch("%sframe")/ch("%sfps"), 1)[0]' % (_AbcModule, chprefix, objectpath, chprefix, chprefix)
         disp.setExpression(expr, hou.exprLanguage.Python)
+
         return True
-    elif vis[0] == 0:
-        _setParmValue(node, 'tdisplay', 1)
-        _setParmValue(node, 'display', 0)
+
     return False
 
 def ExpressionToParm(srcParm, dstParm, isString=False):
@@ -179,7 +201,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 _setParmValue(currentNode, parmname, 1)
         _setNodeName(currentNode, name)
         if flatVisibility:
-            _setVisibility(currentNode, fileName, parentPath, "../")
+            _setVisibility(currentNode, fileName, currentPath, "../")
 
         sopNode = currentNode.createNode('alembic')
         _setNodeName(sopNode, name)
@@ -207,8 +229,10 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
             objectPath = ''.join(['"', currentPath, '"'])
         sopNode.parm('objectPath').set(objectPath)
         sopNode.parm('includeXform').set(0)
+        sopNode.parm('usevisibility').set(not flatVisibility)
         sopNode.parm('loadUserProps').set(1)
         sopNode.parm('groupnames').set('none')  # Don't build groups
+
     elif typeName == 'xform' or typeName == 'cxform':
         if buildSubnet:
             currentNode = parentNode.createNode('alembicxform')
@@ -250,6 +274,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                         entry, pathList, buildSubnet, channelRefs,
                         flatVisibility)
         currentNode.layoutChildren()
+
     elif typeName == 'camera':
         currentNode = parentNode.createNode('cam')
         currentNode.setInput(0, parentNode.indirectInputs()[0])
@@ -286,6 +311,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 'winsizey'):
              currentNode.parm(parmName).setExpression(camChannel(parmName), hou.exprLanguage.Python)
         currentNode.parm('aspect').setExpression(camPixelAspect(), hou.exprLanguage.Python)
+
     else:
         return
 

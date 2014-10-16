@@ -2196,22 +2196,44 @@ GABC_IObject::visibility(bool &animated, fpreal t, bool check_parent) const
 	return GABC_VISIBLE_DEFER;
 
     GABC_AlembicLock	lock(archive());
+    ISampleSelector     iss(t);
     IVisibilityProperty	vprop = Alembic::AbcGeom::GetVisibilityProperty(
 				    const_cast<IObject &>(myObject));
     if (vprop.valid())
     {
 	animated = !vprop.isConstant();
-	return vprop.getValue(ISampleSelector(t))
-		    ? GABC_VISIBLE_VISIBLE
-		    : GABC_VISIBLE_HIDDEN;
+
+        switch (vprop.getValue(iss))
+        {
+            case -1:
+                if (check_parent)
+                {
+                    break;
+                }
+
+                return GABC_VISIBLE_DEFER;
+
+            case 0:
+                return GABC_VISIBLE_HIDDEN;
+
+            case 1:
+                return GABC_VISIBLE_VISIBLE;
+
+            default:
+                UT_ASSERT(0 && "Strange visibility value");
+        }
     }
     if (check_parent)
     {
 	GABC_IObject	parent(getParent());
 	if (!parent.valid())
+	{
 	    return GABC_VISIBLE_VISIBLE;
+        }
+
 	return parent.visibility(animated, t, true);
     }
+
     return GABC_VISIBLE_DEFER;
 }
 

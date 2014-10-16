@@ -320,6 +320,7 @@ private:
     UT_BoundingBox          myCullBox;
     UT_Interrupt           *myBoss;
     UT_String               myObjectPattern;
+    std::stack<GABC_VisibilityType> myVisibilityStack;
     fpreal                  myTime;                 // Alembic evaluation time
     exint                   myPointCount;           // Points added
     exint                   myPrimitiveCount;       // Primitive's added count
