@@ -86,7 +86,9 @@ enum
 
 PRM_Template	SOP_AlembicPrimitive::myTemplateList[] =
 {
-    PRM_Template(PRM_STRING,	1, &PRMgroupName, 0, &SOP_Node::primGroupMenu),
+    PRM_Template(PRM_STRING,	1, &PRMgroupName, 0, &SOP_Node::primGroupMenu,
+				0, 0, SOP_Node::getGroupSelectButton(
+						GA_GROUP_PRIMITIVE)),
     PRM_Template(PRM_FLT,	1, &prm_frameName, &prm_frameDefault),
     PRM_Template(PRM_FLT,	1, &prm_fpsName, &prm_fpsDefault),
     PRM_Template(PRM_INT,	1, &prm_visibilityName, &prm_visibilityDefault,
