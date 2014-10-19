@@ -32,11 +32,12 @@
 #include <GABC/GABC_IObject.h>
 #include <GT/GT_Primitive.h>
 #include <GU/GU_PrimPacked.h>
-#include <UT/UT_WorkArgs.h>
 #include <UT/UT_EnvControl.h>
-#include <UT/UT_StringMMPattern.h>
+#include <UT/UT_Interrupt.h>
 #include <UT/UT_JSONValue.h>
 #include <UT/UT_JSONParser.h>
+#include <UT/UT_StringMMPattern.h>
+#include <UT/UT_WorkArgs.h>
 #include "VRAY_ProcGT.h"
 #include "VRAY_IO.h"
 
