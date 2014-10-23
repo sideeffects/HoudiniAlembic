@@ -1353,15 +1353,18 @@ namespace
                                             head,
                                             time);
 
-                success = data_writer->jsonKey(name.c_str());
-                if (!da || !da->save(*data_writer, false)) {
-                    return false;
+                if (data_writer)
+                {
+                    success = data_writer->jsonKey(name.c_str());
+                    if (!success || !da || !da->save(*data_writer, false)) {
+                        return false;
+                    }
                 }
 
                 if (meta_writer)
                 {
                     success = meta_writer->jsonKey(name.c_str());
-                    success = meta_writer->jsonBeginArray();
+                    success &= meta_writer->jsonBeginArray();
 
                     if (head.isScalar())
                     {
@@ -1378,16 +1381,16 @@ namespace
                                 dt.getExtent(),
                                 da->entries());
                     }
-                    success = meta_writer->jsonString(metadata.buffer());
+                    success &= meta_writer->jsonString(metadata.buffer());
 
                     interpretation = getInterpretation(head, dt);
                     if (!interpretation.empty())
                     {
-                        success = meta_writer->jsonString(
+                        success &= meta_writer->jsonString(
                                 interpretation.c_str());
                     }
 
-                    success = meta_writer->jsonEndArray(false);
+                    success &= meta_writer->jsonEndArray(false);
                 }
             }
 
@@ -1687,12 +1690,21 @@ GABC_Util::writeUserPropertyDictionary(UT_JSONWriter *data_writer,
         fpreal time)
 {
     std::string base;
-    bool        success;
+    bool        success = true;
 
-    success = data_writer->jsonBeginMap();
+    // At least one of the writers should not be NULL
+    if (!(data_writer || meta_writer))
+    {
+        return false;
+    }
+
+    if (data_writer)
+    {
+        success = data_writer->jsonBeginMap();
+    }
     if (meta_writer)
     {
-        success = meta_writer->jsonBeginMap();
+        success &= meta_writer->jsonBeginMap();
     }
     if (!success)
         return false;
@@ -1704,10 +1716,13 @@ GABC_Util::writeUserPropertyDictionary(UT_JSONWriter *data_writer,
             base,
             time);
 
-    success = data_writer->jsonEndMap();
+    if (data_writer)
+    {
+        success &= data_writer->jsonEndMap();
+    }
     if (meta_writer)
     {
-        success = meta_writer->jsonEndMap();
+        success &= meta_writer->jsonEndMap();
     }
 
     return success;

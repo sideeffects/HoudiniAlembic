@@ -61,7 +61,7 @@
 //
 //-*****************************************************************************
 
-// The python developers recomment that Python.h be includede before any other
+// The python developers recommend that Python.h be included before any other
 // header files.
 #include <PY/PY_CPythonAPI.h>
 // This file contains functions that will run arbitrary Python code
@@ -467,37 +467,28 @@ namespace
 	return rcode;
     }
 
-    static const char   *Doc_AlembicUserPropertyDicts =
+    static const char   *Doc_AlembicUserPropertyValues =
         "alembicUserPropertyDictionary(abcPath, objectPath, sampleTime)\n"
         "\n"
-        "Returns None or a Tuple containing two JSON dictionaries. The first \n"
-        "dictionary contains a map of user properties to values. The second\n"
-        "dictionary contains a map of user properties to metadata used to\n"
-        "interpret the first dictionary.\n"
-        "\n"
-        "NOTE: User properties can be loaded without metadata. In this case\n"
-        "the second dictionary is just an empty string.\n";
+        "Returns None or a JSON dictionary containing a map of user property \n"
+        "names --> user property values.\n";
 
     PY_PyObject *
-    Py_AlembicUserPropertyDicts(PY_PyObject *self, PY_PyObject *args)
+    Py_AlembicUserPropertyValues(PY_PyObject *self, PY_PyObject *args)
     {
         ICompoundProperty   uprops;
         GABC_IObject	    obj;
         UT_JSONWriter      *data_writer;
-        UT_JSONWriter      *meta_writer;
         UT_WorkBuffer       data_dictionary;
-        UT_WorkBuffer       meta_dictionary;
         const char         *filename;
         const char         *objectPath;
         double              sampleTime;
-        int                 up_loadmode;
 
         if (!PY_PyArg_ParseTuple(args,
-                "ssdi",
+                "ssd",
                 &filename,
                 &objectPath,
-                &sampleTime,
-                &up_loadmode))
+                &sampleTime))
         {
             return NULL;
         }
@@ -516,37 +507,143 @@ namespace
                         .getUserProperties();
                 break;
 
-            // Only called for transforms currently
-            //
-//            case GABC_POLYMESH:
-//                uprops = IPolyMesh(obj.object(), gabcWrapExisting)
-//                        .getSchema()
-//                        .getUserProperties();
-//                break;
-//
-//            case GABC_SUBD:
-//                uprops = ISubD(obj.object(), gabcWrapExisting)
-//                        .getSchema()
-//                        .getUserProperties();
-//                break;
-//
-//            case GABC_CURVES:
-//                uprops = ICurves(obj.object(), gabcWrapExisting)
-//                        .getSchema()
-//                        .getUserProperties();
-//                break;
-//
-//            case GABC_POINTS:
-//                uprops = IPoints(obj.object(), gabcWrapExisting)
-//                        .getSchema()
-//                        .getUserProperties();
-//                break;
-//
-//            case GABC_NUPATCH:
-//                uprops = INuPatch(obj.object(), gabcWrapExisting)
-//                        .getSchema()
-//                        .getUserProperties();
-//                break;
+            default:
+                uprops = ICompoundProperty();
+        }
+
+        if (!uprops || uprops.getNumProperties() == 0)
+        {
+            PY_Py_RETURN_NONE;
+        }
+
+        data_writer = UT_JSONWriter::allocWriter(data_dictionary);
+        if (!GABC_Util::writeUserPropertyDictionary(data_writer,
+                NULL,
+                obj,
+                uprops,
+                sampleTime))
+        {
+            delete data_writer;
+            PY_Py_RETURN_NONE;
+        }
+
+        delete data_writer;
+
+        PY_PyObject    *result = PY_PyString_FromString(data_dictionary.buffer());
+
+        return result;
+    }
+
+    static const char   *Doc_AlembicUserPropertyMetadata =
+        "alembicUserPropertyMetadata(abcPath, objectPath, sampleTime)\n"
+        "\n"
+        "Returns None or a JSON dictionary containing a map of user property \n"
+        "names --> user property metadata.\n";
+
+    PY_PyObject *
+    Py_AlembicUserPropertyMetadata(PY_PyObject *self, PY_PyObject *args)
+    {
+        ICompoundProperty   uprops;
+        GABC_IObject	    obj;
+        UT_JSONWriter      *meta_writer;
+        UT_WorkBuffer       meta_dictionary;
+        const char         *filename;
+        const char         *objectPath;
+        double              sampleTime;
+
+        if (!PY_PyArg_ParseTuple(args,
+                "ssd",
+                &filename,
+                &objectPath,
+                &sampleTime))
+        {
+            return NULL;
+        }
+
+        obj = GABC_Util::findObject(filename, objectPath);
+        if (!obj.valid())
+        {
+            PY_Py_RETURN_NONE;
+        }
+
+        switch (obj.nodeType())
+        {
+            case GABC_XFORM:
+                uprops = IXform(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+                break;
+
+            default:
+                uprops = ICompoundProperty();
+        }
+
+        if (!uprops || uprops.getNumProperties() == 0)
+        {
+            PY_Py_RETURN_NONE;
+        }
+
+        meta_writer = UT_JSONWriter::allocWriter(meta_dictionary);
+        if (!GABC_Util::writeUserPropertyDictionary(NULL,
+                meta_writer,
+                obj,
+                uprops,
+                sampleTime))
+        {
+            delete meta_writer;
+            PY_Py_RETURN_NONE;
+        }
+
+        delete meta_writer;
+
+        PY_PyObject    *result = PY_PyString_FromString(meta_dictionary.buffer());
+
+        return result;
+    }
+
+    static const char   *Doc_AlembicUserPropertyValuesAndMetadata =
+        "alembicUserPropertyValuesAndMetadata(abcPath, objectPath, sampleTime)\n"
+        "\n"
+        "Returns None or a Tuple containing two JSON dictionaries. The first \n"
+        "dictionary contains a map of user properties to values. The second\n"
+        "dictionary contains a map of user properties to metadata used to\n"
+        "interpret the first dictionary.\n";
+
+    PY_PyObject *
+    Py_AlembicUserPropertyValuesAndMetadata(PY_PyObject *self, PY_PyObject *args)
+    {
+        ICompoundProperty   uprops;
+        GABC_IObject	    obj;
+        UT_JSONWriter      *data_writer;
+        UT_JSONWriter      *meta_writer;
+        UT_WorkBuffer       data_dictionary;
+        UT_WorkBuffer       meta_dictionary;
+        const char         *filename;
+        const char         *objectPath;
+        double              sampleTime;
+
+        if (!PY_PyArg_ParseTuple(args,
+                "ssd",
+                &filename,
+                &objectPath,
+                &sampleTime))
+        {
+            return NULL;
+        }
+
+        obj = GABC_Util::findObject(filename, objectPath);
+        if (!obj.valid())
+        {
+            PY_Py_RETURN_NONE;
+        }
+
+        switch (obj.nodeType())
+        {
+            case GABC_XFORM:
+                uprops = IXform(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+                break;
 
             default:
                 uprops = ICompoundProperty();
@@ -558,9 +655,7 @@ namespace
         }
 
         data_writer = UT_JSONWriter::allocWriter(data_dictionary);
-        meta_writer = (up_loadmode == GABC_GEOWalker::UP_LOAD_ALL)
-                ? UT_JSONWriter::allocWriter(meta_dictionary)
-                : NULL;
+        meta_writer = UT_JSONWriter::allocWriter(meta_dictionary);
         if (!GABC_Util::writeUserPropertyDictionary(data_writer,
                 meta_writer,
                 obj,
@@ -568,30 +663,16 @@ namespace
                 sampleTime))
         {
             delete data_writer;
-            if (meta_writer)
-            {
-                delete meta_writer;
-            }
-
+            delete meta_writer;
             PY_Py_RETURN_NONE;
         }
 
         delete data_writer;
-        if (meta_writer)
-        {
-            delete meta_writer;
-        }
+        delete meta_writer;
 
         PY_PyObject    *result = PY_PyTuple_New(2);
         PY_PyTuple_SetItem(result, 0, PY_PyString_FromString(data_dictionary.buffer()));
-        if (up_loadmode == GABC_GEOWalker::UP_LOAD_ALL)
-        {
-            PY_PyTuple_SetItem(result, 1, PY_PyString_FromString(meta_dictionary.buffer()));
-        }
-        else
-        {
-            PY_PyTuple_SetItem(result, 1, PY_PyString_FromString(""));
-        }
+        PY_PyTuple_SetItem(result, 1, PY_PyString_FromString(meta_dictionary.buffer()));
 
         return result;
     }
@@ -1034,8 +1115,12 @@ HOMextendLibrary()
                 PY_METH_VARARGS(), Doc_AlembicHasUserProperties},
 	{ "alembicUserProperty", Py_AlembicUserProperty,
 		PY_METH_VARARGS(), Doc_AlembicUserProperty },
-        { "alembicUserPropertyDictionaries", Py_AlembicUserPropertyDicts,
-                PY_METH_VARARGS(), Doc_AlembicUserPropertyDicts},
+        { "alembicUserPropertyValues", Py_AlembicUserPropertyValues,
+                PY_METH_VARARGS(), Doc_AlembicUserPropertyValues},
+        { "alembicUserPropertyMetadata", Py_AlembicUserPropertyMetadata,
+                PY_METH_VARARGS(), Doc_AlembicUserPropertyMetadata},
+        { "alembicUserPropertyValuesAndMetadata", Py_AlembicUserPropertyValuesAndMetadata,
+                PY_METH_VARARGS(), Doc_AlembicUserPropertyValuesAndMetadata},
 
 	{ "alembicVisibility",	Py_AlembicVisibility,
 		PY_METH_VARARGS(), Doc_AlembicVisibility },
