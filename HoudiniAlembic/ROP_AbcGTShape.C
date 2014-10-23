@@ -69,10 +69,15 @@ namespace {
             const GT_GEOPrimPacked *gt = UTverify_cast<const GT_GEOPrimPacked *>(
                                             prim.get());
             const GU_PrimPacked    *gu = gt->getPrim();
-            const GABC_PackedImpl  *gabc = UTverify_cast<const GABC_PackedImpl *>(
-                                            gu->implementation());
+            const GABC_PackedImpl  *gabc;
 
-            return gabc->object().nodeType();
+            if (gu->getTypeId() == GABC_PackedImpl::typeId())
+            {
+                gabc = UTverify_cast<const GABC_PackedImpl *>(
+                        gu->implementation());
+
+                return gabc->object().nodeType();
+            }
         }
 
         return GABC_UNKNOWN;
