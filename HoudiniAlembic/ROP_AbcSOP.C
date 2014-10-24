@@ -251,8 +251,9 @@ namespace
 }
 
 ROP_AbcSOP::ROP_AbcSOP(SOP_Node *node)
-    : mySopId(node ? node->getUniqueId() : -1)
-    , myElapsedFrames(0)
+    : myElapsedFrames(0)
+    , myGeoLock(0)
+    , mySopId(node ? node->getUniqueId() : -1)
     , myPathAttribName(NULL)
     , myTimeDependent(false)
 {
@@ -293,21 +294,27 @@ ROP_AbcSOP::clear()
 
 bool
 ROP_AbcSOP::start(const OObject &parent,
-	GABC_OError &err, const ROP_AbcContext &ctx, UT_BoundingBox &box)
+        GABC_OError &err,
+        const ROP_AbcContext &ctx,
+        UT_BoundingBox &box)
 {
-    const GU_Detail	           *gdp;
-    GU_DetailHandle	            gdh;
-    PrimitiveList	            prims;
-    ROP_AbcGTCompoundShape	   *shape;
-    SOP_Node                       *sop = getSop(mySopId);
-    UT_Set<std::string>             uniquenames;
-    std::string		            name = getName();
+    const GU_Detail        *gdp;
+    GU_DetailHandle         gdh;
+    PrimitiveList           prims;
+    ROP_AbcGTCompoundShape *shape;
+    SOP_Node               *sop = getSop(mySopId);
+    UT_Set<std::string>     uniquenames;
+    std::string             name = getName();
+    bool result;
 
     if (!sop)
     {
         clear();
         return err.error("Unable to find SOP: %d", mySopId);
     }
+
+    result = sop->getParent()->evalParameterOrProperty(
+            GABC_Util::theLockGeometryParameter, 0, 0, myGeoLock);
 
     gdh = sop->getCookedGeoHandle(ctx.cookContext());
     gdp = GU_DetailHandleAutoReadLock(gdh).getGdp();
@@ -355,7 +362,8 @@ ROP_AbcSOP::start(const OObject &parent,
                 &myXformMap,
                 prims(i).myHasPartition,
                 prims(i).mySubdMode,
-                prims(i).myShowPts);
+                prims(i).myShowPts,
+                (myGeoLock == 1));
 
         if (!shape->first(prims(i).myPrim, myParent, err, ctx, false))
         {
@@ -397,7 +405,8 @@ ROP_AbcSOP::start(const OObject &parent,
 
 bool
 ROP_AbcSOP::update(GABC_OError &err,
-	const ROP_AbcContext &ctx, UT_BoundingBox &box)
+	const ROP_AbcContext &ctx,
+	UT_BoundingBox &box)
 {
     const GU_Detail	           *gdp;
     GU_DetailHandle	            gdh;
@@ -459,7 +468,8 @@ ROP_AbcSOP::update(GABC_OError &err,
                         &myXformMap,
                         prims(i).myHasPartition,
                         prims(i).mySubdMode,
-                        prims(i).myShowPts);
+                        prims(i).myShowPts,
+                        (myGeoLock == 1));
 
                 // Write out the first frame with hidden visibility
                 if (!shape->first(prims(i).myPrim,

@@ -95,7 +95,8 @@ ROP_AbcGTShape::ROP_AbcGTShape(const std::string &name,
         InverseMap * const inv_map,
         GeoSet * const shape_set,
         XformMap * const xform_map,
-        const ShapeType type)
+        const ShapeType type,
+        bool geo_lock)
     : myInverseMap(inv_map)
     , myGeoSet(shape_set)
     , myType(type)
@@ -103,6 +104,7 @@ ROP_AbcGTShape::ROP_AbcGTShape(const std::string &name,
     , myName(name)
     , myElapsedFrames(0)
     , myPrimType(GT_PRIM_UNDEFINED)
+    , myGeoLock(geo_lock)
 {
     // Split the path (if we're using one) into its transform components.
     if (path)
@@ -428,7 +430,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
     switch (myType)
     {
         case INSTANCE:
-            myObj.myInstance = new ROP_AbcGTInstance(myName);
+            myObj.myInstance = new ROP_AbcGTInstance(myName, myGeoLock);
             return myObj.myInstance->first(*pobj,
                     err,
                     ctx,
@@ -627,13 +629,28 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
             return myObj.myInstance->update(prim, ctx, err);
 
         case GEOMETRY:
-            return myObj.myShape->update(prim, ctx, err);
+            if (myGeoLock)
+            {
+                return myObj.myShape->updateFromPrevious(err,
+                        Alembic::AbcGeom::kVisibilityDeferred);
+            }
+            else
+            {
+                return myObj.myShape->update(prim, ctx, err);
+            }
 
         case ALEMBIC:
-            time = ctx.cookTime()
-                + ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
-
-            return myObj.myAlembic->update(prim, time, ctx, err);
+            if (myGeoLock)
+            {
+                return myObj.myAlembic->updateFromPrevious(err,
+                        Alembic::AbcGeom::kVisibilityDeferred);
+            }
+            else
+            {
+                time = ctx.cookTime() +
+                        ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
+                return myObj.myAlembic->update(prim, time, ctx, err);
+            }
 
         default:
             UT_ASSERT(0 && "Unknown type, how did this happen?");

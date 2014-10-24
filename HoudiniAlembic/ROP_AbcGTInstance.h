@@ -41,8 +41,9 @@ public:
     class Instance
     {
     public:
-	 Instance()
+	 Instance(bool geo_lock)
 	     : myOXform()
+	     , myGeoLock(geo_lock)
 	 {
 	 }
 
@@ -62,7 +63,7 @@ public:
 					const std::string &name,
 					bool subd_mode,
 					bool add_unused_pts);
-	void	                setGeometry(const OObject &child,
+	void                    setGeometry(const OObject &child,
 	                                const std::string &name);
 	void                    update(const UT_Matrix4D &xform,
                                         ObjectVisibility vis);
@@ -71,11 +72,13 @@ public:
 	OXform	               &oxform() { return myOXform; }
 
     private:
-        OVisibilityProperty     myVisibility;
-	OXform		        myOXform;
+        OVisibilityProperty myVisibility;
+	OXform              myOXform;
+	bool                myGeoLock;
     };
 
-    ROP_AbcGTInstance(const std::string &name);
+    ROP_AbcGTInstance(const std::string &name,
+            bool geo_lock);
     ~ROP_AbcGTInstance();
 
     bool	first(const OObject &parent,
@@ -96,10 +99,12 @@ public:
 
     OObject	getOObject() const;
     exint	entries() const	{ return myInstances.entries(); }
+
 private:
-    std::string			 myName;
-    ROP_AbcGTCompoundShape	*myGeometry;
-    UT_Array<Instance>		 myInstances;
+    std::string             myName;
+    ROP_AbcGTCompoundShape *myGeometry;
+    UT_Array<Instance>      myInstances;
+    bool                    myGeoLock;
 };
 
 #endif

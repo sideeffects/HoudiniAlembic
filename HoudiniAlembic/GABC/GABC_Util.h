@@ -282,6 +282,10 @@ public:
                                 const GABC_IObject &obj,
                                 ICompoundProperty &uprops,
                                 fpreal time);
+
+    static const UT_DeepString  theLockGeometryParameter;
+    static const UT_DeepString  theUserPropsValsAttrib;
+    static const UT_DeepString  theUserPropsMetaAttrib;
 };
 
 } // GABC_NAMESPACE

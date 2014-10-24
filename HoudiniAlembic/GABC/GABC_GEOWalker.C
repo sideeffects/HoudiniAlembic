@@ -1161,14 +1161,14 @@ namespace {
         {
             // Fetch/create the attribute handles and set their values.
             attrib = gdp.findStringTuple(GA_ATTRIB_PRIMITIVE,
-                    "abc_userProperties",
+                    GABC_Util::theUserPropsValsAttrib,
                     1);
 
             if (!attrib.isValid())
             {
                 attrib = gdp.addTuple(GA_STORE_STRING,
                         GA_ATTRIB_PRIMITIVE,
-                        "abc_userProperties",
+                        GABC_Util::theUserPropsValsAttrib,
                         1);
             }
 
@@ -1190,14 +1190,14 @@ namespace {
             if (load_metadata)
             {
                 attrib = gdp.findStringTuple(GA_ATTRIB_PRIMITIVE,
-                        "abc_userPropertiesMetadata",
+                        GABC_Util::theUserPropsMetaAttrib,
                         1);
 
                 if (!attrib.isValid())
                 {
                     attrib = gdp.addTuple(GA_STORE_STRING,
                             GA_ATTRIB_PRIMITIVE,
-                            "abc_userPropertiesMetadata",
+                            GABC_Util::theUserPropsMetaAttrib,
                             1);
                 }
 

@@ -207,7 +207,8 @@ public:
             XformMap * const xform_map,
 	    bool has_path,
 	    bool polygons_as_subd,
-	    bool show_unused_points);
+	    bool show_unused_points,
+	    bool geo_lock);
     ~ROP_AbcGTCompoundShape();
 
     bool	first(const GT_PrimitiveHandle &prim,
@@ -241,6 +242,7 @@ private:
     exint                       myElapsedFrames;
     exint                       myNumShapes;
     std::string                 myName;
+    const bool                  myGeoLock;
     const bool                  myPolysAsSubd;
     const bool                  myShowUnusedPoints;
 };

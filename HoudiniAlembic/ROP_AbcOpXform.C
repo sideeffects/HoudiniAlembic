@@ -163,8 +163,8 @@ bool
 ROP_AbcOpXform::start(const OObject &parent,
 	GABC_OError &err, const ROP_AbcContext &ctx, UT_BoundingBox &box)
 {
-    OBJ_Node	*node = getXformNode(myNodeId);
-    bool	 evaluated = false;
+    OBJ_Node   *node = getXformNode(myNodeId);
+    bool        evaluated = false;
 
     if (node)
     {

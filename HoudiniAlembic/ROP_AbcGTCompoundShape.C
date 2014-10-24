@@ -185,7 +185,8 @@ ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &identifier,
                 XformMap * const xform_map,
 		bool has_path,
 		bool polys_as_subd,
-		bool show_unused_pts)
+		bool show_unused_pts,
+		bool geo_lock)
     : myInverseMap(inv_map)
     , myGeoSet(shape_set)
     , myShapeParent(NULL)
@@ -194,6 +195,7 @@ ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &identifier,
     , myXformMap(xform_map)
     , myElapsedFrames(0)
     , myNumShapes(0)
+    , myGeoLock(geo_lock)
     , myPolysAsSubd(polys_as_subd)
     , myShowUnusedPoints(show_unused_pts)
 {
@@ -317,7 +319,8 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
                 myInverseMap,
                 myGeoSet,
                 myXformMap,
-                ROP_AbcGTShape::ALEMBIC);
+                ROP_AbcGTShape::ALEMBIC,
+                myGeoLock);
         if (!shape->firstFrame(packed(0),
                 *myShapeParent,
                 vis,
@@ -344,7 +347,8 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
                     myInverseMap,
                     myGeoSet,
                     myXformMap,
-                    ROP_AbcGTShape::ALEMBIC);
+                    ROP_AbcGTShape::ALEMBIC,
+                    myGeoLock);
             if (!shape->firstFrame(packed(i),
                     *myShapeParent,
                     vis,
@@ -375,7 +379,8 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
                 myGeoSet,
                 myXformMap,
                 isPacked(deforming(0)) ? ROP_AbcGTShape::INSTANCE
-                        : ROP_AbcGTShape::GEOMETRY);
+                        : ROP_AbcGTShape::GEOMETRY,
+                myGeoLock);
         if (!shape->firstFrame(deforming(0),
                 *myShapeParent,
                 vis,
@@ -403,7 +408,8 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
                 myGeoSet,
                 myXformMap,
                 isPacked(deforming(i)) ? ROP_AbcGTShape::INSTANCE
-                        : ROP_AbcGTShape::GEOMETRY);
+                        : ROP_AbcGTShape::GEOMETRY,
+                myGeoLock);
         if (!shape->firstFrame(deforming(i),
                 *myShapeParent,
                 vis,
@@ -514,7 +520,8 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
                     myInverseMap,
                     myGeoSet,
                     myXformMap,
-                    ROP_AbcGTShape::ALEMBIC);
+                    ROP_AbcGTShape::ALEMBIC,
+                    myGeoLock);
 
             if (!shape->firstFrame(packed(i),
                     *myShapeParent,
@@ -569,7 +576,8 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
                     myGeoSet,
                     myXformMap,
                     isPacked(deforming(i)) ? ROP_AbcGTShape::INSTANCE
-                            : ROP_AbcGTShape::GEOMETRY);
+                            : ROP_AbcGTShape::GEOMETRY,
+                    myGeoLock);
 
             if (!shape->firstFrame(deforming(i),
                     *myShapeParent,

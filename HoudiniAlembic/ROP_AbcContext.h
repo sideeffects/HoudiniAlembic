@@ -189,12 +189,12 @@ private:
     SOP_Node           *mySingletonSOP;
     UT_String           myPartitionAttribute;
     UT_String           myPathAttribute;
+    int                 myCollapseIdentity;
     int                 myPackedAbcPriority;
     int                 myPartitionMode;
-    int                 myCollapseIdentity;
-    bool                myUseInstancing;
-    bool                mySaveHidden;
     bool                myBuildFromPath;
+    bool                mySaveHidden;
+    bool                myUseInstancing;
 };
 
 #endif

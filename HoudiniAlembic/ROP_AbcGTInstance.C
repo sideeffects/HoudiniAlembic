@@ -60,7 +60,8 @@ ROP_AbcGTInstance::Instance::setGeometry(GABC_OError &err,
                                             NULL,
                                             false,
 					    subd_mode,
-					    add_unused_pts);
+					    add_unused_pts,
+					    myGeoLock);
     if (!geo->first(g, myOXform, err, ctx, true))
     {
 	delete geo;
@@ -95,9 +96,10 @@ ROP_AbcGTInstance::Instance::updateFromPrevious(ObjectVisibility vis)
     myOXform.getSchema().setFromPrevious();
 }
 
-ROP_AbcGTInstance::ROP_AbcGTInstance(const std::string &name)
+ROP_AbcGTInstance::ROP_AbcGTInstance(const std::string &name, bool geo_lock)
     : myName(name)
     , myGeometry(NULL)
+    , myGeoLock(geo_lock)
 {
 }
 
@@ -128,8 +130,8 @@ ROP_AbcGTInstance::first(const OObject &parent,
 	    exint				 icount = iprim->entries();
 	    for (exint i = 0; i < icount; ++i)
 	    {
-		myInstances.append(Instance());
-		Instance	&inst = myInstances.last();
+		myInstances.append(Instance(myGeoLock));
+		Instance    &inst = myInstances.last();
 		xforms->get(i)->getMatrix(m);
 		if (i == 0)
 		{
@@ -161,7 +163,7 @@ ROP_AbcGTInstance::first(const OObject &parent,
 	    GT_TransformHandle		 xform;
 	    GT_PrimitiveHandle		 pgeo;
 	    pprim = UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
-	    myInstances.append(Instance());
+	    myInstances.append(Instance(myGeoLock));
 	    Instance	&inst = myInstances.last();
 
 	    pprim->geometryAndTransform(NULL, pgeo, xform);

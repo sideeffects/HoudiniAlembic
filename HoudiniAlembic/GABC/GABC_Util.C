@@ -1429,6 +1429,13 @@ GABC_Util::Walker::walkChildren(const GABC_IObject &obj)
 //  GABC_Util
 //------------------------------------------------
 
+const UT_DeepString GABC_Util::theLockGeometryParameter = UT_DeepString(
+                            "abc_lock_geom");
+const UT_DeepString GABC_Util::theUserPropsValsAttrib = UT_DeepString(
+                            "abc_userProperties");
+const UT_DeepString GABC_Util::theUserPropsMetaAttrib = UT_DeepString(
+                            "abc_userPropertiesMetadata");
+
 #define YSTR(X)	#X		// Stringize
 #define XSTR(X)	YSTR(X)		// Expand the stringized version
 const char *

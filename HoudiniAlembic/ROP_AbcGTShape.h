@@ -70,7 +70,8 @@ public:
             InverseMap * const inv_map,
             GeoSet * const shape_set,
             XformMap * const xform_map,
-            const ShapeType type);
+            const ShapeType type,
+            bool geo_lock);
     virtual ~ROP_AbcGTShape();
 
     static bool	isPrimitiveSupported(const GT_PrimitiveHandle &prim);
@@ -139,7 +140,7 @@ private:
     const std::string   myName;
     exint               myElapsedFrames;
     int                 myPrimType;
-
+    bool                myGeoLock;
 };
 
 #endif

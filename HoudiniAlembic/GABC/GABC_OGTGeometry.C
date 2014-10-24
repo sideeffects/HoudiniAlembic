@@ -1090,8 +1090,9 @@ GABC_OGTGeometry::~GABC_OGTGeometry()
     clearCache();
 }
 
-IgnoreList GABC_OGTGeometry::theDefaultSkip("abc_userProperties",
-        "abc_userPropertiesMetadata",
+IgnoreList GABC_OGTGeometry::theDefaultSkip(
+        GABC_Util::theUserPropsValsAttrib.buffer(),
+        GABC_Util::theUserPropsMetaAttrib.buffer(),
         (void *)NULL);
 
 void
