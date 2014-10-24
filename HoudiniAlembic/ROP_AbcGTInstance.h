@@ -77,8 +77,7 @@ public:
 	bool                myGeoLock;
     };
 
-    ROP_AbcGTInstance(const std::string &name,
-            bool geo_lock);
+    ROP_AbcGTInstance(const std::string &name, bool geo_lock);
     ~ROP_AbcGTInstance();
 
     bool	first(const OObject &parent,
@@ -104,7 +103,7 @@ private:
     std::string             myName;
     ROP_AbcGTCompoundShape *myGeometry;
     UT_Array<Instance>      myInstances;
-    bool                    myGeoLock;
+    const bool              myGeoLock;
 };
 
 #endif

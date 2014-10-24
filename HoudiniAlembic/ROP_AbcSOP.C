@@ -305,7 +305,6 @@ ROP_AbcSOP::start(const OObject &parent,
     SOP_Node               *sop = getSop(mySopId);
     UT_Set<std::string>     uniquenames;
     std::string             name = getName();
-    bool result;
 
     if (!sop)
     {
@@ -313,7 +312,7 @@ ROP_AbcSOP::start(const OObject &parent,
         return err.error("Unable to find SOP: %d", mySopId);
     }
 
-    result = sop->getParent()->evalParameterOrProperty(
+    sop->getParent()->evalParameterOrProperty(
             GABC_Util::theLockGeometryParameter, 0, 0, myGeoLock);
 
     gdh = sop->getCookedGeoHandle(ctx.cookContext());

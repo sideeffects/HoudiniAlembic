@@ -131,7 +131,7 @@ private:
     UT_BoundingBox			myBox;
     XformMap                            myXformMap;
     exint                               myElapsedFrames;
-    int                                 myGeoLock;
+    const int                           myGeoLock;
     int					mySopId;
     const char                         *myPathAttribName;
     bool				myTimeDependent;

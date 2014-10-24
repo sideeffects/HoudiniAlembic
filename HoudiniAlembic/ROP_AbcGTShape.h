@@ -140,7 +140,7 @@ private:
     const std::string   myName;
     exint               myElapsedFrames;
     int                 myPrimType;
-    bool                myGeoLock;
+    const bool          myGeoLock;
 };
 
 #endif
