@@ -655,13 +655,13 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 	import("nonalembic", &ival, 1);
 	myNonAlembic = (ival != 0);
 
-	myConstDetails.append(const_cast<GU_Detail *>(queryGeometry(handle,0)));
+	myConstDetails.append(const_cast<GU_Detail *>(queryGeometry(handle,0).get()));
 	referenceGeometry(myConstDetails(0));
 	nprims = myConstDetails(0)->getNumPrimitives();
 
 	for (int i = 1; i < nsamples; ++i)
 	{
-	    const GU_Detail *g = queryGeometry(handle, i);
+	    const GU_Detail *g = queryGeometry(handle, i).get();
 	    if (!g || g->getNumPrimitives() != nprims)
 	    {
 		VRAYerror("Mis-matched Alembic primitive counts "
