@@ -117,6 +117,8 @@ protected:
 		    { return evalInt("samples", 0, time); }
     bool	INITSIM(fpreal time)
 		    { return evalInt("initsim", 0, time) != 0; }
+    bool	RENDER_FULL_RANGE()
+		    { return evalInt("render_full_range", 0, 0.0) != 0; }
 
     ROP_AbcArchive	*myArchive;
     ROP_AbcContext	*myContext;

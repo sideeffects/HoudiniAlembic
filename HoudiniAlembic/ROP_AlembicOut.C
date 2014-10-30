@@ -165,6 +165,8 @@ namespace
     static PRM_Name	theVerboseName("verbose", "Verbosity");
     static PRM_Name	theFaceSetModeName("facesets", "Face Sets");
     static PRM_Name	theInitSim("initsim", "Initialize Simulation OPs");
+    static PRM_Name	theRenderFullRange("render_full_range",
+			    "Render Full Range (Override Frame-By-Frame)");
 
     static PRM_Default	theFilenameDefault(0, "$HIP/output.abc");
     static PRM_Default	theFormatDefault(0, "default");
@@ -345,10 +347,9 @@ namespace
 				    &theObjectsMenu, 0, 0,
 				    &theObjectList),
 	PRM_Template(PRM_TOGGLE, 1, &theInitSim),
-
+	PRM_Template(PRM_TOGGLE, 1, &theRenderFullRange, PRMoneDefaults),
 
         PRM_Template(PRM_SEPARATOR, 1, &separator1Name),
-
 
 	PRM_Template(PRM_ORD, 1, &theCollapseName, &theCollapseDefault,
 				    &theCollapseMenu),
@@ -361,9 +362,7 @@ namespace
 	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
 				    &theSaveAttributesDefault),
 
-
         PRM_Template(PRM_SEPARATOR, 1, &separator2Name),
-
 
 	PRM_Template(PRM_TOGGLE, 1, &theBuildHierarchyFromPathName,
 				    &theBuildHierarchyFromPathDefault),
@@ -378,9 +377,7 @@ namespace
 				    &thePartitionAttributeDefault,
 				    &thePartitionAttributeMenu),
 
-
         PRM_Template(PRM_SEPARATOR, 1, &separator3Name),
-
 
 	PRM_Template(PRM_STRING, 1,
 		&theAttributePatternNames[GA_ATTRIB_POINT],
@@ -474,9 +471,16 @@ ROP_AlembicOut::COLLAPSE(fpreal time)
 void
 ROP_AlembicOut::buildRenderDependencies(const ROP_RenderDepParms &p)
 {
-    ROP_RenderDepParms	parms = p;
-    parms.setFullAscendingFrameRange(*this);
-    ROP_Node::buildRenderDependencies(parms);
+    if (RENDER_FULL_RANGE())
+    {
+	ROP_RenderDepParms	parms = p;
+	parms.setFullAscendingFrameRange(*this);
+	ROP_Node::buildRenderDependencies(parms);
+    }
+    else
+    {
+	ROP_Node::buildRenderDependencies(p);
+    }
 }
 
 int
