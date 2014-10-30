@@ -617,7 +617,11 @@ GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
 bool
 GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const
 {
-    GT_PrimitiveHandle	prim = fullGT();
+    int loadstyle = GABC_IObject::GABC_LOAD_FULL;
+    // We don't want to copy over the attributes from the Houdini geometry
+    loadstyle &= ~(GABC_IObject::GABC_LOAD_HOUDINI);
+
+    GT_PrimitiveHandle	prim = fullGT(loadstyle);
     if (prim)
     {
 	UT_Array<GU_Detail *>	details;
