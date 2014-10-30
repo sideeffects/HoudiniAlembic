@@ -1001,27 +1001,41 @@ namespace {
     }
 
     void
-    appendFaces(GABC_GEOWalker &walk, exint npoint,
-		    Int32ArraySamplePtr counts,
-		    Int32ArraySamplePtr indices,
-		    bool polysoup)
+    appendFaces(GABC_GEOWalker &walk,
+            exint npoint,
+            Int32ArraySamplePtr counts,
+            Int32ArraySamplePtr indices,
+            bool polysoup)
     {
 	// First, append points
 	GU_Detail	&gdp = walk.detail();
 	exint		 startpoint = appendPoints(walk, npoint);
 	exint		 nfaces = counts->size();
 	GEO_PolyCounts	 pcounts;
+
 	for (exint i = 0; i < nfaces; ++i)
+	{
 	    pcounts.append((*counts)[i]);
+        }
+
 	if (!polysoup)
 	{
-	    GU_PrimPoly::buildBlock(&gdp, GA_Offset(startpoint), npoint,
-			    pcounts, indices->get());
+	    GU_PrimPoly::buildBlock(&gdp,
+	            GA_Offset(startpoint),
+	            npoint,
+                    pcounts,
+                    indices->get());
 	}
 	else
 	{
-	    GU_PrimPolySoup::build(&gdp, GA_Offset(startpoint), npoint,
-			    pcounts, indices->get(), false);
+	    GEO_PrimPolySoup *polysoup = UTverify_cast<GEO_PrimPolySoup *>(
+                    gdp.getGEOPrimitive(GU_PrimPolySoup::build(&gdp,
+                            GA_Offset(startpoint),
+                            npoint,
+                            pcounts,
+                            indices->get(),
+                            false)));
+            polysoup->optimize();
 	}
     }
 
@@ -1424,18 +1438,20 @@ namespace {
 	}
 	if (!walk.reusePrimitives())
 	{
-	    bool	soup;
+	    bool    soup;
 	    soup = (walk.polySoup() == GABC_GEOWalker::ABC_POLYSOUP_SUBD);
 	    // If there are uniform attributes
 	    if (soup && hasUniformAttributes(ps.getArbGeomParams()))
 		soup = false;
 	    if (soup && hasFaceSets(obj))
 		soup = false;
+
 	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
 	    if (soup)
 		nprim = 1;
+
 	    appendFaces(walk, npoint, counts, indices, soup);
 	}
 	else
@@ -1534,18 +1550,20 @@ namespace {
 	}
 	if (!walk.reusePrimitives())
 	{
-	    bool	soup;
+	    bool    soup;
 	    soup = (walk.polySoup() != GABC_GEOWalker::ABC_POLYSOUP_NONE);
 	    // If there are uniform attributes
 	    if (soup && hasUniformAttributes(ps.getArbGeomParams()))
 		soup = false;
 	    if (soup && hasFaceSets(obj))
 		soup = false;
+
 	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
 	    if (soup)
 		nprim = 1;
+
 	    appendFaces(walk, npoint, counts, indices, soup);
 	}
 	else
