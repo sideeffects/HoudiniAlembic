@@ -108,6 +108,17 @@ Objects:
 Initialize Simulation OPs:
 	Reset simulations before writing Alembic archive.
 
+Render Full Range (Override Frame-By-Frame):
+	Normally, it's best to render all frames into a single Alembic
+	archive.  This allows Alembic to optimize storage of data and to be
+	more efficient.  This is the default behaviour of the output driver,
+	even when frame-by-frame rendering is requested.
+	
+	In some work-flows, it's desirable to have the Alembic ROP operate on a
+	frame-by-frame basis (see the -I option on the hscript render
+	command).  Turning this toggle off will let the ROP evaluate
+	frame-by-frame.
+
 Collapse Objects:
         This option can be used to skip writing transform nodes which have no transform
         (an identity transform) for the entire animation.
