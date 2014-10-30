@@ -111,11 +111,11 @@ Initialize Simulation OPs:
 Render Full Range (Override Frame-By-Frame):
 	Normally, it's best to render all frames into a single Alembic
 	archive.  This allows Alembic to optimize storage of data and to be
-	more efficient.  This is the default behaviour of the output driver,
+	more efficient.  This is the default behavior of the output driver,
 	even when frame-by-frame rendering is requested.
 	
-	In some work-flows, it's desirable to have the Alembic ROP operate on a
-	frame-by-frame basis (see the -I option on the hscript render
+	In some work-flows, you may want to have the Alembic ROP operate on a
+	frame-by-frame basis (see the `-I` option on the hscript render
 	command).  Turning this toggle off will let the ROP evaluate
 	frame-by-frame.
 
@@ -175,7 +175,7 @@ Path Attribute:
 Packed Alembic Priority:
 	The transformation of the first packed Alembic primitive under any [Alembic Xform|Node:sop/alembicxform] object is merged with that of its parent. Subsequent packed Alembics need an additional "buffer" Alembic Xform object between them and their parent to make sure their transformation is preserved.
 
-	Hiearchy:
+	Hierarchy:
 		Ignore the transformations of subsequent packed Alembics. Output them at the specified path without a "buffer" Alembic Xform object to preserve the hierarchy as specified by the path attribute.
 
 	Transformation:
