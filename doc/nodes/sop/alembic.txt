@@ -175,7 +175,7 @@ Box Culling:
         Load Objects Partially Outside Box:
                 Loads only objects whose bounding box is not entirely contained in the specified bounding box.
 
-Use First Input To Specify Box
+Use First Input To Specify Box:
         #id: boxsource
         
         Use the input to the Alembic SOP to specify the bounding box used for Box
