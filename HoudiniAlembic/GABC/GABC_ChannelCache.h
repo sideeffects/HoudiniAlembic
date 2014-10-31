@@ -67,28 +67,15 @@ public:
     // Return the sample associated with the given time
     exint	getSample(fpreal t) const
 		{
-		    exint	sample;
-		    getSample(t, sample, t);
+		    if (!myTime)
+			return 0;
+
+		    std::pair<index_t, chrono_t> t0 =
+					myTime->getNearIndex(t, sampleCount());
+		    exint sample = t0.first;
+		    UT_ASSERT(sample >= 0 && sample < sampleCount());
 		    return sample;
 		}
-    /// Return the sample associated with the given time, but also return the
-    /// fraction which can be used to interpolate to the next sample.  That is,
-    /// a value of 0.3 would indicate that the returned sample will contribute
-    /// 0.7 to the result while (sample+1) will contribute 0.3
-    void	getSample(fpreal t, exint &sample, fpreal &fraction) const
-    {
-	if (!myTime)
-	{
-	    sample = 0;
-	    fraction = 0;
-	    return;
-	}
-	std::pair<index_t, chrono_t>  t0 = myTime->getFloorIndex(t,
-							sampleCount());
-	sample = t0.first;
-	fraction = t0.second;
-	UT_ASSERT(sample >= 0 && sample < sampleCount());
-    }
 
 private:
     GT_DataArrayHandle	myData;
