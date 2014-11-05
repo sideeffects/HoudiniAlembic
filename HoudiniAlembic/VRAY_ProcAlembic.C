@@ -53,7 +53,7 @@ namespace
     typedef UT_SharedPtr<vray_PropertyMap>		vray_PropertyMapPtr;
     typedef VRAY_ProcAlembic::vray_MergePatternPtr	vray_MergePatternPtr;
 
-    inline static const GA_PrimitiveTypeId &
+    inline static GA_PrimitiveTypeId
     alembicTypeId()
     {
 	return GABC_PackedImpl::typeId();
