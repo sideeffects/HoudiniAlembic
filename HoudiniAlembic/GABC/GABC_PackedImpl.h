@@ -36,7 +36,7 @@ class GABC_API GABC_PackedImpl : public GU_PackedImpl
 public:
     static void				install(GA_PrimitiveFactory *fact);
     static bool				isInstalled();
-    static const GA_PrimitiveTypeId	&typeId();
+    static GA_PrimitiveTypeId typeId();
 
     GABC_PackedImpl();
     GABC_PackedImpl(const GABC_PackedImpl &src);

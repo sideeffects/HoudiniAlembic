@@ -97,7 +97,7 @@ GABC_PackedImpl::build(GU_Detail &gdp,
     GU_PrimPacked	*pack;
     GABC_PackedImpl	*abc;
     
-    prim = gdp.getPrimitiveFactory().create(theFactory->typeId(), gdp);
+    prim = gdp.getPrimitiveFactory().create(theFactory->typeDef().getId(), gdp);
     // Note:  The primitive is invalid until you do something like
     //   prim->setVertexPoint(gdp.appendPointOffset());
     // The Alembic creation code has an option to have a shared point for all
@@ -123,7 +123,7 @@ GABC_PackedImpl::install(GA_PrimitiveFactory *gafactory)
 
     // Now, register the GT primitive
     GABC_CollectPacked	*gt = new GABC_CollectPacked();
-    gt->bind(theFactory->typeId());
+    gt->bind(theFactory->typeDef().getId());
 }
 
 bool
@@ -132,11 +132,11 @@ GABC_PackedImpl::isInstalled()
     return theFactory != NULL;
 }
 
-const GA_PrimitiveTypeId &
+GA_PrimitiveTypeId
 GABC_PackedImpl::typeId()
 {
     UT_ASSERT(theFactory);
-    return theFactory->typeId();
+    return theFactory->typeDef().getId();
 }
 
 
