@@ -130,7 +130,7 @@ namespace
 		GT_Type gttype,
 		bool is_constant)
     {
-	if (!param)
+	if (!param || !param->size())
 	    return GT_DataArrayHandle();
 	return GABC_NAMESPACE::GABCarray(GABC_IArray::getSample(arch, param,
 			    gttype, array_extent, is_constant));
@@ -179,11 +179,12 @@ namespace
 
     static void
     setAttributeData(GT_AttributeList &alist,
+            const GABC_IObject &obj,
 	    const char *name,
 	    const GT_DataArrayHandle &data,
 	    bool *filled)
     {
-	int		idx = alist.getIndex(name);
+	int idx = alist.getIndex(name);
 	if (idx >= 0 && data && !filled[idx])
 	{
 	    alist.set(idx, data, 0);
@@ -191,14 +192,24 @@ namespace
 	}
 	else
 	{
-	    UT_ASSERT(idx < 0 || filled[idx]);
+	    // Remove the attribute if there are problems setting it's data.
+	    if (idx >= 0)
+	    {
+                alist.getMap()->remove(name);
+                UT_ErrorLog::mantraWarningOnce(
+                        "Error reading %s attribute data for Alembic object "
+                            "%s (%s). Ignoring attribute.",
+                        name,
+                        obj.archive()->filename().c_str(),
+                        obj.getFullName().c_str());
+            }
 	}
     }
 
     static void
     markFilled(GT_AttributeList &alist, const char *name, bool *filled)
     {
-	int		idx = alist.getIndex(name);
+	int idx = alist.getIndex(name);
 	if (idx >= 0)
 	    filled[idx] = true;
     }
@@ -575,25 +586,36 @@ namespace
     readUVProperty(GABC_IArchive &arch, const IV2fGeomParam &uvs, fpreal t)
     {
 	// Alembic stores uv's as a 2-tuple, but Houdini expects a 3-tuple
-	GT_DataArrayHandle	uv2 = readGeomProperty(arch, uvs,
-					t, GT_TYPE_NONE);
+	GT_DataArrayHandle  uv2 = readGeomProperty(arch, uvs, t, GT_TYPE_NONE);
+
 	UT_ASSERT(uv2 && uv2->getTupleSize() == 2);
+
+	if (!uv2)
+	{
+	    return GT_DataArrayHandle();
+	}
 	if (uv2->getTupleSize() == 3)
+	{
 	    return uv2;
-	GT_Size			n = uv2->entries();
-	GT_Real32Array		*uv3 = new GT_Real32Array(n, 3,
-						uv2->getTypeInfo());
-	GT_DataArrayHandle	storage;
-	const fpreal32	*src = uv2->getF32Array(storage);
-	fpreal32	*dest = uv3->data();
+        }
+
+	GT_Size             n = uv2->entries();
+	GT_Real32Array     *uv3 = new GT_Real32Array(n, 3, uv2->getTypeInfo());
+	GT_DataArrayHandle  storage;
+	const fpreal32     *src = uv2->getF32Array(storage);
+	fpreal32           *dest = uv3->data();
+
 	if (uvs.isConstant())
-	    uv3->copyDataId(*uv2);	// Copy over data id if constant
+	{
+	    uv3->copyDataId(*uv2);  // Copy over data id if constant
+        }
 	for (exint i = 0; i < n; ++i, src += 2, dest += 3)
 	{
 	    dest[0] = src[0];
 	    dest[1] = src[1];
 	    dest[2] = 0;
 	}
+
 	return GT_DataArrayHandle(uv3);
     }
 
@@ -686,7 +708,7 @@ namespace
 	    if (ONLY_ANIMATING && VAR->isConstant()) \
 		markFilled(alist, NAME, filled); \
 	    else \
-		setAttributeData(alist, NAME, \
+		setAttributeData(alist, obj, NAME, \
 		    readArrayProperty(arch, *VAR, t, TYPEINFO), filled); \
 	}
     #define SET_GEOM_PARAM(VAR, NAME, TYPEINFO) \
@@ -697,8 +719,9 @@ namespace
             { \
 		if (ONLY_ANIMATING && VAR->isConstant()) \
 		    markFilled(alist, NAME, filled); \
-		setAttributeData(alist, NAME, \
-			readGeomProperty(arch, *VAR, t, TYPEINFO), filled); \
+                else \
+		    setAttributeData(alist, obj, NAME, \
+                            readGeomProperty(arch, *VAR, t, TYPEINFO), filled); \
 	    } \
 	}
     #define SET_GEOM_UVS_PARAM(VAR, NAME) \
@@ -708,8 +731,9 @@ namespace
 		namemap->matchPattern(scopeToOwner(VAR->getScope()), NAME)) { \
 		if (ONLY_ANIMATING && VAR->isConstant()) \
 		    markFilled(alist, NAME, filled); \
-		setAttributeData(alist, NAME, \
-			readUVProperty(arch, *VAR, t), filled); \
+                else \
+		    setAttributeData(alist, obj, NAME, \
+		        readUVProperty(arch, *VAR, t), filled); \
 	    } \
 	}
 
@@ -835,11 +859,11 @@ namespace
                     }
                 }
 
-                setAttributeData(alist, "Pw", pw_data, filled);
+                setAttributeData(alist, obj, "Pw", pw_data, filled);
             }
         }
         if (p_data)
-            setAttributeData(alist, "P", p_data, filled);
+            setAttributeData(alist, obj, "P", p_data, filled);
 
 	SET_ARRAY(v, "v", GT_TYPE_VECTOR, namemap)
 	SET_ARRAY(ids, "id", GT_TYPE_NONE, namemap)
@@ -848,7 +872,7 @@ namespace
 	SET_GEOM_PARAM(widths, "width", GT_TYPE_NONE)
 	if (prim && matchScope(gabcConstantScope, scope, scope_size))
 	{
-	    setAttributeData(alist, "__primitive_id",
+	    setAttributeData(alist, obj, "__primitive_id",
 		    new GT_IntConstant(1, prim->getMapOffset()), filled);
 	}
 	if (arb)
@@ -877,7 +901,7 @@ namespace
 		    continue;
 		GT_DataArrayHandle data = obj.convertIProperty(arb, header, t);
 		if(data)
-		    setAttributeData(alist, name, data, filled);
+		    setAttributeData(alist, obj, name, data, filled);
 	    }
 	}
 	// We need to fill Houdini attributes last.  Otherwise, when converting
@@ -1012,8 +1036,6 @@ namespace
 	    alist = new GT_AttributeList(GT_AttributeMapHandle(map));
 	    if (alist->entries())
 	    {
-		UT_StackBuffer<bool>	filled(alist->entries());
-		memset(filled, 0, sizeof(bool)*alist->entries());
 		fillAttributeList<false>(*alist, namemap, load_style,
 			prim, obj, t, scope, scope_size,
 			arb, P, v, N, uvs, ids, widths, Pw);
