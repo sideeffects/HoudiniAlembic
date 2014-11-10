@@ -20,6 +20,7 @@
 #include "GABC_Visibility.h"
 #include <UT/UT_JSONParser.h>
 #include <UT/UT_Debug.h>
+#include <UT/UT_MemoryCounter.h>
 #include <GU/GU_PackedFactory.h>
 #include <GU/GU_PrimPacked.h>
 #include <GT/GT_Primitive.h>
@@ -301,6 +302,27 @@ GU_PackedImpl *
 GABC_PackedImpl::copy() const
 {
     return new GABC_PackedImpl(*this);
+}
+
+int64
+GABC_PackedImpl::getMemoryUsage(bool inclusive) const
+{
+    int64 mem = inclusive ? sizeof(*this) : 0;
+    mem += myCache.getMemoryUsage(false);
+    mem += (myFilename.capacity() + 1) * sizeof(std::string::value_type);
+    mem += (myObjectPath.capacity() + 1) * sizeof(std::string::value_type);
+    return mem;
+}
+
+void
+GABC_PackedImpl::countMemory(UT_MemoryCounter &counter, bool inclusive) const
+{
+    if (counter.mustCountUnshared())
+    {
+        size_t mem = getMemoryUsage(inclusive);
+        UT_MEMORY_DEBUG_LOG("GABC_PackedImpl", int64(mem));
+        counter.countUnshared(mem);
+    }
 }
 
 bool
@@ -960,6 +982,20 @@ GABC_PackedImpl::GTCache::clear()
     myAnimationType = GEO_ANIMATION_INVALID;
     myFrame = 0;
     myLoadStyle = GABC_IObject::GABC_LOAD_FULL;
+}
+
+int64
+GABC_PackedImpl::GTCache::getMemoryUsage(bool inclusive) const
+{
+    int64 mem = inclusive ? sizeof(*this) : 0;
+    if (myPrim)
+        mem += myPrim->getMemoryUsage();
+    if (myTransform)
+        mem += myTransform->getMemoryUsage();
+    if (myVisibility)
+        mem += myVisibility->getMemoryUsage(true);
+
+    return mem;
 }
 
 void

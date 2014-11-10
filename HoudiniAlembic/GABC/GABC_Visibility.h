@@ -78,6 +78,8 @@ public:
 	return *this;
     }
 
+    int64       getMemoryUsage(bool inclusive) const;
+
     void	clear();
     bool	valid() const	{ return myVisible != GABC_VISIBLE_DEFER; }
     bool	animated() const	{ return myCache != NULL; }

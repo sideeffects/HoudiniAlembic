@@ -53,3 +53,18 @@ GABC_ChannelCache::GABC_ChannelCache(const GT_DataArrayHandle &data,
 GABC_ChannelCache::~GABC_ChannelCache()
 {
 }
+
+int64
+GABC_ChannelCache::getMemoryUsage(bool inclusive) const
+{
+    int64 mem = inclusive ? sizeof(*this) : 0;
+    if (myData)
+        mem += myData->getMemoryUsage();
+    if (myTime)
+    {
+        mem += sizeof(*myTime);
+        mem += myTime->getStoredTimes().capacity() * sizeof(chrono_t);
+    }
+
+    return mem;
+}

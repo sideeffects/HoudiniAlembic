@@ -62,6 +62,13 @@ public:
     /// Create a copy of this resolver
     virtual GU_PackedImpl	*copy() const;
 
+    /// Report memory usage (includes all shared memory)
+    virtual int64 getMemoryUsage(bool inclusive) const;
+
+    /// Count memory usage using a UT_MemoryCounter in order to count
+    /// shared memory correctly.
+    virtual void countMemory(UT_MemoryCounter &counter, bool inclusive) const;
+
     /// Test whether the deferred load primitive data is valid
     virtual bool	isValid() const;
 
@@ -210,6 +217,8 @@ protected:
 	    clear();	// Don't copy, just clear
 	    return *this;
 	}
+
+        int64   getMemoryUsage(bool inclusive) const;
 
 	void	clear();		// Clear all values
 	void	updateFrame(fpreal frame);

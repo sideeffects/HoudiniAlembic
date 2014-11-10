@@ -52,6 +52,8 @@ public:
 			    const TimeSamplingPtr &time);
     ~GABC_ChannelCache();
 
+    int64       getMemoryUsage(bool inclusive) const;
+
     bool			valid() const		{ return myData.get(); }
     bool			animated() const	{ return myTime.get(); }
     const TimeSamplingPtr	&time() const		{ return myTime; }

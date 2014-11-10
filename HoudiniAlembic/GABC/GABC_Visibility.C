@@ -29,6 +29,16 @@
 
 using namespace GABC_NAMESPACE;
 
+int64
+GABC_VisibilityCache::getMemoryUsage(bool inclusive) const
+{
+    int64 mem = inclusive ? sizeof(*this) : 0;
+    if (myCache)
+        mem += myCache->getMemoryUsage(true);
+
+    return mem;
+}
+
 void
 GABC_VisibilityCache::clear()
 {
