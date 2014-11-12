@@ -1341,7 +1341,7 @@ namespace
 	Int32ArraySamplePtr	creaseIndices = sample.getCreaseIndices();
 	FloatArraySamplePtr	creaseSharpness = sample.getCreaseSharpnesses();
 	Int32ArraySamplePtr	cornerIndices = sample.getCreaseIndices();
-	FloatArraySamplePtr	cornerSharpness = sample.getCreaseSharpnesses();
+	FloatArraySamplePtr	cornerSharpness = sample.getCornerSharpnesses();
 	Int32ArraySamplePtr	holeIndices = sample.getHoles();
 	if (!isEmpty(creaseIndices) && !isEmpty(creaseSharpness))
 	{
