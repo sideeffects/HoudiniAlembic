@@ -156,7 +156,7 @@ namespace
     static PRM_Name     separator3Name("_sep3", "");
     static PRM_Name	theFilenameName("filename", "Alembic File");
     static PRM_Name	theFormatName("format", "Format");
-    static PRM_Name	theSingleSopModeName("use_sop_path", "Single SOP");
+    static PRM_Name	theSingleSopModeName("use_sop_path", "Use SOP Path");
     static PRM_Name     theSOPPathName("sop_path", "SOP Path");
     static PRM_Name	theRootName("root", "Root Object");
     static PRM_Name	theObjectsName("objects", "Objects");
