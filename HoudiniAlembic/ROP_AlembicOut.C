@@ -156,7 +156,7 @@ namespace
     static PRM_Name     separator3Name("_sep3", "");
     static PRM_Name	theFilenameName("filename", "Alembic File");
     static PRM_Name	theFormatName("format", "Format");
-    static PRM_Name	theSingleSopModeName("single_sop", "Single SOP");
+    static PRM_Name	theSingleSopModeName("use_sop_path", "Single SOP");
     static PRM_Name     theSOPPathName("sop_path", "SOP Path");
     static PRM_Name	theRootName("root", "Root Object");
     static PRM_Name	theObjectsName("objects", "Objects");
@@ -533,7 +533,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     fpreal      shutter_close = 0;
     int         mb_samples = 1;
 
-    if (!input && SINGLE_SOP(start))
+    if (!input && USE_SOP_PATH(start))
     {
         SOP_PATH(sop_path, start);
         sop_path.trimBoundingSpace();
@@ -863,14 +863,14 @@ ROP_AlembicOut::updateParmsFlags()
     bool        build_hier = BUILD_HIERARCHY_FROM_PATH(0);
     bool	changed = ROP_Node::updateParmsFlags();
     bool	issop = CAST_SOPNODE(getInput(0)) != NULL;
-    bool        single_sop = SINGLE_SOP(0);
-    bool        sop_mode = issop || single_sop;
+    bool        use_sop_path = USE_SOP_PATH(0);
+    bool        sop_mode = issop || use_sop_path;
     UT_String	mode;
 
     PARTITION_MODE(mode, 0);
 
-    changed |= enableParm("single_sop", !issop);
-    changed |= enableParm("sop_path", !issop && single_sop);
+    changed |= enableParm("use_sop_path", !issop);
+    changed |= enableParm("sop_path", !issop && use_sop_path);
     changed |= enableParm("root", !sop_mode);
     changed |= enableParm("objects", !sop_mode);
     changed |= enableParm("build_from_path", sop_mode);
