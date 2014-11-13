@@ -97,7 +97,11 @@ Format:
 Create Intermediate Directories:
 	Create the directories in the Alembic archive output path if they do not exist.
 
-[Include:standard#mkpath]
+Use SOP Path:
+	Instead of exporting objects contained under a root object, the Alembic ROP can export a single geometry detail specified by a SOP path. The SOP path export method is enabled by this parameter.
+
+SOP Path:
+	The path to the geometry detail to include in the alembic archive.
 
 Root Object:
         The root object of the scene. All displayed objects contained under this node will be included in the Alembic archive.
@@ -118,6 +122,49 @@ Render Full Range (Override Frame-By-Frame):
 	frame-by-frame basis (see the `-I` option on the hscript render
 	command).  Turning this toggle off will let the ROP evaluate
 	frame-by-frame.
+
+Build Hierarchy From Attribute:
+	Use a primitive string attribute to directly specify the path of a primitive in the output archive.
+
+Path Attribute:
+	The name of the attribute containing the path.
+
+Packed Alembic Priority:
+	The transformation of the first packed Alembic primitive under any [Alembic Xform|Node:sop/alembicxform] object is merged with that of its parent. Subsequent packed Alembics need an additional "buffer" Alembic Xform object between them and their parent to make sure their transformation is preserved.
+
+	Hierarchy:
+		Ignore the transformations of subsequent packed Alembics. Output them at the specified path without a "buffer" Alembic Xform object to preserve the hierarchy as specified by the path attribute.
+
+	Transformation:
+		Create the "buffer" Alembic Xform object between subsequent Alembic nodes and their parent. Modify the hierarchy to preserve their unique transformation.
+
+Partition Mode:
+        When saving a complex piece of geometry, it is possible to partition the
+        geometry into multiple shape nodes by splitting up the primitives based on
+        a string attribute.  There are several different ways to interpret the
+        string values.
+
+	No Geometry Partitioning:
+		The geometry will be output as a single Alembic shape node.
+	Use Attribute Value:
+		The value of the string attribute is used to name the shape
+		node.  This mode is ideal when using the `name` attribute.
+	Use Shape Node Component Of Path Attribute Value:
+		When loading an Alembic file, you can store the Alembic path in
+		a string attribute.  This option will partition the geometry
+		based on the names of the shape nodes stored in the attribute.
+	Use Transform Node Component Of Path Attribute Value:
+		This option will partition the geometry based on the names of
+		the transform nodes stored in the attribute.
+	Use Combination Of Transform/Shape Node:
+		Combines both the transform and shape node names to form the
+		name for the new shape node.
+
+Partition Attribute:
+        Specifies a string attribute which is used to partition a single geometry
+        into multiple Alembic shape nodes. For example, you can use the `name` or
+        the `abcPath` attribute to split a single piece of Houdini geometry into
+        different Alembic shape nodes based on the string value.
 
 Collapse Objects:
         This option can be used to skip writing transform nodes which have no transform
@@ -165,50 +212,6 @@ Use Display SOP:
 Save Attributes:
         If this checkbox is turned on, geometry attributes will be saved to the
         Alembic file as arbitrary geometry parameters.
-
-Build Hierarchy From Attribute:
-	Use a primitive string attribute to directly specify the path of a primitive in the output archive.
-
-Path Attribute:
-	The name of the attribute containing the path.
-
-Packed Alembic Priority:
-	The transformation of the first packed Alembic primitive under any [Alembic Xform|Node:sop/alembicxform] object is merged with that of its parent. Subsequent packed Alembics need an additional "buffer" Alembic Xform object between them and their parent to make sure their transformation is preserved.
-
-	Hierarchy:
-		Ignore the transformations of subsequent packed Alembics. Output them at the specified path without a "buffer" Alembic Xform object to preserve the hierarchy as specified by the path attribute.
-
-	Transformation:
-		Create the "buffer" Alembic Xform object between subsequent Alembic nodes and their parent. Modify the hierarchy to preserve their unique transformation.
-
-Partition Mode:
-        When saving a complex piece of geometry, it is possible to partition the
-        geometry into multiple shape nodes by splitting up the primitives based on
-        a string attribute.  There are several different ways to interpret the
-        string values.
-
-	No Geometry Partitioning:
-		The geometry will be output as a single Alembic shape node.
-	Use Attribute Value:
-		The value of the string attribute is used to name the shape
-		node.  This mode is ideal when using the `name` attribute.
-	Use Shape Node Component Of Path Attribute Value:
-		When loading an Alembic file, you can store the Alembic path in
-		a string attribute.  This option will partition the geometry
-		based on the names of the shape nodes stored in the attribute.
-	Use Transform Node Component Of Path Attribute Value:
-		This option will partition the geometry based on the names of
-		the transform nodes stored in the attribute.
-	Use Combination Of Transform/Shape Node:
-		Combines both the transform and shape node names to form the
-		name for the new shape node.
-
-Partition Attribute:
-        Specifies a string attribute which is used to partition a single geometry
-        into multiple Alembic shape nodes. For example, you can use the `name` or
-        the `abcPath` attribute to split a single piece of Houdini geometry into
-        different Alembic shape nodes based on the string value.
-
 
 Point Attributes:
 	Point attributes whose name matches this pattern will be saved in the Alembic file.
