@@ -80,46 +80,64 @@ namespace
     }
 
     static void
-    buildAttribMenu(
-        void *data, PRM_Name *menu_entries, int menu_size,
-        const PRM_SpareData *, const PRM_Parm *)
+    getAttribs(SOP_Node *node, OP_Context &context, UT_StringArray &vals)
+    {
+        const GU_Detail *ref = node->getCookedGeo(context);
+        if(ref)
+        {
+            for(auto it = ref->getAttributeDict(GA_ATTRIB_PRIMITIVE).begin();
+                    !it.atEnd();
+                    ++it)
+            {
+                const GA_Attribute *atr = it.attrib();
+
+                if(atr->getStorageClass() != GA_STORECLASS_STRING
+                    || atr->getTupleSize() > 1
+                    || atr->getScope() != GA_SCOPE_PUBLIC)
+                {
+                    continue;
+                }
+
+                const char *name = atr->getName();
+                vals.append(name);
+            }
+
+            vals.sort();
+        }
+    }
+
+    static void
+    buildAttribMenu(void *data,
+            PRM_Name *menu_entries,
+            int menu_size,
+            const PRM_SpareData *,
+            const PRM_Parm *)
     {
         ROP_AlembicOut *me = (ROP_AlembicOut *)data;
 
         me->clearErrors();
 
-        UT_StringArray vals;
-        OP_Context context(CHgetEvalTime());
+        OP_Context      context(CHgetEvalTime());
+        UT_StringArray  vals;
+
         if(me->nInputs() > 0 && me->lockInput(0, context) < UT_ERROR_ABORT)
         {
             SOP_Node   *node = CAST_SOPNODE(me->getInput(0));
             if (node)
             {
-                const GU_Detail *ref = node->getCookedGeo(context);
-                if(ref)
-                {
-                    for(auto it = ref->getAttributeDict(GA_ATTRIB_PRIMITIVE).begin();
-                            !it.atEnd();
-                            ++it)
-                    {
-                        const GA_Attribute *atr = it.attrib();
-
-                        if(atr->getStorageClass() != GA_STORECLASS_STRING
-                            || atr->getTupleSize() > 1
-                            || atr->getScope() != GA_SCOPE_PUBLIC)
-                        {
-                            continue;
-                        }
-
-                        const char *name = atr->getName();
-                        vals.append(name);
-                    }
-
-                    vals.sort();
-                }
+                getAttribs(node, context, vals);
             }
 
     	    me->unlockInput(0);
+        }
+        else
+        {
+            SOP_Node   *node = me->getSOPInput(0);
+
+            if (node)
+            {
+                getAttribs(node, context, vals);
+            }
         }
 
         int i = 0;
@@ -138,19 +156,24 @@ namespace
     static PRM_Name     separator3Name("_sep3", "");
     static PRM_Name	theFilenameName("filename", "Alembic File");
     static PRM_Name	theFormatName("format", "Format");
+    static PRM_Name	theSingleSopModeName("single_sop", "Single SOP");
+    static PRM_Name     theSOPPathName("sop_path", "SOP Path");
     static PRM_Name	theRootName("root", "Root Object");
     static PRM_Name	theObjectsName("objects", "Objects");
+    static PRM_Name	theInitSim("initsim", "Initialize Simulation OPs");
+    static PRM_Name	theRenderFullRange("render_full_range",
+			    "Render Full Range (Override Frame-By-Frame)");
     static PRM_Name	theCollapseName("collapse", "Collapse Objects");
-    static PRM_Name	theUseInstancingName("use_instancing",
-				"Use Alembic Instancing Where Possible");
     static PRM_Name	theSaveHiddenName("save_hidden",
 				"Save All Non-Displayed (Hidden) Objects");
-    static PRM_Name	theSaveAttributesName("save_attributes",
-				"Save Attributes");
-    static PRM_Name	theDisplaySOPName("displaysop",
-				"Use Display SOP");
+    static PRM_Name	theUseInstancingName("use_instancing",
+				"Use Alembic Instancing Where Possible");
     static PRM_Name	theFullBoundsName("full_bounds",
 				"Full Bounding Box Tree");
+    static PRM_Name	theDisplaySOPName("displaysop",
+				"Use Display SOP");
+    static PRM_Name	theSaveAttributesName("save_attributes",
+				"Save Attributes");
     static PRM_Name     theBuildHierarchyFromPathName("build_from_path",
                                 "Build Hierarchy From Attribute");
     static PRM_Name     thePathAttribName("path_attrib", "Path Attribute");
@@ -160,28 +183,38 @@ namespace
 				"Partition Mode");
     static PRM_Name	thePartitionAttributeName("partition_attribute",
 				"Partition Attribute");
+    static PRM_Name	theAttributePatternNames[GA_ATTRIB_OWNER_N] = {
+	PRM_Name("vertexAttributes",	"Vertex Attributes"),
+	PRM_Name("pointAttributes",	"Point Attributes"),
+	PRM_Name("primitiveAttributes",	"Primitive Attributes"),
+	PRM_Name("detailAttributes",	"Detail Attributes"),
+    };
+    static PRM_Name	theFaceSetModeName("facesets", "Face Sets");
     static PRM_Name	theSubdGroupName("subdgroup",
 				"Subdivision Group");
     static PRM_Name	theVerboseName("verbose", "Verbosity");
-    static PRM_Name	theFaceSetModeName("facesets", "Face Sets");
-    static PRM_Name	theInitSim("initsim", "Initialize Simulation OPs");
-    static PRM_Name	theRenderFullRange("render_full_range",
-			    "Render Full Range (Override Frame-By-Frame)");
+    static PRM_Name	theMotionBlurName("motionBlur", "Use Motion Blur");
+    static PRM_Name	theSampleName("samples", "Samples");
+    static PRM_Name	theShutterName("shutter", "Shutter");
 
     static PRM_Default	theFilenameDefault(0, "$HIP/output.abc");
     static PRM_Default	theFormatDefault(0, "default");
     static PRM_Default	theRootDefault(0, "/obj");
     static PRM_Default	theStarDefault(0, "*");
-    static PRM_Default	theSaveAttributesDefault(1, "yes");
+    static PRM_Default	theCollapseDefault(0, "off");
     static PRM_Default	theFullBoundsDefault(0, "no");
     static PRM_Default	theDisplaySOPDefault(0, "no");
+    static PRM_Default	theSaveAttributesDefault(1, "yes");
     static PRM_Default  theBuildHierarchyFromPathDefault(0, "no");
     static PRM_Default  thePackedAbcPriorityDefault(0, "hier");
     static PRM_Default	thePartitionModeDefault(0, "no");
     static PRM_Default	thePartitionAttributeDefault(0, "");
-    static PRM_Default	theCollapseDefault(0, "off");
+    static PRM_Default	theFaceSetModeDefault(1, "nonempty");
     static PRM_Default	theVerboseDefault(0);
-    static PRM_Default	theFaceSetDefault(0);
+    static PRM_Default	theMotionBlurDefault(0, "no");
+    static PRM_Default	theSampleDefault(2);
+    static PRM_Default	theShutterDefault[] = {0, 1};
+    //static PRM_Default	theFaceSetDefault(0);
 
     static PRM_Name	theFormatChoices[] =
     {
@@ -247,6 +280,14 @@ namespace
 	return false;
     }
 
+    static PRM_Name	thePartitionAttributeChoices[] =
+    {
+	PRM_Name("",		"No Geometry Partitions"),
+	PRM_Name("name",	"Partition Based On 'name' Attribute"),
+	PRM_Name("abcPath",	"Partition Based On 'abcPath' Attribute"),
+	PRM_Name()	// Sentinal
+    };
+
     static PRM_Name	theFaceSetModeChoices[] =
     {
 	PRM_Name("no",		"No Face Sets"),
@@ -276,14 +317,6 @@ namespace
 	return false;
     }
 
-    static PRM_Name	thePartitionAttributeChoices[] =
-    {
-	PRM_Name("",		"No Geometry Partitions"),
-	PRM_Name("name",	"Partition Based On 'name' Attribute"),
-	PRM_Name("abcPath",	"Partition Based On 'abcPath' Attribute"),
-	PRM_Name()	// Sentinal
-    };
-
     static PRM_Name	theCollapseChoices[] =
     {
 	PRM_Name("off",	"Do Not Collapse Identity Objects"),
@@ -293,10 +326,12 @@ namespace
 	PRM_Name()
     };
 
-    static PRM_ChoiceList	theFormatMenu(PRM_CHOICELIST_SINGLE,
-					theFormatChoices);
     static PRM_ChoiceList	theObjectsMenu(PRM_CHOICELIST_REPLACE,
 					buildBundleMenu);
+    static PRM_ChoiceList       thePathAttribMenu(PRM_CHOICELIST_REPLACE,
+                                        buildAttribMenu);
+    static PRM_ChoiceList	theFormatMenu(PRM_CHOICELIST_SINGLE,
+					theFormatChoices);
     static PRM_ChoiceList	thePackedAbcPriorityMenu(PRM_CHOICELIST_SINGLE,
 					thePackedAbcPriorityChoices);
     static PRM_ChoiceList	thePartitionModeMenu(PRM_CHOICELIST_SINGLE,
@@ -307,11 +342,9 @@ namespace
 					theFaceSetModeChoices);
     static PRM_ChoiceList	theCollapseMenu(PRM_CHOICELIST_SINGLE,
 					theCollapseChoices);
-    static PRM_ChoiceList       thePathAttribMenu(PRM_CHOICELIST_REPLACE,
-                                        buildAttribMenu);
 
-    static PRM_Range	theVerboseRange(PRM_RANGE_RESTRICTED, 0,
-				    PRM_RANGE_UI, 3);
+    static PRM_Range            theVerboseRange(PRM_RANGE_RESTRICTED, 0,
+				        PRM_RANGE_UI, 3);
 
     // Make paths relative to /obj (for the bundle code)
     static PRM_SpareData	theObjectList(PRM_SpareArgs()
@@ -319,25 +352,14 @@ namespace
 				    << PRM_SpareToken("oprelative", "/obj")
 				);
 
-    static PRM_Name	theSampleName("samples", "Samples");
-    static PRM_Name	theMotionBlurName("motionBlur", "Use Motion Blur");
-    static PRM_Name	theShutterName("shutter", "Shutter");
-    static PRM_Default	theMotionBlurDefault(0, "no");
-    static PRM_Default	theSampleDefault(2);
-    static PRM_Default	theShutterDefault[] = {0, 1};
-    static PRM_Default	theFaceSetModeDefault(1, "nonempty");
-    static PRM_Name	theAttributePatternNames[GA_ATTRIB_OWNER_N] = {
-	PRM_Name("vertexAttributes",	"Vertex Attributes"),
-	PRM_Name("pointAttributes",	"Point Attributes"),
-	PRM_Name("primitiveAttributes",	"Primitive Attributes"),
-	PRM_Name("detailAttributes",	"Detail Attributes"),
-    };
-
     static PRM_Template	theParameters[] = {
-	PRM_Template(PRM_FILE,	1, &theFilenameName, &theFilenameDefault),
-	PRM_Template(PRM_ORD,	1, &theFormatName, &theFormatDefault,
+	PRM_Template(PRM_FILE, 1, &theFilenameName, &theFilenameDefault),
+	PRM_Template(PRM_ORD, 1, &theFormatName, &theFormatDefault,
 				    &theFormatMenu),
-	PRM_Template(PRM_TOGGLE,1, &ROPmkpath, PRMoneDefaults),
+	PRM_Template(PRM_TOGGLE, 1, &ROPmkpath, PRMoneDefaults),
+	PRM_Template(PRM_JOINED_TOGGLE, 1, &theSingleSopModeName),
+	PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH, 1, &theSOPPathName,
+                                    0, 0, 0, 0, &PRM_SpareData::sopPath),
 	// Root object should be relative to ROP
 	PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH,
 				    1, &theRootName, &theRootDefault,
@@ -351,19 +373,6 @@ namespace
 
         PRM_Template(PRM_SEPARATOR, 1, &separator1Name),
 
-	PRM_Template(PRM_ORD, 1, &theCollapseName, &theCollapseDefault,
-				    &theCollapseMenu),
-	PRM_Template(PRM_TOGGLE, 1, &theSaveHiddenName, PRMoneDefaults),
-	PRM_Template(PRM_TOGGLE, 1, &theUseInstancingName, PRMoneDefaults),
-	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName,
-				    &theFullBoundsDefault),
-	PRM_Template(PRM_TOGGLE, 1, &theDisplaySOPName,
-				    &theDisplaySOPDefault),
-	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
-				    &theSaveAttributesDefault),
-
-        PRM_Template(PRM_SEPARATOR, 1, &separator2Name),
-
 	PRM_Template(PRM_TOGGLE, 1, &theBuildHierarchyFromPathName,
 				    &theBuildHierarchyFromPathDefault),
         PRM_Template(PRM_STRING, 1, &thePathAttribName, 0, &thePathAttribMenu),
@@ -376,6 +385,19 @@ namespace
 	PRM_Template(PRM_STRING, 1, &thePartitionAttributeName,
 				    &thePartitionAttributeDefault,
 				    &thePartitionAttributeMenu),
+
+        PRM_Template(PRM_SEPARATOR, 1, &separator2Name),
+
+	PRM_Template(PRM_ORD, 1, &theCollapseName, &theCollapseDefault,
+				    &theCollapseMenu),
+	PRM_Template(PRM_TOGGLE, 1, &theSaveHiddenName, PRMoneDefaults),
+	PRM_Template(PRM_TOGGLE, 1, &theUseInstancingName, PRMoneDefaults),
+	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName,
+				    &theFullBoundsDefault),
+	PRM_Template(PRM_TOGGLE, 1, &theDisplaySOPName,
+				    &theDisplaySOPDefault),
+	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
+				    &theSaveAttributesDefault),
 
         PRM_Template(PRM_SEPARATOR, 1, &separator3Name),
 
@@ -488,9 +510,6 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 {
     close();
 
-    SOP_Node	*sop = CAST_SOPNODE(getInput(0));
-    OP_Node	*sop_parent = NULL;
-
     /// Trap errors
     myError = new rop_AlembicOutError(*this, UTgetInterrupt());
     myContext = new ROP_AbcContext();
@@ -499,16 +518,38 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 	return 0;
 
     /// Evaluate parameters
-    UT_String	 filename;
-    UT_String	 root;
-    UT_String	 objects;
-    UT_String	 format;
-    fpreal	 tdelta = (end - start);
-    fpreal	 tstep;
-    int		 mb_samples = 1;
-    fpreal	 shutter_open = 0;
-    fpreal	 shutter_close = 0;
-    OP_Node	*rootnode = NULL;
+    OP_Node    *input = getInput(0);
+    OP_Node    *rootnode = NULL;
+    OP_Node    *sop_parent = NULL;
+    SOP_Node   *sop = NULL;
+    UT_String   filename;
+    UT_String   format;
+    UT_String   objects;
+    UT_String   root;
+    UT_String   sop_path;
+    fpreal      tdelta = (end - start);
+    fpreal      tstep;
+    fpreal      shutter_open = 0;
+    fpreal      shutter_close = 0;
+    int         mb_samples = 1;
+
+    if (!input && SINGLE_SOP(start))
+    {
+        SOP_PATH(sop_path, start);
+        sop_path.trimBoundingSpace();
+        if (sop_path.isstring())
+        {
+            sop = CAST_SOPNODE(findNode(sop_path));
+            if (!sop)
+            {
+                abcError("Invalid SOP path: node either not found or not SOP");
+            }
+        }
+    }
+    else
+    {
+        sop = CAST_SOPNODE(input);
+    }
 
     FILENAME(filename, start);
     FORMAT(format, start);
@@ -819,28 +860,27 @@ ROP_AlembicOut::endRender()
 bool
 ROP_AlembicOut::updateParmsFlags()
 {
+    bool        build_hier = BUILD_HIERARCHY_FROM_PATH(0);
     bool	changed = ROP_Node::updateParmsFlags();
     bool	issop = CAST_SOPNODE(getInput(0)) != NULL;
-    bool        build_hier = BUILD_HIERARCHY_FROM_PATH(0);
+    bool        single_sop = SINGLE_SOP(0);
+    bool        sop_mode = issop || single_sop;
     UT_String	mode;
 
     PARTITION_MODE(mode, 0);
-    changed |= enableParm("build_from_path", issop);
-    changed |= enableParm("path_attrib", build_hier);
-    changed |= enableParm("packed_priority", build_hier);
-    changed |= enableParm("partition_mode", !build_hier);
+
+    changed |= enableParm("single_sop", !issop);
+    changed |= enableParm("sop_path", !issop && single_sop);
+    changed |= enableParm("root", !sop_mode);
+    changed |= enableParm("objects", !sop_mode);
+    changed |= enableParm("build_from_path", sop_mode);
+    changed |= enableParm("path_attrib", build_hier && sop_mode);
+    changed |= enableParm("packed_priority", build_hier && sop_mode);
+    changed |= enableParm("partition_mode", !build_hier || !sop_mode);
     changed |= enableParm("partition_attribute",
-                (!build_hier && (mode != "no")));
+                ((!build_hier || !sop_mode ) && (mode != "no")));
     changed |= enableParm("shutter", MOTIONBLUR(0));
     changed |= enableParm("samples", MOTIONBLUR(0));
-
-    changed |= setVisibleState("build_from_path", issop);
-    changed |= setVisibleState("path_attrib", issop);
-    changed |= setVisibleState("packed_priority", issop);
-
-    changed |= setVisibleState("displaysop", !issop);
-    changed |= setVisibleState("objects", !issop);
-    changed |= setVisibleState("root", !issop);
 
     return changed;
 }

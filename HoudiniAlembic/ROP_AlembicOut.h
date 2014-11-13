@@ -67,6 +67,23 @@ public:
 		    if (verbose < myVerbose)
 			addMessage(ROP_MESSAGE, message);
 		}
+    SOP_Node   *getSOPInput(fpreal time) const
+                {
+                    SOP_Node   *node = NULL;
+                    UT_String   sop_path;
+
+                    if (SINGLE_SOP(time))
+                    {
+                        SOP_PATH(sop_path, time);
+                        sop_path.trimBoundingSpace();
+                        if (sop_path.isstring())
+                        {
+                            node = CAST_SOPNODE(findNode(sop_path));
+                        }
+                    }
+
+                    return node;
+                }
 
 protected:
     void	close();
@@ -78,6 +95,10 @@ protected:
 		    { evalString(str, "format", 0, time); }
     void	ROOT(UT_String &str, fpreal time)
 		    { evalString(str, "root", 0, time); }
+    bool	SINGLE_SOP(fpreal time) const
+		    { return evalInt("single_sop", 0, time) != 0; }
+    void	SOP_PATH(UT_String &str, fpreal time) const
+		    { evalString(str, "sop_path", 0, time); }
     void	OBJECTS(UT_String &str, fpreal time)
 		    { evalString(str, "objects", 0, time); }
     int		COLLAPSE(fpreal time);
