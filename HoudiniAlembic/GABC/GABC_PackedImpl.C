@@ -308,7 +308,11 @@ int64
 GABC_PackedImpl::getMemoryUsage(bool inclusive) const
 {
     int64 mem = inclusive ? sizeof(*this) : 0;
-    mem += myCache.getMemoryUsage(false);
+    
+    // NOTE: This is currently very slow to compute, and slows down Alembic
+    //       playback noticably. 
+    // mem += myCache.getMemoryUsage(false);
+    
     mem += (myFilename.capacity() + 1) * sizeof(std::string::value_type);
     mem += (myObjectPath.capacity() + 1) * sizeof(std::string::value_type);
     return mem;
@@ -968,9 +972,28 @@ GABC_PackedImpl::setUseVisibility(bool v)
 GEO_AnimationType
 GABC_PackedImpl::animationType() const
 {
+#ifdef USE_FAST_CACHE
+    GEO_AnimationType anim = GEO_ANIMATION_INVALID;
+    gabc_ObjectCacheItem *obj = getObjectCacheItem();
+
+    // First, see if the animation type is cached
+    if(obj)
+    {
+	anim = obj->geo_anim_type;
+	
+	if(anim == GEO_ANIMATION_INVALID)
+	{
+	    anim = myCache.animationType(this);
+	    obj->geo_anim_type = anim;
+	}
+	return anim;
+    }
+#endif
     return myCache.animationType(this);
 }
 
+
+    
 void
 GABC_PackedImpl::GTCache::clear()
 {
