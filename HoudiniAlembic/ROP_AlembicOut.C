@@ -607,6 +607,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     myContext->setFullBounds(FULL_BOUNDS(start));
     myContext->setUseInstancing(USE_INSTANCING(start));
     myContext->setSaveHidden(SAVE_HIDDEN(start));
+    myContext->setFirstFrame(start / tstep);
 
     // Can only place objects directly into hierarchy from a SOP network.
     // Direct hierarchy placement and partitioning use the same code,
@@ -681,8 +682,11 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 	    shutter_open = SHUTTEROPEN(start);
 	    shutter_close = SHUTTERCLOSE(start);
 	}
-	myContext->setTimeSampling(start, tstep,
-		    mb_samples, shutter_open, shutter_close);
+	myContext->setTimeSampling(start,
+	        tstep,
+	        mb_samples,
+	        shutter_open,
+	        shutter_close);
 
 	myArchive = new ROP_AbcArchive();
 	if (!myArchive->open(*myError, filename, format))

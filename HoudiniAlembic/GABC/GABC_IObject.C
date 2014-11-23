@@ -1987,39 +1987,6 @@ namespace
 	return ss.getTimeSampling();
     }
 
-    static bool
-    abcArbsAreAnimated(ICompoundProperty arb)
-    {
-	exint	narb = arb ? arb.getNumProperties() : 0;
-	for (exint i = 0; i < narb; ++i)
-	{
-	    const PropertyHeader	&head = arb.getPropertyHeader(i);
-	    if (head.isArray())
-	    {
-		IArrayProperty		 prop(arb, head.getName());
-		if (!prop.isConstant())
-		    return true;
-	    }
-	    else if (head.isScalar())
-	    {
-		IScalarProperty		 prop(arb, head.getName());
-		if (!prop.isConstant())
-		    return true;
-	    }
-	    else if (head.isCompound())
-	    {
-		ICompoundProperty	prop(arb, head.getName());
-		if (prop && abcArbsAreAnimated(prop))
-		    return true;
-	    }
-	    else
-	    {
-		UT_ASSERT(0 && "Unhandled property storage");
-	    }
-	}
-	return false;
-    }
-
     template <typename ABC_T>
     static GEO_AnimationType
     getAnimation(const GABC_IObject &obj)
@@ -2032,9 +1999,9 @@ namespace
 	{
 	    case Alembic::AbcGeom::kConstantTopology:
 		atype = GEO_ANIMATION_CONSTANT;
-		if (abcArbsAreAnimated(schema.getArbGeomParams()))
+		if (GABC_Util::isABCPropertyAnimated(schema.getArbGeomParams()))
 		    atype = GEO_ANIMATION_ATTRIBUTE;
-		else if (abcArbsAreAnimated(schema.getUserProperties()))
+		else if (GABC_Util::isABCPropertyAnimated(schema.getUserProperties()))
 		    atype = GEO_ANIMATION_ATTRIBUTE;
 		break;
 	    case Alembic::AbcGeom::kHomogenousTopology:
@@ -2066,7 +2033,7 @@ namespace
 	IPointsSchema	&schema = prim.getSchema();
 	if (!schema.isConstant())
 	    return GEO_ANIMATION_TOPOLOGY;
-	if (abcArbsAreAnimated(schema.getArbGeomParams()))
+	if (!GABC_Util::isABCPropertyAnimated(schema.getArbGeomParams()))
 	    return GEO_ANIMATION_ATTRIBUTE;
 	return GEO_ANIMATION_CONSTANT;
     }
@@ -2594,8 +2561,7 @@ GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
 }
 
 GT_PrimitiveHandle
-GABC_IObject::getPointCloud(fpreal t,
-	GEO_AnimationType &atype) const
+GABC_IObject::getPointCloud(fpreal t, GEO_AnimationType &atype) const
 {
     GT_DataArrayHandle	P = getPosition(t, atype);
     if (!P && nodeType() == GABC_XFORM)

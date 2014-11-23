@@ -107,8 +107,8 @@ GABC_IArray::getSample(GABC_IArchive &arch, const ArraySamplePtr &sample,
 	return GABC_IArray();
 
     UT_ASSERT(sample && sample->getData());
-
     UT_ASSERT(array_extent == 1 || sample->size() % array_extent == 0);
+
     const DataType	&dtype = sample->getDataType();
     GT_Size		 size = sample->size()/array_extent;
     GT_Size		 tsize = GABC_GTUtil::getGTTupleSize(dtype)*array_extent;

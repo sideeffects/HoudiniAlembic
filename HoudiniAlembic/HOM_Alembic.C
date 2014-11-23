@@ -323,41 +323,6 @@ namespace
 	return rcode;
     }
 
-    bool
-    isConstantUserProperty(ICompoundProperty &icp)
-    {
-        exint   num_props = icp.getNumProperties();
-        bool    isConstant = true;
-
-        for (exint i = 0; ((i < num_props) && isConstant); ++i)
-        {
-            const PropertyHeader    &header = icp.getPropertyHeader(i);
-
-            if (header.isArray())
-            {
-                IArrayProperty      prop(icp, header.getName());
-                isConstant = prop.isConstant();
-            }
-            else if (header.isScalar())
-            {
-                IScalarProperty	    prop(icp, header.getName());
-                isConstant = prop.isConstant();
-            }
-            else
-            {
-                ICompoundProperty   prop(icp, header.getName());
-                isConstant = isConstantUserProperty(prop);
-            }
-
-            if (!isConstant)
-            {
-                break;
-            }
-        }
-
-        return isConstant;
-    }
-
     static const char   *Doc_AlembicHasUserProperties =
         "alembicHasUserProperties(abcPath, objectPath)\n"
         "\n"
@@ -428,7 +393,8 @@ namespace
             PY_Py_RETURN_NONE;
         }
 
-        return isConstantUserProperty(icp) ? PY_Py_True() : PY_Py_False();
+        return GABC_Util::isABCPropertyConstant(icp) ? PY_Py_True()
+                : PY_Py_False();
     }
 
     static const char	*Doc_AlembicUserProperty =

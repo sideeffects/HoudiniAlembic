@@ -25,23 +25,26 @@
  *----------------------------------------------------------------------------
  */
 
-#include "GABC_OGTGeometry.h"
-#include "GABC_OProperty.h"
+#include "GABC_OArrayProperty.h"
 #include "GABC_OError.h"
+#include "GABC_OGTGeometry.h"
 #include "GABC_OOptions.h"
+#include "GABC_OProperty.h"
+#include "GABC_Util.h"
 #include <stdarg.h>
-#include <UT/UT_StackBuffer.h>
+#include <GT/GT_DAConstantValue.h>
 #include <GT/GT_DANumeric.h>
 #include <GT/GT_DARange.h>
-#include <GT/GT_DAConstantValue.h>
-#include <GT/GT_PrimPolygonMesh.h>
-#include <GT/GT_PrimCurveMesh.h>
 #include <GT/GT_PrimPolygon.h>
-#include <GT/GT_PrimCurve.h>
+#include <GT/GT_PrimPolygonMesh.h>
 #include <GT/GT_PrimSubdivisionMesh.h>
+#include <GT/GT_PrimPointMesh.h>
+#include <GT/GT_PrimCurve.h>
+#include <GT/GT_PrimCurveMesh.h>
 #include <GT/GT_PrimNuPatch.h>
 #include <GT/GT_TrimNuCurves.h>
-#include <GT/GT_PrimPointMesh.h>
+#include <UT/UT_JSONParser.h>
+#include <UT/UT_StackBuffer.h>
 
 // For simple refinement
 #include <GT/GT_GEOPrimTPSurf.h>
@@ -50,6 +53,9 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
+    typedef Alembic::Abc::OCompoundProperty	OCompoundProperty;
+    typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
+
     typedef Alembic::Abc::V2f			V2f;
     typedef Alembic::Abc::V3f			V3f;
     typedef Alembic::Abc::UcharArraySample	UcharArraySample;
@@ -61,32 +67,34 @@ namespace
     typedef Alembic::Abc::V3fArraySample	V3fArraySample;
     typedef Alembic::Abc::P3fArraySample	P3fArraySample;
     typedef Alembic::Abc::P3fArraySamplePtr	P3fArraySamplePtr;
-    typedef Alembic::Abc::OCompoundProperty	OCompoundProperty;
-    typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
+
     typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
+
     typedef Alembic::AbcGeom::OFaceSet		OFaceSet;
     typedef Alembic::AbcGeom::OPolyMesh		OPolyMesh;
     typedef Alembic::AbcGeom::OSubD		OSubD;
     typedef Alembic::AbcGeom::OCurves		OCurves;
     typedef Alembic::AbcGeom::OPoints		OPoints;
     typedef Alembic::AbcGeom::ONuPatch		ONuPatch;
+
     typedef Alembic::AbcGeom::OFaceSetSchema	OFaceSetSchema;
     typedef Alembic::AbcGeom::OPolyMeshSchema	OPolyMeshSchema;
     typedef Alembic::AbcGeom::OSubDSchema	OSubDSchema;
     typedef Alembic::AbcGeom::OCurvesSchema	OCurvesSchema;
     typedef Alembic::AbcGeom::OPointsSchema	OPointsSchema;
     typedef Alembic::AbcGeom::ONuPatchSchema	ONuPatchSchema;
+
+    typedef Alembic::AbcGeom::OFloatGeomParam	OFloatGeomParam;
     typedef Alembic::AbcGeom::OP3fGeomParam	OP3fGeomParam;
     typedef Alembic::AbcGeom::OV2fGeomParam	OV2fGeomParam;
     typedef Alembic::AbcGeom::OV3fGeomParam	OV3fGeomParam;
     typedef Alembic::AbcGeom::ON3fGeomParam	ON3fGeomParam;
-    typedef Alembic::AbcGeom::OFloatGeomParam	OFloatGeomParam;
 
+    typedef GABC_OGTGeometry::PropertyMap       PropertyMap;
+    typedef GABC_OGTGeometry::PropertyMapInsert PropertyMapInsert;
     typedef GABC_OGTGeometry::IgnoreList        IgnoreList;
     typedef GABC_OGTGeometry::IntrinsicCache    IntrinsicCache;
     typedef GABC_OGTGeometry::SecondaryCache    SecondaryCache;
-
-    typedef UT_SymbolMap<GABC_OProperty *>	PropertyMap;
 
     UInt8ArraySample
     uint8Array(const GT_DataArrayHandle &data, GT_DataArrayHandle &storage)
@@ -146,112 +154,120 @@ namespace
 	}
     }
 
-    static IgnoreList	thePolyMeshSkip("v", "N", "uv", (void *)NULL);
-    static IgnoreList	theSubDSkip("v", "uv", "creaseweight", (void *)NULL);
-    static IgnoreList	theCurvesSkip("Pw", "v", "N", "uv", "width", (void *)NULL);
-    static IgnoreList	thePointsSkip("v", "id", "width", (void *)NULL);
-    static IgnoreList	theNuPatchSkip("Pw", "v", "N", "uv", (void *)NULL);
+    static IgnoreList	thePolyMeshSkip("N", "uv", (void *)NULL);
+    static IgnoreList	theSubDSkip("uv", "creaseweight", (void *)NULL);
+    static IgnoreList	theCurvesSkip("Pw", "N", "uv", "width", (void *)NULL);
+    static IgnoreList	thePointsSkip("id", "width", (void *)NULL);
+    static IgnoreList	theNuPatchSkip("Pw", "N", "uv", (void *)NULL);
     static IgnoreList	theEmptySkip((const char *)NULL);
 
-    /// Create compound properties definition from an attribute list handle
+    /// Create arbGeomParams from an attribute list handle
     static bool
-    makeCompoundProperties(PropertyMap &table,
+    makeGeomParams(PropertyMap &arb_map,
             const GT_AttributeListHandle &attribs,
             OCompoundProperty &cp,
             Alembic::AbcGeom::GeometryScope scope,
+            GABC_OError &err,
             const GABC_OOptions &ctx,
-            const IgnoreList &skips,
-            const IgnoreList &default_skips)
+            const IgnoreList &skips)
     {
-        int		 nwritten = 0;
-        GABC_OProperty	*prop;
+        GABC_OProperty     *prop;
+        const IgnoreList   &default_skips = GABC_OGTGeometry::getDefaultSkip();
 
         if (!attribs)
+        {
             return true;
+        }
+
         for (exint i = 0; i < attribs->entries(); ++i)
         {
-            const char			*name = attribs->getExportName(i);
-            const GT_DataArrayHandle	&data = attribs->get(i);
+            const char                 *name = attribs->getExportName(i);
+            const GT_DataArrayHandle   &data = attribs->get(i);
+
             if (!data
                     || skips.contains(name)
                     || default_skips.contains(name)
-                        || !ctx.matchAttribute(scope, name)
-                        || data->getTupleSize() < 1)
+                    || !ctx.matchAttribute(scope, name)
+                    || data->getTupleSize() < 1
+                    || data->getTypeInfo() == GT_TYPE_HIDDEN
+                    || arb_map.count(name))
             {
                 continue;
             }
-            if (data->getTypeInfo() == GT_TYPE_HIDDEN)
-                continue;
-            if (table.findSymbol(name, &prop))
-                continue;
 
-            prop = new GABC_OProperty(scope);
-            if (!prop->start(cp, name, data, ctx))
+            prop = new GABC_OArrayProperty(scope);
+            if (!prop->start(cp, name, data, err, ctx))
             {
                 delete prop;
+                return false;
             }
             else
             {
-                table.addSymbol(name, prop);
-                nwritten++;
+                arb_map.insert(PropertyMapInsert(name, prop));
             }
         }
-        return nwritten > 0;
+
+        return true;
     }
 
-    static int
-    traverseFunc(GABC_OProperty *&prop, const char *name, void *samples)
+    static bool
+    writeGeomProperties(const PropertyMap &arb_map,
+            const GT_AttributeListHandle &attribs,
+            GABC_OError &err,
+            const GABC_OOptions &ctx)
     {
-        exint   control_samples = *((const exint *)samples);
-        exint   num_samples = prop->getNumSamples();
-        int     result = 1;
+        bool        result = true;
 
-        // Write a new sample using the previous sample if a previous
-        // sample exists, AND the property is behind the leader in
-        // samples OR should have a sample written regardless.
-        if (num_samples
-                && ((num_samples < control_samples) || (control_samples < 0)))
+        if (!attribs || !arb_map.size())
         {
-            result = prop->updateFromPrevious();
+            return true;
+        }
+
+        for (PropertyMap::const_iterator it = arb_map.begin();
+                result && it != arb_map.end();
+                ++it)
+        {
+            int index = attribs->getIndex(it->first.c_str());
+
+            if (index >= 0)
+            {
+                result &= it->second->update(attribs->get(index), err, ctx);
+            }
+            else
+            {
+                exint   num_samples = it->second->getNumSamples();
+                if (num_samples)
+                {
+                    result &= it->second->updateFromPrevious();
+                }
+            }
         }
 
         return result;
     }
 
     static void
-    writeCompoundPropertiesFromPrevious(const PropertyMap &table)
+    writePropertiesFromPrevious(const PropertyMap &pmap)
     {
-        exint       num_samples = -1;
-
-        if (!table.entries())
-            return;
-
-        table.traverseConst(traverseFunc, &num_samples);
-    }
-
-    static void
-    writeCompoundProperties(const PropertyMap &table,
-            const GT_AttributeListHandle &attribs,
-            const GABC_OOptions &ctx)
-    {
-        exint       num_samples = -1;
-
-        if (!attribs || !table.entries())
-            return;
-
-        for (int i = 0; i < attribs->entries(); ++i)
+        if (!pmap.size())
         {
-            const char		*name = attribs->getExportName(i);
-            GABC_OProperty	*prop;
-
-            if (table.findSymbol(name, &prop))
-            {
-                prop->update(attribs->get(i), ctx);
-                num_samples = prop->getNumSamples();
-            }
+            return;
         }
 
-        table.traverseConst(traverseFunc, &num_samples);
+        exint   num_samples;
+
+        // Write a new sample using the previous sample (if a previous
+        // sample exists)
+        for (PropertyMap::const_iterator it = pmap.begin();
+                it != pmap.end();
+                ++it)
+        {
+            num_samples = it->second->getNumSamples();
+            if (num_samples)
+            {
+                it->second->updateFromPrevious();
+            }
+        }
     }
 
     template <typename POD_T>
@@ -1057,8 +1073,6 @@ GABC_OGTGeometry::SecondaryCache::needWrite(const GABC_OOptions &ctx,
 GABC_OGTGeometry::IgnoreList::IgnoreList(const char *arg0, ...)
      : myStrings()
 {
-    addCommonSkips();
-
     if (arg0)
     {
         va_list	 args;
@@ -1075,10 +1089,30 @@ GABC_OGTGeometry::IgnoreList::IgnoreList(const char *arg0, ...)
 //  GABC_OGTGeometry
 //-----------------------------------------------
 
+GABC_OGTGeometry::IgnoreList &
+GABC_OGTGeometry::getDefaultSkip()
+{
+    // Construct on first use to avoid the static initialization order fiasco
+    static IgnoreList *def = new IgnoreList("P",
+            "v",
+            "__topology",
+            "__primitive_id",
+            "__point_id",
+            "__vertex_id",
+            "varmap",
+            GABC_Util::theUserPropsValsAttrib.buffer(),
+            GABC_Util::theUserPropsMetaAttrib.buffer(),
+            (void *)NULL);
+
+    return *def;
+}
+
 GABC_OGTGeometry::GABC_OGTGeometry(const std::string &name)
     : myName(name)
     , myType(GT_PRIM_UNDEFINED)
     , mySecondaryCache(NULL)
+    , myUserPropState(UNSET)
+    , myElapsedFrames(0)
 {
     myShape.myVoidPtr = NULL;
 }
@@ -1090,24 +1124,39 @@ GABC_OGTGeometry::~GABC_OGTGeometry()
     clearCache();
 }
 
-IgnoreList GABC_OGTGeometry::theDefaultSkip(
-        GABC_Util::theUserPropsValsAttrib.buffer(),
-        GABC_Util::theUserPropsMetaAttrib.buffer(),
-        (void *)NULL);
-
 void
 GABC_OGTGeometry::clearProperties()
 {
+    clearArbProperties();
+    clearUserProperties();
+}
+
+void
+GABC_OGTGeometry::clearArbProperties()
+{
     for (int i = 0; i < MAX_PROPERTIES; ++i)
     {
-	for (PropertyMap::iterator it = myArbProperties[i].begin();
-	        !it.atEnd();
+	for (PropertyMap::const_iterator it = myArbProperties[i].begin();
+	        it != myArbProperties[i].end();
 	        ++it)
 	{
-	    delete it.thing();
+	    delete it->second;
 	}
 	myArbProperties[i].clear();
     }
+}
+
+void
+GABC_OGTGeometry::clearUserProperties()
+{
+    for (PropertyMap::const_iterator it = myUserProperties.begin();
+            it != myUserProperties.end();
+            ++it)
+    {
+        delete it->second;
+    }
+    myUserProperties.clear();
+    myUserPropState = UNSET;
 }
 
 void
@@ -1172,29 +1221,6 @@ GABC_OGTGeometry::SecondaryCache::needTrim(const GABC_OOptions &ctx,
     return changed;
 }
 #endif
-
-void
-GABC_OGTGeometry::writeArbProperties(const GT_PrimitiveHandle &prim,
-			const GABC_OOptions &ctx)
-{
-    writeCompoundProperties(myArbProperties[VERTEX_PROPERTIES],
-	    vertexAttributes(*prim), ctx);
-    writeCompoundProperties(myArbProperties[POINT_PROPERTIES],
-	    pointAttributes(*prim), ctx);
-    writeCompoundProperties(myArbProperties[UNIFORM_PROPERTIES],
-	    uniformAttributes(*prim), ctx);
-    writeCompoundProperties(myArbProperties[DETAIL_PROPERTIES],
-	    detailAttributes(*prim), ctx);
-}
-
-void
-GABC_OGTGeometry::writeArbPropertiesFromPrevious()
-{
-    writeCompoundPropertiesFromPrevious(myArbProperties[VERTEX_PROPERTIES]);
-    writeCompoundPropertiesFromPrevious(myArbProperties[POINT_PROPERTIES]);
-    writeCompoundPropertiesFromPrevious(myArbProperties[UNIFORM_PROPERTIES]);
-    writeCompoundPropertiesFromPrevious(myArbProperties[DETAIL_PROPERTIES]);
-}
 
 static GT_FaceSetMapPtr
 getFaceSetMap(const GT_PrimitiveHandle &prim)
@@ -1264,22 +1290,24 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
     }
 }
 
-void
+bool
 GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
-			const GABC_OOptions &ctx)
+        GABC_OError &err,
+        const GABC_OOptions &ctx)
 {
-    clearProperties();
+    clearArbProperties();
 
     if (!ctx.saveAttributes())
     {
-        return;
+        return true;
     }
 
-    const IgnoreList			*skip = &theEmptySkip;
-    OCompoundProperty			 cp;
-    Alembic::AbcGeom::GeometryScope	 pt = Alembic::AbcGeom::kUnknownScope;
-    Alembic::AbcGeom::GeometryScope	 vtx = Alembic::AbcGeom::kUnknownScope;
-    Alembic::AbcGeom::GeometryScope	 uni = Alembic::AbcGeom::kUnknownScope;
+    Alembic::AbcGeom::GeometryScope     pt = Alembic::AbcGeom::kUnknownScope;
+    Alembic::AbcGeom::GeometryScope     vtx = Alembic::AbcGeom::kUnknownScope;
+    Alembic::AbcGeom::GeometryScope     uni = Alembic::AbcGeom::kUnknownScope;
+    const IgnoreList                   *skip = &theEmptySkip;
+    OCompoundProperty                   cp;
+    bool                                result = true;
 
     switch (myType)
     {
@@ -1321,48 +1349,346 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 	    break;
 
 	default:
-	    UT_ASSERT(0);
+	    UT_ASSERT(0 && "Type error");
+	    return false;
     }
 
     if (vtx != Alembic::AbcGeom::kUnknownScope)
     {
 	// We don't need to transform the attributes to build the Alembic
 	// objects, only when we write their values.
-	makeCompoundProperties(myArbProperties[VERTEX_PROPERTIES],
+	result &= makeGeomParams(myArbProperties[VERTEX_PROPERTIES],
                 prim->getVertexAttributes(),
                 cp,
                 vtx,
+                err,
                 ctx,
-                *skip,
-                theDefaultSkip);
+                *skip);
     }
     if (pt != Alembic::AbcGeom::kUnknownScope)
     {
-	makeCompoundProperties(myArbProperties[POINT_PROPERTIES],
+	result &= makeGeomParams(myArbProperties[POINT_PROPERTIES],
                 prim->getPointAttributes(),
                 cp,
                 pt,
+                err,
                 ctx,
-                *skip,
-                theDefaultSkip);
+                *skip);
     }
     if (uni != Alembic::AbcGeom::kUnknownScope)
     {
-	makeCompoundProperties(myArbProperties[UNIFORM_PROPERTIES],
+	result &= makeGeomParams(myArbProperties[UNIFORM_PROPERTIES],
 	        prim->getUniformAttributes(),
 		cp,
 		uni,
+		err,
 		ctx,
-		*skip,
-                theDefaultSkip);
+		*skip);
     }
-    makeCompoundProperties(myArbProperties[DETAIL_PROPERTIES],
+    result &= makeGeomParams(myArbProperties[DETAIL_PROPERTIES],
             prim->getDetailAttributes(),
             cp,
             Alembic::AbcGeom::kConstantScope,
+            err,
             ctx,
-            *skip,
-            theDefaultSkip);
+            *skip);
+
+    return result;
+}
+
+bool
+GABC_OGTGeometry::writeArbProperties(const GT_PrimitiveHandle &prim,
+        GABC_OError &err,
+        const GABC_OOptions &ctx)
+{
+    bool    result = true;
+
+    result &= writeGeomProperties(myArbProperties[VERTEX_PROPERTIES],
+	    vertexAttributes(*prim),
+	    err,
+	    ctx);
+    result &= writeGeomProperties(myArbProperties[POINT_PROPERTIES],
+	    pointAttributes(*prim),
+	    err,
+	    ctx);
+    result &= writeGeomProperties(myArbProperties[UNIFORM_PROPERTIES],
+	    uniformAttributes(*prim),
+	    err,
+	    ctx);
+    result &= writeGeomProperties(myArbProperties[DETAIL_PROPERTIES],
+	    detailAttributes(*prim),
+	    err,
+	    ctx);
+
+    return result;
+}
+
+void
+GABC_OGTGeometry::writeArbPropertiesFromPrevious()
+{
+    writePropertiesFromPrevious(myArbProperties[VERTEX_PROPERTIES]);
+    writePropertiesFromPrevious(myArbProperties[POINT_PROPERTIES]);
+    writePropertiesFromPrevious(myArbProperties[UNIFORM_PROPERTIES]);
+    writePropertiesFromPrevious(myArbProperties[DETAIL_PROPERTIES]);
+}
+
+bool
+GABC_OGTGeometry::makeUserProperties(const GT_PrimitiveHandle &prim,
+        OCompoundProperty *parent,
+        GABC_OError &err,
+        const GABC_OOptions &ctx)
+{
+    GT_AttributeListHandle  attribs_handle;
+    GT_DataArrayHandle      meta_attrib;
+    GT_DataArrayHandle      vals_attrib;
+    const char             *meta_buffer;
+    const char             *vals_buffer;
+
+    clearUserProperties();
+
+    attribs_handle = prim->getUniformAttributes();
+    if (!attribs_handle)
+    {
+        // Primitive level attributes are sometimes merged with detail level
+        // attributes.
+        attribs_handle = prim->getDetailAttributes();
+    }
+    if(!attribs_handle)
+    {
+        myUserPropState = NO_USER_PROPERTIES;
+        return true;
+    }
+
+    meta_attrib = attribs_handle->get(GABC_Util::theUserPropsMetaAttrib, 0);
+    vals_attrib = attribs_handle->get(GABC_Util::theUserPropsValsAttrib, 0);
+
+    if (!meta_attrib && !vals_attrib)
+    {
+        myUserPropState = NO_USER_PROPERTIES;
+    }
+    else if (!vals_attrib)
+    {
+        meta_buffer = meta_attrib->getS(0,0);
+
+        if (!meta_buffer || !(*meta_buffer))
+        {
+            myUserPropState = NO_USER_PROPERTIES;
+        }
+        else
+        {
+            myUserPropState = ERROR_READING_PROPERTIES;
+            err.warning("Found user properties metadata attribute, but not "
+                    "data attribute. Ignoring user properties.");
+        }
+    }
+    else if (!meta_attrib)
+    {
+        vals_buffer = vals_attrib->getS(0,0);
+
+        if (!vals_buffer || !(*vals_buffer))
+        {
+            myUserPropState = NO_USER_PROPERTIES;
+        }
+        else
+        {
+            myUserPropState = ERROR_READING_PROPERTIES;
+            err.warning("Found user properties data attribute, but not "
+                    "metadata attribute. Ignoring user properties.");
+        }
+    }
+    else
+    {
+        meta_buffer = meta_attrib->getS(0,0);
+        vals_buffer = vals_attrib->getS(0,0);
+
+        if ((!meta_buffer || !(*meta_buffer))
+                && (!vals_buffer || !(*vals_buffer)))
+        {
+            myUserPropState = NO_USER_PROPERTIES;
+        }
+        else if (!meta_buffer || !(*meta_buffer))
+        {
+            myUserPropState = ERROR_READING_PROPERTIES;
+            err.warning("User properties metadata attribute empty. Ignoring "
+                    "user properties.");
+        }
+        else if (!vals_buffer || !(*vals_buffer))
+        {
+            myUserPropState = ERROR_READING_PROPERTIES;
+            err.warning("User properties data attribute empty. Ignoring "
+                    "user properties.");
+        }
+        else
+        {
+            UT_AutoJSONParser   meta_data(meta_buffer, strlen(meta_buffer));
+            UT_AutoJSONParser   vals_data(vals_buffer, strlen(vals_buffer));
+            UT_WorkBuffer       err_msg;
+
+            meta_data->setBinary(false);
+            vals_data->setBinary(false);
+            if (!GABC_Util::readUserPropertyDictionary(meta_data,
+                    vals_data,
+                    myUserProperties,
+                    parent,
+                    err,
+                    ctx))
+            {
+                err.warning("Ignoring user properties (%s).",
+                        myName.c_str());
+                myUserPropState = ERROR_READING_PROPERTIES;
+            }
+            else
+            {
+                myUserPropState = WRITE_USER_PROPERTIES;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool
+GABC_OGTGeometry::writeUserProperties(const GT_PrimitiveHandle &prim,
+        GABC_OError &err,
+        const GABC_OOptions &ctx)
+{
+    if (myUserPropState == UNSET)
+    {
+        UT_ASSERT(0 && "writeUserProperties called before makeUserProperties");
+        return false;
+    }
+
+    if (myUserPropState != ERROR_READING_PROPERTIES)
+    {
+        GT_AttributeListHandle  attribs_handle;
+        GT_DataArrayHandle      meta_attrib;
+        GT_DataArrayHandle      vals_attrib;
+
+        attribs_handle = prim->getUniformAttributes();
+        if (!attribs_handle)
+        {
+            // Primitive level attributes are sometimes merged with detail level
+            // attributes.
+            attribs_handle = prim->getDetailAttributes();
+        }
+        if (!attribs_handle)
+        {
+            if (myUserPropState == WRITE_USER_PROPERTIES)
+            {
+                err.warning("Missing user property information for %s on frame "
+                        "%" SYS_PRId64 ". Reusing previous samples.",
+                        myName.c_str(),
+                        (ctx.firstFrame() + myElapsedFrames + 1));
+                writePropertiesFromPrevious(myUserProperties);
+            }
+
+            return true;
+        }
+
+        meta_attrib = attribs_handle->get(GABC_Util::theUserPropsMetaAttrib, 0);
+        vals_attrib = attribs_handle->get(GABC_Util::theUserPropsValsAttrib, 0);
+
+        if (!meta_attrib && !vals_attrib)
+        {
+            if (myUserPropState == WRITE_USER_PROPERTIES)
+            {
+                err.warning("Missing user property information for %s on frame "
+                        "%" SYS_PRId64 ". Reusing previous samples.",
+                        myName.c_str(),
+                        (ctx.firstFrame() + myElapsedFrames + 1));
+                writePropertiesFromPrevious(myUserProperties);
+            }
+        }
+        else if (!meta_attrib || !vals_attrib)
+        {
+            if (myUserPropState == WRITE_USER_PROPERTIES)
+            {
+                err.warning("Missing user property information for %s on frame "
+                        "%" SYS_PRId64 ". Reusing previous samples.",
+                        myName.c_str(),
+                        (ctx.firstFrame() + myElapsedFrames + 1));
+                writePropertiesFromPrevious(myUserProperties);
+            }
+            else
+            {
+                UT_ASSERT(myUserPropState == NO_USER_PROPERTIES);
+
+                if (myElapsedFrames)
+                {
+                    err.warning("Partial user property information detected for %s "
+                            "on frame %" SYS_PRId64 ", but none detected "
+                            "for previous frames. Ignoring it.",
+                            myName.c_str(),
+                            (ctx.firstFrame() + myElapsedFrames + 1));
+                    myUserPropState = ERROR_READING_PROPERTIES;
+                }
+            }
+        }
+        else
+        {
+            const char *meta_buffer = meta_attrib->getS(0,0);
+            const char *vals_buffer = vals_attrib->getS(0,0);
+
+            if (myUserPropState == WRITE_USER_PROPERTIES)
+            {
+                if (!meta_buffer
+                        || !(*meta_buffer)
+                        || !vals_buffer
+                        || !(*vals_buffer))
+                {
+                    err.warning("Missing user property information for %s on "
+                            "frame %" SYS_PRId64 ". Reusing previous samples.",
+                            myName.c_str(),
+                            (ctx.firstFrame() + myElapsedFrames + 1));
+                    writePropertiesFromPrevious(myUserProperties);
+                }
+                else
+                {
+                    UT_AutoJSONParser   meta_data(meta_buffer, strlen(meta_buffer));
+                    UT_AutoJSONParser   vals_data(vals_buffer, strlen(vals_buffer));
+                    UT_WorkBuffer       err_msg;
+
+                    meta_data->setBinary(false);
+                    vals_data->setBinary(false);
+                    if (!GABC_Util::readUserPropertyDictionary(meta_data,
+                            vals_data,
+                            myUserProperties,
+                            NULL,
+                            err,
+                            ctx))
+                    {
+                        err.warning("Reusing previous user property samples "
+                                "(%s, frame %" SYS_PRId64 ")",
+                                myName.c_str(),
+                                (ctx.firstFrame() + myElapsedFrames + 1));
+                        writePropertiesFromPrevious(myUserProperties);
+                    }
+                }
+            }
+            else
+            {
+                UT_ASSERT(myUserPropState == NO_USER_PROPERTIES);
+
+                if ((meta_buffer && *meta_buffer) || (vals_buffer && *vals_buffer))
+                {
+                    err.warning("User property information detected for %s on "
+                            "frame %" SYS_PRId64 ", but none detected "
+                            "for previous frames. Ignoring it.",
+                            myName.c_str(),
+                            (ctx.firstFrame() + myElapsedFrames + 1));
+                    myUserPropState = ERROR_READING_PROPERTIES;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+void
+GABC_OGTGeometry::writeUserPropertiesFromPrevious()
+{
+    writePropertiesFromPrevious(myUserProperties);
 }
 
 bool
@@ -1394,21 +1720,29 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 	GABC_OError &err,
 	ObjectVisibility vis)
 {
+    GT_PrimitiveHandle	prim;
+    OCompoundProperty   user_props;
+
     UT_ASSERT(src);
     myCache.clear();
     myType = GT_PRIM_UNDEFINED;
-    GT_PrimitiveHandle	prim = getPrimitive(src, myType);
+    prim = getPrimitive(src, myType);
+    myElapsedFrames = 0;
+
     if (!prim)
     {
 	UT_ASSERT(myType == GT_PRIM_UNDEFINED);
 	return false;
     }
+
     switch (myType)
     {
 	// Direct mapping to Alembic primitives
 	case GT_PRIM_POLYGON_MESH:
-            myShape.myPolyMesh = new OPolyMesh(parent, myName,
+            myShape.myPolyMesh = new OPolyMesh(parent,
+                    myName,
                     ctx.timeSampling());
+            user_props = myShape.myPolyMesh->getSchema().getUserProperties();
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myPolyMesh),
                     ctx.timeSampling());
@@ -1416,8 +1750,10 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
             break;
 
 	case GT_PRIM_SUBDIVISION_MESH:
-            myShape.mySubD = new OSubD(parent, myName,
+            myShape.mySubD = new OSubD(parent,
+                    myName,
                     ctx.timeSampling());
+            user_props = myShape.mySubD->getSchema().getUserProperties();
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.mySubD),
                     ctx.timeSampling());
@@ -1425,24 +1761,30 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
             break;
 
 	case GT_PRIM_POINT_MESH:
-            myShape.myPoints = new OPoints(parent, myName,
+            myShape.myPoints = new OPoints(parent,
+                    myName,
                     ctx.timeSampling());
+            user_props = myShape.myPoints->getSchema().getUserProperties();
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myPoints),
                     ctx.timeSampling());
             break;
 
 	case GT_PRIM_CURVE_MESH:
-            myShape.myCurves = new OCurves(parent, myName,
+            myShape.myCurves = new OCurves(parent,
+                    myName,
                     ctx.timeSampling());
+            user_props = myShape.myCurves->getSchema().getUserProperties();
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myCurves),
                     ctx.timeSampling());
             break;
 
 	case GT_PRIM_NUPATCH:
-            myShape.myNuPatch = new ONuPatch(parent, myName,
+            myShape.myNuPatch = new ONuPatch(parent,
+                    myName,
                     ctx.timeSampling());
+            user_props = myShape.myNuPatch->getSchema().getUserProperties();
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myNuPatch),
                     ctx.timeSampling());
@@ -1453,7 +1795,17 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
             return false;
     }
 
-    makeArbProperties(prim, ctx);
+    if (!makeArbProperties(prim, err, ctx))
+    {
+        err.error("Error saving attributes: ");
+        return false;
+    }
+    if (!makeUserProperties(src, &user_props, err, ctx))
+    {
+        err.error("Error saving user properties: ");
+        return false;
+    }
+
     return update(prim, ctx, err, vis);
 }
 
@@ -1519,7 +1871,18 @@ GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
 	    return false;
     }
 
-    writeArbProperties(prim, ctx);
+    if (!writeArbProperties(prim, err, ctx))
+    {
+        err.error("Error saving attributes: ");
+        return false;
+    }
+    if (!writeUserProperties(prim, err, ctx))
+    {
+        err.error("Error saving user properties: ");
+        return false;
+    }
+
+    ++myElapsedFrames;
     return true;
 }
 
@@ -1547,6 +1910,7 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
                 myVisibility.set(vis);
                 myShape.myPolyMesh->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
+                writeUserPropertiesFromPrevious();
                 fillFaceSetsFromPrevious(myFaceSetNames,
                         myShape.myPolyMesh->getSchema());
             }
@@ -1557,6 +1921,7 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
                 myVisibility.set(vis);
                 myShape.mySubD->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
+                writeUserPropertiesFromPrevious();
                 fillFaceSetsFromPrevious(myFaceSetNames,
                         myShape.mySubD->getSchema());
             }
@@ -1567,6 +1932,7 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
                 myVisibility.set(vis);
 	        myShape.myPoints->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
+                writeUserPropertiesFromPrevious();
             }
 	    break;
 
@@ -1575,6 +1941,7 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
                 myVisibility.set(vis);
 	        myShape.myCurves->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
+                writeUserPropertiesFromPrevious();
             }
 	    break;
 
@@ -1583,6 +1950,7 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
                 myVisibility.set(vis);
 	        myShape.myNuPatch->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
+                writeUserPropertiesFromPrevious();
             }
 	    break;
 
@@ -1591,6 +1959,7 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
 	    return false;
     }
 
+    myElapsedFrames += frames;
     return true;
 }
 

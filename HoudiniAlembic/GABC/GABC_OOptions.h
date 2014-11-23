@@ -116,13 +116,20 @@ public:
 		 }
     /// @}
 
+    /// @{
+    /// The first frame of output
+    exint       firstFrame() const      { return myFirstFrame; }
+    void        setFirstFrame(exint f)  { myFirstFrame = f; }
+    /// @}
+
 private:
     void		checkAttributeStars();
 
-    SpaceOptimize	myOptimizeSpace;
     FaceSetMode		myFaceSetMode;
+    SpaceOptimize	myOptimizeSpace;
     UT_String		mySubdGroup;
     UT_String		myAttributePatterns[GA_ATTRIB_OWNER_N];
+    exint               myFirstFrame;
     bool		myAttributeStars;
     bool		mySaveAttributes;
     bool		myUseDisplaySOP;

@@ -131,11 +131,35 @@ namespace
     typedef Alembic::AbcGeom::ObjectVisibility      ObjectVisibility;
     typedef Alembic::AbcGeom::OVisibilityProperty   OVisibilityProperty;
 
+    typedef GABC_OGTAbc::GABCPropertyMap            GABCPropertyMap;
     typedef GABC_OGTAbc::PropertyMap                PropertyMap;
 
     const static WrapExistingFlag   gabcWrapExisting
                                             = Alembic::Abc::kWrapExisting;
 
+    static void
+    writePropertiesFromPrevious(const GABCPropertyMap &pmap)
+    {
+        if (!pmap.size())
+        {
+            return;
+        }
+
+        exint   num_samples;
+
+        // Write a new sample using the previous sample (if a previous
+        // sample exists)
+        for (GABCPropertyMap::const_iterator it = pmap.begin();
+                it != pmap.end();
+                ++it)
+        {
+            num_samples = it->second->getNumSamples();
+            if (num_samples)
+            {
+                it->second->updateFromPrevious();
+            }
+        }
+    }
 
     static const GABC_IObject &
     getObject(const GT_PrimitiveHandle &prim)
@@ -343,6 +367,7 @@ namespace
             OXform *obj,
             PropertyMap &arb_map,
             PropertyMap &p_map,
+            bool reuse_user_props,
             const GABC_OOptions &ctx,
             const ISampleSelector &iss)
     {
@@ -364,9 +389,12 @@ namespace
 //            myBoundsMap->insert(BoundsMapInsert(obj->getPtr(), bound));
 //        }
 
-        if (up_in.valid() && up_out.valid())
+        if (reuse_user_props)
         {
-            sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+            if (up_in.valid() && up_out.valid())
+            {
+                sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+            }
         }
         if (arb_in.valid() && arb_out.valid())
         {
@@ -380,6 +408,7 @@ namespace
             OPolyMesh *obj,
             PropertyMap &arb_map,
             PropertyMap &p_map,
+            bool reuse_user_props,
             const GABC_OOptions &ctx,
             const ISampleSelector &iss)
     {
@@ -452,9 +481,12 @@ namespace
                 iss,
                 faceset_names);
 
-        if (up_in.valid() && up_out.valid())
+        if (reuse_user_props)
         {
-            sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+            if (up_in.valid() && up_out.valid())
+            {
+                sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+            }
         }
         if (arb_in.valid() && arb_out.valid())
         {
@@ -468,6 +500,7 @@ namespace
             OSubD *obj,
             PropertyMap &arb_map,
             PropertyMap &p_map,
+            bool reuse_user_props,
             const GABC_OOptions &ctx,
             const ISampleSelector &iss)
     {
@@ -592,9 +625,12 @@ namespace
                 iss,
                 faceset_names);
 
-        if (up_in.valid() && up_out.valid())
+        if (reuse_user_props)
         {
-            sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+            if (up_in.valid() && up_out.valid())
+            {
+                sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+            }
         }
         if (arb_in.valid() && arb_out.valid())
         {
@@ -608,6 +644,7 @@ namespace
             OPoints *obj,
             PropertyMap &arb_map,
             PropertyMap &p_map,
+            bool reuse_user_props,
             const GABC_OOptions &ctx,
             const ISampleSelector &iss)
     {
@@ -670,6 +707,7 @@ namespace
             OCurves *obj,
             PropertyMap &arb_map,
             PropertyMap &p_map,
+            bool reuse_user_props,
             const GABC_OOptions &ctx,
             const ISampleSelector &iss)
     {
@@ -781,9 +819,12 @@ namespace
 
         obj->getSchema().set(sample);
 
-        if (up_in.valid() && up_out.valid())
+        if (reuse_user_props)
         {
-            sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+            if (up_in.valid() && up_out.valid())
+            {
+                sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+            }
         }
         if (arb_in.valid() && arb_out.valid())
         {
@@ -797,6 +838,7 @@ namespace
             ONuPatch *obj,
             PropertyMap &arb_map,
             PropertyMap &p_map,
+            bool reuse_user_props,
             const GABC_OOptions &ctx,
             const ISampleSelector &iss)
     {
@@ -886,9 +928,12 @@ namespace
 
         obj->getSchema().set(sample);
 
-        if (up_in.valid() && up_out.valid())
+        if (reuse_user_props)
         {
-            sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+            if (up_in.valid() && up_out.valid())
+            {
+                sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+            }
         }
         if (arb_in.valid() && arb_out.valid())
         {
@@ -898,8 +943,10 @@ namespace
 }
 
 GABC_OGTAbc::GABC_OGTAbc(const std::string &name)
-    : myName(name)
-    , myType(GABC_UNKNOWN)
+    : myType(GABC_UNKNOWN)
+    , myUserPropState(UNSET)
+    , myName(name)
+    , myElapsedFrames(0)
 {
     myShape.myVoidPtr = NULL;
 }
@@ -912,6 +959,8 @@ GABC_OGTAbc::~GABC_OGTAbc()
 void
 GABC_OGTAbc::clear()
 {
+    clearUserProperties();
+
     switch (myType)
     {
 	case GABC_POLYMESH:
@@ -938,6 +987,275 @@ GABC_OGTAbc::clear()
     myShape.myVoidPtr = NULL;
 }
 
+void
+GABC_OGTAbc::clearUserProperties()
+{
+    for (GABCPropertyMap::const_iterator it = myNewUserProperties.begin();
+            it != myNewUserProperties.end();
+            ++it)
+    {
+        delete it->second;
+    }
+    myNewUserProperties.clear();
+    myUserPropState = UNSET;
+}
+
+bool
+GABC_OGTAbc::makeUserProperties(const GT_PrimitiveHandle &prim,
+        OCompoundProperty *parent,
+        GABC_OError &err,
+        const GABC_OOptions &ctx)
+{
+    GT_AttributeListHandle  attribs_handle;
+    GT_DataArrayHandle      meta_attrib;
+    GT_DataArrayHandle      vals_attrib;
+    const char             *meta_buffer;
+    const char             *vals_buffer;
+
+    clearUserProperties();
+
+    if (prim->getPrimitiveType() == GT_GEO_PACKED)
+    {
+        GT_GEOPrimPacked   *packed = UTverify_cast<GT_GEOPrimPacked *>(
+                                    prim.get());
+
+        attribs_handle = packed->getInstanceAttributes();
+    }
+    else
+    {
+        attribs_handle = prim->getUniformAttributes();
+    }
+    if (!attribs_handle)
+    {
+        myUserPropState = REUSE_USER_PROPERTIES;
+        return true;
+    }
+
+    meta_attrib = attribs_handle->get(GABC_Util::theUserPropsMetaAttrib, 0);
+    vals_attrib = attribs_handle->get(GABC_Util::theUserPropsValsAttrib, 0);
+    if (!meta_attrib && !vals_attrib)
+    {
+        myUserPropState = REUSE_USER_PROPERTIES;
+    }
+    else if (!vals_attrib)
+    {
+        meta_buffer = meta_attrib->getS(0,0);
+
+        if (!meta_buffer || !(*meta_buffer))
+        {
+            myUserPropState = REUSE_USER_PROPERTIES;
+        }
+        else
+        {
+            myUserPropState = IGNORE_USER_PROPERTIES;
+            err.warning("Found user properties metadata attribute, but not "
+                    "data attribute. Ignoring user properties.");
+        }
+    }
+    else if (!meta_attrib)
+    {
+        vals_buffer = vals_attrib->getS(0,0);
+
+        if (!vals_buffer || !(*vals_buffer))
+        {
+            myUserPropState = REUSE_USER_PROPERTIES;
+        }
+        else
+        {
+            myUserPropState = IGNORE_USER_PROPERTIES;
+            err.warning("Found user properties data attribute, but not "
+                    "metadata attribute. Ignoring user properties.");
+        }
+    }
+    else
+    {
+        meta_buffer = meta_attrib->getS(0,0);
+        vals_buffer = vals_attrib->getS(0,0);
+
+        if ((!meta_buffer || !(*meta_buffer))
+                && (!vals_buffer || !(*vals_buffer)))
+        {
+            myUserPropState = REUSE_USER_PROPERTIES;
+        }
+        else if (!meta_buffer || !(*meta_buffer))
+        {
+            myUserPropState = IGNORE_USER_PROPERTIES;
+            err.warning("User properties metadata attribute empty. Ignoring "
+                    "user properties.");
+        }
+        else if (!vals_buffer || !(*vals_buffer))
+        {
+            myUserPropState = IGNORE_USER_PROPERTIES;
+            err.warning("User properties data attribute empty. Ignoring "
+                    "user properties.");
+        }
+        else
+        {
+            UT_AutoJSONParser   meta_data(meta_buffer, strlen(meta_buffer));
+            UT_AutoJSONParser   vals_data(vals_buffer, strlen(vals_buffer));
+            UT_WorkBuffer       err_msg;
+
+            meta_data->setBinary(false);
+            vals_data->setBinary(false);
+            if (!GABC_Util::readUserPropertyDictionary(meta_data,
+                    vals_data,
+                    myNewUserProperties,
+                    parent,
+                    err,
+                    ctx))
+            {
+                err.warning("Ignoring user properties (%s).",
+                        myName.c_str());
+                myUserPropState = IGNORE_USER_PROPERTIES;
+            }
+            else
+            {
+                myUserPropState = WRITE_USER_PROPERTIES;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool
+GABC_OGTAbc::writeUserProperties(const GT_PrimitiveHandle &prim,
+        GABC_OError &err,
+        const GABC_OOptions &ctx)
+{
+    GT_AttributeListHandle  attribs_handle;
+    GT_DataArrayHandle      meta_attrib;
+    GT_DataArrayHandle      vals_attrib;
+
+    if (prim->getPrimitiveType() == GT_GEO_PACKED)
+    {
+        GT_GEOPrimPacked   *packed = UTverify_cast<GT_GEOPrimPacked *>(
+                                    prim.get());
+
+        attribs_handle = packed->getInstanceAttributes();
+    }
+    else
+    {
+        attribs_handle = prim->getUniformAttributes();
+    }
+    if (!attribs_handle)
+    {
+        if (myUserPropState == WRITE_USER_PROPERTIES)
+        {
+            err.warning("Missing user property information for %s on frame "
+                    "%" SYS_PRId64 ". Reusing previous samples.",
+                    myName.c_str(),
+                    (ctx.firstFrame() + myElapsedFrames + 1));
+            writePropertiesFromPrevious(myNewUserProperties);
+        }
+
+        return true;
+    }
+
+    meta_attrib = attribs_handle->get(GABC_Util::theUserPropsMetaAttrib, 0);
+    vals_attrib = attribs_handle->get(GABC_Util::theUserPropsValsAttrib, 0);
+    if (!meta_attrib && !vals_attrib)
+    {
+        if (myUserPropState == WRITE_USER_PROPERTIES)
+        {
+            err.warning("Missing user property information for %s on frame "
+                    "%" SYS_PRId64 ". Reusing previous samples.",
+                    myName.c_str(),
+                    (ctx.firstFrame() + myElapsedFrames + 1));
+            writePropertiesFromPrevious(myNewUserProperties);
+        }
+    }
+    else if (!meta_attrib || !vals_attrib)
+    {
+        if (myUserPropState == WRITE_USER_PROPERTIES)
+        {
+            err.warning("Missing user property information for %s on frame "
+                    "%" SYS_PRId64 ". Reusing previous samples.",
+                    myName.c_str(),
+                    (ctx.firstFrame() + myElapsedFrames + 1));
+            writePropertiesFromPrevious(myNewUserProperties);
+        }
+        else
+        {
+            UT_ASSERT(myUserPropState == REUSE_USER_PROPERTIES);
+
+            if (myElapsedFrames)
+            {
+                err.warning("Partial user property information detected for %s "
+                        "on frame %" SYS_PRId64 ", but none detected "
+                        "for previous frames. Ignoring it.",
+                        myName.c_str(),
+                        (ctx.firstFrame() + myElapsedFrames + 1));
+                myUserPropState = REUSE_AND_ERROR_OCCURRED;
+            }
+        }
+    }
+    else
+    {
+        const char *meta_buffer = meta_attrib->getS(0,0);
+        const char *vals_buffer = vals_attrib->getS(0,0);
+
+        if (myUserPropState == WRITE_USER_PROPERTIES)
+        {
+            if (!meta_buffer
+                    || !(*meta_buffer)
+                    || !vals_buffer
+                    || !(*vals_buffer))
+            {
+                err.warning("Missing user property information for %s on "
+                        "frame %" SYS_PRId64 ". Reusing previous samples.",
+                        myName.c_str(),
+                        (ctx.firstFrame() + myElapsedFrames + 1));
+                writePropertiesFromPrevious(myNewUserProperties);
+            }
+            else
+            {
+                UT_AutoJSONParser   meta_data(meta_buffer, strlen(meta_buffer));
+                UT_AutoJSONParser   vals_data(vals_buffer, strlen(vals_buffer));
+                UT_WorkBuffer       err_msg;
+
+                meta_data->setBinary(false);
+                vals_data->setBinary(false);
+                if (!GABC_Util::readUserPropertyDictionary(meta_data,
+                        vals_data,
+                        myNewUserProperties,
+                        NULL,
+                        err,
+                        ctx))
+                {
+                    err.warning("Reusing previous user property samples "
+                            "(%s, frame %" SYS_PRId64 ")",
+                            myName.c_str(),
+                            (ctx.firstFrame() + myElapsedFrames + 1));
+                    writePropertiesFromPrevious(myNewUserProperties);
+                }
+            }
+        }
+        else
+        {
+            UT_ASSERT(myUserPropState == REUSE_USER_PROPERTIES);
+
+            if ((meta_buffer && *meta_buffer) || (vals_buffer && *vals_buffer))
+            {
+                err.warning("User property information detected for %s on "
+                        "frame %" SYS_PRId64 ", but none detected "
+                        "for previous frames. Information ignored",
+                        myName.c_str(),
+                        (ctx.firstFrame() + myElapsedFrames + 1));
+                myUserPropState = REUSE_AND_ERROR_OCCURRED;
+            }
+        }
+    }
+
+    return true;
+}
+
+void
+GABC_OGTAbc::writeUserPropertiesFromPrevious()
+{
+    writePropertiesFromPrevious(myNewUserProperties);
+}
+
 bool
 GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
         const OObject &parent,
@@ -949,7 +1267,9 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
     UT_ASSERT(prim);
 
     const GABC_IObject  obj = getObject(prim);
+    OCompoundProperty   user_props;
 
+    myElapsedFrames = 0;
     myType = obj.nodeType();
     switch (myType)
     {
@@ -958,6 +1278,7 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
                     myName,
                     ctx.timeSampling());
             createFaceSetsPolymesh(obj, myShape.myPolyMesh, ctx);
+            user_props = myShape.myPolyMesh->getSchema().getUserProperties();
 
             myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myPolyMesh),
@@ -967,6 +1288,7 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
         case GABC_SUBD:
             myShape.mySubD = new OSubD(parent, myName, ctx.timeSampling());
             createFaceSetsSubd(obj, myShape.mySubD, ctx);
+            user_props = myShape.mySubD->getSchema().getUserProperties();
 
             myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.mySubD),
@@ -975,6 +1297,7 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
 
         case GABC_POINTS:
             myShape.myPoints = new OPoints(parent, myName, ctx.timeSampling());
+            user_props = myShape.myPoints->getSchema().getUserProperties();
 
             myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myPoints),
@@ -983,6 +1306,7 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
 
         case GABC_CURVES:
             myShape.myCurves = new OCurves(parent, myName, ctx.timeSampling());
+            user_props = myShape.myCurves->getSchema().getUserProperties();
 
             myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myCurves),
@@ -993,6 +1317,7 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
             myShape.myNuPatch = new ONuPatch(parent,
                     myName,
                     ctx.timeSampling());
+            user_props = myShape.myNuPatch->getSchema().getUserProperties();
 
             myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myNuPatch),
@@ -1002,6 +1327,12 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
         default:
             UT_ASSERT(0 && "Unhandled primitive");
             return false;
+    }
+
+    if (!makeUserProperties(prim, &user_props, err, ctx))
+    {
+        err.error("Error saving user properties: ");
+        return false;
     }
 
     return update(prim, cook_time, ctx, err, vis);
@@ -1018,11 +1349,22 @@ GABC_OGTAbc::startXform(const GT_PrimitiveHandle &prim,
 {
     UT_ASSERT(prim);
 
+    OCompoundProperty   user_props = xform->getSchema().getUserProperties();
+
     myType = GABC_XFORM;
     myShape.myXform = xform;
     myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                         *xform,
                         ctx.timeSampling());
+
+    if (!makeUserProperties(prim,
+            &user_props,
+            err,
+            ctx))
+    {
+        err.error("Error saving user properties: ");
+        return false;
+    }
 
     return update(prim, cook_time, ctx, err, vis);
 }
@@ -1036,14 +1378,15 @@ GABC_OGTAbc::update(const GT_PrimitiveHandle &prim,
 {
     UT_ASSERT(prim);
 
-    if (myType == GABC_UNKNOWN)
+    if (myType == GABC_UNKNOWN || myUserPropState == UNSET)
     {
 	UT_ASSERT(0 && "Need to save first frame!");
 	return false;
     }
 
     const GABC_IObject  obj = getObject(prim);
-    ISampleSelector iss(cook_time);
+    ISampleSelector     iss(cook_time);
+    bool                reuse_up = (myUserPropState >= REUSE_USER_PROPERTIES);
 
     myVisibility.set(vis);
 
@@ -1054,6 +1397,7 @@ GABC_OGTAbc::update(const GT_PrimitiveHandle &prim,
                     myShape.myPolyMesh,
                     myArbProps,
                     myUserProps,
+                    reuse_up,
                     ctx,
                     iss);
             break;
@@ -1063,6 +1407,7 @@ GABC_OGTAbc::update(const GT_PrimitiveHandle &prim,
                     myShape.mySubD,
                     myArbProps,
                     myUserProps,
+                    reuse_up,
                     ctx,
                     iss);
             break;
@@ -1072,6 +1417,7 @@ GABC_OGTAbc::update(const GT_PrimitiveHandle &prim,
                     myShape.myPoints,
                     myArbProps,
                     myUserProps,
+                    reuse_up,
                     ctx,
                     iss);
             break;
@@ -1081,6 +1427,7 @@ GABC_OGTAbc::update(const GT_PrimitiveHandle &prim,
                     myShape.myCurves,
                     myArbProps,
                     myUserProps,
+                    reuse_up,
                     ctx,
                     iss);
             break;
@@ -1090,6 +1437,7 @@ GABC_OGTAbc::update(const GT_PrimitiveHandle &prim,
                     myShape.myNuPatch,
                     myArbProps,
                     myUserProps,
+                    reuse_up,
                     ctx,
                     iss);
             break;
@@ -1099,6 +1447,7 @@ GABC_OGTAbc::update(const GT_PrimitiveHandle &prim,
                     myShape.myXform,
                     myArbProps,
                     myUserProps,
+                    reuse_up,
                     ctx,
                     iss);
             break;
@@ -1108,6 +1457,19 @@ GABC_OGTAbc::update(const GT_PrimitiveHandle &prim,
 	    return false;
     }
 
+    // Step in here even if we're reusing existing user properties to check
+    // for errors.
+    if (myUserPropState == WRITE_USER_PROPERTIES
+            || myUserPropState == REUSE_USER_PROPERTIES)
+    {
+        if (!writeUserProperties(prim, err, ctx))
+        {
+            err.error("Error saving user properties: ");
+            return false;
+        }
+    }
+
+    ++myElapsedFrames;
     return true;
 }
 
@@ -1195,5 +1557,6 @@ GABC_OGTAbc::updateFromPrevious(GABC_OError &err,
 	    return false;
     }
 
+    myElapsedFrames += frames;
     return true;
 }

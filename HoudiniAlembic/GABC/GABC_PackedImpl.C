@@ -1044,7 +1044,9 @@ const GT_PrimitiveHandle &
 GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc, int load_style)
 {
     if (!visible(abc))
+    {
 	return theNullPrimitive;
+    }
     if (!myPrim
 	    || myRep != GEO_VIEWPORT_FULL
 	    || myLoadStyle != load_style
@@ -1059,12 +1061,19 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc, int load_style)
 	    myLoadStyle = load_style;
 	    myPrim = o.getPrimitive(abc->getPrim(), myFrame, atype,
 		    abc->getPrim()->attributeNameMap(), myLoadStyle);
+
 	    if (atype > myAnimationType)
+	    {
 		myAnimationType = atype;
+            }
 	}
     }
+
     if (myPrim)
+    {
 	updateTransform(abc);
+    }
+
     return myPrim;
 }
 
@@ -1084,12 +1093,19 @@ GABC_PackedImpl::GTCache::points(const GABC_PackedImpl *abc)
 	    myFrame = abc->frame();
 	    myRep = GEO_VIEWPORT_POINTS;
 	    myPrim = o.getPointCloud(myFrame, atype);
+
 	    if (atype > myAnimationType)
+	    {
 		myAnimationType = atype;
+            }
 	}
     }
+
     if (myPrim)
+    {
 	updateTransform(abc);
+    }
+
     return myPrim;
 }
 

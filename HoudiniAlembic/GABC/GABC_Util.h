@@ -32,11 +32,14 @@
 #include "GABC_Include.h"
 #include "GABC_IArchive.h"
 #include "GABC_IObject.h"
+#include "GABC_OProperty.h"
 #include "GABC_Types.h"
 #include <SYS/SYS_Types.h>
-#include <UT/UT_Matrix4.h>
 #include <UT/UT_BoundingBox.h>
+#include <UT/UT_JSONParser.h>
+#include <UT/UT_Matrix4.h>
 #include <UT/UT_SharedPtr.h>
+#include <UT/UT_WorkBuffer.h>
 
 class UT_StringArray;
 
@@ -48,14 +51,20 @@ class GABC_API GABC_Util
 public:
     class ArchiveEventHandler;
 
-    typedef Alembic::Abc::V3d			V3d;
-    typedef Alembic::Abc::Box3d			Box3d;
-    typedef Alembic::Abc::M44d			M44d;
-    typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
-    typedef Alembic::Abc::ObjectReaderPtr       ObjectReaderPtr;
+    typedef Alembic::Abc::V3d			        V3d;
+    typedef Alembic::Abc::Box3d			        Box3d;
+    typedef Alembic::Abc::M44d			        M44d;
 
-    typedef UT_SharedPtr<ArchiveEventHandler>	ArchiveEventHandlerPtr;
-    typedef std::vector<std::string>		PathList;
+    typedef Alembic::Abc::ICompoundProperty	        ICompoundProperty;
+    typedef Alembic::Abc::OCompoundProperty	        OCompoundProperty;
+    typedef Alembic::Abc::OScalarProperty	        OScalarProperty;
+    typedef Alembic::Abc::OArrayProperty	        OArrayProperty;
+    typedef Alembic::Abc::ObjectReaderPtr               ObjectReaderPtr;
+
+    typedef UT_SharedPtr<ArchiveEventHandler>	        ArchiveEventHandlerPtr;
+    typedef UT_Map<std::string, GABC_OProperty *>       PropertyMap;
+    typedef std::pair<std::string, GABC_OProperty *>    PropertyMapInsert;
+    typedef std::vector<std::string>		        PathList;
 
     /// Class used in traversal of Alembic trees
     ///
@@ -272,6 +281,15 @@ public:
 				const UT_Set<std::string> &objects);
 
     //
+    // Alembic Properties
+    //
+
+    /// Check whether or not an Alembic compound property (like arbGeomParams
+    /// or user properties) is constant/animated over time.
+    static bool         isABCPropertyAnimated(ICompoundProperty arb);
+    static bool         isABCPropertyConstant(ICompoundProperty arb);
+
+    //
     // User Properties
     //
 
@@ -282,6 +300,16 @@ public:
                                 const GABC_IObject &obj,
                                 ICompoundProperty &uprops,
                                 fpreal time);
+
+    /// Read user properties from two JSON dictionaries (one containing
+    /// values, the other containing metadata used to interpret the values)
+    /// into GABC_OProperties, and store them in the given map.
+    static bool         readUserPropertyDictionary(UT_AutoJSONParser &meta_data,
+                                UT_AutoJSONParser &vals_data,
+                                PropertyMap &up_map,
+                                OCompoundProperty *ancestor,
+                                GABC_OError &err,
+                                const GABC_OOptions &ctx);
 
     static const UT_DeepString  theLockGeometryParameter;
     static const UT_DeepString  theUserPropsValsAttrib;

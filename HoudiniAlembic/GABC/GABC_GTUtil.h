@@ -97,6 +97,8 @@ namespace GABC_GTUtil
 	    return GT_TYPE_QUATERNION;
 	if (!strcmp(interp, "rgb") || !strcmp(interp, "rgba"))
 	    return GT_TYPE_COLOR;
+	if (!strcmp(interp, "box"))
+	    return tsize == 4 ? GT_TYPE_BOX2 : GT_TYPE_BOX;
 	return GT_TYPE_NONE;
     }
 };

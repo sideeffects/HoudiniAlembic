@@ -308,7 +308,7 @@ private:
     LoadUserPropsMode       myLoadUserProps;        // How to load user properties
 
     GA_Offset               myAbcSharedPoint;
-    GA_Offset               myLastFaceStart;        // Start of faces in last mash
+    GA_Offset               myLastFaceStart;        // Start of faces in last mesh
     GA_PrimitiveGroup      *mySubdGroup;
     GA_RWHandleS            myPathAttribute;
     GA_Size                 myLastFaceCount;        // Number of faces in last mesh

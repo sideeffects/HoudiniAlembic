@@ -60,7 +60,8 @@ GABCCFILES = \
 	HoudiniAlembic/GABC/GABC_OGTAbc.C \
 	HoudiniAlembic/GABC/GABC_OGTGeometry.C \
 	HoudiniAlembic/GABC/GABC_OOptions.C \
-	HoudiniAlembic/GABC/GABC_OProperty.C \
+	HoudiniAlembic/GABC/GABC_OArrayProperty.C \
+	HoudiniAlembic/GABC/GABC_OScalarProperty.C \
 	HoudiniAlembic/GABC/GABC_PackedGT.C \
 	HoudiniAlembic/GABC/GABC_PackedImpl.C \
 	HoudiniAlembic/GABC/GABC_Types.C \

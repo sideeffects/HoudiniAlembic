@@ -60,6 +60,8 @@ public:
     typedef Alembic::AbcGeom::ObjectVisibility      ObjectVisibility;
     typedef Alembic::AbcGeom::OVisibilityProperty   OVisibilityProperty;
 
+    typedef GABC_Util::PropertyMap                  GABCPropertyMap;
+
     // PropertyMap class is used to store pointers to Alembic Property
     // objects. Ideally we would use a regular map, but these 3 classes
     // are templated and so is their common ancestor.
@@ -175,6 +177,15 @@ public:
     GABC_OGTAbc(const std::string &name);
     ~GABC_OGTAbc();
 
+    bool    makeUserProperties(const GT_PrimitiveHandle &prim,
+                    OCompoundProperty *parent,
+                    GABC_OError &err,
+                    const GABC_OOptions &ctx);
+    bool    writeUserProperties(const GT_PrimitiveHandle &prim,
+                    GABC_OError &err,
+                    const GABC_OOptions &ctx);
+    void    writeUserPropertiesFromPrevious();
+
     bool    start(const GT_PrimitiveHandle &prim,
                     const OObject &parent,
                     fpreal cook_time,
@@ -196,8 +207,20 @@ public:
                     ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
                     exint frames = 1);
 
+protected:
+    void    clear();
+    void    clearUserProperties();
+
 private:
-    void            clear();
+    enum UserPropertiesState
+    {
+        IGNORE_USER_PROPERTIES,
+        WRITE_USER_PROPERTIES,
+        REUSE_USER_PROPERTIES,
+        REUSE_AND_ERROR_OCCURRED,
+
+        UNSET=-1
+    };
 
     union {
     	OPolyMesh	   *myPolyMesh;
@@ -210,10 +233,13 @@ private:
     } myShape;
 
     GABC_NodeType           myType;
+    GABCPropertyMap         myNewUserProperties;
     OVisibilityProperty     myVisibility;
     PropertyMap             myArbProps;
     PropertyMap             myUserProps;
+    UserPropertiesState     myUserPropState;
     std::string             myName;
+    exint                   myElapsedFrames;
 };
 
 } // GABC_NAMESPACE

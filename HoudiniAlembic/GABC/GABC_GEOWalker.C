@@ -129,10 +129,6 @@ namespace {
 	{
 	    IXformSchema	&xs = xform.getSchema();
 	    XformSample		 sample = xs.getValue(walk.timeSample());
-	    if (walk.isConstant() && !xs.isConstant())
-	    {
-		walk.setNonConstant();
-	    }
 	    walk.pushTransform(sample.getMatrix(), xs.isConstant(), myPop,
 		    xs.getInheritsXforms());
 	}
@@ -1177,6 +1173,7 @@ namespace {
         UT_WorkBuffer       meta_dictionary;
         bool                load_metadata = (walk.loadUserProps()
                                     == GABC_GEOWalker::UP_LOAD_ALL);
+        bool                success = false;
 
         // One writer for values and one for metadata. If the metadata
         // writer is NULL, metadata will be ignored.
@@ -1193,7 +1190,7 @@ namespace {
                 walk.time()))
         {
             walk.errorHandler().warning("Error reading user properties. "
-                "Ignoring user properties.");
+                    "Ignoring user properties.");
         }
         else
         {
@@ -1201,7 +1198,6 @@ namespace {
             attrib = gdp.findStringTuple(GA_ATTRIB_PRIMITIVE,
                     GABC_Util::theUserPropsValsAttrib,
                     1);
-
             if (!attrib.isValid())
             {
                 attrib = gdp.addTuple(GA_STORE_STRING,
@@ -1215,14 +1211,13 @@ namespace {
             {
                 walk.errorHandler().warning("Error creating user properties "
                         "attribute.");
-                delete data_writer;
-                data_writer = NULL;
             }
             else
             {
                 str_attrib.set(GA_Offset(walk.primitiveCount()),
                         0,
                         data_dictionary.buffer());
+                success = true;
             }
 
             if (load_metadata)
@@ -1230,7 +1225,6 @@ namespace {
                 attrib = gdp.findStringTuple(GA_ATTRIB_PRIMITIVE,
                         GABC_Util::theUserPropsMetaAttrib,
                         1);
-
                 if (!attrib.isValid())
                 {
                     attrib = gdp.addTuple(GA_STORE_STRING,
@@ -1244,16 +1238,20 @@ namespace {
                 {
                     walk.errorHandler().warning("Error creating user properties"
                             " metadata attribute.");
-                    delete meta_writer;
-                    meta_writer = NULL;
                 }
                 else
                 {
                     str_attrib.set(GA_Offset(walk.primitiveCount()),
                             0,
                             meta_dictionary.buffer());
+                    success = true;
                 }
             }
+        }
+
+        if (success)
+        {
+            walk.setNonConstant();
         }
 
         delete data_writer;
@@ -1264,7 +1262,60 @@ namespace {
     }
 
     void
-    makeAbcPrim(GABC_GEOWalker &walk, const GABC_IObject &obj,
+    abcFillUserProperties(GABC_GEOWalker &walk, const GABC_IObject &obj)
+    {
+        switch (obj.nodeType())
+        {
+            case GABC_POLYMESH:
+                fillUserProperties(walk,
+                        obj,
+                        IPolyMesh(obj.object(), gabcWrapExisting)
+                                .getSchema().getUserProperties());
+                break;
+
+            case GABC_SUBD:
+                fillUserProperties(walk,
+                        obj,
+                        ISubD(obj.object(), gabcWrapExisting)
+                                .getSchema().getUserProperties());
+                break;
+
+            case GABC_CURVES:
+                fillUserProperties(walk,
+                        obj,
+                        ICurves(obj.object(), gabcWrapExisting)
+                                .getSchema().getUserProperties());
+                break;
+
+            case GABC_POINTS:
+                fillUserProperties(walk,
+                        obj,
+                        IPoints(obj.object(), gabcWrapExisting)
+                                .getSchema().getUserProperties());
+                break;
+
+            case GABC_NUPATCH:
+                fillUserProperties(walk,
+                        obj,
+                        INuPatch(obj.object(), gabcWrapExisting)
+                                .getSchema().getUserProperties());
+                break;
+
+            case GABC_XFORM:
+                fillUserProperties(walk,
+                        obj,
+                        IXform(obj.object(), gabcWrapExisting)
+                                .getSchema().getUserProperties());
+                break;
+
+            default:
+                UT_ASSERT(0 && "Alembic object type error");
+        }
+    }
+
+    void
+    makeAbcPrim(GABC_GEOWalker &walk,
+            const GABC_IObject &obj,
 	    const ObjectHeader &ohead)
     {
 	switch (obj.nodeType())
@@ -1301,47 +1352,7 @@ namespace {
 
 	if (walk.loadUserProps())
 	{
-	    switch (obj.nodeType())
-            {
-                case GABC_POLYMESH:
-                    fillUserProperties(walk,
-                            obj,
-                            IPolyMesh(obj.object(), gabcWrapExisting).getSchema().getUserProperties());
-                    break;
-
-                case GABC_SUBD:
-                    fillUserProperties(walk,
-                            obj,
-                            ISubD(obj.object(), gabcWrapExisting).getSchema().getUserProperties());
-                    break;
-
-                case GABC_CURVES:
-                    fillUserProperties(walk,
-                            obj,
-                            ICurves(obj.object(), gabcWrapExisting).getSchema().getUserProperties());
-                    break;
-
-                case GABC_POINTS:
-                    fillUserProperties(walk,
-                            obj,
-                            IPoints(obj.object(), gabcWrapExisting).getSchema().getUserProperties());
-                    break;
-
-                case GABC_NUPATCH:
-                    fillUserProperties(walk,
-                            obj,
-                            INuPatch(obj.object(), gabcWrapExisting).getSchema().getUserProperties());
-                    break;
-
-                case GABC_XFORM:
-                    fillUserProperties(walk,
-                            obj,
-                            IXform(obj.object(), gabcWrapExisting).getSchema().getUserProperties());
-                    break;
-
-                default:
-                    UT_ASSERT(0 && "How did I get past the first switch?");
-            }
+	    abcFillUserProperties(walk, obj);
         }
 
 	walk.trackPtVtxPrim(obj, 0, 0, 1, false);
@@ -2190,18 +2201,30 @@ GABC_GEOWalker::setPathAttribute(const GA_RWAttributeRef &a)
 void
 GABC_GEOWalker::updateAbcPrims()
 {
-    bool	setPath = pathAttributeChanged() && myPathAttribute.isValid();
+    bool    setPath = pathAttributeChanged() && myPathAttribute.isValid();
     for (GA_Iterator it(detail().getPrimitiveRange()); !it.atEnd(); ++it)
     {
-	GEO_Primitive	*prim = detail().getGEOPrimitive(*it);
-	GU_PrimPacked	*pack = UTverify_cast<GU_PrimPacked *>(prim);
-	GABC_PackedImpl	*abc = UTverify_cast<GABC_PackedImpl *>(pack->implementation());
+	GEO_Primitive      *prim = detail().getGEOPrimitive(*it);
+	GU_PrimPacked      *pack = UTverify_cast<GU_PrimPacked *>(prim);
+	GABC_PackedImpl    *abc = UTverify_cast<GABC_PackedImpl *>(
+	                            pack->implementation());
+	const GABC_IObject &obj = abc->object();
+
 	if (!abc->isConstant())
+	{
 	    setNonConstant();
+        }
 	abc->setFrame(time());
 	if (setPath)
+	{
 	    myPathAttribute.set(prim->getMapOffset(), abc->objectPath().c_str());
+        }
 	setPointLocation(pack, pack->getPointOffset(0));
+
+	if (loadUserProps())
+        {
+            abcFillUserProperties(*this, obj);
+        }
     }
 }
 

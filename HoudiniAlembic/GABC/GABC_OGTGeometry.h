@@ -45,6 +45,7 @@ class GABC_OProperty;
 class GABC_API GABC_OGTGeometry
 {
 public:
+    typedef Alembic::Abc::OCompoundProperty         OCompoundProperty;
     typedef Alembic::Abc::OObject		    OObject;
 
     typedef Alembic::AbcGeom::ObjectVisibility	    ObjectVisibility;
@@ -55,7 +56,8 @@ public:
     typedef Alembic::AbcGeom::OPoints		    OPoints;
     typedef Alembic::AbcGeom::ONuPatch		    ONuPatch;
 
-    typedef UT_SymbolMap<GABC_OProperty *>	    PropertyMap;
+    typedef GABC_Util::PropertyMap                  PropertyMap;
+    typedef GABC_Util::PropertyMapInsert            PropertyMapInsert;
 
     /// A simple set of strings
     class IgnoreList
@@ -66,16 +68,6 @@ public:
         {}
         IgnoreList(const char *arg0, ...);
         ~IgnoreList() {}
-
-        void	addCommonSkips()
-                {
-                    // Always skip P and __topology
-                    myStrings.insert("P", (void *)0);
-                    myStrings.insert("__topology", (void *)0);
-                    myStrings.insert("__primitive_id", (void *)0);
-                    myStrings.insert("__point_id", (void *)0);
-                    myStrings.insert("__vertex_id", (void *)0);
-                }
 
         void    clear()
                 {
@@ -268,7 +260,7 @@ public:
 	GT_DataArrayHandle	myData[9];
     };
 
-    static IgnoreList    theDefaultSkip;
+    static IgnoreList &     getDefaultSkip();
 
      GABC_OGTGeometry(const std::string &name);
     ~GABC_OGTGeometry();
@@ -290,7 +282,7 @@ public:
                             exint frames = 1);
 
     /// Return the OObject for this shape
-    OObject	    getOObject() const;
+    OObject         getOObject() const;
 
     /// Return the secondary cache (allocating if needed)
     SecondaryCache  &getSecondaryCache();
@@ -298,16 +290,39 @@ public:
 protected:
     void	makeFaceSets(const GT_PrimitiveHandle &prim,
 			const GABC_OOptions &ctx);
-    void	makeArbProperties(const GT_PrimitiveHandle &prim,
+
+    bool        makeArbProperties(const GT_PrimitiveHandle &prim,
+                        GABC_OError &err,
 			const GABC_OOptions &ctx);
-    void	writeArbProperties(const GT_PrimitiveHandle &prim,
+    bool        writeArbProperties(const GT_PrimitiveHandle &prim,
+                        GABC_OError &err,
 			const GABC_OOptions &ctx);
-    void	writeArbPropertiesFromPrevious();
+    void        writeArbPropertiesFromPrevious();
+
+    bool        makeUserProperties(const GT_PrimitiveHandle &prim,
+                        OCompoundProperty *parent,
+                        GABC_OError &err,
+                        const GABC_OOptions &ctx);
+    bool        writeUserProperties(const GT_PrimitiveHandle &prim,
+                        GABC_OError &err,
+                        const GABC_OOptions &ctx);
+    void        writeUserPropertiesFromPrevious();
+
     void	clearProperties();
+    void        clearArbProperties();
+    void        clearUserProperties();
     void	clearShape();
     void	clearCache();
 
 private:
+    enum UserPropertiesState
+    {
+        NO_USER_PROPERTIES,
+        ERROR_READING_PROPERTIES,
+        WRITE_USER_PROPERTIES,
+
+        UNSET=-1
+    };
     enum
     {
 	VERTEX_PROPERTIES,
@@ -329,9 +344,12 @@ private:
     IntrinsicCache          myCache; // Cache for space optimization
     OVisibilityProperty     myVisibility;
     PropertyMap             myArbProperties[MAX_PROPERTIES];
+    PropertyMap             myUserProperties;
     SecondaryCache         *mySecondaryCache;
     UT_Array<std::string>   myFaceSetNames;
+    UserPropertiesState     myUserPropState;
     std::string             myName;
+    exint                   myElapsedFrames;
     int                     myType;
 };
 

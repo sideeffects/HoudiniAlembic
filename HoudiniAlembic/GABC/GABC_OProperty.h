@@ -30,57 +30,76 @@
 
 #include "GABC_API.h"
 #include "GABC_Include.h"
+#include "GABC_OError.h"
+#include <Alembic/AbcGeom/All.h>
 #include <GT/GT_Handles.h>
 #include <GT/GT_Types.h>
-#include <Alembic/AbcGeom/All.h>
 
 namespace GABC_NAMESPACE
 {
 
 class GABC_OOptions;
 
-/// Class to store a generic GT data array in an Alembic compound property
+/// Base class for exporting attribute and user property data from a
+/// GT_DataArray to Alembic.
+///
+/// The Alembic equivalent of attributes are Alembic arbitrary geometry
+/// parameters (arbGeomParams). In addition, Alembic geometry can have user
+/// properties which have no direct equivalent in Houdini. We store user
+/// properties as in a JSON dictionary exposed to users through a special
+/// attribute (see: GABC_Util::theUserPropsValsAttrib).
+///
+/// User properties are stored using OScalarProperty and OArrayProperty
+/// objects, while arbGeomParams are stored using OGeomParam objects which
+/// contain an underlying OArrayProperty.
+///
+/// The children derived from this base class write data representing
+/// attributes and user properties from GT_DataArray objects to the appropriate
+/// type of OProperty.
+///
 class GABC_API GABC_OProperty
 {
 public:
-    typedef Alembic::Abc::OCompoundProperty	OCompoundProperty;
-    typedef Alembic::Abc::OArrayProperty	OArrayProperty;
-    typedef Alembic::Abc::OUInt32ArrayProperty	OUInt32ArrayProperty;
+    typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
+    typedef Alembic::Util::PlainOldDataType PlainOldDataType;
 
-     GABC_OProperty(Alembic::AbcGeom::GeometryScope scope);
-    ~GABC_OProperty();
+    virtual         ~GABC_OProperty() {}
 
-    /// Add the data array to the compound property
-    bool	start(OCompoundProperty &parent,
-		    const char *name,
-		    const GT_DataArrayHandle &array,
-		    const GABC_OOptions &options);
+    /// Creates the appropriate child object, based on the array's storage
+    /// type, tuple size, and interpretation, and the Alembic POD (if provided)
+    virtual bool    start(OCompoundProperty &parent,
+                            const char *name,
+                            const GT_DataArrayHandle &array,
+                            GABC_OError &err,
+                            const GABC_OOptions &options,
+                            const PlainOldDataType pod
+                                = Alembic::Abc::kUnknownPOD) = 0;
 
-    /// Write the next sample to the properties.
-    bool	update(const GT_DataArrayHandle &array,
-		    const GABC_OOptions &options);
+    /// Write GT_DataArray conents as samples to the property.
+    virtual bool    update(const GT_DataArrayHandle &array,
+                            GABC_OError &err,
+		            const GABC_OOptions &options,
+                            const PlainOldDataType pod
+                                = Alembic::Abc::kUnknownPOD) = 0;
 
-    /// Write the next sample to the properties using the previous sample.
-    bool	updateFromPrevious();
+    /// Reuse the previous sample .
+    virtual bool    updateFromPrevious() = 0;
 
     /// Get number of samples written to property so far.
-    exint       getNumSamples() const { return myProperty.getNumSamples(); }
+    virtual exint   getNumSamples() const = 0;
 
-    /// @{
-    /// Accessors
-    Alembic::AbcGeom::GeometryScope	scope() const { return myScope; }
-    GT_Storage				storage() const { return myStorage; }
-    GT_Size				tupleSize() const { return myTupleSize; }
-    /// @}
+protected:
+    /// Can't have just a GABC_OProperty
+    GABC_OProperty() {}
 
-private:
-    OArrayProperty			myProperty;
-    OUInt32ArrayProperty		myIndexProperty;
-    Alembic::AbcGeom::GeometryScope	myScope;
-    GT_DataArrayHandle			myCache;
-    GT_Storage				myStorage;
-    GT_Size				myTupleSize;
+    GT_DataArrayHandle  myCache;
+    GT_Size             myTupleSize;
+    GT_Storage          myStorage;
+    GT_Type             myType;
+    PlainOldDataType    myPOD;
+    void               *myBuffer;
 };
-}
+
+} // GABC_NAMESPACE
 
 #endif

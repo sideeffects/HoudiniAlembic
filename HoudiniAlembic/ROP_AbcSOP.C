@@ -287,9 +287,8 @@ ROP_AbcSOP::clear()
     myPartitionNames.clear();
 
     if (myPathAttribName) {
-        GABC_OGTGeometry::theDefaultSkip.deleteSkip(myPathAttribName);
+        GABC_OGTGeometry::getDefaultSkip().deleteSkip(myPathAttribName);
     }
-    GABC_OGTGeometry::theDefaultSkip.deleteSkip("abc_userProperties");
 }
 
 bool
@@ -337,7 +336,7 @@ ROP_AbcSOP::start(const OObject &parent,
     if (ctx.buildFromPath())
     {
         myPathAttribName = ctx.pathAttribute();
-        GABC_OGTGeometry::theDefaultSkip.addSkip(myPathAttribName);
+        GABC_OGTGeometry::getDefaultSkip().addSkip(myPathAttribName);
     }
 
     myPartitionIndices.append(GA_OffsetList());
