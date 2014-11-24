@@ -116,6 +116,19 @@ namespace
     typedef Alembic::Util::Dimensions                   Dimensions;
     typedef Alembic::Util::PlainOldDataType             PlainOldDataType;
 
+#define REINTERPRET_DATA(FUNC) \
+    do \
+    { \
+        for (int i = 0; i < entries; ++i) \
+        { \
+            for (int j = 0; j < tuple_size; ++j) \
+            { \
+                *data = src->FUNC(i, j); \
+                ++data; \
+            } \
+        } \
+    } while(false)
+
     // Alembic 8-bit integers, 16-bit integers, and unsigned 16-bit integers
     // are stored as 32-bit integers in the GT_DataArray. Similarly,
     // unsigned 32-bit integers are stored as 64-bit integers.
@@ -126,6 +139,9 @@ namespace
     //
     // To fix this issue, arrays of the aforementioned 4 types must be
     // reinterpreted in a buffer.
+    //
+    // In addition, attribute data is sometimes poorly defined and needs to
+    // be reinterpreted before output to Alembic.
     template <typename POD_T>
     static void
     reinterpretArray(OArrayProperty &prop,
@@ -145,13 +161,35 @@ namespace
         data = new POD_T[items];
         orig = data;
 
-        for (int i = 0; i < entries; ++i)
+        switch (src->getStorage())
         {
-            for (int j = 0; j < tuple_size; ++j)
-            {
-                *data = src->getI32(i, j);
-                ++data;
-            }
+            case GT_STORE_UINT8:
+                REINTERPRET_DATA(getU8);
+                break;
+
+            case GT_STORE_INT32:
+                REINTERPRET_DATA(getI32);
+                break;
+
+            case GT_STORE_INT64:
+                REINTERPRET_DATA(getI64);
+                break;
+
+            case GT_STORE_REAL16:
+                REINTERPRET_DATA(getF16);
+                break;
+
+            case GT_STORE_REAL32:
+                REINTERPRET_DATA(getF32);
+                break;
+
+            case GT_STORE_REAL64:
+                REINTERPRET_DATA(getF64);
+                break;
+
+            default:
+                UT_ASSERT(0 && "Invalid Storage Type.");
+                *data = 0;
         }
 
         ArraySample sample(orig, dt, Dimensions(entries * array_size));
@@ -171,11 +209,15 @@ namespace
         GT_DANumeric<POD_T, GT_STORE>  *numeric;
 	int	                        array_size;
 
+        numeric = dynamic_cast<GT_DANumeric<POD_T, GT_STORE> *>(src.get());
+
+        if (!numeric)
+        {
+            return reinterpretArray<POD_T>(prop, src, tuple_size);
+        }
+
 	UT_ASSERT((tuple_size % dt.getExtent()) == 0);
-
 	array_size = tuple_size / dt.getExtent();
-        numeric = UTverify_cast<GT_DANumeric<POD_T, GT_STORE> *>(src.get());
-
         ArraySample sample(numeric->data(),
                 dt,
                 Dimensions(numeric->entries() * array_size));
