@@ -104,6 +104,8 @@ namespace
     typedef Alembic::AbcGeom::ICamera		ICamera;
     typedef Alembic::AbcGeom::ICameraSchema	ICameraSchema;
     typedef Alembic::AbcGeom::XformSample	XformSample;
+    typedef Alembic::AbcGeom::XformOp           XformOp;
+    typedef Alembic::AbcGeom::XformOperationType XformOperationType;
     typedef Alembic::AbcGeom::GeometryScope	GeometryScope;
     typedef Alembic::AbcGeom::IN3fGeomParam	IN3fGeomParam;
     typedef Alembic::AbcGeom::IV2fGeomParam	IV2fGeomParam;
@@ -358,19 +360,15 @@ namespace
 	return GT_DataArrayHandle();
     }
 
-// Accurate transforms are intended to be more accurate.  However, bug 57694
-// shows that there are some "issues" with the way it's implemented.  If we
-// just blend the matrix values directly, we get inaccurate results, but the
-// blending behaves much better.
-//#define ACCURATE_TRANSFORMS
-#if defined(ACCURATE_TRANSFORMS)
-    void decomposeXForm(
+    // Decompose a transformation matrix into it's basic elements: translation,
+    // rotation, scale, and shear.
+    static void
+    decomposeXForm(
             const M44d &m,
             V3d &scale,
             V3d &shear,
             Quatd &q,
-            V3d &t
-    )
+            V3d &t)
     {
         M44d mtmp(m);
 
@@ -386,12 +384,13 @@ namespace
         q = extractQuat(mtmp);
     }
 
-    M44d recomposeXForm(
+    // Create a transformation matrix from the base transformations.
+    static M44d
+    recomposeXForm(
             const V3d &scale,
             const V3d &shear,
             const Quatd &rotation,
-            const V3d &translation
-    )
+            const V3d &translation)
     {
 	M44d	scale_mtx, shear_mtx, rotation_mtx, translation_mtx;
 
@@ -403,18 +402,20 @@ namespace
         return scale_mtx * shear_mtx * rotation_mtx * translation_mtx;
     }
 
+    // Linear interpolation for vectors using SYSlerp.
     static V3d
     lerp(const Imath::V3d &a, const Imath::V3d &b, double bias)
     {
-        return V3d(SYSlerp(a[0], b[0], bias), SYSlerp(a[1], b[1], bias),
-			SYSlerp(a[2], b[2], bias));
+        return V3d(SYSlerp(a[0], b[0], bias),
+                SYSlerp(a[1], b[1], bias),
+                SYSlerp(a[2], b[2], bias));
     }
-#endif
 
+    // Blend two matrices together by decomposing them into their basic
+    // components, interpolating the components, and then recombining them.
     static M44d
     blendMatrix(const M44d &m0, const M44d &m1, fpreal bias)
     {
-#if defined(ACCURATE_TRANSFORMS)
 	V3d	s0, s1;	// Scales
 	V3d	h0, h1;	// Shears
 	V3d	t0, t1;	// Translates
@@ -422,20 +423,139 @@ namespace
 
 	decomposeXForm(m0, s0, h0, q0, t0);
 	decomposeXForm(m1, s1, h1, q1, t1);
+
 	if ((q0 ^ q1) < 0)
+	{
 	    q1 = -q1;
+        }
+
 	return recomposeXForm(lerp(s0, s1, bias),
-			    lerp(h0, h1, bias),
-			    Imath::slerp(q0, q1, (double)bias),
-			    lerp(t0, t1, bias));
-#else
-	M44d	result;
-	for (int r = 0; r < 4; ++r)
-	    for (int c = 0; c < 4; ++c)
-		result[r][c] = SYSlerp(m0[r][c], m1[r][c], bias);
-	return result;
-#endif
+                lerp(h0, h1, bias),
+                Imath::slerp(q0, q1, (double)bias),
+                lerp(t0, t1, bias));
     }
+
+    // Blend two Alembic XformSamples together by blending their individual
+    // operations, then combining them into the final transform.
+    static M44d
+    blendSamples(XformSample &s0, XformSample &s1, fpreal bias)
+    {
+        M44d                ret;
+        M44d                m;
+        XformOp             op0;
+        XformOp             op1;
+        XformOperationType  type0;
+        XformOperationType  type1;
+        int                 size0 = s0.getNumOps();
+        int                 size1 = s1.getNumOps();
+        bool                valid = false;
+
+        ret.makeIdentity();
+        // Check that the number of operations matches between samples.
+        if (size0 == size1)
+        {
+            for (int i = 0; i < size0; ++i)
+            {
+                op0 = s0[i];
+                op1 = s1[i];
+                type0 = op0.getType();
+                type1 = op1.getType();
+
+                // Check that the type of operation is a match.
+                if (type0 != type1)
+                {
+                    UT_ASSERT(0 && "Alembic XformOp types don't match.");
+                    break;
+                }
+
+                m.makeIdentity();
+                if (type0 == Alembic::AbcGeom::kMatrixOperation)
+                {
+                    M44d    m0 = op0.getMatrix();
+                    M44d    m1 = op1.getMatrix();
+                    m = blendMatrix(m0, m1, bias);
+                }
+                else if (type0 == Alembic::AbcGeom::kRotateXOperation)
+                {
+                    m.setAxisAngle(V3d(1.0, 0.0, 0.0),
+                            SYSlerp(SYSdegToRad(op0.getChannelValue(0)),
+                                    SYSdegToRad(op1.getChannelValue(0)),
+                                    bias));
+                }
+                else if (type0 == Alembic::AbcGeom::kRotateYOperation)
+                {
+                    m.setAxisAngle(V3d(0.0, 1.0, 0.0),
+                            SYSlerp(SYSdegToRad(op0.getChannelValue(0)),
+                                    SYSdegToRad(op1.getChannelValue(0)),
+                                    bias));
+                }
+                else if (type0 == Alembic::AbcGeom::kRotateZOperation)
+                {
+                    m.setAxisAngle(V3d(0.0, 0.0, 1.0),
+                            SYSlerp(SYSdegToRad(op0.getChannelValue(0)),
+                                    SYSdegToRad(op1.getChannelValue(0)),
+                                    bias));
+                }
+                else
+                {
+                    V3d vec0(op0.getChannelValue(0),
+                            op0.getChannelValue(1),
+                            op0.getChannelValue(2));
+                    V3d vec1(op1.getChannelValue(0),
+                            op1.getChannelValue(1),
+                            op1.getChannelValue(2));
+
+                    if (type0 == Alembic::AbcGeom::kScaleOperation)
+                    {
+                        m.setScale(lerp(vec0, vec1, bias));
+                    }
+                    else if ( type0 == Alembic::AbcGeom::kTranslateOperation )
+                    {
+                        m.setTranslation(lerp(vec0, vec1, bias));
+                    }
+                    else if ( type0 == Alembic::AbcGeom::kRotateOperation )
+                    {
+                        // Check that the axes match for rotation about an
+                        // arbitrary axis.
+                        if (vec0 != vec1)
+                        {
+                            UT_ASSERT(0 && "Alembic XformOp rotation axis don't"
+                                    " match.");
+                            break;
+                        }
+
+                        m.setAxisAngle(vec0,
+                                SYSlerp(SYSdegToRad(op0.getChannelValue(3)),
+                                        SYSdegToRad(op1.getChannelValue(3)),
+                                        bias));
+                    }
+
+                }
+
+                ret = m * ret;
+            }
+
+            valid = true;
+        }
+        else
+        {
+            UT_ASSERT(0 && "Alembic XformSamples have different # XformOps.");
+        }
+
+        // If a problem is detected that stops us from blending samples, fall
+        // back to getting the final matrices for both samples and blending
+        // them. This should work most of the time, though it can be erroneous
+        // for complex transformations.
+        if (!valid)
+        {
+            M44d    m0 = s0.getMatrix();
+            M44d    m1 = s1.getMatrix();
+            ret = blendMatrix(m0, m1, bias);
+        }
+
+        return ret;
+    }
+
 
     template <typename T, GT_Storage T_STORAGE>
     static GT_DataArrayHandle
@@ -3038,40 +3158,48 @@ GABC_IObject::localTransform(fpreal t, UT_Matrix4D &mat,
 	bool &isConstant, bool &inheritsXform) const
 {
     if (!valid())
+    {
 	return false;
+    }
+
     isConstant = true;
     inheritsXform = true;
+
     if (nodeType() == GABC_XFORM)
     {
-	GABC_AlembicLock	lock(archive());
-	IXform		xform(myObject, gabcWrapExisting);
-	IXformSchema	&ss = xform.getSchema();
-	index_t		i0, i1;
-	XformSample	sample;
-	M44d		m0;
-	fpreal		bias = getIndex(t, ss.getTimeSampling(),
-					ss.getNumSamples(), i0, i1);
+	GABC_AlembicLock    lock(archive());
+	IXform              xform(myObject, gabcWrapExisting);
+	IXformSchema       &ss = xform.getSchema();
+	index_t             i0, i1;
+	XformSample         s0, s1;
+	M44d                matrix;
+	fpreal              bias = getIndex(t,
+	                            ss.getTimeSampling(),
+                                    ss.getNumSamples(),
+                                    i0,
+                                    i1);
 
-	if (!ss.isConstant())
-	    isConstant = false;
-	if (!ss.getInheritsXforms())
-	    inheritsXform = false;
+        isConstant = ss.isConstant();
+        inheritsXform = ss.getInheritsXforms();
 
-	ss.get(sample, ISampleSelector(i0));
-	m0 = sample.getMatrix();
+	ss.get(s0, ISampleSelector(i0));
 	if (i0 != i1)
 	{
-	    M44d	m1;
-	    ss.get(sample, ISampleSelector(i1));
-	    m1 = sample.getMatrix();
-	    m0 = blendMatrix(m0, m1, bias);
+	    ss.get(s1, ISampleSelector(i1));
+	    matrix = blendSamples(s0, s1, bias);
 	}
-	mat = GABC_Util::getM(m0);
+	else
+	{
+	    matrix = s0.getMatrix();
+        }
+
+	mat = GABC_Util::getM(matrix);
     }
     else
     {
 	mat.identity();
     }
+
     return true;
 }
 
