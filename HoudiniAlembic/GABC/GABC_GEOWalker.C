@@ -616,8 +616,8 @@ namespace {
 	    {
                 walk.errorHandler().warning("No entries for attribute %s in "
                             "object %s. Ignoring attribute.",
-                        obj.getFullName().c_str(),
-                        name);
+                        name,
+                        obj.getFullName().c_str());
             }
 	    return;
         }

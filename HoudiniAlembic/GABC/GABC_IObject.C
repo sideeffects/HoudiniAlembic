@@ -127,15 +127,22 @@ namespace
 
 
     static GT_DataArrayHandle
-    arrayFromSample(GABC_IArchive &arch, const ArraySamplePtr &param,
+    arrayFromSample(GABC_IArchive &arch,
+                const ArraySamplePtr &param,
 		int array_extent,
 		GT_Type gttype,
 		bool is_constant)
     {
 	if (!param || !param->size())
+	{
 	    return GT_DataArrayHandle();
-	return GABC_NAMESPACE::GABCarray(GABC_IArray::getSample(arch, param,
-			    gttype, array_extent, is_constant));
+        }
+
+	return GABC_NAMESPACE::GABCarray(GABC_IArray::getSample(arch,
+	        param,
+                gttype,
+                array_extent,
+                is_constant));
     }
     static GT_DataArrayHandle
     simpleArrayFromSample(GABC_IArchive &arch, const ArraySamplePtr &param,
@@ -285,8 +292,10 @@ namespace
     }
 
     static GT_DataArrayHandle
-    getArraySample(GABC_IArchive &arch, const IArrayProperty &prop,
-	    index_t idx, GT_Type tinfo)
+    getArraySample(GABC_IArchive &arch,
+            const IArrayProperty &prop,
+	    index_t idx,
+	    GT_Type tinfo)
     {
 	GABC_IArray	iarray = GABC_IArray::getSample(arch, prop, idx, tinfo);
 	return GABC_NAMESPACE::GABCarray(iarray);
@@ -651,19 +660,65 @@ namespace
     }
 
     static GT_DataArrayHandle
-    readArrayProperty(GABC_IArchive &arch, const IArrayProperty &prop,
-	    fpreal t, GT_Type tinfo)
+    readScalarProperty(GABC_IArchive &arch,
+            const IScalarProperty &prop,
+            fpreal t)
+    {
+        GT_DataArrayHandle  s0, s1;
+	index_t             i0, i1;
+	fpreal              bias = getIndex(t,
+	                            prop.getTimeSampling(),
+                                    prop.getNumSamples(),
+                                    i0,
+                                    i1);
+	bool                is_const = prop.isConstant();
+
+	s0 = getScalarSample(arch, prop, i0);
+	if (is_const || i0 == i1 || !s0 || !GTisFloat(s0->getStorage()))
+	{
+	    return s0;
+        }
+
+	s1 = getScalarSample(arch, prop, i1);
+	if (!s1)
+	{
+	    return s0;
+	}
+
+	return blendArrays(s0, s1, bias);
+    }
+
+    static GT_DataArrayHandle
+    readArrayProperty(GABC_IArchive &arch,
+            const IArrayProperty &prop,
+            fpreal t, GT_Type tinfo)
     {
 	if(prop.getNumSamples() == 0)
+	{
 	    return GT_DataArrayHandle();
+        }
 
-	index_t i0, i1;
-	fpreal	bias = getIndex(t, prop.getTimeSampling(),
-				prop.getNumSamples(), i0, i1);
-	GT_DataArrayHandle	s0 = getArraySample(arch, prop, i0, tinfo);
-	if (i0 == i1 || !GTisFloat(s0->getStorage()))
+        GT_DataArrayHandle  s0, s1;
+	index_t             i0, i1;
+        fpreal              bias = getIndex(t,
+                                    prop.getTimeSampling(),
+                                    prop.getNumSamples(),
+                                    i0,
+                                    i1);
+	bool                is_const = prop.isConstant();
+
+	s0 = getArraySample(arch, prop, i0, tinfo);
+	if (is_const || i0 == i1 || !s0 || !GTisFloat(s0->getStorage()))
+	{
 	    return s0;
-	GT_DataArrayHandle	s1 = getArraySample(arch, prop, i1, tinfo);
+        }
+
+	s1 = getArraySample(arch, prop, i1, tinfo);
+	if (!s1)
+	{
+	    return s0;
+	}
+
 	return blendArrays(s0, s1, bias);
     }
 
@@ -673,32 +728,51 @@ namespace
 	    GT_Type tinfo)
     {
 	if (!gparam || !gparam.valid())
+	{
 	    return GT_DataArrayHandle();
+        }
 
-	index_t i0, i1;
-	bool	is_const = gparam.isConstant();
+	typename T::sample_type v0, v1;
+        GT_DataArrayHandle      s0, s1;
+	index_t                 i0, i1;
+	fpreal                  bias = getIndex(t,
+	                                gparam.getTimeSampling(),
+	                                gparam.getNumSamples(),
+	                                i0,
+	                                i1);
+	bool                    is_const = gparam.isConstant();
 
-	fpreal	bias = getIndex(t, gparam.getTimeSampling(),
-				gparam.getNumSamples(), i0, i1);
-	typename T::sample_type	v0;
 	gparam.getExpanded(v0, i0);
 	if (!v0.getVals() || !v0.getVals()->size())
 	{
 	    UT_ASSERT(0 && "This is likely a corrupt indexed alembic array");
 	    gparam.getIndexed(v0, i0);
-	    return arrayFromSample(arch, v0.getVals(),
-				gparam.getArrayExtent(), tinfo, is_const);
+	    return arrayFromSample(arch,
+	            v0.getVals(),
+                    gparam.getArrayExtent(),
+                    tinfo,
+                    is_const);
 	}
-	GT_DataArrayHandle	s0 = arrayFromSample(arch, v0.getVals(),
-					gparam.getArrayExtent(), tinfo,
-					is_const);
-	if (is_const || i0 == i1 || !GTisFloat(s0->getStorage()))
+
+	s0 = arrayFromSample(arch,
+                v0.getVals(),
+                gparam.getArrayExtent(),
+                tinfo,
+                is_const);
+	if (is_const || i0 == i1 || !s0 || !GTisFloat(s0->getStorage()))
+	{
 	    return s0;
-	typename T::sample_type	v1;
+        }
+
 	gparam.getExpanded(v1, i1);
-	GT_DataArrayHandle	s1 = arrayFromSample(arch, v1.getVals(),
-					gparam.getArrayExtent(), tinfo,
-					is_const);
+	s1 = arrayFromSample(arch, v1.getVals(),
+                gparam.getArrayExtent(), tinfo,
+                is_const);
+	if (!s1)
+	{
+	    return s0;
+	}
+
 	return blendArrays(s0, s1, bias);
     }
 
@@ -737,20 +811,6 @@ namespace
 	}
 
 	return GT_DataArrayHandle(uv3);
-    }
-
-    static GT_DataArrayHandle
-    readScalarProperty(GABC_IArchive &arch, const IScalarProperty &prop,
-	    fpreal t)
-    {
-	index_t i0, i1;
-	fpreal	bias = getIndex(t, prop.getTimeSampling(),
-				prop.getNumSamples(), i0, i1);
-	GT_DataArrayHandle	s0 = getScalarSample(arch, prop, i0);
-	if (i0 == i1 || !GTisFloat(s0->getStorage()))
-	    return s0;
-	GT_DataArrayHandle	s1 = getScalarSample(arch, prop, i1);
-	return blendArrays(s0, s1, bias);
     }
 
     template <typename PRIM_T>
