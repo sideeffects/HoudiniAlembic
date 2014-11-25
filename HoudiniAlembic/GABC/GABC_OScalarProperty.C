@@ -386,12 +386,12 @@ GABC_OScalarProperty::start(OCompoundProperty &parent,
             {
                 if (myTupleSize >= 3)
                 {
-                    DECL_REAL_HI(OV3fProperty, OV3dProperty);
+                    DECL_REAL_HI(ON3fProperty, ON3dProperty);
                     myTupleSize = 3;    // Clamp to 3
                 }
                 else if (myTupleSize == 2)
                 {
-                    DECL_REAL_HI(OV2fProperty, OV2dProperty);
+                    DECL_REAL_HI(ON2fProperty, ON2dProperty);
                 }
             }
 	    break;
@@ -503,7 +503,7 @@ GABC_OScalarProperty::start(OCompoundProperty &parent,
             {
                 if (myTupleSize >= 16)
                 {
-                    DECL_REAL_HI(OM44fProperty, OM33dProperty);
+                    DECL_REAL_HI(OM44fProperty, OM44dProperty);
                     myTupleSize = 16;    // Clamp to 16
                 }
             }

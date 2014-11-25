@@ -181,22 +181,23 @@ namespace
 
         for (exint i = 0; i < attribs->entries(); ++i)
         {
-            const char                 *name = attribs->getExportName(i);
+            const char                 *name = attribs->getName(i);
+            const char                 *exp_name = attribs->getExportName(i);
             const GT_DataArrayHandle   &data = attribs->get(i);
 
             if (!data
-                    || skips.contains(name)
-                    || default_skips.contains(name)
-                    || !ctx.matchAttribute(scope, name)
+                    || skips.contains(exp_name)
+                    || default_skips.contains(exp_name)
+                    || !ctx.matchAttribute(scope, exp_name)
                     || data->getTupleSize() < 1
                     || data->getTypeInfo() == GT_TYPE_HIDDEN
-                    || arb_map.count(name))
+                    || arb_map.count(exp_name))
             {
                 continue;
             }
 
             prop = new GABC_OArrayProperty(scope);
-            if (!prop->start(cp, name, data, err, ctx))
+            if (!prop->start(cp, exp_name, data, err, ctx))
             {
                 delete prop;
                 return false;

@@ -547,12 +547,12 @@ GABC_OArrayProperty::start(OCompoundProperty &parent,
             {
                 if (myTupleSize >= 3)
                 {
-                    DECL_REAL_HI(OV3fGeomParam, OV3dGeomParam);
+                    DECL_REAL_HI(ON3fGeomParam, ON3dGeomParam);
                     myTupleSize = 3;    // Clamp to 3
                 }
                 else if (myTupleSize == 2)
                 {
-                    DECL_REAL_HI(OV2fGeomParam, OV2dGeomParam);
+                    DECL_REAL_HI(ON2fGeomParam, ON2dGeomParam);
                 }
             }
 	    break;
@@ -664,7 +664,7 @@ GABC_OArrayProperty::start(OCompoundProperty &parent,
             {
                 if (myTupleSize >= 16)
                 {
-                    DECL_REAL_HI(OM44fGeomParam, OM33dGeomParam);
+                    DECL_REAL_HI(OM44fGeomParam, OM44dGeomParam);
                     myTupleSize = 16;    // Clamp to 16
                 }
             }
