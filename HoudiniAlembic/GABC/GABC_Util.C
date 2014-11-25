@@ -1477,6 +1477,54 @@ namespace
 
         return success;
     }
+
+    // Parse numeric JSON values into a GT_DANumeric data array.
+    template <typename T>
+    static GT_DataArrayHandle
+    parseJSONValuesArray(UT_AutoJSONParser &parser,
+            int items,
+            int tuple_size,
+            GT_Type gt_type)
+    {
+        T                      *data = new T(items,
+                                        tuple_size,
+                                        gt_type);
+        typename T::data_type  *direct = data->data();
+        bool                    success_parsing = true;
+        bool                    error_parsing = false;
+
+        success_parsing &= parser->parseBeginArray(error_parsing);
+        if (tuple_size > 1)
+        {
+            for (int i = 0; i < items; ++i)
+            {
+                success_parsing &= parser->parseBeginArray(error_parsing);
+                for (int j = 0; j < tuple_size; ++j)
+                {
+                    success_parsing &= parser->parseValue(*direct);
+                    ++direct;
+                }
+                success_parsing &= parser->parseEndArray(error_parsing);
+            }
+        }
+        else
+        {
+            items *= tuple_size;
+            for (int i = 0; i < items; ++i)
+            {
+                success_parsing &= parser->parseValue(*direct);
+                ++direct;
+            }
+        }
+        success_parsing &= parser->parseEndArray(error_parsing);
+
+        if (!success_parsing || error_parsing)
+        {
+            return GT_DataArrayHandle();
+        }
+
+        return GT_DataArrayHandle(data);
+    }
 }
 
 //-----------------------------------------------
@@ -1854,7 +1902,7 @@ GABC_Util::writeUserPropertyDictionary(UT_JSONWriter *data_writer,
 }
 
 // Report an error when parsing the user properties maps is unsuccessful.
-#define GENERAL_UP_ERROR \
+#define USER_PROPS_PARSE_ERROR \
 do { \
     if (!success_parsing || error_parsing) \
     { \
@@ -1862,42 +1910,6 @@ do { \
                 m_key.buffer()); \
         return false; \
     } \
-} while(false)
-
-// Parse numeric JSON values into a GT_DANumeric data array.
-#define PARSE_JSON_VALUES_ARRAY(DATA_ARRAY) \
-do { \
-    DATA_ARRAY             *data = new DATA_ARRAY(items, \
-                                    tuple_size, \
-                                    gt_type); \
-    DATA_ARRAY::data_type  *direct = data->data(); \
- \
-    success_parsing &= vals_data->parseBeginArray(error_parsing); \
-    if (tuple_size > 1) \
-    { \
-        for (int i = 0; i < items; ++i) \
-        { \
-            success_parsing &= vals_data->parseBeginArray(error_parsing); \
-            for (int j = 0; j < tuple_size; ++j) \
-            { \
-                success_parsing &= vals_data->parseValue(*direct); \
-                ++direct; \
-            } \
-            success_parsing &= vals_data->parseEndArray(error_parsing); \
-        } \
-    } \
-    else \
-    { \
-        items *= tuple_size; \
-        for (int i = 0; i < items; ++i) \
-        { \
-            success_parsing &= vals_data->parseValue(*direct); \
-            ++direct; \
-        } \
-    } \
-    success_parsing &= vals_data->parseEndArray(error_parsing); \
- \
-    data_array = GT_DataArrayHandle(data); \
 } while(false)
 
 bool
@@ -1963,7 +1975,7 @@ GABC_Util::readUserPropertyDictionary(UT_AutoJSONParser &meta_data,
         success_parsing &= meta_data->parseKey(m_key);
         success_parsing &= vals_data->parseKey(v_key);
 
-        GENERAL_UP_ERROR;
+        USER_PROPS_PARSE_ERROR;
 
         if (m_key != v_key)
         {
@@ -2120,7 +2132,7 @@ GABC_Util::readUserPropertyDictionary(UT_AutoJSONParser &meta_data,
             success_parsing &= meta_data->parseEndArray(error_parsing);
         }
 
-        GENERAL_UP_ERROR;
+        USER_PROPS_PARSE_ERROR;
 
         //
         //  Read data
@@ -2142,6 +2154,8 @@ GABC_Util::readUserPropertyDictionary(UT_AutoJSONParser &meta_data,
             }
             success_parsing &= vals_data->parseEndArray(error_parsing);
 
+            USER_PROPS_PARSE_ERROR;
+
             data_array = GT_DataArrayHandle(data);
         }
         else
@@ -2151,27 +2165,51 @@ GABC_Util::readUserPropertyDictionary(UT_AutoJSONParser &meta_data,
             switch (gt_storage)
             {
                 case GT_STORE_UINT8:
-                    PARSE_JSON_VALUES_ARRAY(GT_UInt8Array);
+                    data_array = parseJSONValuesArray<GT_UInt8Array>(
+                            vals_data,
+                            items,
+                            tuple_size,
+                            gt_type);
                     break;
 
                 case GT_STORE_INT32:
-                    PARSE_JSON_VALUES_ARRAY(GT_Int32Array);
+                    data_array = parseJSONValuesArray<GT_Int32Array>(
+                            vals_data,
+                            items,
+                            tuple_size,
+                            gt_type);
                     break;
 
                 case GT_STORE_INT64:
-                    PARSE_JSON_VALUES_ARRAY(GT_Int64Array);
+                    data_array = parseJSONValuesArray<GT_Int64Array>(
+                            vals_data,
+                            items,
+                            tuple_size,
+                            gt_type);
                     break;
 
                 case GT_STORE_REAL16:
-                    PARSE_JSON_VALUES_ARRAY(GT_Real16Array);
+                    data_array = parseJSONValuesArray<GT_Real16Array>(
+                            vals_data,
+                            items,
+                            tuple_size,
+                            gt_type);
                     break;
 
                 case GT_STORE_REAL32:
-                    PARSE_JSON_VALUES_ARRAY(GT_Real32Array);
+                    data_array = parseJSONValuesArray<GT_Real32Array>(
+                            vals_data,
+                            items,
+                            tuple_size,
+                            gt_type);
                     break;
 
                 case GT_STORE_REAL64:
-                    PARSE_JSON_VALUES_ARRAY(GT_Real64Array);
+                    data_array = parseJSONValuesArray<GT_Real64Array>(
+                            vals_data,
+                            items,
+                            tuple_size,
+                            gt_type);
                     break;
 
                 default:
@@ -2183,7 +2221,12 @@ GABC_Util::readUserPropertyDictionary(UT_AutoJSONParser &meta_data,
             }
         }
 
-        GENERAL_UP_ERROR;
+        if (!data_array)
+        {
+            err.warning("Error occured while parsing user property %s.",
+                    m_key.buffer());
+            return false;
+        }
 
         //
         //  Start/update properties with data
@@ -2230,7 +2273,7 @@ GABC_Util::readUserPropertyDictionary(UT_AutoJSONParser &meta_data,
         v_finished = vals_data->parseEndMap(error_parsing);
     }
 
-    GENERAL_UP_ERROR;
+    USER_PROPS_PARSE_ERROR;
 
     // If this turns out to be too slow/inefficient, it can be moved into the
     // GABC_OProperties by creating a second cache that stores potential
