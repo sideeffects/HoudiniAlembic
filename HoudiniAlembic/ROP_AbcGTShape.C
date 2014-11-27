@@ -187,7 +187,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
     ++myElapsedFrames;
 
     // If we're using a path:
-    if (myTokens.entries())
+    if (numt)
     {
         // If 'calc_inverse' is true, we compute the inverse of the ancestor
         // transformations as we go, to find the relative transform of an
@@ -498,7 +498,7 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
 
     // Same thing as when creating the first frame, but this time don't need
     // to make new transforms. They should already exist.
-    if (myTokens.entries())
+    if (numt)
     {
         if (!calc_inverse && is_xform)
         {
@@ -684,7 +684,7 @@ ROP_AbcGTShape::nextFrameFromPrevious(GABC_OError &err,
 
     myElapsedFrames += frames;
 
-    if (myTokens.entries())
+    if (numt)
     {
         for (int i = 0; i < numx; ++i)
         {
