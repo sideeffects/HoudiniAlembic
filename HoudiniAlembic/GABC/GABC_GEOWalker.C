@@ -750,7 +750,7 @@ namespace {
         // UVs and Normals may be stored as point or vertex attributes.
         // If both are encountered, upgrade point attribute data to vertex
         // attribute.
-        if (owner == GA_ATTRIB_POINT && gdp.findVertexAttribute(name).isValid())
+        if (owner == GA_ATTRIB_POINT && gdp.findVertexAttribute(name))
         {
             owner = GA_ATTRIB_VERTEX;
             set_v_from_p = true;
