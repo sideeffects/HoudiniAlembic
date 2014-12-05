@@ -229,13 +229,48 @@ namespace
 	    const GT_DataArrayHandle &src,
 	    int tuple_size)
     {
-	exint				nstrings = src->entries() * tuple_size;
-	UT_StackBuffer<std::string>	strings(nstrings); // Property strings
+        exint                           entries = src->entries();
+	exint                           nstrings = entries * tuple_size;
+	UT_StackBuffer<std::string>     strings(nstrings); // Property strings
+	std::string                    *data = strings.array();
 
 	// Get strings from GT
-	for (int i = 0; i < tuple_size; ++i)
+	if (src->getStringIndexCount())
 	{
-	    src->fillStrings(strings + src->entries()*i, i);
+            UT_StringArray  strs;
+            int             idx;
+
+            src->getStrings(strs);
+            for (int i = 0; i < entries; ++i)
+            {
+                for (int j = 0; j < tuple_size; ++j)
+                {
+                    idx = src->getStringIndex(i, j);
+
+                    if (idx >= 0 && strs(idx).isstring())
+                    {
+                        data[j] = strs(idx);
+                    }
+                    else
+                    {
+                        data[j] = "";
+                    }
+                }
+
+                data += tuple_size;
+            }
+	}
+	else
+	{
+            for (int i = 0; i < entries; ++i)
+            {
+                for (int j = 0; j < tuple_size; ++j)
+                {
+                    data[j] = src->getS(i, j);
+                }
+
+                data += tuple_size;
+            }
         }
 
 	ArraySample sample(strings, prop.getDataType(), Dimensions(nstrings));

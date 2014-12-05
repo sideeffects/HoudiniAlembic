@@ -428,7 +428,7 @@ namespace
 
     static GT_AttributeListHandle
     transformedAttributes(const GT_Primitive &prim,
-			    const GT_AttributeListHandle &a)
+            const GT_AttributeListHandle &a)
     {
 	// If the primitive has a transform, we need to get the transformed
 	// primitive attributes.
@@ -536,28 +536,33 @@ namespace
 	    const GT_PrimPolygonMesh &src,
 	    IntrinsicCache &cache, const GABC_OOptions &ctx)
     {
-	Int32ArraySample	iInd;
-	Int32ArraySample	iCnt;
-	OP3fGeomParam::Sample	iPos;
-	OV2fGeomParam::Sample	iUVs;
-	ON3fGeomParam::Sample	iNml;
-	OV3fGeomParam::Sample	iVel;
-	GT_DataArrayHandle	counts;
-	IntrinsicCache		storage;
-
-	const GT_AttributeListHandle	&pt = pointAttributes(src);
-	const GT_AttributeListHandle	&vtx = vertexAttributes(src);
+	Int32ArraySample                iInd;
+	Int32ArraySample                iCnt;
+	OP3fGeomParam::Sample           iPos;
+	OV2fGeomParam::Sample           iUVs;
+	ON3fGeomParam::Sample           iNml;
+	OV3fGeomParam::Sample           iVel;
+	GT_DataArrayHandle              counts;
+	IntrinsicCache                  storage;
+	const GT_AttributeListHandle   &pt = pointAttributes(src);
+	const GT_AttributeListHandle   &vtx = vertexAttributes(src);
+	const GT_AttributeListHandle   &uniform = uniformAttributes(src);
 
 	counts = src.getFaceCountArray().extractCounts();
 	if (cache.needVertex(ctx, src.getVertexList()))
 	    iInd = int32Array(src.getVertexList(), storage.vertexList());
+
 	if (cache.needCounts(ctx, counts))
 	    iCnt = int32Array(counts, storage.counts());
+
 	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
-	if (matchAttribute(ctx, "uv", pt, vtx))
-	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt, vtx);
+
+	if (matchAttribute(ctx, "uv", pt, vtx, uniform))
+	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt, vtx, uniform);
+
 	if (matchAttribute(ctx, "N", pt, vtx))
 	    fillN3f(iNml, cache, ctx, "N", storage.N(), pt, vtx);
+
 	if (matchAttribute(ctx, "v", pt, vtx))
 	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt, vtx);
 
@@ -572,23 +577,23 @@ namespace
 	    const GT_PrimSubdivisionMesh &src,
 	    IntrinsicCache &cache, const GABC_OOptions &ctx)
     {
-	Int32ArraySample	iInd;
-	Int32ArraySample	iCnt;
-	Int32ArraySample	iCreaseIndices;
-	Int32ArraySample	iCreaseLengths;
-	FloatArraySample	iCreaseSharpnesses;
-	Int32ArraySample	iCornerIndices;
-	FloatArraySample	iCornerSharpnesses;
-	Int32ArraySample	iHoles;
-	OP3fGeomParam::Sample	iPos;
-	OV2fGeomParam::Sample	iUVs;
-	OV3fGeomParam::Sample	iVel;
-	GT_DataArrayHandle	counts;
-	IntrinsicCache		storage;
-	SecondaryCache		tstorage;	// Tag storage
-
-	const GT_AttributeListHandle	&pt = pointAttributes(src);
-	const GT_AttributeListHandle	&vtx = vertexAttributes(src);
+	Int32ArraySample                iInd;
+	Int32ArraySample                iCnt;
+	Int32ArraySample                iCreaseIndices;
+	Int32ArraySample                iCreaseLengths;
+	FloatArraySample                iCreaseSharpnesses;
+	Int32ArraySample                iCornerIndices;
+	FloatArraySample                iCornerSharpnesses;
+	Int32ArraySample                iHoles;
+	OP3fGeomParam::Sample           iPos;
+	OV2fGeomParam::Sample           iUVs;
+	OV3fGeomParam::Sample           iVel;
+	GT_DataArrayHandle              counts;
+	IntrinsicCache                  storage;
+	SecondaryCache                  tstorage;   // Tag storage
+	const GT_AttributeListHandle   &pt = pointAttributes(src);
+	const GT_AttributeListHandle   &vtx = vertexAttributes(src);
+	const GT_AttributeListHandle   &uniform = uniformAttributes(src);
 
 	counts = src.getFaceCountArray().extractCounts();
 	if (cache.needVertex(ctx, src.getVertexList()))
@@ -596,8 +601,8 @@ namespace
 	if (cache.needCounts(ctx, counts))
 	    iCnt = int32Array(counts, storage.counts());
 	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
-	if (matchAttribute(ctx, "uv", pt, vtx))
-	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt, vtx);
+	if (matchAttribute(ctx, "uv", pt, vtx, uniform))
+	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt, vtx, uniform);
 	if (matchAttribute(ctx, "v", pt, vtx))
 	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt, vtx);
 
@@ -684,28 +689,95 @@ namespace
 	dest.getSchema().set(sample);
     }
 
+    static void
+    fillPoints(OPoints &dest, const GT_PrimPointMesh &src,
+	    IntrinsicCache &cache, const GABC_OOptions &ctx)
+    {
+	OP3fGeomParam::Sample           iPos;
+	UInt64ArraySample               iId;
+	OFloatGeomParam::Sample         iWidths;
+	OV3fGeomParam::Sample           iVel;
+	GT_DataArrayHandle              ids;
+	IntrinsicCache                  storage;
+	const GT_AttributeListHandle   &pt = pointAttributes(src);
+	const GT_AttributeListHandle   &detail = detailAttributes(src);
+
+	ids = pt->get("id");
+	if (!ids)
+	{
+	    ids = pt->get("__vertex_id");
+	    if (!ids)
+	    {
+		ids = pt->get("__point_id");
+		if (!ids)
+		    ids.reset(new GT_DARange(0, src.getPointCount()));
+	    }
+	}
+	iId = uint64Array(ids, storage.id());
+	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
+	if (matchAttribute(ctx, "v", pt))
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt);
+	if (matchAttribute(ctx,
+	        "width",
+	        pt,
+		GT_AttributeListHandle(),
+		GT_AttributeListHandle(),
+		detail))
+	{
+	    fillF32(iWidths,
+	            cache,
+	            ctx,
+	            "width",
+	            storage.width(),
+	            pt,
+		    GT_AttributeListHandle(),
+		    GT_AttributeListHandle(),
+		    detail);
+	}
+	if (cache.needWrite(ctx, "id", ids))
+	{
+	    // Topology changed
+	    OPointsSchema::Sample   sample(iPos.getVals(),
+                                            iId,
+                                            iVel.getVals(),
+                                            iWidths);
+	    dest.getSchema().set(sample);
+	}
+	else
+	{
+	    // Topology unchanged
+	    OPointsSchema::Sample   sample(iPos.getVals(),
+                                            iVel.getVals(),
+                                            iWidths);
+	    dest.getSchema().set(sample);
+	}
+    }
 
     static void
     fillCurves(OCurves &dest, const GT_PrimCurveMesh &src,
 	    IntrinsicCache &cache, const GABC_OOptions &ctx)
     {
-	OP3fGeomParam::Sample			iPos;
-	FloatArraySample			iPosWeight;
-	Int32ArraySample			iCnt;
-	OFloatGeomParam::Sample			iWidths;
-	OV2fGeomParam::Sample			iUVs;
-	ON3fGeomParam::Sample			iNml;
-	OV3fGeomParam::Sample			iVel;
-	FloatArraySample			iKnots;
-	UInt8ArraySample			iOrders;
-	GT_DataArrayHandle			counts;
-	GT_DataArrayHandle			orders, order_storage;
-	GT_DataArrayHandle			knots = src.knots();
-	IntrinsicCache				storage;
-	Alembic::AbcGeom::CurveType		iOrder;
-	Alembic::AbcGeom::CurvePeriodicity	iPeriod;
-	Alembic::AbcGeom::BasisType		iBasis;
-	P3fArraySamplePtr                       homogenized_vals;
+	OP3fGeomParam::Sample               iPos;
+	FloatArraySample                    iPosWeight;
+	Int32ArraySample                    iCnt;
+	OFloatGeomParam::Sample             iWidths;
+	OV2fGeomParam::Sample               iUVs;
+	ON3fGeomParam::Sample               iNml;
+	OV3fGeomParam::Sample               iVel;
+	FloatArraySample                    iKnots;
+	UInt8ArraySample                    iOrders;
+	GT_DataArrayHandle                  counts;
+	GT_DataArrayHandle                  orders, order_storage;
+	GT_DataArrayHandle                  knots = src.knots();
+	IntrinsicCache                      storage;
+	Alembic::AbcGeom::CurveType         iOrder;
+	Alembic::AbcGeom::CurvePeriodicity  iPeriod;
+	Alembic::AbcGeom::BasisType         iBasis;
+	P3fArraySamplePtr                   homogenized_vals;
+	const GT_AttributeListHandle       &vtx = vertexAttributes(src);
+	const GT_AttributeListHandle       &uniform = uniformAttributes(src);
+	const GT_AttributeListHandle       &detail = detailAttributes(src);
+	const GT_DataArrayHandle           &Pw = vtx->get("Pw");
 
 	switch (src.getBasis())
 	{
@@ -760,29 +832,70 @@ namespace
 			? Alembic::AbcGeom::kPeriodic
 			: Alembic::AbcGeom::kNonPeriodic;
 
-	const GT_AttributeListHandle	&pt = vertexAttributes(src);
-	const GT_AttributeListHandle	&uniform = uniformAttributes(src);
-	const GT_AttributeListHandle	&detail = detailAttributes(src);
-
-	const GT_DataArrayHandle	&Pw = pt->get("Pw");
-
 	counts = src.getCurveCountArray().extractCounts();
 	if (cache.needCounts(ctx, counts))
 	    iCnt = int32Array(counts, storage.counts());
-	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
-	// We pass in "pt" for the vertex attributes since we can't
+
+	// We pass in "vtx" for the point attributes since we can't
 	// differentiate between them at this point.
-	if (matchAttribute(ctx, "uv", pt, pt))
-	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt);
-	if (matchAttribute(ctx, "N", pt, pt))
-	    fillN3f(iNml, cache, ctx, "N", storage.N(), pt);
-	if (matchAttribute(ctx, "v", pt, pt))
-	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt, pt);
-	if (matchAttribute(ctx, "width", pt, pt, uniform, detail))
+	fillP3f(iPos, cache, ctx, "P", storage.P(), vtx);
+
+	if (matchAttribute(ctx,
+                "uv",
+                GT_AttributeListHandle(),
+                vtx,
+                uniform))
+        {
+            fillV2f(iUVs,
+                    cache,
+                    ctx,
+                    "uv",
+                    storage.uv(),
+                    GT_AttributeListHandle(),
+                    vtx,
+                    uniform);
+        }
+
+	if (matchAttribute(ctx, "N", vtx))
+        {
+	    fillN3f(iNml,
+	            cache,
+	            ctx,
+	            "N",
+	            storage.N(),
+	            GT_AttributeListHandle(),
+	            vtx);
+        }
+
+	if (matchAttribute(ctx, "v", vtx))
 	{
-	    fillF32(iWidths, cache, ctx, "width", storage.width(), pt,
-		    GT_AttributeListHandle(), uniform, detail);
+	    fillV3f(iVel,
+	            cache,
+	            ctx,
+	            "v",
+	            storage.v(),
+	            GT_AttributeListHandle(),
+	            vtx);
+        }
+
+	if (matchAttribute(ctx,
+	        "width",
+	        GT_AttributeListHandle(),
+	        vtx,
+	        uniform,
+	        detail))
+	{
+	    fillF32(iWidths,
+	            cache,
+	            ctx,
+	            "width",
+	            storage.width(),
+	            GT_AttributeListHandle(),
+		    vtx,
+		    uniform,
+		    detail);
 	}
+
 	if (Pw && cache.needWrite(ctx, "Pw", Pw))
 	{
 	    iPosWeight = floatArray(Pw, storage.Pw());
@@ -804,87 +917,57 @@ namespace
     }
 
     static void
-    fillPoints(OPoints &dest, const GT_PrimPointMesh &src,
-	    IntrinsicCache &cache, const GABC_OOptions &ctx)
-    {
-	OP3fGeomParam::Sample			iPos;
-	UInt64ArraySample			iId;
-	OFloatGeomParam::Sample			iWidths;
-	OV3fGeomParam::Sample			iVel;
-	GT_DataArrayHandle			ids;
-	IntrinsicCache				storage;
-
-	const GT_AttributeListHandle	&pt = pointAttributes(src);
-	const GT_AttributeListHandle	&detail = detailAttributes(src);
-	ids = pt->get("id");
-	if (!ids)
-	{
-	    ids = pt->get("__vertex_id");
-	    if (!ids)
-	    {
-		ids = pt->get("__point_id");
-		if (!ids)
-		    ids.reset(new GT_DARange(0, src.getPointCount()));
-	    }
-	}
-	iId = uint64Array(ids, storage.id());
-	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
-	if (matchAttribute(ctx, "v", pt))
-	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt);
-	if (matchAttribute(ctx, "width", pt,
-		GT_AttributeListHandle(), GT_AttributeListHandle(), detail))
-	{
-	    fillF32(iWidths, cache, ctx, "width", storage.width(), pt,
-		    GT_AttributeListHandle(), GT_AttributeListHandle(), detail);
-	}
-
-	if (cache.needWrite(ctx, "id", ids))
-	{
-	    // Topology changed
-	    OPointsSchema::Sample	sample(iPos.getVals(),
-						iId, iVel.getVals(), iWidths);
-	    dest.getSchema().set(sample);
-	}
-	else
-	{
-	    // Topology unchanged
-	    OPointsSchema::Sample	sample(iPos.getVals(),
-						iVel.getVals(), iWidths);
-	    dest.getSchema().set(sample);
-	}
-    }
-
-    static void
     fillNuPatch(GABC_OGTGeometry &geo,
 	    ONuPatch &dest, const GT_PrimNuPatch &src,
 	    IntrinsicCache &cache, const GABC_OOptions &ctx)
     {
-	FloatArraySample	iUKnot;
-	FloatArraySample	iVKnot;
-	FloatArraySample	iPosWeight;
-	OP3fGeomParam::Sample	iPos;
-	ON3fGeomParam::Sample	iNml;
-	OV2fGeomParam::Sample	iUVs;
-	OV3fGeomParam::Sample	iVel;
-	IntrinsicCache		storage;
-	P3fArraySamplePtr                       homogenized_vals;
+	FloatArraySample                iUKnot;
+	FloatArraySample                iVKnot;
+	FloatArraySample                iPosWeight;
+	OP3fGeomParam::Sample           iPos;
+	ON3fGeomParam::Sample           iNml;
+	OV2fGeomParam::Sample           iUVs;
+	OV3fGeomParam::Sample           iVel;
+	IntrinsicCache                  storage;
+	P3fArraySamplePtr               homogenized_vals;
+	const GT_AttributeListHandle   &vtx = vertexAttributes(src);
+	const GT_AttributeListHandle   &detail = detailAttributes(src);
+	const GT_DataArrayHandle       &Pw = vtx->get("Pw");
 
-	const GT_AttributeListHandle		&pt = vertexAttributes(src);
-	const GT_DataArrayHandle		&Pw = pt->get("Pw");
+	// We pass in "vtx" for the point attributes since we can't
+	// differentiate between them at this point.
+	//
+	// Also pass in "detail" for primitive attributes.
+	fillP3f(iPos, cache, ctx, "P", storage.P(), vtx);
 
-	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
-	// We pass pt as vertex as well since at this stage we can't
-	// differentiate between point and vertex attributes.
-	if (matchAttribute(ctx, "uv", pt, pt))
-	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt);
-	if (matchAttribute(ctx, "N", pt, pt))
-	    fillN3f(iNml, cache, ctx, "N", storage.N(), pt);
-	if (matchAttribute(ctx, "v", pt, pt))
-	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt);
+	if (matchAttribute(ctx,
+	        "uv",
+	        GT_AttributeListHandle(),
+	        vtx,
+	        detail))
+	{
+	    fillV2f(iUVs,
+	            cache,
+	            ctx,
+	            "uv",
+	            storage.uv(),
+	            GT_AttributeListHandle(),
+	            vtx,
+	            detail);
+        }
+
+	if (matchAttribute(ctx, "N", vtx, vtx))
+	    fillN3f(iNml, cache, ctx, "N", storage.N(), vtx, vtx);
+
+	if (matchAttribute(ctx, "v", vtx, vtx))
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), vtx, vtx);
+
 	if (cache.needWrite(ctx, "uknots", src.getUKnots()))
 	    iUKnot = floatArray(src.getUKnots(), storage.uknots());
+
 	if (cache.needWrite(ctx, "vknots", src.getVKnots()))
 	    iVKnot = floatArray(src.getVKnots(), storage.vknots());
+
 	if (Pw && cache.needWrite(ctx, "Pw", Pw))
 	{
 	    iPosWeight = floatArray(Pw, storage.Pw());
@@ -943,8 +1026,6 @@ namespace
 
 	dest.getSchema().set(sample);
     }
-
-
 
     GT_PrimitiveHandle
     getPrimitive(const GT_PrimitiveHandle &prim, int &expected_type)
@@ -1305,7 +1386,6 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 
     Alembic::AbcGeom::GeometryScope     pt = Alembic::AbcGeom::kUnknownScope;
     Alembic::AbcGeom::GeometryScope     vtx = Alembic::AbcGeom::kUnknownScope;
-    Alembic::AbcGeom::GeometryScope     uni = Alembic::AbcGeom::kUnknownScope;
     const IgnoreList                   *skip = &theEmptySkip;
     OCompoundProperty                   cp;
     bool                                result = true;
@@ -1313,38 +1393,33 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
     switch (myType)
     {
 	case GT_PRIM_POLYGON_MESH:
-	    vtx = Alembic::AbcGeom::kFacevaryingScope;
 	    pt = Alembic::AbcGeom::kVaryingScope;
-	    uni = Alembic::AbcGeom::kUniformScope;
+	    vtx = Alembic::AbcGeom::kFacevaryingScope;
 	    skip = &thePolyMeshSkip;
 	    cp = myShape.myPolyMesh->getSchema().getArbGeomParams();
 	    break;
 
 	case GT_PRIM_SUBDIVISION_MESH:
-	    vtx = Alembic::AbcGeom::kFacevaryingScope;
 	    pt = Alembic::AbcGeom::kVaryingScope;
-	    uni = Alembic::AbcGeom::kUniformScope;
+	    vtx = Alembic::AbcGeom::kFacevaryingScope;
 	    skip = &theSubDSkip;
 	    cp = myShape.mySubD->getSchema().getArbGeomParams();
 	    break;
 
 	case GT_PRIM_POINT_MESH:
 	    pt = Alembic::AbcGeom::kVaryingScope;
-	    uni = Alembic::AbcGeom::kUniformScope;
 	    skip = &thePointsSkip;
 	    cp = myShape.myPoints->getSchema().getArbGeomParams();
 	    break;
 
 	case GT_PRIM_CURVE_MESH:
-	    vtx = Alembic::AbcGeom::kVertexScope;
-	    uni = Alembic::AbcGeom::kUniformScope;
+	    vtx = Alembic::AbcGeom::kFacevaryingScope;
 	    skip = &theCurvesSkip;
 	    cp = myShape.myCurves->getSchema().getArbGeomParams();
 	    break;
 
 	case GT_PRIM_NUPATCH:
 	    vtx = Alembic::AbcGeom::kFacevaryingScope;
-	    uni = Alembic::AbcGeom::kUniformScope;
 	    skip = &theNuPatchSkip;
 	    cp = myShape.myNuPatch->getSchema().getArbGeomParams();
 	    break;
@@ -1354,6 +1429,16 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 	    return false;
     }
 
+    if (pt != Alembic::AbcGeom::kUnknownScope)
+    {
+	result &= makeGeomParams(myArbProperties[POINT_PROPERTIES],
+                prim->getPointAttributes(),
+                cp,
+                pt,
+                err,
+                ctx,
+                *skip);
+    }
     if (vtx != Alembic::AbcGeom::kUnknownScope)
     {
 	// We don't need to transform the attributes to build the Alembic
@@ -1366,26 +1451,13 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
                 ctx,
                 *skip);
     }
-    if (pt != Alembic::AbcGeom::kUnknownScope)
-    {
-	result &= makeGeomParams(myArbProperties[POINT_PROPERTIES],
-                prim->getPointAttributes(),
-                cp,
-                pt,
-                err,
-                ctx,
-                *skip);
-    }
-    if (uni != Alembic::AbcGeom::kUnknownScope)
-    {
-	result &= makeGeomParams(myArbProperties[UNIFORM_PROPERTIES],
-	        prim->getUniformAttributes(),
-		cp,
-		uni,
-		err,
-		ctx,
-		*skip);
-    }
+    result &= makeGeomParams(myArbProperties[UNIFORM_PROPERTIES],
+            prim->getUniformAttributes(),
+            cp,
+            Alembic::AbcGeom::kUniformScope,
+            err,
+            ctx,
+            *skip);
     result &= makeGeomParams(myArbProperties[DETAIL_PROPERTIES],
             prim->getDetailAttributes(),
             cp,

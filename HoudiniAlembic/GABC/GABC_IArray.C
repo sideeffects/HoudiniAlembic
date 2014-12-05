@@ -61,8 +61,10 @@ GABC_IArray::purge()
 }
 
 GABC_IArray
-GABC_IArray::getSample(GABC_IArchive &arch, const IArrayProperty &prop,
-	const ISampleSelector &iss, GT_Type override_type)
+GABC_IArray::getSample(GABC_IArchive &arch,
+        const IArrayProperty &prop,
+	const ISampleSelector &iss,
+	GT_Type override_type)
 {
     ArraySamplePtr	sample;
 
@@ -80,28 +82,37 @@ GABC_IArray::getSample(GABC_IArchive &arch, const IArrayProperty &prop,
 	return getSample(arch, sample, override_type, array_extent,
 		prop.isConstant());
     }
-    return getSample(arch, sample,
+    return getSample(arch,
+            sample,
 	    prop.getMetaData().get("interpretation").c_str(),
 	    array_extent,
 	    prop.isConstant());
 }
 
 GABC_IArray
-GABC_IArray::getSample(GABC_IArchive &arch, const ArraySamplePtr &sample,
-	const char *interp, int array_extent, bool is_constant)
+GABC_IArray::getSample(GABC_IArchive &arch,
+        const ArraySamplePtr &sample,
+	const char *interp,
+	int array_extent,
+	bool is_constant)
 {
     if (!sample->valid())
 	return GABC_IArray();
 
     const DataType	&dtype = sample->getDataType();
-    return getSample(arch, sample,
+    return getSample(arch,
+                sample,
 		GABC_GTUtil::getGTTypeInfo(interp, dtype.getExtent()),
-		array_extent, is_constant);
+		array_extent,
+		is_constant);
 }
 
 GABC_IArray
-GABC_IArray::getSample(GABC_IArchive &arch, const ArraySamplePtr &sample,
-	GT_Type tinfo, int array_extent, bool is_constant)
+GABC_IArray::getSample(GABC_IArchive &arch,
+        const ArraySamplePtr &sample,
+	GT_Type tinfo,
+	int array_extent,
+	bool is_constant)
 {
     if (!sample->valid())
 	return GABC_IArray();

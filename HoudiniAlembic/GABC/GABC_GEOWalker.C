@@ -27,13 +27,13 @@
 
 #include "GABC_GEOWalker.h"
 #include "GABC_PackedImpl.h"
-#include <UT/UT_Interrupt.h>
-#include <UT/UT_StackBuffer.h>
 #include <Alembic/AbcGeom/All.h>
+#include <GA/GA_Handle.h>
 #include <GEO/GEO_PackedNameMap.h>
 #include <GEO/GEO_PrimNURBCurve.h>
 #include <GEO/GEO_PrimRBezCurve.h>
 #include <GT/GT_DataArray.h>
+#include <GT/GT_Util.h>
 #include <GU/GU_PrimPacked.h>
 #include <GU/GU_PrimPoly.h>
 #include <GU/GU_PrimPolySoup.h>
@@ -41,7 +41,8 @@
 #include <GU/GU_PrimNURBCurve.h>
 #include <GU/GU_PrimNURBSurf.h>
 #include <GU/GU_PrimRBezCurve.h>
-#include <GA/GA_Handle.h>
+#include <UT/UT_Interrupt.h>
+#include <UT/UT_StackBuffer.h>
 
 namespace Alembic {
     namespace Abc {
@@ -63,42 +64,56 @@ namespace {
     typedef Imath::V3d				    V3d;
     typedef Imath::V4f                              V4f;
 
-    typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
     typedef Alembic::Abc::DataType		    DataType;
+    typedef Alembic::Abc::Dimensions                Dimensions;
+    typedef Alembic::Abc::MetaData                  MetaData;
     typedef Alembic::Abc::ISampleSelector	    ISampleSelector;
     typedef Alembic::Abc::ObjectHeader		    ObjectHeader;
-    typedef Alembic::Abc::P3fArraySample	    P3fArraySample;
-    typedef Alembic::Abc::UcharArraySamplePtr	    UcharArraySamplePtr;
-    typedef Alembic::Abc::Int32ArraySamplePtr	    Int32ArraySamplePtr;
-    typedef Alembic::Abc::FloatArraySamplePtr	    FloatArraySamplePtr;
-    typedef Alembic::Abc::P3fArraySamplePtr	    P3fArraySamplePtr;
+    typedef Alembic::Abc::PropertyHeader	    PropertyHeader;
+    typedef Alembic::Abc::WrapExistingFlag	    WrapExistingFlag;
+
+    typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
     typedef Alembic::Abc::ICompoundProperty	    ICompoundProperty;
     typedef Alembic::Abc::IArrayProperty	    IArrayProperty;
-    typedef Alembic::Abc::PropertyHeader	    PropertyHeader;
+
+    typedef Alembic::Abc::ArraySample               ArraySample;
     typedef Alembic::Abc::ArraySamplePtr	    ArraySamplePtr;
-    typedef Alembic::Abc::WrapExistingFlag	    WrapExistingFlag;
+    typedef Alembic::Abc::UcharArraySamplePtr	    UcharArraySamplePtr;
+    typedef Alembic::Abc::Int32ArraySamplePtr	    Int32ArraySamplePtr;
+    typedef Alembic::Abc::UInt64ArraySamplePtr	    UInt64ArraySamplePtr;
+    typedef Alembic::Abc::FloatArraySamplePtr	    FloatArraySamplePtr;
+    typedef Alembic::Abc::P3fArraySamplePtr	    P3fArraySamplePtr;
+    typedef Alembic::Abc::V3fArraySamplePtr	    V3fArraySamplePtr;
+
+    typedef Alembic::Abc::IUInt64ArrayProperty	    IUInt64ArrayProperty;
+    typedef Alembic::Abc::IP3fArrayProperty	    IP3fArrayProperty;
+    typedef Alembic::Abc::IV3fArrayProperty	    IV3fArrayProperty;
 
     typedef Alembic::AbcGeom::BasisType             BasisType;
     typedef Alembic::AbcGeom::CurvePeriodicity      CurvePeriodicity;
     typedef Alembic::AbcGeom::GeometryScope	    GeometryScope;
 
+    typedef Alembic::AbcGeom::IFloatGeomParam       IFloatGeomParam;
+    typedef Alembic::AbcGeom::IV2fGeomParam         IV2fGeomParam;
+    typedef Alembic::AbcGeom::IN3fGeomParam         IN3fGeomParam;
+
     typedef Alembic::AbcGeom::IXform		    IXform;
     typedef Alembic::AbcGeom::IXformSchema	    IXformSchema;
     typedef Alembic::AbcGeom::XformSample	    XformSample;
-    typedef Alembic::AbcGeom::ISubD		    ISubD;
-    typedef Alembic::AbcGeom::ISubDSchema	    ISubDSchema;
+    typedef Alembic::AbcGeom::IFaceSet		    IFaceSet;
+    typedef Alembic::AbcGeom::IFaceSetSchema	    IFaceSetSchema;
     typedef Alembic::AbcGeom::IPolyMesh		    IPolyMesh;
     typedef Alembic::AbcGeom::IPolyMeshSchema	    IPolyMeshSchema;
+    typedef Alembic::AbcGeom::ISubD		    ISubD;
+    typedef Alembic::AbcGeom::ISubDSchema	    ISubDSchema;
+    typedef Alembic::AbcGeom::IPoints		    IPoints;
+    typedef Alembic::AbcGeom::IPointsSchema	    IPointsSchema;
     typedef Alembic::AbcGeom::ICurves		    ICurves;
     typedef Alembic::AbcGeom::ICurvesSchema	    ICurvesSchema;
     typedef ICurvesSchema::Sample                   ICurvesSample;
-    typedef Alembic::AbcGeom::IPoints		    IPoints;
-    typedef Alembic::AbcGeom::IPointsSchema	    IPointsSchema;
     typedef Alembic::AbcGeom::INuPatch		    INuPatch;
     typedef Alembic::AbcGeom::INuPatchSchema	    INuPatchSchema;
     typedef INuPatchSchema::Sample		    INuPatchSample;
-    typedef Alembic::AbcGeom::IFaceSet		    IFaceSet;
-    typedef Alembic::AbcGeom::IFaceSetSchema	    IFaceSetSchema;
 
     typedef Alembic::Util::PlainOldDataType         PlainOldDataType;
 
@@ -107,39 +122,23 @@ namespace {
     typedef Alembic::Abc::TypedArraySample<P4fTPTraits> P4fArraySample;
     typedef Alembic::Util::shared_ptr<P4fArraySample>   P4fArraySamplePtr;
 
-    const WrapExistingFlag  gabcWrapExisting = Alembic::Abc::kWrapExisting;
-    const M44d	            identity44d(1, 0, 0, 0,
-			                0, 1, 0, 0,
-                                        0, 0, 1, 0,
-			                0, 0, 0, 1);
-    // Corresponds to thr Alembic BasisType enum
-    const std::string       curveNamesArray[6] = {
-                                    "NoBasis",      // kNoBasis
-                                    "Bezier",       // kBezierBasis
-                                    "B-Spline",     // kBsplineBasis
-                                    "Catmull-Rom",  // kCatmullromBasis
-                                    "Hermite",      // kHermiteBasis
-                                    "Power"};       // kPowerBasis
+    static const WrapExistingFlag   gabcWrapExisting = Alembic::Abc::kWrapExisting;
+    static const M44d               identity44d(1, 0, 0, 0,
+                                            0, 1, 0, 0,
+                                            0, 0, 1, 0,
+			                    0, 0, 0, 1);
+    // Corresponds to the Alembic BasisType enum
+    static const std::string        curveNamesArray[6] = {
+                                            "NoBasis",      // kNoBasis
+                                            "Bezier",       // kBezierBasis
+                                            "B-Spline",     // kBsplineBasis
+                                            "Catmull-Rom",  // kCatmullromBasis
+                                            "Hermite",      // kHermiteBasis
+                                            "Power"};       // kPowerBasis
 
-    class PushTransform
-    {
-    public:
-	PushTransform(GABC_GEOWalker &walk, IXform &xform)
-	    : myWalk(walk)
-	{
-	    IXformSchema	&xs = xform.getSchema();
-	    XformSample		 sample = xs.getValue(walk.timeSample());
-	    walk.pushTransform(sample.getMatrix(), xs.isConstant(), myPop,
-		    xs.getInheritsXforms());
-	}
-	~PushTransform()
-	{
-	    myWalk.popTransform(myPop);
-	}
-    private:
-	GABC_GEOWalker			&myWalk;
-	GABC_GEOWalker::TransformState	 myPop;
-    };
+    //
+    //  Get GA_AttributeOwner, GA_Storage, GA_TypeInfo info from Alembic
+    //
 
     static GA_AttributeOwner
     getGAOwner(GeometryScope scope)
@@ -157,33 +156,10 @@ namespace {
 	    case Alembic::AbcGeom::kVaryingScope:
 		return GA_ATTRIB_POINT;
 	}
+
 	UT_ASSERT(0);
+
 	return GA_ATTRIB_OWNER_N;
-    }
-    
-    static GA_Storage
-    getGAStorage(const GT_Storage store)
-    {
-	switch (store)
-	{
-	    case GT_STORE_UINT8:
-		return GA_STORE_INT8;
-	    case GT_STORE_INT32:
-		return GA_STORE_INT32;
-	    case GT_STORE_INT64:
-		return GA_STORE_INT64;
-	    case GT_STORE_REAL16:
-		return GA_STORE_REAL16;
-	    case GT_STORE_REAL32:
-		return GA_STORE_REAL32;
-	    case GT_STORE_REAL64:
-		return GA_STORE_REAL64;
-	    case GT_STORE_STRING:
-		return GA_STORE_STRING;
-	    default:
-		break;
-	}
-	return GA_STORE_INVALID;
     }
 
     static GA_Storage
@@ -222,12 +198,6 @@ namespace {
 	return GA_STORE_INVALID;
     }
 
-    static inline int
-    getGATupleSize(const Alembic::AbcGeom::DataType &dtype)
-    {
-	return dtype.getExtent();
-    }
-
     static inline GA_TypeInfo
     getGATypeInfo(const char *interp, int tsize)
     {
@@ -246,30 +216,21 @@ namespace {
 	return GA_TYPE_VOID;
     }
 
-    static inline GA_TypeInfo
-    getGATypeInfo(GT_Type tinfo, int tsize)
+    // Alembic stores all sorts of things as vectors. For example "uv"
+    // coordinates.
+    static GA_TypeInfo
+    isReallyVector(const char *name, int tsize)
     {
-	switch (tinfo)
-	{
-	    case GT_TYPE_POINT:
-	    case GT_TYPE_HPOINT:
-		return tsize == 4 ? GA_TYPE_HPOINT : GA_TYPE_POINT;
-	    case GT_TYPE_VECTOR:
-		return GA_TYPE_VECTOR;
-	    case GT_TYPE_NORMAL:
-		return GA_TYPE_NORMAL;
-	    case GT_TYPE_COLOR:
-		return GA_TYPE_COLOR;
-	    case GT_TYPE_QUATERNION:
-		return GA_TYPE_QUATERNION;
-	    case GT_TYPE_MATRIX3:
-	    case GT_TYPE_MATRIX:
-		return GA_TYPE_TRANSFORM;
-	    default:
-		break;
-	}
-	return GA_TYPE_VOID;
+	// We don't actually want "uv" coordinates transformed as
+	// vectors, so we strip out the type information here.
+	if (!strcmp(name, "uv") && tsize > 1 && tsize < 4)
+	    return GA_TYPE_VOID;
+	return GA_TYPE_VECTOR;
     }
+
+    //
+    //  Load Attributes from Alembic
+    //
 
     static GA_Defaults	theZeroDefaults(0);
     static GA_Defaults	theWidthDefaults(0.1);
@@ -291,12 +252,87 @@ namespace {
 	return theZeroDefaults;
     }
 
-    static GA_RWAttributeRef
-    findAttribute(GU_Detail &gdp, GA_AttributeOwner owner,
-	    const char *name, const char *abcname,
-	    int tsize, GA_Storage storage, const char *interp)
+    static GA_AttributeOwner
+    arbitraryGAOwner(const PropertyHeader &ph)
     {
-	GA_RWAttributeRef	attrib;
+        return getGAOwner(Alembic::AbcGeom::GetGeometryScope(ph.getMetaData()));
+    }
+
+    static int
+    getArrayExtent(const MetaData &meta)
+    {
+        std::string extent_s = meta.get("arrayExtent");
+        return (extent_s == "") ? 1 : atoi(extent_s.c_str());
+    }
+
+    static void
+    setupForOwner(GABC_GEOWalker &walk,
+            GA_AttributeOwner &owner,
+            const char *name,
+            exint &start,
+            exint &len,
+            int &entries,
+            int &tsize,
+            exint npoint,
+            exint nvertex,
+            exint nprim,
+            bool &promote_points)
+    {
+	switch (owner)
+	{
+	    case GA_ATTRIB_POINT:
+                // If an attribute is encountered as both a point and vertex
+                // attribute, upgrade point attribute data to vertex data.
+                if (walk.detail().findVertexAttribute(name))
+                {
+                    promote_points = true;
+                    owner = GA_ATTRIB_VERTEX;
+                    // Fall through to vertex case
+                }
+                else
+                {
+                    promote_points = false;
+                    start = walk.pointCount();
+                    len = npoint;
+                    break;
+                }
+
+	    case GA_ATTRIB_VERTEX:
+                start = walk.vertexCount();
+                len = nvertex;
+		break;
+
+	    case GA_ATTRIB_DETAIL:
+	        // Promote detail attributes to primitive attributes, in case
+	        // multiple objects in the same Alembic archive have the same
+	        // detail attribute with differing values.
+	        owner = GA_ATTRIB_PRIMITIVE;
+	        tsize *= entries;
+	        entries = 1;
+	        // Fall through to primitive case
+
+	    case GA_ATTRIB_PRIMITIVE:
+                start = walk.primitiveCount();
+                len = nprim;
+		break;
+
+	    default:
+		UT_ASSERT(!"Cannot determine attribute owner");
+		return;
+	}
+    }
+
+    static GA_RWAttributeRef
+    findAttribute(GU_Detail &gdp,
+            GA_AttributeOwner owner,
+            const char *name,
+            const char *abcname,
+            int tsize,
+            GA_Storage storage,
+            const char *interp)
+    {
+	GA_RWAttributeRef   attrib;
+
 	switch (GAstorageClass(storage))
 	{
 	    case GA_STORECLASS_REAL:
@@ -311,77 +347,63 @@ namespace {
 	    default:
 		break;
 	}
+
 	if (!attrib.isValid())
 	{
 	    if (!strcmp(name, "uv") && tsize == 2)
-		tsize = 3;	// Adjust for "Houdini" uv coordinates
+	    {
+	        // Adjust for "Houdini" uv coordinates.
+                tsize = 3;
+            }
 
-	    attrib = gdp.addTuple(storage, owner, name, tsize,
-				getDefaults(name, tsize, interp));
+	    attrib = gdp.addTuple(storage,
+	            owner,
+	            name,
+	            tsize,
+                    getDefaults(name, tsize, interp));
 	    if (attrib.isValid() && abcname)
-		attrib.getAttribute()->setExportName(abcname);
-	    // Do *not* mark this as a "vector" since we don't want to
-	    // transform as a vector.
+	    {
+                // Do *not* mark this as a "vector" since we don't want to
+                // transform as a vector.
+                attrib.getAttribute()->setExportName(abcname);
+            }
 	}
+
 	return attrib;
     }
 
-    template <typename T>
-    static bool
-    isEmpty(const T &ptr)
-    {
-	return !ptr || !ptr->valid() || ptr->size() == 0;
-    }
-
-    template <typename T>
+    template <typename GA_T, typename ABC_T>
     static void
-    setStringAttribute(GU_Detail &gdp, GA_RWAttributeRef &attrib,
-		    const T &array, int extent, exint start, exint end,
-		    bool extend_array)
+    setNumericAttribute(GU_Detail &gdp,
+            GA_RWAttributeRef &attrib,
+            const ABC_T *array_data,
+            exint start,
+            exint end,
+            int extent,
+            int entries,
+            exint npts = 0)
     {
-	GA_RWHandleS		 h(attrib.getAttribute());
-	int			 tsize = SYSmin(extent, attrib.getTupleSize());
-	const std::string	*data = (const std::string *)array->getData();
-	UT_ASSERT(h.isValid());
-	for (exint i = start; i < end; ++i)
+	if (!array_data)
 	{
-	    for (int j = 0; j < tsize; ++j)
-		h.set(GA_Offset(i), j, data[j].c_str());
-	    if (!extend_array)
-		data += extent;
-	}
-    }
-
-    template <typename T, typename GA_T, typename ABC_T>
-    static void
-    setNumericAttribute(GU_Detail &gdp, GA_RWAttributeRef &attrib,
-		    const T &array, int extent, exint start, exint end,
-		    bool extend_array, bool set_v_from_p)
-    {
-	GA_RWHandleT<GA_T>	 h(attrib.getAttribute());
-	int			 tsize = SYSmin(extent, attrib.getTupleSize());
-	const GA_AIFTuple	*tuple = attrib.getAIFTuple();
-	const ABC_T		*master_data = (const ABC_T *)array->getData();
-	if (!master_data)
 	    return;
+        }
+
+	GA_RWHandleT<GA_T>  h(attrib.getAttribute());
+	int                 tsize = SYSmin(extent, attrib.getTupleSize());
+	const GA_AIFTuple  *tuple = attrib.getAIFTuple();
+	--entries;
 
 	UT_ASSERT(h.isValid());
 
-	if (set_v_from_p)
+	if (npts)
 	{
 	    const ABC_T    *data;
+	    GA_Offset       pos;
 
 	    for (exint i = start; i < end; ++i)
             {
-                if (extend_array)
-                {
-                    GA_Offset   pos = gdp.vertexPoint(GA_Offset(i - start));
-                    data = (master_data + (pos * extent));
-                }
-                else
-                {
-                    data = master_data;
-                }
+                pos = gdp.vertexPoint(i);
+                data = (array_data + ((pos - npts) * tsize));
 
                 for (int j = 0; j < tsize; ++j)
                 {
@@ -390,7 +412,7 @@ namespace {
                         tuple->set(
                                 attrib.getAttribute(),
                                 GA_Offset(i),
-                                (double)data[j],
+                                (GA_T)data[j],
                                 j);
                     }
                     else
@@ -411,253 +433,182 @@ namespace {
                         tuple->set(
                                 attrib.getAttribute(),
                                 GA_Offset(i),
-                                (double)master_data[j],
+                                (GA_T)array_data[j],
                                 j);
                     }
                     else
                     {
-                        h.set(GA_Offset(i), j, master_data[j]);
+                        h.set(GA_Offset(i), j, array_data[j]);
                     }
                 }
-                if (!extend_array)
+                if ((i - start) < entries)
                 {
-                    master_data += extent;
+                    array_data += tsize;
                 }
             }
 	}
     }
 
-    static GA_TypeInfo
-    isReallyVector(const char *name, int tsize)
-    {
-	// Alembic stores all sorts of things as vectors.  For example "uv"
-	// coordinates.  We don't actually want "uv" coordinates transformed as
-	// vectors, so we strip out the type information here.
-	if (!strcmp(name, "uv") && tsize > 1 && tsize < 4)
-	    return GA_TYPE_VOID;
-	return GA_TYPE_VECTOR;
-    }
-
-    template <typename T>
     static void
-    fillNumeric(GA_RWAttributeRef &attrib, const GT_DataArrayHandle &array,
-	    const T *data, exint start, exint end, bool extend)
+    setStringAttribute(GU_Detail &gdp,
+            GA_RWAttributeRef &attrib,
+            const std::string  *array_data,
+            exint start,
+            exint end,
+            int extent,
+            int entries,
+            exint npts = 0)
     {
-	GA_RWHandleT<T> h(attrib);
-	if (!h.isValid())
-	    return;
+	GA_RWHandleS        h(attrib.getAttribute());
+	int                 tsize = SYSmin(extent, attrib.getTupleSize());
+	--entries;
 
-	if (extend)
-	{
-	    // Copy the entire data array to each element
-	    exint	atsize = array->getTupleSize() * array->entries();
-	    exint	tsize = SYSmin(atsize, attrib.getTupleSize());
-	    for (exint i = start; i < end; ++i)
-	    {
-		for (int j = 0; j < tsize; ++j)
-		    h.set(GA_Offset(i), j, data[j]);
-	    }
-	}
-	else
-	{
-	    exint	atsize = array->getTupleSize();
-	    exint	aend = start + array->entries() - 1;
-	    exint	tsize = SYSmin(atsize, attrib.getTupleSize());
-	    for (exint i = start; i < end; ++i)
-	    {
-		for (int j = 0; j < tsize; ++j)
-		    h.set(GA_Offset(i), j, data[j]);
-		if (i < aend)
-		    data += array->getTupleSize();
-	    }
-	}
+	UT_ASSERT(h.isValid());
+
+        if (npts)
+        {
+	    const std::string  *data;
+	    GA_Offset           pos;
+
+            for (exint i = start; i < end; ++i)
+            {
+                pos = gdp.vertexPoint(i);
+                data = (array_data + ((pos - npts) * tsize));
+
+                for (int j = 0; j < tsize; ++j)
+                {
+                    h.set(GA_Offset(i), j, data[j].c_str());
+                }
+            }
+        }
+        else
+        {
+            for (exint i = start; i < end; ++i)
+            {
+                for (int j = 0; j < tsize; ++j)
+                {
+                    h.set(GA_Offset(i), j, array_data[j].c_str());
+                }
+
+                if ((i - start) < entries)
+                {
+                    array_data += tsize;
+                }
+            }
+        }
     }
 
-    static void
-    copyStrings(GA_RWAttributeRef &attrib, const GT_DataArrayHandle &array,
-	    exint start, exint end, bool extend)
-    {
-	GA_RWHandleS	h(attrib);
-	if (!h.isValid())
-	    return;
-
-	if (extend)
-	{
-	    exint	atsize = array->getTupleSize() * array->entries();
-	    exint	tsize = SYSmin(atsize, attrib.getTupleSize());
-	    UT_StackBuffer<const char *>	strings(tsize);
-	    int		tidx = 0;
-	    for (exint i = 0; i < array->entries(); ++i)
-	    {
-		for (exint j = 0; tidx < tsize && j < array->getTupleSize();
-			++j, ++tidx)
-		{
-		    strings[tidx] = array->getS(i, j);
-		}
-	    }
-	    for (exint off = start; off < end; ++off)
-	    {
-		for (exint i = 0; i < tsize; ++i)
-		    h.set(GA_Offset(off), i, strings[i]);
-	    }
-	}
-	else
-	{
-	    exint		aend = array->entries()-1;
-	    exint		atsize = array->getTupleSize();
-	    exint		tsize = SYSmin(atsize, attrib.getTupleSize());
-	    exint		aidx = 0;
-	    for (exint i = start; i < end; ++i)
-	    {
-		for (exint j = 0; j < tsize; ++j)
-		    h.set(GA_Offset(i), j, array->getS(aidx, j));
-		aidx = SYSmin(aidx+1, aend);
-	    }
-	}
-    }
-
-    static void
-    copyNumeric(GA_RWAttributeRef &attrib, const GT_DataArrayHandle &array,
-	    exint start, exint end, bool extend)
-    {
-	GT_DataArrayHandle	storage;
-	UT_ASSERT(attrib.getAIFTuple());
-	switch (attrib.getAIFTuple()->getStorage(attrib.getAttribute()))
-	{
-	    case GA_STORE_BOOL:
-	    case GA_STORE_UINT8:
-	    case GA_STORE_INT8:
-	    case GA_STORE_INT16:
-	    case GA_STORE_INT32:
-	    {
-		const int32	*data = array->getI32Array(storage);
-		fillNumeric<int32>(attrib, array, data, start, end, extend);
-		break;
-	    }
-	    case GA_STORE_INT64:
-	    {
-		const int64	*data = array->getI64Array(storage);
-		fillNumeric<int64>(attrib, array, data, start, end, extend);
-		break;
-	    }
-	    case GA_STORE_REAL16:
-	    {
-		const fpreal16	*data = array->getF16Array(storage);
-		fillNumeric<fpreal16>(attrib, array, data, start, end, extend);
-		break;
-	    }
-	    case GA_STORE_REAL32:
-	    {
-		const fpreal32	*data = array->getF32Array(storage);
-		fillNumeric<fpreal32>(attrib, array, data, start, end, extend);
-		break;
-	    }
-	    case GA_STORE_REAL64:
-	    {
-		const fpreal64	*data = array->getF64Array(storage);
-		fillNumeric<fpreal64>(attrib, array, data, start, end, extend);
-		break;
-	    }
-	    default:
-		break;
-	}
-    }
-
-    template <typename GT_T, typename ABC_T>
-    static void
-    copyNumericAttribute(GU_Detail &gdp, GA_RWAttributeRef &attrib,
-		    const ArraySamplePtr &array,
-		    int extent, exint start, exint end, bool extend_array)
-    {
-	int			 tsize = SYSmin(extent, attrib.getTupleSize());
-	const GA_AIFTuple	*tuple = attrib.getAIFTuple();
-	const ABC_T		*data = (const ABC_T *)array->getData();
-	UT_StackBuffer<GT_T>	 buf(tsize);
-	if (!data || !tuple)
-	    return;
-	for (exint i = start; i < end; ++i)
-	{
-	    if (SYSisSame<GT_T, ABC_T>())
-	    {
-		tuple->set(attrib.getAttribute(), GA_Offset(i),
-			(GT_T *)data, tsize);
-	    }
-	    else
-	    {
-		for (int j = 0; j < tsize; ++j)
-		    buf[j] = data[j];
-		tuple->set(attrib.getAttribute(), GA_Offset(i), buf, tsize);
-	    }
-	    if (!extend_array)
-		data += extent;
-	}
-    }
-
-    /// Template argument @T is expected to be a
-    ///  boost::shared_ptr<TypedArraySample<TRAITS>>
-    template <typename T>
     static void
     setAttribute(GABC_GEOWalker &walk,
             const GABC_IObject &obj,
             GA_AttributeOwner owner,
             const char *name,
             const char *abcname,
-            const T &array,
-            exint start,
-            exint len,
-            bool set_v_from_p = false)
+            const DataType &data_type,
+            const Dimensions &dimensions,
+            const MetaData &meta_data,
+            const void *data,
+            exint npoint,
+            exint nvertex = 0,
+            exint nprim = 0)
     {
-        int                 sample_size = array->size();
 
-	if (!(array && sample_size))
+	GA_RWAttributeRef   attrib;
+	GA_Storage          store = getGAStorage(data_type);
+	GU_Detail          &gdp = walk.detail();
+	exint               start;
+	exint               len;
+	exint               npts = 0;
+        int                 array_extent = getArrayExtent(meta_data);
+        int                 entries = dimensions.numPoints();
+	int                 tsize = array_extent * data_type.getExtent();
+	const char         *interp= meta_data.get("interpretation").c_str();
+        bool                promote_points = false;
+
+	UT_ASSERT(array_extent == 1 || (entries % array_extent) == 0);
+
+	if (array_extent > 1)
+	{
+	    entries = entries / array_extent;
+	}
+        if (!entries)
 	{
 	    // Valid attribute but no entries, likely a corrupt Alembic file.
-	    if (!sample_size)
-	    {
-                walk.errorHandler().warning("No entries for attribute %s in "
-                            "object %s. Ignoring attribute.",
-                        name,
-                        obj.getFullName().c_str());
-            }
+            walk.errorHandler().warning("No entries for attribute %s in "
+                    "object %s. Ignoring attribute.",
+                    name,
+                    obj.getFullName().c_str());
 	    return;
         }
 
-	GA_RWAttributeRef   attrib;
-	GA_Storage          store = getGAStorage(array->getDataType());
-	GU_Detail          &gdp = walk.detail();
-	int                 tsize = getGATupleSize(array->getDataType());
-	const char         *interp= T::element_type::traits_type::interpretation();
-	bool                extend_array = sample_size < len;
+        setupForOwner(walk,
+                owner,
+                name,
+                start,
+                len,
+                entries,
+                tsize,
+                npoint,
+                nvertex,
+                nprim,
+                promote_points);
 
 	attrib = findAttribute(gdp, owner, name, abcname, tsize, store, interp);
 	if (attrib.isValid())
 	{
 	    if (attrib.getAttribute() != gdp.getP())
 	    {
-		GA_TypeInfo	tinfo = getGATypeInfo(interp, tsize);
+		GA_TypeInfo tinfo = getGATypeInfo(interp, tsize);
 		if (tinfo == GA_TYPE_VECTOR)
+		{
 		    tinfo = isReallyVector(name, tsize);
+                }
 		attrib.getAttribute()->setTypeInfo(tinfo);
 	    }
+
+	    if (promote_points)
+	    {
+	        walk.errorHandler().warning("Upgrading point attribute "
+                        "%s to vertex attribute for object %s.",
+                        name,
+                        obj.getFullName().c_str());
+                npts = walk.pointCount();
+            }
+
 	    switch (attrib.getStorageClass())
 	    {
 		case GA_STORECLASS_REAL:
-		    switch (array->getDataType().getPod())
+		    switch (data_type.getPod())
 		    {
 			case Alembic::AbcGeom::kFloat16POD:
-			    setNumericAttribute<T, fpreal32, fpreal16>(
-				gdp, attrib, array, tsize, start, start+len,
-				extend_array, set_v_from_p);
+			    setNumericAttribute<fpreal16, fpreal16>(gdp,
+			            attrib,
+			            (const fpreal16 *)data,
+			            start,
+			            start+len,
+                                    tsize,
+                                    entries,
+                                    npts);
 			    break;
 			case Alembic::AbcGeom::kFloat32POD:
-			    setNumericAttribute<T, fpreal32, fpreal32>(
-				gdp, attrib, array, tsize, start, start+len,
-				extend_array, set_v_from_p);
+			    setNumericAttribute<fpreal32, fpreal32>(gdp,
+                                    attrib,
+                                    (const fpreal32 *)data,
+                                    start,
+                                    start+len,
+                                    tsize,
+                                    entries,
+                                    npts);
 			    break;
 			case Alembic::AbcGeom::kFloat64POD:
-			    setNumericAttribute<T, fpreal32, fpreal64>(
-				gdp, attrib, array, tsize, start, start+len,
-				extend_array, set_v_from_p);
+			    setNumericAttribute<fpreal64, fpreal64>(gdp,
+                                    attrib,
+                                   (const fpreal64 *)data,
+                                    start,
+                                    start+len,
+                                    tsize,
+                                    entries,
+                                    npts);
 			    break;
 			default:
 			    UT_ASSERT(0 && "Bad alembic type");
@@ -665,61 +616,245 @@ namespace {
 		    }
 		    break;
 		case GA_STORECLASS_INT:
-		    switch (array->getDataType().getPod())
+		    switch (data_type.getPod())
 		    {
-			case Alembic::AbcGeom::kUint32POD:
-			    setNumericAttribute<T, int32, uint32>(
-				gdp, attrib, array, tsize, start, start+len,
-				extend_array, set_v_from_p);
+			case Alembic::AbcGeom::kInt8POD:
+			    setNumericAttribute<int32, int8>(gdp,
+                                    attrib,
+                                    (const int8 *)data,
+                                    start,
+                                    start+len,
+                                    tsize,
+                                    entries,
+                                    npts);
 			    break;
-			case Alembic::AbcGeom::kInt32POD:
-			    setNumericAttribute<T, int32, int32>(
-				gdp, attrib, array, tsize, start, start+len,
-				extend_array, set_v_from_p);
-			    break;
-			case Alembic::AbcGeom::kUint64POD:
-			    setNumericAttribute<T, int32, uint64>(
-				gdp, attrib, array, tsize, start, start+len,
-				extend_array, set_v_from_p);
-			    break;
-			case Alembic::AbcGeom::kInt64POD:
-			    setNumericAttribute<T, int32, int64>(
-				gdp, attrib, array, tsize, start, start+len,
-				extend_array, set_v_from_p);
+			case Alembic::AbcGeom::kBooleanPOD:
+			    setNumericAttribute<uint8, uint8>(gdp,
+                                    attrib,
+                                    (const uint8 *)data,
+                                    start,
+                                    start+len,
+                                    tsize,
+                                    entries,
+                                    npts);
 			    break;
 			case Alembic::AbcGeom::kUint8POD:
-			    setNumericAttribute<T, int32, uint8>(
-				gdp, attrib, array, tsize, start, start+len,
-				extend_array, set_v_from_p);
-			    break;
-			case Alembic::AbcGeom::kInt8POD:
-			    setNumericAttribute<T, int32, int8>(
-				gdp, attrib, array, tsize, start, start+len,
-				extend_array, set_v_from_p);
-			    break;
-			case Alembic::AbcGeom::kUint16POD:
-			    setNumericAttribute<T, int32, uint16>(
-				gdp, attrib, array, tsize, start, start+len,
-				extend_array, set_v_from_p);
+			    setNumericAttribute<uint8, uint8>(gdp,
+                                    attrib,
+                                    (const uint8 *)data,
+                                    start,
+                                    start+len,
+                                    tsize,
+                                    entries,
+                                    npts);
 			    break;
 			case Alembic::AbcGeom::kInt16POD:
-			    setNumericAttribute<T, int32, int16>(
-				gdp, attrib, array, tsize, start, start+len,
-				extend_array, set_v_from_p);
+			    setNumericAttribute<int32, int16>(gdp,
+                                    attrib,
+                                    (const int16 *)data,
+                                    start,
+                                    start+len,
+                                    tsize,
+                                    entries,
+                                    npts);
+			    break;
+			case Alembic::AbcGeom::kUint16POD:
+			    setNumericAttribute<int32, uint16>(gdp,
+                                    attrib,
+                                    (const uint16 *)data,
+                                    start,
+                                    start+len,
+                                    tsize,
+                                    entries,
+                                    npts);
+			    break;
+			case Alembic::AbcGeom::kInt32POD:
+			    setNumericAttribute<int32, int32>(gdp,
+                                    attrib,
+                                    (const int32 *)data,
+                                    start,
+                                    start+len,
+                                    tsize,
+                                    entries,
+                                    npts);
+			    break;
+			case Alembic::AbcGeom::kUint32POD:
+			    setNumericAttribute<int32, uint32>(gdp,
+			            attrib,
+			            (const uint32 *)data,
+			            start,
+			            start+len,
+                                    tsize,
+                                    entries,
+                                    npts);
+			    break;
+			case Alembic::AbcGeom::kInt64POD:
+			    setNumericAttribute<int64, int64>(gdp,
+                                    attrib,
+                                    (const int64 *)data,
+                                    start,
+                                    start+len,
+                                    tsize,
+                                    entries,
+                                    npts);
+			    break;
+			case Alembic::AbcGeom::kUint64POD:
+			    setNumericAttribute<int64, uint64>(gdp,
+                                    attrib,
+                                    (const uint64 *)data,
+                                    start,
+                                    start+len,
+                                    tsize,
+                                    entries,
+                                    npts);
 			    break;
 			default:
 			    UT_ASSERT(0 && "Bad alembic type");
 		    }
 		    break;
 		case GA_STORECLASS_STRING:
-		    setStringAttribute<T>(gdp, attrib,
-				array, tsize, start, start+len,
-				extend_array);
+		    setStringAttribute(gdp,
+		            attrib,
+                            (const std::string *)data,
+                            start,
+                            start+len,
+                            tsize,
+                            entries,
+                            npts);
 		    break;
 		default:
 		    UT_ASSERT(0 && "Bad GA storage");
 	    }
 	}
+    }
+
+    static void
+    setIndexedStringAttribute(GABC_GEOWalker &walk,
+            const GABC_IObject &obj,
+            ICompoundProperty parent,
+            ISampleSelector &iss,
+            exint npoint,
+            exint nvertex,
+            exint nprim)
+    {
+	ArraySamplePtr          isample;
+	ArraySamplePtr          vsample;
+	IArrayProperty          indices(parent, ".indices");
+	IArrayProperty          vals(parent, ".vals");
+	const PropertyHeader   &head = parent.getHeader();
+	GA_AttributeOwner       owner = arbitraryGAOwner(head);
+	GA_RWAttributeRef       attrib;
+	GA_RWHandleS            handle;
+	GU_Detail              &gdp = walk.detail();
+        UT_String               name(head.getName());
+        const std::string      *vals_data;
+        exint                   start;
+        exint                   end;
+        exint                   len;
+        const int              *indices_data;
+        int                     tsize = getArrayExtent(parent.getMetaData());
+        int                     entries;
+	bool                    promote_points = false;
+
+	if (!indices.valid() || !vals.valid())
+	{
+            return;
+	}
+
+	indices.get(isample, iss);
+	vals.get(vsample, iss);
+	if (!isample || !vsample)
+	{
+	    return;
+	}
+
+        entries = isample->size();
+	if (!entries || !vsample->size())
+	{
+	    // Valid attribute but no entries, likely a corrupt Alembic file.
+            walk.errorHandler().warning("No entries for attribute %s in "
+                    "object %s. Ignoring attribute.",
+                    name.buffer(),
+                    obj.getFullName().c_str());
+	    return;
+	}
+
+        UT_ASSERT(tsize == 1 || (entries % tsize) == 0);
+        entries = entries / tsize;
+        setupForOwner(walk,
+                owner,
+                name.buffer(),
+                start,
+                len,
+                entries,
+                tsize,
+                npoint,
+                nvertex,
+                nprim,
+                promote_points);
+        end = start + len;
+
+        if (!walk.translateAttributeName(owner, name))
+        {
+            return;
+        }
+
+        attrib = findAttribute(gdp,
+                owner,
+                name,
+                head.getName().c_str(),
+                tsize,
+                GA_STORE_STRING,
+                "");
+        if (!attrib.isValid())
+        {
+            return;
+        }
+
+        handle = GA_RWHandleS(attrib.getAttribute());
+        vals_data = (const std::string *)vsample->getData();
+        indices_data = (const int *)isample->getData();
+        tsize = SYSmin(tsize, attrib.getTupleSize());
+
+	--entries;
+        if (promote_points)
+        {
+            const int  *data;
+            GA_Offset   pos;
+
+            walk.errorHandler().warning("Upgrading point attribute "
+                    "%s to vertex attribute for object %s.",
+                    name.buffer(),
+                    obj.getFullName().c_str());
+
+            for (exint i = start; i < end; ++i)
+            {
+                pos = gdp.vertexPoint(i);
+                data = (indices_data + ((pos - npoint) * tsize));
+
+                for (int j = 0; j < tsize; ++j)
+                {
+                    handle.set(GA_Offset(i), j, vals_data[data[j]].c_str());
+                }
+            }
+        }
+        else
+        {
+            for (exint i = start; i < end; ++i)
+            {
+                for (int j = 0; j < tsize; ++j)
+                {
+                    handle.set(GA_Offset(i),
+                            j,
+                            vals_data[indices_data[j]].c_str());
+                }
+
+                if ((i - start) < entries)
+                {
+                    indices_data += tsize;
+                }
+            }
+        }
     }
 
     /// Template argument @T is expected to be a
@@ -741,84 +876,267 @@ namespace {
 	    return;
         }
 
-	GA_AttributeOwner           owner = getGAOwner(param.getScope());
-	GU_Detail                  &gdp = walk.detail();
 	typename T::sample_type     psample;
-        bool                        set_v_from_p = false;
-	param.getExpanded(psample, iss);
+	ArraySample                *asample;
+	GA_AttributeOwner           owner = getGAOwner(param.getScope());
 
-        // UVs and Normals may be stored as point or vertex attributes.
-        // If both are encountered, upgrade point attribute data to vertex
-        // attribute.
-        if (owner == GA_ATTRIB_POINT && gdp.findVertexAttribute(name))
+	param.getExpanded(psample, iss);
+	asample = psample.getVals().get();
+	if (!asample)
+	{
+	    return;
+	}
+
+        setAttribute(walk,
+                obj,
+                owner,
+                name,
+                abcname,
+                asample->getDataType(),
+                asample->getDimensions(),
+                param.getMetaData(),
+                asample->getData(),
+                npoint,
+                nvertex,
+                nprim);
+    }
+
+    static void
+    fillArb(GABC_GEOWalker &walk,
+            const GABC_IObject &obj,
+            ICompoundProperty arb,
+            ISampleSelector &iss,
+            exint npoint,
+            exint nvertex,
+            exint nprim)
+    {
+        if (!arb)
         {
-            owner = GA_ATTRIB_VERTEX;
-            set_v_from_p = true;
+            return;
         }
 
-	switch (owner)
-	{
-	    case GA_ATTRIB_POINT:
-		setAttribute(walk,
-		        obj,
-		        owner,
-		        name,
-		        abcname,
-			psample.getVals(),
-			walk.pointCount(),
-			npoint);
-		break;
-	    case GA_ATTRIB_VERTEX:
-		setAttribute(walk,
-		        obj,
-		        owner,
-		        name,
-		        abcname,
-			psample.getVals(),
-			walk.vertexCount(),
-			nvertex,
-			set_v_from_p);
-		break;
-	    case GA_ATTRIB_PRIMITIVE:
-		setAttribute(walk,
-		        obj,
-		        owner,
-		        name,
-		        abcname,
-			psample.getVals(),
-			walk.primitiveCount(),
-			nprim);
-		break;
+        ArraySamplePtr              asample;
+        CompoundPropertyReaderPtr   cpr_ptr = GetCompoundPropertyReaderPtr(arb);
+	exint                       narb = arb.getNumProperties();
 
-	    case GA_ATTRIB_DETAIL:
-		// TODO: We map detail attributes to primitive attributes, so
-		// we need to extend the array to fill all elements!
-		setAttribute(walk,
-		        obj,
-		        GA_ATTRIB_PRIMITIVE,
-		        name,
-		        abcname,
-			psample.getVals(),
-			walk.primitiveCount(),
-			nprim);
-		break;
-	    default:
-		UT_ASSERT(0 && "Bad GA owner");
+	for (exint i = 0; i < narb; ++i)
+	{
+            const PropertyHeader   &head = arb.getPropertyHeader(i);
+
+            if (head.isCompound())
+            {
+                setIndexedStringAttribute(walk,
+                        obj,
+                        ICompoundProperty(cpr_ptr->getCompoundProperty(i), gabcWrapExisting),
+                        iss,
+                        npoint,
+                        nvertex,
+                        nprim);
+                continue;
+            }
+            UT_ASSERT(head.isArray());
+
+            GA_AttributeOwner       owner = arbitraryGAOwner(head);
+            UT_String               name(head.getName());
+            IArrayProperty          in_property(cpr_ptr->getArrayProperty(i),
+                                            gabcWrapExisting);
+
+            in_property.get(asample, iss);
+            if (!asample)
+            {
+                continue;
+            }
+
+	    if (!walk.translateAttributeName(owner, name))
+	    {
+		continue;
+            }
+
+            setAttribute(walk,
+                    obj,
+                    owner,
+                    name.buffer(),
+                    head.getName().c_str(),
+                    asample->getDataType(),
+                    asample->getDimensions(),
+                    in_property.getMetaData(),
+                    asample->getData(),
+                    npoint,
+                    nvertex,
+                    nprim);
 	}
     }
 
-    static bool
-    matchAttributeName(GA_AttributeOwner owner, const char *name,
-		    const GEO_PackedNameMapPtr &namemap)
+    //
+    //  Load user property information.
+    //
+
+    static void
+    fillUserProperties(GABC_GEOWalker &walk,
+            const GABC_IObject &obj,
+            ICompoundProperty uprops)
     {
-	return namemap ? namemap->matchPattern(owner, name) : true;
+        GA_RWAttributeRef   attrib;
+        GA_RWHandleS        str_attrib;
+        GU_Detail          &gdp = walk.detail();
+        UT_JSONWriter      *data_writer;
+        UT_JSONWriter      *meta_writer;
+        UT_WorkBuffer       data_dictionary;
+        UT_WorkBuffer       meta_dictionary;
+        bool                load_metadata = (walk.loadUserProps()
+                                    == GABC_GEOWalker::UP_LOAD_ALL);
+        bool                success = false;
+
+        // One writer for values and one for metadata. If the metadata
+        // writer is NULL, metadata will be ignored.
+        data_writer = UT_JSONWriter::allocWriter(data_dictionary);
+        meta_writer = load_metadata
+                ? UT_JSONWriter::allocWriter(meta_dictionary)
+                : NULL;
+
+        // Create the dictionaries.
+        if (!GABC_Util::writeUserPropertyDictionary(data_writer,
+                meta_writer,
+                obj,
+                uprops,
+                walk.time()))
+        {
+            walk.errorHandler().warning("Error reading user properties. "
+                    "Ignoring user properties.");
+        }
+        else
+        {
+            // Fetch/create the attribute handles and set their values.
+            attrib = gdp.findStringTuple(GA_ATTRIB_PRIMITIVE,
+                    GABC_Util::theUserPropsValsAttrib,
+                    1);
+            if (!attrib.isValid())
+            {
+                attrib = gdp.addTuple(GA_STORE_STRING,
+                        GA_ATTRIB_PRIMITIVE,
+                        GABC_Util::theUserPropsValsAttrib,
+                        1);
+            }
+
+            str_attrib = GA_RWHandleS(attrib);
+            if (!str_attrib.isValid())
+            {
+                walk.errorHandler().warning("Error creating user properties "
+                        "attribute.");
+            }
+            else
+            {
+                str_attrib.set(GA_Offset(walk.primitiveCount()),
+                        0,
+                        data_dictionary.buffer());
+                success = true;
+            }
+
+            if (load_metadata)
+            {
+                attrib = gdp.findStringTuple(GA_ATTRIB_PRIMITIVE,
+                        GABC_Util::theUserPropsMetaAttrib,
+                        1);
+                if (!attrib.isValid())
+                {
+                    attrib = gdp.addTuple(GA_STORE_STRING,
+                            GA_ATTRIB_PRIMITIVE,
+                            GABC_Util::theUserPropsMetaAttrib,
+                            1);
+                }
+
+                str_attrib = GA_RWHandleS(attrib);
+                if (!str_attrib.isValid())
+                {
+                    walk.errorHandler().warning("Error creating user properties"
+                            " metadata attribute.");
+                }
+                else
+                {
+                    str_attrib.set(GA_Offset(walk.primitiveCount()),
+                            0,
+                            meta_dictionary.buffer());
+                    success = true;
+                }
+            }
+        }
+
+        if (success)
+        {
+            walk.setNonConstant();
+        }
+
+        delete data_writer;
+        if (meta_writer)
+        {
+            delete meta_writer;
+        }
     }
 
-    #define MATCH_ATTRIBUTE(param, name) \
-	(param.valid() && matchAttributeName(getGAOwner(param.getScope()), name, walk.nameMapPtr()))
+    static void
+    abcFillUserProperties(GABC_GEOWalker &walk, const GABC_IObject &obj)
+    {
+        switch (obj.nodeType())
+        {
+            case GABC_POLYMESH:
+                fillUserProperties(walk,
+                        obj,
+                        IPolyMesh(obj.object(), gabcWrapExisting)
+                                .getSchema().getUserProperties());
+                break;
 
-    #define MATCH_PROPERTY(prop, iss, name) \
-	(prop.valid() && matchAttributeName(GA_ATTRIB_POINT, name, walk.nameMapPtr()))
+            case GABC_SUBD:
+                fillUserProperties(walk,
+                        obj,
+                        ISubD(obj.object(), gabcWrapExisting)
+                                .getSchema().getUserProperties());
+                break;
+
+            case GABC_CURVES:
+                fillUserProperties(walk,
+                        obj,
+                        ICurves(obj.object(), gabcWrapExisting)
+                                .getSchema().getUserProperties());
+                break;
+
+            case GABC_POINTS:
+                fillUserProperties(walk,
+                        obj,
+                        IPoints(obj.object(), gabcWrapExisting)
+                                .getSchema().getUserProperties());
+                break;
+
+            case GABC_NUPATCH:
+                fillUserProperties(walk,
+                        obj,
+                        INuPatch(obj.object(), gabcWrapExisting)
+                                .getSchema().getUserProperties());
+                break;
+
+            case GABC_XFORM:
+                fillUserProperties(walk,
+                        obj,
+                        IXform(obj.object(), gabcWrapExisting)
+                                .getSchema().getUserProperties());
+                break;
+
+            default:
+                UT_ASSERT(0 && "Alembic object type error");
+        }
+    }
+
+    //
+    //  Helper functions append geometry to existing details as part of
+    //  the process to create Houdini geometry from packed Alembics.
+    //
+
+    static void
+    appendParticles(GABC_GEOWalker &walk, exint npoint)
+    {
+	GU_Detail	&gdp = walk.detail();
+	// Build the particle, appending points as we go
+	GU_PrimParticle::build(&gdp, npoint, 1);
+    }
 
     static exint
     appendPoints(GABC_GEOWalker &walk, exint npoint)
@@ -829,51 +1147,46 @@ namespace {
 	return startpoint;
     }
 
-    void
-    appendParticles(GABC_GEOWalker &walk, exint npoint)
+    static void
+    appendFaces(GABC_GEOWalker &walk,
+            exint npoint,
+            Int32ArraySamplePtr counts,
+            Int32ArraySamplePtr indices,
+            bool polysoup)
     {
+	// First, append points
 	GU_Detail	&gdp = walk.detail();
-	// Build the particle, appending points as we go
-	GU_PrimParticle::build(&gdp, npoint, 1);
+	exint		 startpoint = appendPoints(walk, npoint);
+	exint		 nfaces = counts->size();
+	GEO_PolyCounts	 pcounts;
+
+	for (exint i = 0; i < nfaces; ++i)
+	{
+	    pcounts.append((*counts)[i]);
+        }
+
+	if (!polysoup)
+	{
+	    GU_PrimPoly::buildBlock(&gdp,
+	            GA_Offset(startpoint),
+	            npoint,
+                    pcounts,
+                    indices->get());
+	}
+	else
+	{
+	    GEO_PrimPolySoup *polysoup = UTverify_cast<GEO_PrimPolySoup *>(
+                    gdp.getGEOPrimitive(GU_PrimPolySoup::build(&gdp,
+                            GA_Offset(startpoint),
+                            npoint,
+                            pcounts,
+                            indices->get(),
+                            false)));
+            polysoup->optimize();
+	}
     }
 
-    static exint
-    setKnotVector(GA_Basis &basis, FloatArraySamplePtr &knots, int offset = 0)
-    {
-	GA_KnotVector   &kvec = basis.getKnotVector();
-        exint           basis_size = kvec.entries();
-
-	UT_ASSERT(basis_size <= (knots->size() - offset));
-
-	for (int i = 0; i < basis_size; ++i)
-	    kvec.setValue(i, knots->get()[offset + i]);
-
-	// Adjust flags based on knot values
-	basis.validate(GA_Basis::GA_BASIS_ADAPT_FLAGS);
-
-	return basis_size;
-    }
-
-    void
-    appendNURBS(GABC_GEOWalker &walk,
-	    int uorder, FloatArraySamplePtr &uknots,
-	    int vorder, FloatArraySamplePtr &vknots)
-    {
-	GU_Detail	&gdp = walk.detail();
-	int		 cols = uknots->size() - uorder;
-	int		 rows = vknots->size() - vorder;
-
-	// Build the surface
-	GU_PrimNURBSurf::build(&gdp, rows, cols,
-				    uorder, vorder,
-				    0,	// periodic in U
-				    0,	// periodic in V
-				    0,	// basis interpolates ends in U
-				    0,	// basis interpolates ends in V
-				    GEO_PATCH_QUADS);
-    }
-
-    bool
+    static bool
     validBasis(BasisType type, int nvertices, int order, bool closed)
     {
         UT_ASSERT(order > 0);
@@ -900,7 +1213,14 @@ namespace {
         return true;
     }
 
-    void
+    template <typename T>
+    static bool
+    isEmpty(const T &ptr)
+    {
+	return !ptr || !ptr->valid() || ptr->size() == 0;
+    }
+
+    static void
     appendCurves(GABC_GEOWalker &walk,
             const GABC_IObject &obj,
             BasisType type,
@@ -1020,300 +1340,124 @@ namespace {
 	}
     }
 
-    void
-    appendFaces(GABC_GEOWalker &walk,
-            exint npoint,
-            Int32ArraySamplePtr counts,
-            Int32ArraySamplePtr indices,
-            bool polysoup)
-    {
-	// First, append points
-	GU_Detail	&gdp = walk.detail();
-	exint		 startpoint = appendPoints(walk, npoint);
-	exint		 nfaces = counts->size();
-	GEO_PolyCounts	 pcounts;
-
-	for (exint i = 0; i < nfaces; ++i)
-	{
-	    pcounts.append((*counts)[i]);
-        }
-
-	if (!polysoup)
-	{
-	    GU_PrimPoly::buildBlock(&gdp,
-	            GA_Offset(startpoint),
-	            npoint,
-                    pcounts,
-                    indices->get());
-	}
-	else
-	{
-	    GEO_PrimPolySoup *polysoup = UTverify_cast<GEO_PrimPolySoup *>(
-                    gdp.getGEOPrimitive(GU_PrimPolySoup::build(&gdp,
-                            GA_Offset(startpoint),
-                            npoint,
-                            pcounts,
-                            indices->get(),
-                            false)));
-            polysoup->optimize();
-	}
-    }
-
     static void
-    copyArrayToAttribute(GABC_GEOWalker &walk,
-	    const GT_DataArrayHandle &array,
-	    const char *name,
-	    const char *abcname,
-	    GA_AttributeOwner owner,
-	    exint npoint,
-	    exint nvertex,
-	    exint nprim)
+    appendNURBS(GABC_GEOWalker &walk,
+	    int uorder, FloatArraySamplePtr &uknots,
+	    int vorder, FloatArraySamplePtr &vknots)
     {
-	exint		len;
-	exint		start;
-	bool		extend = false;
-	int		tsize = array->getTupleSize();
-	switch (owner)
-	{
-	    case GA_ATTRIB_POINT:
-		start = walk.pointCount();
-		len = npoint;
-		break;
-
-	    case GA_ATTRIB_VERTEX:
-		start = walk.vertexCount();
-		len = nvertex;
-		break;
-
-	    case GA_ATTRIB_GLOBAL:
-		// At the current time, we map global attributes to primitive
-		// attributes.
-		tsize = array->getTupleSize()*array->entries();
-		owner = GA_ATTRIB_PRIMITIVE;
-		extend = true;	// Copy data over
-		// Fall Through to primitive case
-	    case GA_ATTRIB_PRIMITIVE:
-		start = walk.primitiveCount();
-		len = nprim;
-		break;
-
-	    default:
-		UT_ASSERT(0);
-		return;
-	}
 	GU_Detail	&gdp = walk.detail();
-	GA_Storage	 store = getGAStorage(array->getStorage());
-	GA_TypeInfo	 tinfo = getGATypeInfo(array->getTypeInfo(), tsize);
-	GA_RWAttributeRef aref = findAttribute(gdp, owner, name, abcname,
-					    tsize, store,
-					    GTtype(array->getTypeInfo()));
-	if (!aref.isValid())
-	    return;
+	int		 cols = uknots->size() - uorder;
+	int		 rows = vknots->size() - vorder;
 
-	if (aref.getAttribute() != gdp.getP())
-	{
-	    if (tinfo == GA_TYPE_VECTOR)
-		tinfo = isReallyVector(name, tsize);
-	    aref.getAttribute()->setTypeInfo(tinfo);
-	}
-	if (aref.isString())
-	    copyStrings(aref, array, start, start+len, extend);
-	else if (aref.getAIFTuple() && GAisNumericStorage(store))
-	    copyNumeric(aref, array, start, start+len, extend);
+	// Build the surface
+	GU_PrimNURBSurf::build(&gdp, rows, cols,
+				    uorder, vorder,
+				    0,	// periodic in U
+				    0,	// periodic in V
+				    0,	// basis interpolates ends in U
+				    0,	// basis interpolates ends in V
+				    GEO_PATCH_QUADS);
     }
 
-    GA_AttributeOwner
-    arbitraryGAOwner(const PropertyHeader &ph)
+    //
+    //  Helper functions for creating Houdini geometry.
+    //
+
+    static GEO_AnimationType
+    getAnimationType(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
-	return getGAOwner(Alembic::AbcGeom::GetGeometryScope(ph.getMetaData()));
+	GEO_AnimationType	atype;
+	atype = obj.getAnimationType(false);
+	if (atype == GEO_ANIMATION_TOPOLOGY)
+	{
+	    walk.setNonConstantTopology();
+	}
+	return atype;
     }
-    
-    void
-    fillArb(GABC_GEOWalker &walk,
-            const GABC_IObject &obj,
-            ICompoundProperty arb,
-            exint npoint, exint nvertex, exint nprim)
+
+    static bool
+    hasUniformAttributes(const ICompoundProperty &arb)
     {
 	exint	narb = arb ? arb.getNumProperties() : 0;
-
 	for (exint i = 0; i < narb; ++i)
 	{
 	    const PropertyHeader	&head = arb.getPropertyHeader(i);
-	    UT_String			 name(head.getName());
-	    GA_AttributeOwner		 owner = arbitraryGAOwner(head);
-	    if (!walk.translateAttributeName(owner, name))
-		continue;
-	    GEO_AnimationType	atype;
-	    GT_DataArrayHandle	gt = obj.convertIProperty(arb,
-	                                head,
-                                        walk.time(),
-                                        &atype);
-	    if (!gt) {
-	        walk.errorHandler().warning("The following arbGeomParam could "
-	                "not be read and was ignored: %s.",
-	                name.buffer());
-		continue;
-	    }
-	    copyArrayToAttribute(walk, gt, name, head.getName().c_str(),
-		    owner, npoint, nvertex, nprim);
+	    GeometryScope		 scope;
+	    scope = Alembic::AbcGeom::GetGeometryScope(head.getMetaData());
+	    if (scope == Alembic::AbcGeom::kUnknownScope ||
+		scope == Alembic::AbcGeom::kUniformScope)
+		return true;
 	}
+	return false;
     }
 
-    void
-    fillUserProperties(GABC_GEOWalker &walk,
-            const GABC_IObject &obj,
-            ICompoundProperty uprops)
+    static bool
+    hasFaceSets(const GABC_IObject &obj)
     {
-        GA_RWAttributeRef   attrib;
-        GA_RWHandleS        str_attrib;
-        GU_Detail          &gdp = walk.detail();
-        UT_JSONWriter      *data_writer;
-        UT_JSONWriter      *meta_writer;
-        UT_WorkBuffer       data_dictionary;
-        UT_WorkBuffer       meta_dictionary;
-        bool                load_metadata = (walk.loadUserProps()
-                                    == GABC_GEOWalker::UP_LOAD_ALL);
-        bool                success = false;
-
-        // One writer for values and one for metadata. If the metadata
-        // writer is NULL, metadata will be ignored.
-        data_writer = UT_JSONWriter::allocWriter(data_dictionary);
-        meta_writer = load_metadata
-                ? UT_JSONWriter::allocWriter(meta_dictionary)
-                : NULL;
-
-        // Create the dictionaries.
-        if (!GABC_Util::writeUserPropertyDictionary(data_writer,
-                meta_writer,
-                obj,
-                uprops,
-                walk.time()))
-        {
-            walk.errorHandler().warning("Error reading user properties. "
-                    "Ignoring user properties.");
-        }
-        else
-        {
-            // Fetch/create the attribute handles and set their values.
-            attrib = gdp.findStringTuple(GA_ATTRIB_PRIMITIVE,
-                    GABC_Util::theUserPropsValsAttrib,
-                    1);
-            if (!attrib.isValid())
-            {
-                attrib = gdp.addTuple(GA_STORE_STRING,
-                        GA_ATTRIB_PRIMITIVE,
-                        GABC_Util::theUserPropsValsAttrib,
-                        1);
-            }
-
-            str_attrib = GA_RWHandleS(attrib);
-            if (!str_attrib.isValid())
-            {
-                walk.errorHandler().warning("Error creating user properties "
-                        "attribute.");
-            }
-            else
-            {
-                str_attrib.set(GA_Offset(walk.primitiveCount()),
-                        0,
-                        data_dictionary.buffer());
-                success = true;
-            }
-
-            if (load_metadata)
-            {
-                attrib = gdp.findStringTuple(GA_ATTRIB_PRIMITIVE,
-                        GABC_Util::theUserPropsMetaAttrib,
-                        1);
-                if (!attrib.isValid())
-                {
-                    attrib = gdp.addTuple(GA_STORE_STRING,
-                            GA_ATTRIB_PRIMITIVE,
-                            GABC_Util::theUserPropsMetaAttrib,
-                            1);
-                }
-
-                str_attrib = GA_RWHandleS(attrib);
-                if (!str_attrib.isValid())
-                {
-                    walk.errorHandler().warning("Error creating user properties"
-                            " metadata attribute.");
-                }
-                else
-                {
-                    str_attrib.set(GA_Offset(walk.primitiveCount()),
-                            0,
-                            meta_dictionary.buffer());
-                    success = true;
-                }
-            }
-        }
-
-        if (success)
-        {
-            walk.setNonConstant();
-        }
-
-        delete data_writer;
-        if (meta_writer)
-        {
-            delete meta_writer;
-        }
+	// We assume that if there are any child objects, they are face sets
+	exint	nkids = obj.getNumChildren();
+	for (exint i = 0; i < nkids; ++i)
+	{
+	    GABC_IObject	kid(obj.getChild(i));
+	    if (kid.nodeType() == GABC_FACESET)
+		return true;
+	}
+	return false;
     }
 
-    void
-    abcFillUserProperties(GABC_GEOWalker &walk, const GABC_IObject &obj)
+    static bool
+    reusePolySoup(GABC_GEOWalker &walk)
     {
-        switch (obj.nodeType())
-        {
-            case GABC_POLYMESH:
-                fillUserProperties(walk,
-                        obj,
-                        IPolyMesh(obj.object(), gabcWrapExisting)
-                                .getSchema().getUserProperties());
-                break;
-
-            case GABC_SUBD:
-                fillUserProperties(walk,
-                        obj,
-                        ISubD(obj.object(), gabcWrapExisting)
-                                .getSchema().getUserProperties());
-                break;
-
-            case GABC_CURVES:
-                fillUserProperties(walk,
-                        obj,
-                        ICurves(obj.object(), gabcWrapExisting)
-                                .getSchema().getUserProperties());
-                break;
-
-            case GABC_POINTS:
-                fillUserProperties(walk,
-                        obj,
-                        IPoints(obj.object(), gabcWrapExisting)
-                                .getSchema().getUserProperties());
-                break;
-
-            case GABC_NUPATCH:
-                fillUserProperties(walk,
-                        obj,
-                        INuPatch(obj.object(), gabcWrapExisting)
-                                .getSchema().getUserProperties());
-                break;
-
-            case GABC_XFORM:
-                fillUserProperties(walk,
-                        obj,
-                        IXform(obj.object(), gabcWrapExisting)
-                                .getSchema().getUserProperties());
-                break;
-
-            default:
-                UT_ASSERT(0 && "Alembic object type error");
-        }
+	// We're reusing primitives
+	const GU_Detail		&gdp = walk.detail();
+	exint			 nprim = walk.primitiveCount();
+	if (gdp.getNumPrimitives() <= nprim)
+	{
+	    UT_ASSERT(0 && "Big problems here!");
+	    return false;	// Not enough primitives - much bigger problem
+	}
+	const GEO_Primitive	*prim = gdp.getGEOPrimitive(GA_Offset(nprim));
+	return prim->getTypeId() == GA_PRIMPOLYSOUP;
     }
 
-    void
+    static P4fArraySamplePtr
+    rationalize(const P3fArraySamplePtr &points_ptr, const FloatArraySamplePtr &weights_ptr)
+    {
+        if (points_ptr->size() != weights_ptr->size())
+        {
+            UT_ASSERT(0);
+            return P4fArraySamplePtr();
+        }
+
+        size_t              size = points_ptr->size();
+        const V3f	    *points = points_ptr->get();
+        const fpreal32	    *weights = weights_ptr->get();
+        V4f                 *rationalized_vals = new V4f[size];
+
+        for(exint i = 0; i < size; ++i)
+        {
+            rationalized_vals[i] = V4f(points[i] / weights[i]);
+            rationalized_vals[i].w = weights[i];
+        }
+
+        // Use custom destructor to free rationized_vals memory
+        return P4fArraySamplePtr(new P4fArraySample(rationalized_vals, size),
+                Alembic::AbcCoreAbstract::TArrayDeleter<V4f>());
+    }
+
+    //
+    //  Create Houdini geometry from a packed Alembic.
+    //
+
+    static bool
+    matchAttributeName(GA_AttributeOwner owner,
+            const char *name,
+            const GEO_PackedNameMapPtr &namemap)
+    {
+	return namemap ? namemap->matchPattern(owner, name) : true;
+    }
+
+    static void
     makeAbcPrim(GABC_GEOWalker &walk,
             const GABC_IObject &obj,
 	    const ObjectHeader &ohead)
@@ -1358,102 +1502,33 @@ namespace {
 	walk.trackPtVtxPrim(obj, 0, 0, 1, false);
     }
 
-    GEO_AnimationType
-    getAnimationType(GABC_GEOWalker &walk, const GABC_IObject &obj)
+    static void
+    locatorAttribute(GABC_GEOWalker &walk,
+            const char *name,
+            fpreal x,
+            fpreal y,
+            fpreal z)
     {
-	GEO_AnimationType	atype;
-	atype = obj.getAnimationType(false);
-	if (atype == GEO_ANIMATION_TOPOLOGY)
+	GA_RWAttributeRef	href = findAttribute(walk.detail(),
+						GA_ATTRIB_PRIMITIVE,
+						name, NULL, 3, GA_STORE_REAL64,
+						"float");
+	GA_RWHandleV3		h(href.getAttribute());
+	if (h.isValid())
 	{
-	    walk.setNonConstantTopology();
+	    UT_Vector3	v(x, y, z);
+	    h.set(GA_Offset(walk.primitiveCount()), v);
 	}
-	return atype;
     }
 
-    bool
-    hasUniformAttributes(const ICompoundProperty &arb)
+    static void
+    makeLocator(GABC_GEOWalker &walk, IXform &xform, const GABC_IObject &obj)
     {
-	exint	narb = arb ? arb.getNumProperties() : 0;
-	for (exint i = 0; i < narb; ++i)
-	{
-	    const PropertyHeader	&head = arb.getPropertyHeader(i);
-	    GeometryScope		 scope;
-	    scope = Alembic::AbcGeom::GetGeometryScope(head.getMetaData());
-	    if (scope == Alembic::AbcGeom::kUnknownScope ||
-		scope == Alembic::AbcGeom::kUniformScope)
-		return true;
-	}
-	return false;
-    }
-
-    bool
-    hasFaceSets(const GABC_IObject &obj)
-    {
-	// We assume that if there are any child objects, they are face sets
-	exint	nkids = obj.getNumChildren();
-	for (exint i = 0; i < nkids; ++i)
-	{
-	    GABC_IObject	kid(obj.getChild(i));
-	    if (kid.nodeType() == GABC_FACESET)
-		return true;
-	}
-	return false;
-    }
-
-    P4fArraySamplePtr
-    rationalize(const P3fArraySamplePtr &points_ptr, const FloatArraySamplePtr &weights_ptr)
-    {
-        if (points_ptr->size() != weights_ptr->size())
-        {
-            UT_ASSERT(0);
-            return P4fArraySamplePtr();
-        }
-
-        size_t              size = points_ptr->size();
-        const V3f	    *points = points_ptr->get();
-        const fpreal32	    *weights = weights_ptr->get();
-        V4f                 *rationalized_vals = new V4f[size];
-
-        for(exint i = 0; i < size; ++i)
-        {
-            rationalized_vals[i] = V4f(points[i] / weights[i]);
-            rationalized_vals[i].w = weights[i];
-        }
-
-        // Use custom destructor to free rationized_vals memory
-        return P4fArraySamplePtr(new P4fArraySample(rationalized_vals, size),
-                Alembic::AbcCoreAbstract::TArrayDeleter<V4f>());
-    }
-
-    bool
-    reusePolySoup(GABC_GEOWalker &walk)
-    {
-	// We're reusing primitives
-	const GU_Detail		&gdp = walk.detail();
-	exint			 nprim = walk.primitiveCount();
-	if (gdp.getNumPrimitives() <= nprim)
-	{
-	    UT_ASSERT(0 && "Big problems here!");
-	    return false;	// Not enough primitives - much bigger problem
-	}
-	const GEO_Primitive	*prim = gdp.getGEOPrimitive(GA_Offset(nprim));
-	return prim->getTypeId() == GA_PRIMPOLYSOUP;
-    }
-
-    void
-    makeSubD(GABC_GEOWalker &walk, const GABC_IObject &obj)
-    {
-	ISampleSelector		iss = walk.timeSample();
-	ISubD			subd(obj.object(), gabcWrapExisting);
-	ISubDSchema		&ps = subd.getSchema();
-	P3fArraySamplePtr	P = ps.getPositionsProperty().getValue(iss);
-	Int32ArraySamplePtr	counts = ps.getFaceCountsProperty().getValue(iss);
-	Int32ArraySamplePtr	indices = ps.getFaceIndicesProperty().getValue(iss);
-	exint			npoint = P->size();
-	exint			nvertex = indices->size();
-	exint			nprim = counts->size();
-
-	//fprintf(stderr, "SubD: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
+	Alembic::Abc::IScalarProperty	loc(xform.getProperties(), "locator");
+	ISampleSelector			iss = walk.timeSample();
+	const int			npoint = 1;
+	const int			nvertex = 1;
+	const int			nprim = 1;
 
 	GEO_AnimationType	atype = getAnimationType(walk, obj);
 	if (atype != GEO_ANIMATION_CONSTANT)
@@ -1462,62 +1537,40 @@ namespace {
 	}
 	else if (walk.reusePrimitives())
 	{
-	    if (reusePolySoup(walk))
-		nprim = 1;
 	    if (!walk.includeXform() || walk.transformConstant())
 	    {
-		walk.trackLastFace(nprim);
 		walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, false);
 		return;
 	    }
 	}
 	if (!walk.reusePrimitives())
 	{
-	    bool    soup;
-	    soup = (walk.polySoup() == GABC_GEOWalker::ABC_POLYSOUP_SUBD);
-	    // If there are uniform attributes
-	    if (soup && hasUniformAttributes(ps.getArbGeomParams()))
-		soup = false;
-	    if (soup && hasFaceSets(obj))
-		soup = false;
-
 	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
 	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
-	    if (soup)
-		nprim = 1;
-
-	    appendFaces(walk, npoint, counts, indices, soup);
-	}
-	else
-	{
-	    if (reusePolySoup(walk))
-		nprim = 1;
+	    appendParticles(walk, npoint);
 	}
 
-	// Set properties
-	setAttribute(walk, obj, GA_ATTRIB_POINT, "P", NULL,
-		ps.getPositionsProperty().getValue(iss),
-		walk.pointCount(), npoint);
-	if (MATCH_PROPERTY(ps.getVelocitiesProperty(), iss, "v"))
-	{
-	    setAttribute(walk, obj, GA_ATTRIB_POINT, "v", NULL,
-		    ps.getVelocitiesProperty().getValue(iss),
-		    walk.pointCount(), npoint);
-	}
-	if (MATCH_ATTRIBUTE(ps.getUVsParam(), "uv"))
-	{
-	    setGeomAttribute(walk, obj, "uv", NULL, ps.getUVsParam(), iss,
-		    npoint, nvertex, nprim);
-	}
-	fillArb(walk, obj, ps.getArbGeomParams(), npoint, nvertex, nprim);
-	if (walk.loadUserProps())
-	{
-            fillUserProperties(walk, obj, ps.getUserProperties());
-        }
+	double	ldata[6];	// Local translate/scale
+	V3d	ls, lh, lr, lt;
 
-	walk.trackLastFace(nprim);
-	walk.trackSubd(nprim);
+	loc.get(ldata, iss);
+	if (!Imath::extractSHRT(walk.getTransform(), ls, lh, lr, lt))
+	{
+	    ls = V3d(1,1,1);
+	    lr = V3d(0,0,0);
+	    lt = V3d(0,0,0);
+	}
+
+	walk.detail().setPos3(GA_Offset(walk.pointCount()),
+			ldata[0], ldata[1], ldata[2]);
+	locatorAttribute(walk, "localPosition", ldata[0], ldata[1], ldata[2]);
+	locatorAttribute(walk, "localScale", ldata[3], ldata[4], ldata[5]);
+	locatorAttribute(walk, "parentTrans", lt.x, lt.y, lt.z);
+	locatorAttribute(walk, "parentRot", lr.x, lr.y, lr.z);
+	locatorAttribute(walk, "parentScale", ls.x, ls.y, ls.z);
+        fillArb(walk, obj, xform.getSchema().getArbGeomParams(), iss, 1, 1, 1);
+
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
 
@@ -1552,16 +1605,19 @@ namespace {
 	}
     }
 
-    void
+    static void
     makePolyMesh(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
 	IPolyMesh		polymesh(obj.object(), gabcWrapExisting);
-	IPolyMeshSchema		&ps = polymesh.getSchema();
-	P3fArraySamplePtr	P = ps.getPositionsProperty().getValue(iss);
+	IPolyMeshSchema        &ps = polymesh.getSchema();
+	IN3fGeomParam           normals = ps.getNormalsParam();
+	IV2fGeomParam           uvs = ps.getUVsParam();
+	IP3fArrayProperty       positions = ps.getPositionsProperty();
+	P3fArraySamplePtr	psample = positions.getValue(iss);
 	Int32ArraySamplePtr	counts = ps.getFaceCountsProperty().getValue(iss);
 	Int32ArraySamplePtr	indices = ps.getFaceIndicesProperty().getValue(iss);
-	exint			npoint = P->size();
+	exint			npoint = psample->size();
 	exint			nvertex = indices->size();
 	exint			nprim = counts->size();
 
@@ -1608,26 +1664,46 @@ namespace {
 	}
 
 	// Set properties
-	setAttribute(walk, obj, GA_ATTRIB_POINT, "P", NULL,
-		ps.getPositionsProperty().getValue(iss),
-		walk.pointCount(), npoint);
-	if (MATCH_PROPERTY(ps.getVelocitiesProperty(), iss, "v"))
+	setAttribute(walk,
+	        obj,
+	        GA_ATTRIB_POINT,
+	        "P",
+	        NULL,
+                psample->getDataType(),
+                psample->getDimensions(),
+                positions.getMetaData(),
+                psample->getData(),
+		npoint);
+	if (ps.getVelocitiesProperty().valid()
+	        && matchAttributeName(GA_ATTRIB_POINT, "v", walk.nameMapPtr()))
 	{
-	    setAttribute(walk, obj, GA_ATTRIB_POINT, "v", NULL,
-		    ps.getVelocitiesProperty().getValue(iss),
-		    walk.pointCount(), npoint);
+            IV3fArrayProperty   velocities = ps.getVelocitiesProperty();
+            V3fArraySamplePtr   vsample = velocities.getValue(iss);
+
+	    setAttribute(walk,
+	            obj,
+	            GA_ATTRIB_POINT,
+	            "v",
+	            NULL,
+                    vsample->getDataType(),
+                    vsample->getDimensions(),
+                    velocities.getMetaData(),
+                    vsample->getData(),
+		    npoint);
 	}
-	if (MATCH_ATTRIBUTE(ps.getUVsParam(), "uv"))
+	if (uvs.valid()
+	        && matchAttributeName(getGAOwner(uvs.getScope()), "uv", walk.nameMapPtr()))
 	{
 	    setGeomAttribute(walk, obj, "uv", NULL, ps.getUVsParam(), iss,
 		    npoint, nvertex, nprim);
 	}
-	if (MATCH_ATTRIBUTE(ps.getNormalsParam(), "N"))
+	if (normals.valid()
+	        && matchAttributeName(getGAOwner(normals.getScope()), "N", walk.nameMapPtr()))
 	{
 	    setGeomAttribute(walk, obj, "N", NULL, ps.getNormalsParam(), iss,
 		    npoint, nvertex, nprim);
 	}
-	fillArb(walk, obj, ps.getArbGeomParams(), npoint, nvertex, nprim);
+	fillArb(walk, obj, ps.getArbGeomParams(), iss, npoint, nvertex, nprim);
 	if (walk.loadUserProps())
 	{
             fillUserProperties(walk, obj, ps.getUserProperties());
@@ -1637,20 +1713,238 @@ namespace {
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
 
-    void
+    static void
+    makeSubD(GABC_GEOWalker &walk, const GABC_IObject &obj)
+    {
+	ISampleSelector		iss = walk.timeSample();
+	ISubD			subd(obj.object(), gabcWrapExisting);
+	ISubDSchema		&ss = subd.getSchema();
+	IV2fGeomParam           uvs = ss.getUVsParam();
+	IP3fArrayProperty       positions = ss.getPositionsProperty();
+	P3fArraySamplePtr	psample = positions.getValue(iss);
+	Int32ArraySamplePtr	counts = ss.getFaceCountsProperty().getValue(iss);
+	Int32ArraySamplePtr	indices = ss.getFaceIndicesProperty().getValue(iss);
+	exint			npoint = psample->size();
+	exint			nvertex = indices->size();
+	exint			nprim = counts->size();
+
+	//fprintf(stderr, "SubD: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
+
+	GEO_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GEO_ANIMATION_CONSTANT)
+	{
+	    walk.setNonConstant();
+	}
+	else if (walk.reusePrimitives())
+	{
+	    if (reusePolySoup(walk))
+		nprim = 1;
+	    if (!walk.includeXform() || walk.transformConstant())
+	    {
+		walk.trackLastFace(nprim);
+		walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, false);
+		return;
+	    }
+	}
+	if (!walk.reusePrimitives())
+	{
+	    bool    soup;
+	    soup = (walk.polySoup() == GABC_GEOWalker::ABC_POLYSOUP_SUBD);
+	    // If there are uniform attributes
+	    if (soup && hasUniformAttributes(ss.getArbGeomParams()))
+		soup = false;
+	    if (soup && hasFaceSets(obj))
+		soup = false;
+
+	    // Assert that we need to create the polygons
+	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
+	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
+	    if (soup)
+		nprim = 1;
+
+	    appendFaces(walk, npoint, counts, indices, soup);
+	}
+	else
+	{
+	    if (reusePolySoup(walk))
+		nprim = 1;
+	}
+
+	// Set properties
+	setAttribute(walk,
+	        obj,
+	        GA_ATTRIB_POINT,
+	        "P",
+	        NULL,
+                psample->getDataType(),
+                psample->getDimensions(),
+                positions.getMetaData(),
+                psample->getData(),
+		npoint);
+	if (ss.getVelocitiesProperty().valid()
+	        && matchAttributeName(GA_ATTRIB_POINT, "v", walk.nameMapPtr()))
+	{
+            IV3fArrayProperty   velocities = ss.getVelocitiesProperty();
+            V3fArraySamplePtr   vsample = velocities.getValue(iss);
+
+	    setAttribute(walk,
+	            obj,
+	            GA_ATTRIB_POINT,
+	            "v",
+	            NULL,
+                    vsample->getDataType(),
+                    vsample->getDimensions(),
+                    velocities.getMetaData(),
+                    vsample->getData(),
+		    npoint);
+	}
+	if (uvs.valid()
+	        && matchAttributeName(getGAOwner(uvs.getScope()), "uv", walk.nameMapPtr()))
+	{
+	    setGeomAttribute(walk, obj, "uv", NULL, ss.getUVsParam(), iss,
+		    npoint, nvertex, nprim);
+	}
+	fillArb(walk, obj, ss.getArbGeomParams(), iss, npoint, nvertex, nprim);
+	if (walk.loadUserProps())
+	{
+            fillUserProperties(walk, obj, ss.getUserProperties());
+        }
+
+	walk.trackLastFace(nprim);
+	walk.trackSubd(nprim);
+	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
+    }
+
+    static void
+    makePoints(GABC_GEOWalker &walk, const GABC_IObject &obj)
+    {
+	ISampleSelector         iss = walk.timeSample();
+	IPoints                 points(obj.object(), gabcWrapExisting);
+	IPointsSchema          &ps = points.getSchema();
+	IFloatGeomParam         widths = ps.getWidthsParam();
+	IP3fArrayProperty       positions = ps.getPositionsProperty();
+	P3fArraySamplePtr       psample = positions.getValue(iss);
+	exint                   npoint = psample->size();
+	exint                   nvertex = npoint;
+	exint                   nprim = 1;
+
+	//fprintf(stderr, "Points: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
+
+	GEO_AnimationType	atype = getAnimationType(walk, obj);
+	if (atype != GEO_ANIMATION_CONSTANT)
+	{
+	    walk.setNonConstant();
+	}
+	else if (walk.reusePrimitives())
+	{
+	    if (!walk.includeXform() || walk.transformConstant())
+	    {
+		walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, false);
+		return;
+	    }
+	}
+	if (!walk.reusePrimitives())
+	{
+	    // Assert that we need to create the polygons
+	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
+	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
+	    appendParticles(walk, npoint);
+	}
+
+	// Set properties
+	setAttribute(walk,
+	        obj,
+	        GA_ATTRIB_POINT,
+	        "P",
+	        NULL,
+                psample->getDataType(),
+                psample->getDimensions(),
+                positions.getMetaData(),
+                psample->getData(),
+		npoint);
+	if (ps.getVelocitiesProperty().valid()
+	        && matchAttributeName(GA_ATTRIB_POINT, "v", walk.nameMapPtr()))
+	{
+            IV3fArrayProperty   velocities = ps.getVelocitiesProperty();
+            V3fArraySamplePtr   vsample = velocities.getValue(iss);
+
+	    setAttribute(walk,
+	            obj,
+	            GA_ATTRIB_POINT,
+	            "v",
+	            NULL,
+                    vsample->getDataType(),
+                    vsample->getDimensions(),
+                    velocities.getMetaData(),
+                    vsample->getData(),
+		    npoint);
+	}
+	if (ps.getIdsProperty().valid()
+	        && matchAttributeName(GA_ATTRIB_POINT, "id", walk.nameMapPtr()))
+	{
+            IUInt64ArrayProperty    ids = ps.getIdsProperty();
+            UInt64ArraySamplePtr    isample = ids.getValue(iss);
+
+	    setAttribute(walk,
+	            obj, GA_ATTRIB_POINT,
+	            "id",
+	            NULL,
+                    isample->getDataType(),
+                    isample->getDimensions(),
+                    ids.getMetaData(),
+                    isample->getData(),
+		    npoint);
+	}
+	if (widths.valid()
+	        && matchAttributeName(getGAOwner(widths.getScope()), "width", walk.nameMapPtr()))
+	{
+	    setGeomAttribute(walk, obj, "width", NULL, widths, iss,
+		    npoint, nvertex, nprim);
+	}
+	fillArb(walk, obj, ps.getArbGeomParams(), iss, npoint, nvertex, nprim);
+	if (walk.loadUserProps())
+	{
+            fillUserProperties(walk, obj, ps.getUserProperties());
+        }
+
+	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
+    }
+
+    static exint
+    setKnotVector(GA_Basis &basis, FloatArraySamplePtr &knots, int offset = 0)
+    {
+	GA_KnotVector   &kvec = basis.getKnotVector();
+        exint           basis_size = kvec.entries();
+
+	UT_ASSERT(basis_size <= (knots->size() - offset));
+
+	for (int i = 0; i < basis_size; ++i)
+	    kvec.setValue(i, knots->get()[offset + i]);
+
+	// Adjust flags based on knot values
+	basis.validate(GA_Basis::GA_BASIS_ADAPT_FLAGS);
+
+	return basis_size;
+    }
+
+    static void
     makeCurves(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
 	ICurves			curves(obj.object(), gabcWrapExisting);
 	ICurvesSchema		&cs = curves.getSchema();
 	ICurvesSample		c_sample = cs.getValue(iss);
-	P3fArraySamplePtr	points = cs.getPositionsProperty().getValue(iss);
+	IFloatGeomParam         widths = cs.getWidthsParam();
+	IN3fGeomParam           normals = cs.getNormalsParam();
+	IV2fGeomParam           uvs = cs.getUVsParam();
+	IP3fArrayProperty       positions = cs.getPositionsProperty();
+	P3fArraySamplePtr       psample = positions.getValue(iss);
 	Int32ArraySamplePtr	nvtx = cs.getNumVerticesProperty().getValue(iss);
         UcharArraySamplePtr     orders;
 	FloatArraySamplePtr     knots = c_sample.getKnots();
         BasisType               type = c_sample.getBasis();
 	CurvePeriodicity        period = c_sample.getWrap();
-        exint			npoint = points->size();
+        exint			npoint = psample->size();
 	exint			nvertex = npoint;
 	exint			nprim = nvtx->size();
 	exint                   norders;
@@ -1731,42 +2025,73 @@ namespace {
 	}
 
 	// Set properties
-	if (MATCH_PROPERTY(cs.getPositionWeightsProperty(), iss, "Pw"))
+	if (cs.getPositionWeightsProperty().valid()
+	        && matchAttributeName(GA_ATTRIB_POINT, "Pw", walk.nameMapPtr()))
         {
-            setAttribute(walk, obj, GA_ATTRIB_POINT, "P", NULL,
-                        rationalize(points, cs.getPositionWeightsProperty().getValue(iss)),
-                        walk.pointCount(), npoint);
+            P4fArraySamplePtr   rsample = rationalize(psample, cs.getPositionWeightsProperty().getValue(iss));
+
+            setAttribute(walk,
+                    obj,
+                    GA_ATTRIB_POINT,
+                    "P",
+                    NULL,
+                    rsample->getDataType(),
+                    rsample->getDimensions(),
+                    positions.getMetaData(),
+                    rsample->getData(),
+                    npoint);
         }
         else
         {
-            setAttribute(walk, obj, GA_ATTRIB_POINT, "P", NULL,
-                        points,
-                        walk.pointCount(), npoint);
+            setAttribute(walk,
+                    obj,
+                    GA_ATTRIB_POINT,
+                    "P",
+                    NULL,
+                    psample->getDataType(),
+                    psample->getDimensions(),
+                    positions.getMetaData(),
+                    psample->getData(),
+                    npoint);
         }
 
-	if (cs.getVelocitiesProperty().valid())
-	if (MATCH_PROPERTY(cs.getVelocitiesProperty(), iss, "v"))
+
+	if (cs.getVelocitiesProperty().valid()
+	        && matchAttributeName(GA_ATTRIB_POINT, "v", walk.nameMapPtr()))
 	{
-	    setAttribute(walk, obj, GA_ATTRIB_POINT, "v", NULL,
-		    cs.getVelocitiesProperty().getValue(iss),
-		    walk.pointCount(), npoint);
+            IV3fArrayProperty   velocities = cs.getVelocitiesProperty();
+            V3fArraySamplePtr   vsample = velocities.getValue(iss);
+
+	    setAttribute(walk,
+	            obj,
+	            GA_ATTRIB_POINT,
+	            "v",
+	            NULL,
+                    vsample->getDataType(),
+                    vsample->getDimensions(),
+                    velocities.getMetaData(),
+                    vsample->getData(),
+		    npoint);
 	}
-	if (MATCH_ATTRIBUTE(cs.getUVsParam(), "uv"))
+	if (uvs.valid()
+	        && matchAttributeName(getGAOwner(uvs.getScope()), "uv", walk.nameMapPtr()))
 	{
 	    setGeomAttribute(walk, obj, "uv", NULL, cs.getUVsParam(), iss,
 		    npoint, nvertex, nprim);
 	}
-	if (MATCH_ATTRIBUTE(cs.getWidthsParam(), "width"))
-	{
-	    setGeomAttribute(walk, obj, "width", NULL, cs.getWidthsParam(), iss,
-		    npoint, nvertex, nprim);
-	}
-	if (MATCH_ATTRIBUTE(cs.getNormalsParam(), "N"))
+	if (normals.valid()
+	        && matchAttributeName(getGAOwner(normals.getScope()), "N", walk.nameMapPtr()))
 	{
 	    setGeomAttribute(walk, obj, "N", NULL, cs.getNormalsParam(), iss,
 		    npoint, nvertex, nprim);
 	}
-	fillArb(walk, obj, cs.getArbGeomParams(), npoint, nvertex, nprim);
+	if (widths.valid()
+	        && matchAttributeName(getGAOwner(widths.getScope()), "width", walk.nameMapPtr()))
+	{
+	    setGeomAttribute(walk, obj, "width", NULL, cs.getWidthsParam(), iss,
+		    npoint, nvertex, nprim);
+	}
+	fillArb(walk, obj, cs.getArbGeomParams(), iss, npoint, nvertex, nprim);
 	if (walk.loadUserProps())
 	{
             fillUserProperties(walk, obj, cs.getUserProperties());
@@ -1777,153 +2102,21 @@ namespace {
     }
 
     static void
-    locatorAttribute(GABC_GEOWalker &walk, const char *name,
-		    fpreal x, fpreal y, fpreal z)
-    {
-	GA_RWAttributeRef	href = findAttribute(walk.detail(),
-						GA_ATTRIB_PRIMITIVE,
-						name, NULL, 3, GA_STORE_REAL64,
-						"float");
-	GA_RWHandleV3		h(href.getAttribute());
-	if (h.isValid())
-	{
-	    UT_Vector3	v(x, y, z);
-	    h.set(GA_Offset(walk.primitiveCount()), v);
-	}
-    }
-
-    void
-    makeLocator(GABC_GEOWalker &walk, IXform &xform, const GABC_IObject &obj)
-    {
-	Alembic::Abc::IScalarProperty	loc(xform.getProperties(), "locator");
-	ISampleSelector			iss = walk.timeSample();
-	const int			npoint = 1;
-	const int			nvertex = 1;
-	const int			nprim = 1;
-
-	GEO_AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GEO_ANIMATION_CONSTANT)
-	{
-	    walk.setNonConstant();
-	}
-	else if (walk.reusePrimitives())
-	{
-	    if (!walk.includeXform() || walk.transformConstant())
-	    {
-		walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, false);
-		return;
-	    }
-	}
-	if (!walk.reusePrimitives())
-	{
-	    // Assert that we need to create the polygons
-	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
-	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
-	    appendParticles(walk, npoint);
-	}
-
-	double	ldata[6];	// Local translate/scale
-	V3d	ls, lh, lr, lt;
-
-	loc.get(ldata, iss);
-	if (!Imath::extractSHRT(walk.getTransform(), ls, lh, lr, lt))
-	{
-	    ls = V3d(1,1,1);
-	    lr = V3d(0,0,0);
-	    lt = V3d(0,0,0);
-	}
-
-	walk.detail().setPos3(GA_Offset(walk.pointCount()),
-			ldata[0], ldata[1], ldata[2]);
-	locatorAttribute(walk, "localPosition", ldata[0], ldata[1], ldata[2]);
-	locatorAttribute(walk, "localScale", ldata[3], ldata[4], ldata[5]);
-	locatorAttribute(walk, "parentTrans", lt.x, lt.y, lt.z);
-	locatorAttribute(walk, "parentRot", lr.x, lr.y, lr.z);
-	locatorAttribute(walk, "parentScale", ls.x, ls.y, ls.z);
-        fillArb(walk, obj, xform.getSchema().getArbGeomParams(), 1, 1, 1);
-
-	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
-    }
-
-    void
-    makePoints(GABC_GEOWalker &walk, const GABC_IObject &obj)
-    {
-	ISampleSelector		iss = walk.timeSample();
-	IPoints			points(obj.object(), gabcWrapExisting);
-	IPointsSchema		&ps = points.getSchema();
-	P3fArraySamplePtr	P = ps.getPositionsProperty().getValue(iss);
-
-	exint			npoint = P->size();
-	exint			nvertex = npoint;
-	exint			nprim = 1;
-
-	//fprintf(stderr, "Points: %d %d %d\n", int(npoint), int(nvertex), int(nprim));
-
-	GEO_AnimationType	atype = getAnimationType(walk, obj);
-	if (atype != GEO_ANIMATION_CONSTANT)
-	{
-	    walk.setNonConstant();
-	}
-	else if (walk.reusePrimitives())
-	{
-	    if (!walk.includeXform() || walk.transformConstant())
-	    {
-		walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, false);
-		return;
-	    }
-	}
-	if (!walk.reusePrimitives())
-	{
-	    // Assert that we need to create the polygons
-	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
-	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
-	    appendParticles(walk, npoint);
-	}
-
-	// Set properties
-	setAttribute(walk, obj, GA_ATTRIB_POINT, "P", NULL,
-		ps.getPositionsProperty().getValue(iss),
-		walk.pointCount(), npoint);
-	if (MATCH_PROPERTY(ps.getVelocitiesProperty(), iss, "v"))
-	{
-	    setAttribute(walk, obj, GA_ATTRIB_POINT, "v", NULL,
-		    ps.getVelocitiesProperty().getValue(iss),
-		    walk.pointCount(), npoint);
-	}
-	if (MATCH_PROPERTY(ps.getIdsProperty(), iss, "id"))
-	{
-	    setAttribute(walk, obj, GA_ATTRIB_POINT, "id", NULL,
-		    ps.getIdsProperty().getValue(iss),
-		    walk.pointCount(), npoint);
-	}
-	Alembic::AbcGeom::IFloatGeomParam	widths = ps.getWidthsParam();
-	if (MATCH_ATTRIBUTE(widths, "width"))
-	{
-	    setGeomAttribute(walk, obj, "width", NULL, widths, iss,
-		    npoint, nvertex, nprim);
-	}
-	fillArb(walk, obj, ps.getArbGeomParams(), npoint, nvertex, nprim);
-	if (walk.loadUserProps())
-	{
-            fillUserProperties(walk, obj, ps.getUserProperties());
-        }
-
-	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
-    }
-
-    void
     makeNuPatch(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
 	ISampleSelector		iss = walk.timeSample();
 	INuPatch		nupatch(obj.object(), gabcWrapExisting);
-	INuPatchSchema		&ps = nupatch.getSchema();
-	INuPatchSample		patch = ps.getValue(iss);
+	INuPatchSchema		&ns = nupatch.getSchema();
+	INuPatchSample		patch = ns.getValue(iss);
+	IN3fGeomParam           normals = ns.getNormalsParam();
+	IV2fGeomParam           uvs = ns.getUVsParam();
 	FloatArraySamplePtr	uknots = patch.getUKnot();
 	FloatArraySamplePtr	vknots = patch.getVKnot();
 	int			uorder = patch.getUOrder();
 	int			vorder = patch.getVOrder();
-	P3fArraySamplePtr	points = ps.getPositionsProperty().getValue(iss);
-	exint			npoint = points->size();
+	IP3fArrayProperty       positions = ns.getPositionsProperty();
+	P3fArraySamplePtr       psample = positions.getValue(iss);
+	exint			npoint = psample->size();
 	exint			nvertex = npoint;
 	exint			nprim = 1;
 
@@ -1959,47 +2152,82 @@ namespace {
 	setKnotVector(*surf->getVBasis(), vknots);
 
 	// Set properties
-        if (MATCH_PROPERTY(ps.getPositionWeightsProperty(), iss, "Pw"))
+	if (ns.getPositionWeightsProperty().valid()
+	        && matchAttributeName(GA_ATTRIB_POINT, "Pw", walk.nameMapPtr()))
         {
-            setAttribute(walk, obj, GA_ATTRIB_POINT, "P", NULL,
-        		rationalize(points, ps.getPositionWeightsProperty().getValue(iss)),
-        		walk.pointCount(), npoint);
+            P4fArraySamplePtr   rsample = rationalize(psample, ns.getPositionWeightsProperty().getValue(iss));
+
+            setAttribute(walk,
+                    obj,
+                    GA_ATTRIB_POINT,
+                    "P",
+                    NULL,
+                    rsample->getDataType(),
+                    rsample->getDimensions(),
+                    positions.getMetaData(),
+                    rsample->getData(),
+                    npoint);
         }
         else
         {
-            setAttribute(walk, obj, GA_ATTRIB_POINT, "P", NULL,
-            		points,
-            		walk.pointCount(), npoint);
+            setAttribute(walk,
+                    obj,
+                    GA_ATTRIB_POINT,
+                    "P",
+                    NULL,
+                    psample->getDataType(),
+                    psample->getDimensions(),
+                    positions.getMetaData(),
+                    psample->getData(),
+                    npoint);
         }
 
-	if (MATCH_PROPERTY(ps.getVelocitiesProperty(), iss, "v"))
+	if (ns.getVelocitiesProperty().valid()
+	        && matchAttributeName(GA_ATTRIB_POINT, "v", walk.nameMapPtr()))
 	{
-	    setAttribute(walk, obj, GA_ATTRIB_POINT, "v", NULL,
-		    ps.getVelocitiesProperty().getValue(iss),
-		    walk.pointCount(), npoint);
+            IV3fArrayProperty   velocities = ns.getVelocitiesProperty();
+            V3fArraySamplePtr   vsample = velocities.getValue(iss);
+
+	    setAttribute(walk,
+	            obj,
+	            GA_ATTRIB_POINT,
+	            "v",
+	            NULL,
+                    vsample->getDataType(),
+                    vsample->getDimensions(),
+                    velocities.getMetaData(),
+                    vsample->getData(),
+		    npoint);
 	}
-	if (MATCH_ATTRIBUTE(ps.getUVsParam(), "uv"))
+	if (uvs.valid()
+	        && matchAttributeName(getGAOwner(uvs.getScope()), "uv", walk.nameMapPtr()))
 	{
-	    setGeomAttribute(walk, obj, "uv", NULL, ps.getUVsParam(), iss,
+	    setGeomAttribute(walk, obj, "uv", NULL, ns.getUVsParam(), iss,
 		    npoint, nvertex, nprim);
 	}
-	if (MATCH_ATTRIBUTE(ps.getNormalsParam(), "N"))
+	if (normals.valid()
+	        && matchAttributeName(getGAOwner(normals.getScope()), "N", walk.nameMapPtr()))
 	{
-	    setGeomAttribute(walk, obj, "N", NULL, ps.getNormalsParam(), iss,
+	    setGeomAttribute(walk, obj, "N", NULL, ns.getNormalsParam(), iss,
 		    npoint, nvertex, nprim);
 	}
-	fillArb(walk, obj, ps.getArbGeomParams(), npoint, nvertex, nprim);
+	fillArb(walk, obj, ns.getArbGeomParams(), iss, npoint, nvertex, nprim);
 	if (walk.loadUserProps())
 	{
-            fillUserProperties(walk, obj, ps.getUserProperties());
+            fillUserProperties(walk, obj, ns.getUserProperties());
         }
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
 
+    //
+    //  Create a point cloud from a packed Alembic.
+    //
+
     static void
-    buildPointCloud(GABC_GEOWalker &walk, const GABC_IObject &obj,
-		    const P3fArraySamplePtr &P)
+    buildPointCloud(GABC_GEOWalker &walk,
+            const GABC_IObject &obj,
+            const P3fArraySamplePtr &P)
     {
 	GU_Detail		&gdp = walk.detail();
 	exint			 startpoint = walk.pointCount();
@@ -2040,6 +2268,10 @@ namespace {
 	buildPointCloud(walk, obj, P);
     }
 
+    //
+    //  Create a bounding box from a packed Alembic.
+    //
+
     // Vertex->point mappings for box.  The points are expected to be in the
     // order:
     //   0: (xmin, ymin, zmin)
@@ -2076,8 +2308,9 @@ namespace {
     }
 
     static void
-    setBoxPositions(GU_Detail &gdp, const UT_BoundingBox &box,
-	    exint start)
+    setBoxPositions(GU_Detail &gdp,
+            const UT_BoundingBox &box,
+            exint start)
     {
 	gdp.setPos3(GA_Offset(start+0), box.xmin(), box.ymin(), box.zmin());
 	gdp.setPos3(GA_Offset(start+1), box.xmax(), box.ymin(), box.zmin());
@@ -2090,8 +2323,9 @@ namespace {
     }
 
     static void
-    makeHoudiniBox(GABC_GEOWalker &walk, const GABC_IObject &obj,
-	    const UT_BoundingBox &box)
+    makeHoudiniBox(GABC_GEOWalker &walk,
+            const GABC_IObject &obj,
+            const UT_BoundingBox &box)
     {
 	GU_Detail	&gdp = walk.detail();
 	if (!walk.reusePrimitives())
@@ -2314,8 +2548,17 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 
 	if (includeXform())
 	{
-	    PushTransform   push(*this, xform);
+	    IXformSchema       &xs = xform.getSchema();
+	    TransformState      state;
+
+	    pushTransform(xs.getValue(timeSample()).getMatrix(),
+	            xs.isConstant(),
+	            state,
+	            xs.getInheritsXforms());
+
 	    walkChildren(obj);
+
+            popTransform(state);
 
 	    // Since we walked manually, return false
 	    process_children = false;
@@ -2545,10 +2788,15 @@ GABC_GEOWalker::pushTransform(const M44d &xform, bool const_xform,
 	myTransformConstant = false;
 	myAllTransformConstant = false;
     }
+
     if (inheritXforms && includeXform())
-	myMatrix = xform * myMatrix;
+    {
+        myMatrix = xform * myMatrix;
+    }
     else
-	myMatrix = xform;
+    {
+        myMatrix = xform;
+    }
 }
 
 void
@@ -2649,8 +2897,8 @@ GABC_GEOWalker::trackSubd(GA_Size nfaces)
 
 void
 GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
-				exint npoint, exint nvertex, exint nprim,
-				bool do_transform)
+        exint npoint, exint nvertex, exint nprim,
+	bool do_transform)
 {
     UT_ASSERT(myDetail.getNumPoints() >= myPointCount + npoint);
     UT_ASSERT(myDetail.getNumVertices() >= myVertexCount + nvertex);
@@ -2692,6 +2940,8 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
     myPrimitiveCount += nprim;
 }
 
+#if 0
+
 #include <UT/UT_StopWatch.h>
 void
 GABC_GEOWalker::test()
@@ -2713,3 +2963,5 @@ GABC_GEOWalker::test()
     }
     fprintf(stderr, "Done: %g\n", timer.lap());
 }
+
+#endif
