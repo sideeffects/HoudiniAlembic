@@ -402,7 +402,7 @@ namespace {
 
 	    for (exint i = start; i < end; ++i)
             {
-                pos = gdp.vertexPoint(i);
+                pos = gdp.vertexPoint(GA_Offset(i));
                 data = (array_data + ((pos - npts) * tsize));
 
                 for (int j = 0; j < tsize; ++j)
@@ -472,7 +472,7 @@ namespace {
 
             for (exint i = start; i < end; ++i)
             {
-                pos = gdp.vertexPoint(i);
+                pos = gdp.vertexPoint(GA_Offset(i));
                 data = (array_data + ((pos - npts) * tsize));
 
                 for (int j = 0; j < tsize; ++j)
@@ -829,7 +829,7 @@ namespace {
 
             for (exint i = start; i < end; ++i)
             {
-                pos = gdp.vertexPoint(i);
+                pos = gdp.vertexPoint(GA_Offset(i));
                 data = (indices_data + ((pos - npoint) * tsize));
 
                 for (int j = 0; j < tsize; ++j)
