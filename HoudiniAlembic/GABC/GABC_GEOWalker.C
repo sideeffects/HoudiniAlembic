@@ -516,13 +516,13 @@ namespace {
 	GA_RWAttributeRef   attrib;
 	GA_Storage          store = getGAStorage(data_type);
 	GU_Detail          &gdp = walk.detail();
+	std::string         interp= meta_data.get("interpretation");
 	exint               start;
 	exint               len;
 	exint               npts = 0;
         int                 array_extent = getArrayExtent(meta_data);
         int                 entries = dimensions.numPoints();
 	int                 tsize = array_extent * data_type.getExtent();
-	const char         *interp= meta_data.get("interpretation").c_str();
         bool                promote_points = false;
 
 	UT_ASSERT(array_extent == 1 || (entries % array_extent) == 0);
@@ -553,12 +553,18 @@ namespace {
                 nprim,
                 promote_points);
 
-	attrib = findAttribute(gdp, owner, name, abcname, tsize, store, interp);
+	attrib = findAttribute(gdp,
+	        owner,
+	        name,
+	        abcname,
+	        tsize,
+	        store,
+	        interp.c_str());
 	if (attrib.isValid())
 	{
 	    if (attrib.getAttribute() != gdp.getP())
 	    {
-		GA_TypeInfo tinfo = getGATypeInfo(interp, tsize);
+		GA_TypeInfo tinfo = getGATypeInfo(interp.c_str(), tsize);
 		if (tinfo == GA_TYPE_VECTOR)
 		{
 		    tinfo = isReallyVector(name, tsize);
