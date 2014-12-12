@@ -190,6 +190,18 @@ def _setupAbcGeo(geo, issubd):
             'shop_geometrypath'])
     hou.hscript('opproperty -f -F Render %s mantra,prman* %s' % (geo.path(), parms))
 
+def _newAlembicNode(root, parent, node_type, subnet, run_init_scripts=True):
+    if subnet:
+        node = parent.createNode(node_type, run_init_scripts=run_init_scripts)
+        node.setInput(0, parent.indirectInputs()[0])
+    else:
+        node = root.createNode(node_type, run_init_scripts=run_init_scripts)
+        if node.parent() == parent.parent():
+            node.setInput(0, parent)
+        else:
+            node.setInput(0, parent.indirectInputs()[0])
+    return node
+
 def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
                 pathList, buildSubnet, channelRefs, flatVisibility, userPropsLoadMode):
     name, typeName, children = childEntry
@@ -200,10 +212,11 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
 
     currentPath = parentPath + '/' + name
     if typeName in _primitiveTypes:
-        currentNode = parentNode.createNode('geo', run_init_scripts=False)
+        currentNode = _newAlembicNode(rootNode, parentNode, 'geo', buildSubnet, run_init_scripts=False)
+        #currentNode = parentNode.createNode('geo', run_init_scripts=False)
+        #currentNode.setInput(0, parentNode.indirectInputs()[0])
         subd = (typeName == 'subdmesh')
         _setupAbcGeo(currentNode, subd)
-        currentNode.setInput(0, parentNode.indirectInputs()[0])
         if subd:
             for parmname in ('vm_rendersubd', 'ri_rendersubd'):
                 _setParmValue(currentNode, parmname, 1)
@@ -241,16 +254,9 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
         sopNode.parm('loadUserProps').set(userPropsLoadMode)
         sopNode.parm('groupnames').set('none')  # Don't build groups
 
+
     elif typeName == 'xform' or typeName == 'cxform':
-        if buildSubnet:
-            currentNode = parentNode.createNode('alembicxform')
-            currentNode.setInput(0, parentNode.indirectInputs()[0])
-        else:
-            currentNode = rootNode.createNode('alembicxform')
-            if currentNode.parent() == parentNode.parent():
-                currentNode.setInput(0, parentNode)
-            else:
-                currentNode.setInput(0, parentNode.indirectInputs()[0])
+        currentNode = _newAlembicNode(rootNode, parentNode, 'alembicxform', buildSubnet)
 
         _setNodeName(currentNode, name)
         _setUserProperties(currentNode, name, fileName, userPropsLoadMode)
@@ -284,8 +290,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
         currentNode.layoutChildren()
 
     elif typeName == 'camera':
-        currentNode = parentNode.createNode('cam')
-        currentNode.setInput(0, parentNode.indirectInputs()[0])
+        currentNode = _newAlembicNode(rootNode, parentNode, 'cam', buildSubnet)
         _setNodeName(currentNode, name)
         currentNode.addSpareParmTuple(rootNode.parm('fileName').parmTemplate(),
                 ('Alembic',), True)
