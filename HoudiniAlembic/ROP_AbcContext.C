@@ -53,10 +53,6 @@ ROP_AbcContext::ROP_AbcContext()
 {
 }
 
-ROP_AbcContext::~ROP_AbcContext()
-{
-}
-
 void
 ROP_AbcContext::setTimeSampling(fpreal tstart,
 	fpreal tstep,

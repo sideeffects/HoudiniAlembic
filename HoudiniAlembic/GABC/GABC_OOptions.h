@@ -37,33 +37,14 @@
 
 namespace GABC_NAMESPACE
 {
-/// Class to specify options for output of Alembic geometry
+
+/// This class specifies the options used during Alembic archive export.
+/// In practice, these options are passed by reference to const, so they are
+/// set once during setup and never modified during the entrie output process.
 class GABC_API GABC_OOptions
 {
 public:
     typedef Alembic::AbcCoreAbstract::TimeSamplingPtr	TimeSamplingPtr;
-
-    GABC_OOptions();
-    virtual ~GABC_OOptions();
-
-    /// Method to return the time sampling pointer for output
-    virtual const TimeSamplingPtr	&timeSampling() const = 0;
-
-    /// Space optimization will bypass sending unchanged data down to the
-    /// Alembic library.  There may be some cost to these checks.
-    enum SpaceOptimize
-    {
-	OPTIMIZE_FAST,		// Only peform non-costly optimizations
-	OPTIMIZE_TOPOLOGY,	// Check for constant topology
-	OPTIMIZE_ATTRIBUTES,	// Check topology and all attributes
-
-	OPTIMIZE_DEFAULT = OPTIMIZE_TOPOLOGY
-    };
-
-    SpaceOptimize	optimizeSpace() const
-			    { return myOptimizeSpace; }
-    void		setOptimizeSpace(SpaceOptimize v)
-			    { myOptimizeSpace = v; }
 
     /// Face set creation
     enum FaceSetMode
@@ -74,9 +55,24 @@ public:
 
 	FACESET_DEFAULT = FACESET_NON_EMPTY,
     };
+
+    GABC_OOptions();
+    virtual ~GABC_OOptions() {};
+
+    /// Method to return the time sampling pointer for output
+    virtual const TimeSamplingPtr	&timeSampling() const = 0;
+
+    /// @{
+    /// Whether or not to create face sets, and if so for which groups.
     FaceSetMode	faceSetMode() const	{ return myFaceSetMode; }
     void	setFaceSetMode(FaceSetMode m)	{ myFaceSetMode = m; }
+    /// @}
 
+    /// @{
+    /// The first frame of output
+    exint       firstFrame() const      { return myFirstFrame; }
+    void        setFirstFrame(exint f)  { myFirstFrame = f; }
+    /// @}
 
     /// @{
     /// Whether or not to save attributes along with the geometry.  Default true
@@ -103,7 +99,7 @@ public:
     /// @}
 
     /// @{
-    /// Set attribute masks
+    /// Set attribute masks and compare attributes against the masks
     bool	 matchAttribute(Alembic::AbcGeom::GeometryScope scope,
 			const char *name) const;
     bool	 matchAttribute(GA_AttributeOwner own, const char *name) const;
@@ -116,17 +112,10 @@ public:
 		 }
     /// @}
 
-    /// @{
-    /// The first frame of output
-    exint       firstFrame() const      { return myFirstFrame; }
-    void        setFirstFrame(exint f)  { myFirstFrame = f; }
-    /// @}
-
 private:
     void		checkAttributeStars();
 
     FaceSetMode		myFaceSetMode;
-    SpaceOptimize	myOptimizeSpace;
     UT_String		mySubdGroup;
     UT_String		myAttributePatterns[GA_ATTRIB_OWNER_N];
     exint               myFirstFrame;
@@ -135,7 +124,8 @@ private:
     bool		myUseDisplaySOP;
     bool		myFullBounds;
 };
-}
+
+}   // end GABC_NAMESPACE
 
 #endif
 

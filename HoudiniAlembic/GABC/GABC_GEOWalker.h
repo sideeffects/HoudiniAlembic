@@ -120,6 +120,31 @@ public:
         UP_LOAD_ALL,   // Load user property values and metadata
     };
 
+    // Helper class stores world transform state.
+    class TransformState
+    {
+    public:
+	 TransformState() {}
+	~TransformState() {}
+
+    private:
+	friend class GABC_GEOWalker;
+
+	void	push(const M44d &m, bool c)
+		{
+		    myM = m;
+		    myC = c;
+		}
+	void	pop(M44d &m, bool &c) const
+		{
+		    m = myM;
+		    c = myC;
+		}
+
+	M44d	myM;
+	bool	myC;
+    };
+
     GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err);
     virtual ~GABC_GEOWalker();
 
@@ -227,28 +252,6 @@ public:
     void	trackPtVtxPrim(const GABC_IObject &obj,
 				exint npoints, exint nvertex, exint nprim,
 				bool do_transform);
-
-    class TransformState
-    {
-    public:
-	 TransformState() {}
-	~TransformState() {}
-
-    private:
-	friend class GABC_GEOWalker;
-	void	push(const M44d &m, bool c)
-		{
-		    myM = m;
-		    myC = c;
-		}
-	void	pop(M44d &m, bool &c) const
-		{
-		    m = myM;
-		    c = myC;
-		}
-	M44d	myM;
-	bool	myC;
-    };
 
     /// Push transform during traversal.  If the walker is set to include the
     /// full transforms, the transform passed in will be combined with the

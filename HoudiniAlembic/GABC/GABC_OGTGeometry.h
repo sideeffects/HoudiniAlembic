@@ -41,7 +41,12 @@ class GABC_OError;
 class GABC_OOptions;
 class GABC_OProperty;
 
-/// Take a GT_Primitive and translate it to Alembic.
+/// This class will translate and output a GT_Primitive to Alembic.
+/// Each time the update function is called, this class will write a sample
+/// to it's Alembic object. If updateFromPrevious is called, the most recent
+/// sample will be reused. Before either of these functions can be called, the
+/// start function must be called to setup the Alembic OObject. Start will also
+/// call update for the first time.
 class GABC_API GABC_OGTGeometry
 {
 public:
@@ -268,15 +273,20 @@ public:
     /// Return true if the primitive can be processed
     static bool     isPrimitiveSupported(const GT_PrimitiveHandle &prim);
 
+    // Create the output Alembic object, as well as it's attribute and user
+    // properties (if it has them and they are to be output).
     bool            start(const GT_PrimitiveHandle &prim,
                             const OObject &parent,
                             const GABC_OOptions &ctx,
                             GABC_OError &err,
                             ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
+    // Output geometry, attribute, and user property samples to Alembic for the
+    // current frame.
     bool            update(const GT_PrimitiveHandle &prim,
                             const GABC_OOptions &ctx,
                             GABC_OError &err,
                             ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
+    // Output samples to Alembic, reusing the samples for the previous frame.
     bool            updateFromPrevious(GABC_OError &err,
                             ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
                             exint frames = 1);
@@ -288,26 +298,34 @@ public:
     SecondaryCache  &getSecondaryCache();
 
 protected:
+    // Make Alembic OFaceSet objects from groups of polygons.
     void	makeFaceSets(const GT_PrimitiveHandle &prim,
 			const GABC_OOptions &ctx);
 
+    // Make Alembic arbGeomProperties from Houdini attributes.
     bool        makeArbProperties(const GT_PrimitiveHandle &prim,
                         GABC_OError &err,
 			const GABC_OOptions &ctx);
+    // Output samples of attribute data to Alembic for current frame.
     bool        writeArbProperties(const GT_PrimitiveHandle &prim,
                         GABC_OError &err,
 			const GABC_OOptions &ctx);
+    // Reuse previous samples of attribute data for current frame.
     void        writeArbPropertiesFromPrevious();
 
+    // Make Alembic user properties.
     bool        makeUserProperties(const GT_PrimitiveHandle &prim,
                         OCompoundProperty *parent,
                         GABC_OError &err,
                         const GABC_OOptions &ctx);
+    // Output user property samples to Alembic.
     bool        writeUserProperties(const GT_PrimitiveHandle &prim,
                         GABC_OError &err,
                         const GABC_OOptions &ctx);
+    // Reuse previous user property sample for current frame.
     void        writeUserPropertiesFromPrevious();
 
+    // Clear out existing data.
     void	clearProperties();
     void        clearArbProperties();
     void        clearUserProperties();
@@ -315,6 +333,20 @@ protected:
     void	clearCache();
 
 private:
+    // User properties output states.
+    //
+    //
+    //  NO_USER_PROPERTIES:         No user property data on the first frame.
+    //                              Keep checking for errors on subsequent
+    //                              frames.
+    //  ERROR_READING_PROPERTIES:   An error occurred reading user property
+    //                              data on the first frame or a subsequent
+    //                              frame. Ignore user properties completely.
+    //  WRITE_USER_PROPERTIES:      User property data output successfully for
+    //                              first frame. Try to write user property
+    //                              info for subsequent frames, but if there
+    //                              is a problem fall back to the previous
+    //                              existing samples.
     enum UserPropertiesState
     {
         NO_USER_PROPERTIES,
@@ -323,6 +355,7 @@ private:
 
         UNSET=-1
     };
+    // Attribute scopes.
     enum
     {
 	VERTEX_PROPERTIES,

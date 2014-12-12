@@ -45,6 +45,7 @@ class UT_StringArray;
 
 namespace GABC_NAMESPACE
 {
+
 /// This class wraps an Alembic IObject and provides convenience methods that
 /// allow thread-safe access to its data.
 ///

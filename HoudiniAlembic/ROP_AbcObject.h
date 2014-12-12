@@ -38,7 +38,7 @@
 class ROP_AbcContext;
 class UT_WorkBuffer;
 
-/// Base class for all Alembic output objects
+/// The base class for all Alembic output objects.
 class ROP_AbcObject
 {
 public:

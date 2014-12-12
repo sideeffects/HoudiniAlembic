@@ -114,30 +114,52 @@ namespace
     typedef Alembic::Util::Dimensions               Dimensions;
     typedef Alembic::Util::PlainOldDataType         PlainOldDataType;
 
+    // Alembic 8-bit integers, 16-bit integers, and unsigned 16-bit integers
+    // are stored as 32-bit integers in the GT_DataArray. Similarly,
+    // unsigned 32-bit integers are stored as 64-bit integers.
+    //
+    // Alembic takes data as a void * to a block of memory containing the
+    // data it expects. This causes issues in the above cases when a 32-bit
+    // int is interpreted as 4 8-bit ints or 2 16-bit ints.
+    //
+    // To fix this issue, arrays of the aforementioned 4 types must be
+    // reinterpreted in a buffer.
     template <typename POD_T>
     static void
-    reinterpretArray(void *buffer,
+    reinterpretArray(POD_T *buffer,
 	    const GT_DataArrayHandle &src,
 	    int tuple_size)
     {
-        POD_T  *data = (POD_T *)buffer;
-
         for (int i = 0; i < tuple_size; ++i)
         {
-            data[i] = src->getI32(0, i);
+            buffer[i] = src->getI32(0, i);
         }
     }
 
+    // Cast the GT_DataArray to the correct numeric type and pass
+    // the data to Alembic.
     template <typename POD_T, GT_Storage GT_STORE>
     static void
     writeProperty(OScalarProperty &prop,
             const GT_DataArrayHandle &src)
     {
         GT_DANumeric<POD_T, GT_STORE>  *numeric;
-        numeric = UTverify_cast<GT_DANumeric<POD_T, GT_STORE> *>(src.get());
-        prop.set(numeric->data());
+        numeric = dynamic_cast<GT_DANumeric<POD_T, GT_STORE> *>(src.get());
+
+        if (numeric)
+        {
+            prop.set(numeric->data());
+        }
+        else
+        {
+            POD_T  *data = new POD_T[src->getTupleSize()];
+            reinterpretArray(data, src, src->getTupleSize());
+            prop.set(data);
+            delete[] data;
+        }
     }
 
+    // Output string data to Alembic.
     static void
     writeStringProperty(OScalarProperty &prop,
 	    const GT_DataArrayHandle &src)
@@ -149,6 +171,7 @@ namespace
 
 GABC_OScalarProperty::~GABC_OScalarProperty()
 {
+    // Clear the buffer
     if (myBuffer)
     {
         switch (myPOD)
@@ -182,6 +205,7 @@ do \
     valid = true; \
 } while(false)
 
+// Cast up to at least 32-bit float.
 #define DECL_REAL_HI(FTYPE, DTYPE) \
 do \
 { \
@@ -191,6 +215,7 @@ do \
     else if (myStorage == GT_STORE_REAL64) { DECL_PARAM(DTYPE); } \
 } while(false)
 
+// Cast down to at most 32-bit float.
 #define DECL_REAL_LO(HTYPE, FTYPE) \
 do \
 { \
@@ -200,13 +225,13 @@ do \
         { myStorage = GT_STORE_REAL32; DECL_PARAM(FTYPE); } \
 } while(false)
 
+// Check and clamp tuple size
 #define MAX_TUPLE_SIZE(MAX, MAX_TYPE) \
     if (myTupleSize >= MAX) \
     { \
         DECL_PARAM(MAX_TYPE); \
         myTupleSize = MAX; \
     }
-
 #define MAX_AND_MIN_TUPLE_SIZE(MAX, MAX_TYPE, MIN, MIN_TYPE) \
     MAX_TUPLE_SIZE(MAX, MAX_TYPE) \
     else if (myTupleSize == MIN) \
@@ -723,15 +748,12 @@ GABC_OScalarProperty::update(const GT_DataArrayHandle &array,
         return false;
     }
 
-   // if (ctx.optimizeSpace() >= GABC_OOptions::OPTIMIZE_ATTRIBUTES)
-   // {
-	if (myCache && array->isEqual(*myCache))
-	{
-	    return updateFromPrevious();
-	}
-	// Keep previous version cached
-	myCache = array->harden();
-   // }
+    if (myCache && array->isEqual(*myCache))
+    {
+        return updateFromPrevious();
+    }
+    // Keep previous version cached
+    myCache = array->harden();
 
     switch (myPOD)
     {
@@ -773,22 +795,22 @@ GABC_OScalarProperty::update(const GT_DataArrayHandle &array,
             break;
 
         case Alembic::Util::kInt8POD:
-            reinterpretArray<int8>(myBuffer, array, myTupleSize);
+            reinterpretArray<int8>((int8 *)myBuffer, array, myTupleSize);
             myProperty.set(myBuffer);
             break;
 
         case Alembic::Util::kInt16POD:
-            reinterpretArray<int16>(myBuffer, array, myTupleSize);
+            reinterpretArray<int16>((int16 *)myBuffer, array, myTupleSize);
             myProperty.set(myBuffer);
             break;
 
         case Alembic::Util::kUint16POD:
-            reinterpretArray<uint16>(myBuffer, array, myTupleSize);
+            reinterpretArray<uint16>((uint16 *)myBuffer, array, myTupleSize);
             myProperty.set(myBuffer);
             break;
 
         case Alembic::Util::kUint32POD:
-            reinterpretArray<uint32>(myBuffer, array, myTupleSize);
+            reinterpretArray<uint32>((uint32 *)myBuffer, array, myTupleSize);
             myProperty.set(myBuffer);
             break;
 

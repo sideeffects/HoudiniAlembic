@@ -38,20 +38,90 @@ class ROP_AbcObject;
 class ROP_AbcArchive;
 class ROP_AbcContext;
 
+// This class records the nodes that will be output to Alembic in
+// a tree structure, and registers them as children of a given archive.
 class ROP_AbcOpBuilder
 {
 public:
     typedef GABC_NAMESPACE::GABC_OError	GABC_OError;
-    class	InternalNode;
+
+    // Tree of operator nodes
+    class InternalNode
+    {
+    public:
+	typedef UT_Map<int, InternalNode>       ChildSetType;
+	typedef UT_SharedPtr<ChildSetType>      ChildSetPtr;
+	typedef ChildSetType::const_iterator    const_iterator;
+	typedef ChildSetType::iterator          iterator;
+
+	InternalNode(int op_id=-1)
+	    : myOpId(op_id)
+	    , myKids(new ChildSetType())
+	{}
+	InternalNode(const InternalNode &src)
+	    : myOpId(src.myOpId)
+	    , myKids(src.myKids)
+	{}
+	~InternalNode() {}
+
+	OP_Node *node() const
+                {
+                    return OP_Node::lookupNode(myOpId);
+                }
+	size_t	hash_value() const
+                {
+                    return boost::hash_value(myOpId);
+                }
+	int     opid() const
+	        {
+	            return myOpId;
+                }
+	bool	operator==(const InternalNode &n) const
+                {
+                    return isEqual(n);
+                }
+	bool	isEqual(const InternalNode &n) const
+                {
+                    return myOpId == n.myOpId;
+                }
+	bool    valid() const
+	        {
+	            return myOpId >= 0;
+	        }
+
+	InternalNode    *child(const int op_id) const
+		{
+		    ChildSetType::iterator it = myKids->find(op_id);
+		    if (it == myKids->end())
+			return NULL;
+		    return &(it->second);
+		}
+	InternalNode    *addChild(int op_id)
+		{
+		    InternalNode    &kid = myKids->operator[](op_id);
+		    if (!kid.valid())
+		    {
+			kid = InternalNode(op_id);
+                    }
+		    return &kid;
+		}
+
+	size_t		childCount() const  { return myKids->size(); }
+	const_iterator	begin() const       { return myKids->begin(); }
+	const_iterator	end() const         { return myKids->end(); }
+	iterator	begin()             { return myKids->begin(); }
+	iterator	end()               { return myKids->end(); }
+
+    private:
+	ChildSetPtr	myKids;
+	int		myOpId;
+    };
 
     ROP_AbcOpBuilder(OP_Node *root)
 	: myRootNode(root)
 	, myTree(root->getUniqueId())
-    {
-    }
-    ~ROP_AbcOpBuilder()
-    {
-    }
+    {}
+    virtual ~ROP_AbcOpBuilder() {}
 
     /// Add a child
     bool	addChild(GABC_OError &err, OP_Node *child);
@@ -59,86 +129,12 @@ public:
     /// Create the ROP_AbcArchive
     void	buildTree(ROP_AbcArchive &arch, const ROP_AbcContext &ctx) const;
 
-    /// @{
-    /// Function callback for walking tree
-    class WalkFunc
-    {
-    public:
-	virtual ~WalkFunc() {}
-	virtual void	process(const InternalNode &node) = 0;
-    };
-    void	walk(WalkFunc &func) const	{ myTree.walk(func); }
-    /// @}
-
     /// List contents.  If @c full_tree is false, only the leaf nodes are dumped
     void	ls(bool full_tree=false) const;
 
-    // Tree of operator nodes
-    class InternalNode
-    {
-    public:
-	typedef UT_Map<int, InternalNode>		ChildSetType;
-	typedef UT_SharedPtr<ChildSetType>	ChildSetPtr;
-	typedef ChildSetType::const_iterator	const_iterator;
-	typedef ChildSetType::iterator		iterator;
-	InternalNode(int op_id=-1)
-	    : myOpId(op_id)
-	    , myKids(new ChildSetType())
-	{
-	}
-	InternalNode(const InternalNode &src)
-	    : myOpId(src.myOpId)
-	    , myKids(src.myKids)
-	{
-	}
-	~InternalNode() {}
-
-	void	walk(WalkFunc &func) const
-		{
-		    func.process(*this);
-		    for (const_iterator it = myKids->begin();
-			    it != myKids->end(); ++it)
-		    {
-			it->second.walk(func);
-		    }
-		}
-
-	bool	operator==(const InternalNode &n) const	{ return isEqual(n); }
-	size_t	hash_value() const	{ return boost::hash_value(myOpId); }
-	bool	isEqual(const InternalNode &n) const	{ return myOpId == n.myOpId; }
-
-	bool	 valid() const		{ return myOpId >= 0; }
-	int	 opid() const	{ return myOpId; }
-	OP_Node	*node() const	{ return OP_Node::lookupNode(myOpId); }
-	InternalNode	*child(const int op_id) const
-		{
-		    ChildSetType::iterator it = myKids->find(op_id);
-		    if (it == myKids->end())
-			return NULL;
-		    return &(it->second);
-		}
-	InternalNode	*addChild(int op_id)
-		{
-		    InternalNode	&kid = myKids->operator[](op_id);
-		    if (!kid.valid())
-			kid = InternalNode(op_id);
-		    return &kid;
-		}
-
-	size_t		childCount() const	{ return myKids->size(); }
-	const_iterator	begin() const	{ return myKids->begin(); }
-	const_iterator	end() const	{ return myKids->end(); }
-	iterator	begin()		{ return myKids->begin(); }
-	iterator	end()		{ return myKids->end(); }
-
-    private:
-	ChildSetPtr	myKids;
-	int		myOpId;
-    };
-
 private:
-    OP_Node		*myRootNode;
-    InternalNode	 myTree;
+    OP_Node        *myRootNode;
+    InternalNode    myTree;
 };
 
 #endif

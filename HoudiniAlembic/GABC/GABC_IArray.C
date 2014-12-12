@@ -122,7 +122,7 @@ GABC_IArray::getSample(GABC_IArchive &arch,
 
     const DataType	&dtype = sample->getDataType();
     GT_Size		 size = sample->size()/array_extent;
-    GT_Size		 tsize = GABC_GTUtil::getGTTupleSize(dtype)*array_extent;
+    GT_Size		 tsize = dtype.getExtent() * array_extent;
     GT_Storage		 store = GABC_GTUtil::getGTStorage(dtype);
     return GABC_IArray(arch, sample, size, tsize, store, tinfo, is_constant);
 }

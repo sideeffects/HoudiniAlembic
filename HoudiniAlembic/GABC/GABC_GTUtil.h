@@ -38,15 +38,18 @@ namespace GABC_NAMESPACE
 
 namespace GABC_GTUtil
 {
-    /// Given an Alembic DataType, determine the corresponding GT_Storage
+    /// Given an Alembic DataType, determine the corresponding GT_Storage.
     static inline GT_Storage
     getGTStorage(const Alembic::AbcGeom::DataType &dtype)
     {
 	switch (dtype.getPod())
 	{
+	    case Alembic::AbcGeom::kBooleanPOD:
 	    case Alembic::AbcGeom::kUint8POD:
 	    case Alembic::AbcGeom::kInt8POD:
 		return GT_STORE_UINT8;
+	    case Alembic::AbcGeom::kUint16POD:
+	    case Alembic::AbcGeom::kInt16POD:
 	    case Alembic::AbcGeom::kUint32POD:
 	    case Alembic::AbcGeom::kInt32POD:
 		return GT_STORE_INT32;
@@ -62,9 +65,6 @@ namespace GABC_GTUtil
 	    case Alembic::AbcGeom::kStringPOD:
 		return GT_STORE_STRING;
 
-	    case Alembic::AbcGeom::kBooleanPOD:
-	    case Alembic::AbcGeom::kUint16POD:
-	    case Alembic::AbcGeom::kInt16POD:
 	    case Alembic::AbcGeom::kWstringPOD:
 	    case Alembic::AbcGeom::kNumPlainOldDataTypes:
 	    case Alembic::AbcGeom::kUnknownPOD:
@@ -73,15 +73,8 @@ namespace GABC_GTUtil
 	return GT_STORE_INVALID;
     }
 
-    /// Given a DataType, determine the correspondign tuple size
-    static inline int
-    getGTTupleSize(const Alembic::AbcGeom::DataType &dtype)
-    {
-	return dtype.getExtent();
-    }
-
-    /// Given a data type interpretation, determine the corresponding GT_Type
-    /// information
+    /// Given an Alembic data type interpretation, determine the corresponding
+    /// GT_Type.
     static inline GT_Type
     getGTTypeInfo(const char *interp, int tsize)
     {
@@ -101,7 +94,9 @@ namespace GABC_GTUtil
 	    return tsize == 4 ? GT_TYPE_BOX2 : GT_TYPE_BOX;
 	return GT_TYPE_NONE;
     }
-};
-}
+
+}   // end GABC_GTUtil
+
+}   // end GABC_NAMESPACE
 
 #endif

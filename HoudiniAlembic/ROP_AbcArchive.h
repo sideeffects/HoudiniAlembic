@@ -34,7 +34,7 @@
 
 class OBJ_Node;
 
-/// Output archive for Houdini
+/// The Houdini representation of the output Alembic archive.
 class ROP_AbcArchive : public ROP_AbcObject
 {
 public:

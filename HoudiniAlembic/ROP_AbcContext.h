@@ -38,14 +38,15 @@
 class UT_WorkBuffer;
 class SOP_Node;
 
-/// Alembic evaluation context
+/// This class is an extension of the options used by the GABC library during
+/// Alembic archive export. It includes additional higher level output options.
 class ROP_AbcContext : public GABC_NAMESPACE::GABC_OOptions
 {
 public:
     typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
 
-     ROP_AbcContext();
-    ~ROP_AbcContext();
+    ROP_AbcContext();
+    virtual ~ROP_AbcContext() {};
 
     /// @{
     /// Time sampling

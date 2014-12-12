@@ -117,7 +117,11 @@ ROP_AbcGTInstance::first(const OObject &parent,
 	bool add_unused_pts,
         ObjectVisibility vis)
 {
-    UT_Matrix4D		m;
+    UT_Matrix4D     instance_mat;
+    UT_Matrix4D     prim_mat;
+
+    prim->getPrimitiveTransform()->getMatrix(prim_mat);
+
     switch (prim->getPrimitiveType())
     {
 	case GT_PRIM_INSTANCE:
@@ -132,10 +136,13 @@ ROP_AbcGTInstance::first(const OObject &parent,
 	    {
 		myInstances.append(Instance(myGeoLock));
 		Instance    &inst = myInstances.last();
-		xforms->get(i)->getMatrix(m);
+
+		xforms->get(i)->getMatrix(instance_mat);
+		instance_mat = prim_mat * instance_mat;
+
 		if (i == 0)
 		{
-		    inst.first(parent, err, ctx, m, myName, vis);
+		    inst.first(parent, err, ctx, instance_mat, myName, vis);
 		    myGeometry = inst.setGeometry(err, ctx, iprim->geometry(),
 			    myName, subd_mode, add_unused_pts);
 		    if (!myGeometry)
@@ -144,7 +151,7 @@ ROP_AbcGTInstance::first(const OObject &parent,
 		else
 		{
 		    nbuf.sprintf("%s_instance_%d", myName.c_str(), (int)i);
-		    inst.first(parent, err, ctx, m, nbuf.buffer(), vis);
+		    inst.first(parent, err, ctx, instance_mat, nbuf.buffer(), vis);
 		    // myGeometry is ROP_AbcGTCompoundShape.C
 		    // myGeometry has no container (single shape)
 		    // So it returns myShape(0)
@@ -167,11 +174,18 @@ ROP_AbcGTInstance::first(const OObject &parent,
 	    Instance	&inst = myInstances.last();
 
 	    pprim->geometryAndTransform(NULL, pgeo, xform);
+
 	    if (xform)
-		xform->getMatrix(m);
+	    {
+		xform->getMatrix(instance_mat);
+                instance_mat = prim_mat * instance_mat;
+            }
 	    else
-		m.identity();
-	    inst.first(parent, err, ctx, m, myName, vis);
+	    {
+		instance_mat = prim_mat;
+            }
+
+	    inst.first(parent, err, ctx, instance_mat, myName, vis);
 	    myGeometry = inst.setGeometry(err, ctx, pgeo,
 		    myName, subd_mode, add_unused_pts);
 	    if (!myGeometry)
@@ -191,7 +205,11 @@ ROP_AbcGTInstance::update(const GT_PrimitiveHandle &prim,
         GABC_OError &err,
         ObjectVisibility vis)
 {
-    UT_Matrix4D m;
+    UT_Matrix4D     instance_mat;
+    UT_Matrix4D     prim_mat;
+
+    prim->getPrimitiveTransform()->getMatrix(prim_mat);
+
     switch (prim->getPrimitiveType())
     {
 	case GT_PRIM_INSTANCE:
@@ -204,14 +222,15 @@ ROP_AbcGTInstance::update(const GT_PrimitiveHandle &prim,
 		return false;
 
 	    // Now, update the transforms
-	    const GT_TransformArrayHandle	&xforms = iprim->transforms();
-	    exint				 icount;
-	    icount = SYSmin(xforms->entries(), myInstances.entries());
+	    const GT_TransformArrayHandle  &xforms = iprim->transforms();
+	    exint                           icount = SYSmin(xforms->entries(),
+	                                            myInstances.entries());
 
 	    for (exint i = 0; i < icount; ++i)
 	    {
-		xforms->get(i)->getMatrix(m);
-		myInstances(i).update(m, vis);
+		xforms->get(i)->getMatrix(instance_mat);
+		instance_mat = prim_mat * instance_mat;
+		myInstances(i).update(instance_mat, vis);
 	    }
 	}
 	break;
@@ -229,10 +248,15 @@ ROP_AbcGTInstance::update(const GT_PrimitiveHandle &prim,
 	    if (myInstances.entries() == 1)
 	    {
 		if (xform)
-		    xform->getMatrix(m);
-		else
-		    m.identity();
-		myInstances(0).update(m, vis);
+                {
+                    xform->getMatrix(instance_mat);
+                    instance_mat = prim_mat * instance_mat;
+                }
+                else
+                {
+                    instance_mat = prim_mat;
+                }
+		myInstances(0).update(instance_mat, vis);
 	    }
 	}
 	break;

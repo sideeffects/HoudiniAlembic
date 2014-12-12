@@ -40,8 +40,10 @@ class SOP_Node;
 class ROP_AbcGTShape;
 class ROP_AbcGTCompoundShape;
 
-/// Geometry represented by a SOP node.  This may result in multiple shape
-/// nodes (since Houdini can have a heterogenous mix of primitive types).
+/// Alembic geometry contained within a Houdini SOP node. The geometry contained
+/// in the SOP node is partitioned here into multiple child nodes if the
+/// "Partition Mode" or "Build Hierarchy From Attribute" options are enabled.
+/// Otherwise, a ROP_AbcSOP object should have only one child.
 class ROP_AbcSOP : public ROP_AbcObject
 {
 public:
@@ -62,7 +64,9 @@ public:
     typedef std::pair<std::string, int>                 PartitionMapInsert;
     typedef UT_Array<abc_PrimContainer>                 PrimitiveList;
 
-    // Need to store some additional information about the primitives
+    // Helper class stores a GT_PrimitiveHandle to a GT_GEODetail containing
+    // all geometry in a single partition, as well as additional information
+    // about how to output that geometry.
     class abc_PrimContainer
     {
     public:
@@ -106,7 +110,17 @@ public:
     /// @}
 
 private:
+    // Clear all stored data and reset the object.
     void		clear();
+    // Router method for partitionGeometryRange, determines what the
+    // arguments to it should be.
+    void                partitionGeometry(PrimitiveList &primitives,
+                                const SOP_Node *sop,
+                                const GU_Detail &gdp,
+                                const ROP_AbcContext &ctx,
+                                GABC_OError &err);
+    // Partitions the geometry in the range into one or more groups. A child
+    // ROP_AbcGTCompoundShape will be created for each group.
     void                partitionGeometryRange(PrimitiveList &primitives,
                                 const GU_Detail &gdp,
                                 const GA_Range &range,
@@ -114,11 +128,6 @@ private:
                                 GABC_OError &err,
                                 bool force_subd_mode,
                                 bool show_pts);
-    void                partitionGeometry(PrimitiveList &primitives,
-                                const SOP_Node *sop,
-                                const GU_Detail &gdp,
-                                const ROP_AbcContext &ctx,
-                                GABC_OError &err);
 
     InverseMap                          myInverseMap;
     GeoSet                              myGeoSet;

@@ -33,6 +33,7 @@
 
 namespace GABC_NAMESPACE
 {
+
 enum GABC_VisibilityType
 {
     GABC_VISIBLE_DEFER		= -1,
@@ -46,8 +47,7 @@ public:
     GABC_VisibilityCache()
 	: myVisible(GABC_VISIBLE_DEFER)
 	, myCache(NULL)
-    {
-    }
+    {}
     GABC_VisibilityCache(GABC_VisibilityType vtype,
 			const GABC_ChannelCache *cache)
 	: myVisible(vtype)
@@ -67,7 +67,7 @@ public:
 	clear();
     }
 
-    GABC_VisibilityCache	&operator=(const GABC_VisibilityCache &src)
+    GABC_VisibilityCache    &operator=(const GABC_VisibilityCache &src)
     {
 	if (this != &src)
 	{
@@ -106,6 +106,7 @@ private:
     GABC_ChannelCache	*myCache;
     GABC_VisibilityType	 myVisible;
 };
+
 }
 
 #endif

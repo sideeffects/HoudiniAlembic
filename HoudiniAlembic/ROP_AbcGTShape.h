@@ -39,7 +39,8 @@
 
 class ROP_AbcGTInstance;
 
-/// A shape node representation for a single GT primitive
+/// This class represents a single GT_Primitive. If "Build Hierarchy From
+/// Attribute" is enabled, this class is where the hierarchy will be constructed.
 class ROP_AbcGTShape : public ROP_AbcObject
 {
 public:

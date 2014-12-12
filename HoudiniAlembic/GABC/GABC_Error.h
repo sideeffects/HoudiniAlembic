@@ -36,7 +36,8 @@ class UT_Interrupt;
 namespace GABC_NAMESPACE
 {
 
-/// Class to handle error messages for output of Alembic geometry
+/// This class reports info/warning/error messages that occur during Alembic
+/// import/export.
 class GABC_API GABC_Error
 {
 public:
@@ -44,39 +45,39 @@ public:
 	: mySuccess(true)
 	, myInterrupt(interrupt)
     {}
-    virtual ~GABC_Error();
+    virtual ~GABC_Error() {}
 
-    void	clear();
+    void            clear();
 
-    UT_Interrupt	*getInterrupt() const	{ return myInterrupt; }
-    bool		 wasInterrupted() const;
+    UT_Interrupt   *getInterrupt() const    { return myInterrupt; }
+    bool            wasInterrupted() const;
 
-    bool		 success() const	{ return mySuccess; }
+    bool            success() const         { return mySuccess; }
 
     /// @c errorString() always returns false
-    bool	errorString(const char *msg);
-    void	warningString(const char *msg);
-    void	infoString(const char *msg);
+    bool            errorString(const char *msg);
+    void            warningString(const char *msg);
+    void            infoString(const char *msg);
 
     /// @c error() always returns false
-    bool	error(const char *format, ...)
-		    SYS_PRINTF_CHECK_ATTRIBUTE(2, 3);
-    void	warning(const char *format, ...)
-		    SYS_PRINTF_CHECK_ATTRIBUTE(2, 3);
-    void	info(const char *format, ...)
-		    SYS_PRINTF_CHECK_ATTRIBUTE(2, 3);
+    bool            error(const char *format, ...)
+		            SYS_PRINTF_CHECK_ATTRIBUTE(2, 3);
+    void            warning(const char *format, ...)
+		            SYS_PRINTF_CHECK_ATTRIBUTE(2, 3);
+    void            info(const char *format, ...)
+		            SYS_PRINTF_CHECK_ATTRIBUTE(2, 3);
 protected:
     /// @{
     /// Callbacks to process error, warning, info and clear
-    virtual void	handleError(const char *msg);
-    virtual void	handleWarning(const char *msg);
-    virtual void	handleInfo(const char *msg);
-    virtual void	handleClear();
+    virtual void    handleError(const char *msg);
+    virtual void    handleWarning(const char *msg);
+    virtual void    handleInfo(const char *msg);
+    virtual void    handleClear();
     /// @}
 
 private:
-    UT_Interrupt	*myInterrupt;
-    bool		 mySuccess;
+    UT_Interrupt   *myInterrupt;
+    bool            mySuccess;
 };
 
 } // end GABC_NAMESPACE

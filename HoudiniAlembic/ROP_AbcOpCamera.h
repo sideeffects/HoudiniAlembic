@@ -33,7 +33,7 @@
 
 class OBJ_Camera;
 
-/// Camera properties defined by a Houdini object node
+/// An Alembic camera node as represented by a Houdini camera object.
 class ROP_AbcOpCamera : public ROP_AbcObject
 {
 public:

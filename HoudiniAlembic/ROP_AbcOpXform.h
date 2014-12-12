@@ -33,7 +33,8 @@
 
 class OBJ_Node;
 
-/// Transform node defined by a Houdini object node
+/// An Alembic Xform node, as represented in Houdini by an Alembic Xform,
+/// Subnet, or Geometry object.
 class ROP_AbcOpXform : public ROP_AbcObject
 {
 public:

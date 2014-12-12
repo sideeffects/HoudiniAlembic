@@ -79,6 +79,7 @@ namespace
 		    menu, max, spare ? spare->getValue("opfilter") : 0);
     }
 
+    // Get the list of single primitive string attributes from a SOP.
     static void
     getAttribs(SOP_Node *node, OP_Context &context, UT_StringArray &vals)
     {
@@ -106,6 +107,8 @@ namespace
         }
     }
 
+    // Build the menu of likely choices for use with the "Build Hierarchy From
+    // Attribute" option.
     static void
     buildAttribMenu(void *data,
             PRM_Name *menu_entries,

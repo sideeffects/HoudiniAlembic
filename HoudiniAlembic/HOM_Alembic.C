@@ -117,33 +117,44 @@ namespace
     typedef Alembic::Abc::WrapExistingFlag      WrapExistingFlag;
     static const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
+    // Returns an Alembic objects transform, as well as if the transform
+    // is constant, and if it inherits it's parent's transform.
     static PY_PyObject *
     alembicGetXform(PY_PyObject *self, PY_PyObject *args, int result_size,
 	    bool localx)
     {
-	const char	*filename = NULL;
-	const char	*objectPath = NULL;
-	double		 sampleTime = 0.0;
-	bool		 isConstant = true;
-	bool		 inheritsXform = true;
-	UT_Matrix4D	 xform;
+	UT_Matrix4D     xform;
+	const char     *filename = NULL;
+	const char     *objectPath = NULL;
+	const double   *data = NULL;
+	double          sampleTime = 0.0;
+	bool            isConstant = true;
+	bool            inheritsXform = true;
+	bool            ok;
 
         if (!PY_PyArg_ParseTuple(args, "ssd", &filename, &objectPath,
                 &sampleTime))
 	{
 	    return NULL;
 	}
-	bool	ok;
-	if (localx)
-	    ok = GABC_Util::getLocalTransform(filename, objectPath,
-		    sampleTime, xform, isConstant, inheritsXform);
-	else
-	    ok = GABC_Util::getWorldTransform(filename, objectPath,
-		    sampleTime, xform, isConstant, inheritsXform);
-	if (!ok)
-	    xform.identity();
 
-	const double	*data = xform.data();
+	if (localx)
+	{
+            ok = GABC_Util::getLocalTransform(filename, objectPath,
+                    sampleTime, xform, isConstant, inheritsXform);
+        }
+	else
+	{
+            ok = GABC_Util::getWorldTransform(filename, objectPath,
+                    sampleTime, xform, isConstant, inheritsXform);
+        }
+
+	if (!ok)
+	{
+	    xform.identity();
+        }
+	data = xform.data();
+
         PY_PyObject* matrixTuple = PY_PyTuple_New(16);
         for (PY_Py_ssize_t i = 0; i < 16; ++i)
         {
@@ -160,7 +171,7 @@ namespace
     static const char	*Doc_AlembicGetLocalXform =
 	"(xform, isConstant) = alembicGetLocalXform(abcPath, objectPath, sampleTime)\n"
 	"\n"
-	"Returns a tuple (xform,isConstant) containing the transform and a\n"
+	"Returns a tuple (xform, isConstant) containing the transform and a\n"
 	"flag indicating whether the transform is animated or constant. The\n"
 	"transform is a 16-tuple of floats.\n"
 	"\n"
@@ -175,9 +186,9 @@ namespace
     static const char	*Doc_GetLocalXform =
 	"(xform, isConstant, inherit) = getLocalXform(abcPath, objectPath, sampleTime)\n"
 	"\n"
-	"Returns a tuple (xform,isConstant,inherits) containing the transform\n"
+	"Returns a tuple (xform, isConstant, inherits) containing the transform\n"
 	"and flags indicating whether the transform is animated/constant,\n"
-	"along with whether the node inherit it's parent transform (or is\n"
+	"along with whether the node inherits it's parent transform (or is\n"
 	"disconnected from the transform hierarchy).";
 
     PY_PyObject *
@@ -189,7 +200,7 @@ namespace
     static const char	*Doc_GetWorldXform =
 	"(xform, isConstant, inherit) = getWorldXform(abcPath, objectPath, sampleTime)\n"
 	"\n"
-	"Returns a tuple (xform,isConstant,inherits) containing the object to\n"
+	"Returns a tuple (xform, isConstant, inherits) containing the object to\n"
 	"world transform flags indicating whether the transform is animated\n"
 	"or constant, along with whether the node inherit it's parent\n"
 	"transform (or is disconnected from the transform hierarchy).";
@@ -200,11 +211,12 @@ namespace
 	return alembicGetXform(self, args, 3, false);
     }
 
+    // Extract the data for a single tuple element from a GT_DataArray.
     static PY_PyObject *
-    extractTuple(const GT_DataArrayHandle &array, exint idx)
+    extractTuple(const GT_DataArrayHandle &array, GT_Size tsize, exint idx)
     {
-	GT_Size		 tsize = array->getTupleSize();
-	PY_PyObject	*tuple = PY_PyTuple_New(tsize);
+	PY_PyObject    *tuple = PY_PyTuple_New(tsize);
+
 	if (GTisFloat(array->getStorage()))
 	{
 	    UT_StackBuffer<fpreal>	buf(tsize);
@@ -227,21 +239,24 @@ namespace
 			PY_PyString_FromString(array->getS(idx, i)));
 	    }
 	}
+
 	return tuple;
     }
 
+    // Extract data from a GT_DataArray to a Python list.
     static PY_PyObject *
     dataFromArray(const GT_DataArrayHandle &array)
     {
-	GT_Size		 size = array ? array->entries() : 0;
-	GT_Size		 tsize = array ? array->getTupleSize() : 0;
-	PY_PyObject	*list = PY_PyList_New(size);
+	GT_Size         size = array ? array->entries() : 0;
+	GT_Size         tsize = array ? array->getTupleSize() : 0;
+	PY_PyObject    *list = PY_PyList_New(size);
+
 	if (size)
 	{
 	    if (tsize > 1)
 	    {
 		for (exint i = 0; i < size; ++i)
-		    PY_PyList_SetItem(list, i, extractTuple(array, i));
+		    PY_PyList_SetItem(list, i, extractTuple(array, tsize, i));
 	    }
 	    else if (GTisInteger(array->getStorage()))
 	    {
@@ -259,9 +274,11 @@ namespace
 		    PY_PyList_SetItem(list, i, PY_PyString_FromString(array->getS(i)));
 	    }
 	}
+
 	return list;
     }
 
+    // Match scope name to scope.
     static const char *
     scopeName(Alembic::AbcGeom::GeometryScope scope)
     {
@@ -286,7 +303,7 @@ namespace
     static const char	*Doc_AlembicArbGeometry =
 	"(value, isConstant, scope) = alembicArbGeometry(abcPath, objectPath, name, sampleTime)\n"
 	"\n"
-	"Returns None or a tuple (value,isConstant,scope).  The tuple\n"
+	"Returns None or a tuple (value, isConstant, scope).  The tuple\n"
 	"contains the value for the attribute, it's scope ('varying',\n"
 	"'vertex', 'facevarying', 'uniform', 'constant' or 'unknown') and\n"
 	"a boolean flag indicating whether the attribute is constant over\n"
@@ -685,17 +702,18 @@ namespace
 	return rcode;
     }
 
-
+    /// This class processes Alembic archives. Starting with the node passed
+    /// to the process function as root, it creates a tree of nested tuples
+    /// representing the structure of the Alembic archive. Each tuple contains
+    /// the object name, type, and child tuples.
     class PyWalker : public GABC_Util::Walker
     {
     public:
 	PyWalker()
 	    : myRoot(NULL)
-	{
-	}
-	~PyWalker()
-	{
-	}
+	{}
+	~PyWalker() {}
+
 	virtual bool	process(const GABC_IObject &root)
 			{
 			    myRoot = walkNode(root);
@@ -704,7 +722,7 @@ namespace
 
 	PY_PyObject	*walkNode(const GABC_IObject &obj)
 	{
-	    const char		*otype = "<unknown>";
+	    const char *otype = "<unknown>";
 	    switch (obj.nodeType())
 	    {
 		case GABC_XFORM:
@@ -758,6 +776,7 @@ namespace
 	    }
 	    return result;
 	}
+
 	PY_PyObject	*getObject() const	{ return myRoot; }
 
     private:
@@ -882,11 +901,10 @@ namespace
 
     //-*************************************************************************
 
-    static const char	*Doc_AlembicGetCameraDict =
-	"alembicGetCameraDict(abcPath, objectPath, sampleTime)\n"
-	"\n"
-	"Returns a dictionary of camera parameters for the given object.";
-
+    /// This class reads Alembic camera object samples. Alembic cameras
+    /// are based off of Maya cameras, so this class processes the data into a
+    /// form more suitable for Houdini cameras. It can also blend the current
+    /// camera sample with another.
     class HoudiniCam
     {
     public:
@@ -931,7 +949,8 @@ namespace
 	    myWinSize[0] = 1.0 / postScale[0];
 	    myWinSize[1] = 1.0 / postScale[1];
 	}
-	void	blend(const HoudiniCam &src, fpreal w)
+
+	void            blend(const HoudiniCam &src, fpreal w)
 	{
 	    myAperture = SYSlerp(myAperture, src.myAperture, w);
 	    myFocal = SYSlerp(myFocal, src.myFocal, w);
@@ -951,7 +970,8 @@ namespace
 	    PY_PyDict_SetItemString(dict, key, v);
 	    PY_Py_DECREF(v);
 	}
-	void	setDict(PY_PyObject *dict) const
+
+	void            setDict(PY_PyObject *dict) const
 	{
 	    setItem(dict, "aperture", myAperture);
 	    setItem(dict, "focal", myFocal);
@@ -974,6 +994,9 @@ namespace
 	fpreal	myWinSize[2];
     };
 
+    // Determine the two samples that should be blended to create the sample
+    // for the given time, and the bias towards the first sample (if any) as a
+    // factor of time.
     static const fpreal	theTimeBias = 0.0001;
     static fpreal
     blendTime(fpreal t,
@@ -983,14 +1006,17 @@ namespace
 	    index_t &i1)
     {
 	nsamp = SYSmax(nsamp, 1);
+
 	std::pair<index_t, chrono_t>	t0 = itime->getFloorIndex(t, nsamp);
 	i0 = i1 = t0.first;
 	if (nsamp == 1 || SYSisEqual(t, t0.second, theTimeBias))
 	    return 0;
+
 	std::pair<index_t, chrono_t>	t1 = itime->getCeilIndex(t, nsamp);
 	i1 = t1.first;
 	if (i0 == i1)
 	    return 0;
+
 	fpreal	bias = (t - t0.second) / (t1.second - t0.second);
 	if (SYSisEqual(bias, 1, theTimeBias))
 	{
@@ -999,6 +1025,11 @@ namespace
 	}
 	return bias;
     }
+
+    static const char	*Doc_AlembicGetCameraDict =
+	"alembicGetCameraDict(abcPath, objectPath, sampleTime)\n"
+	"\n"
+	"Returns a dictionary of camera parameters for the given object.";
 
     PY_PyObject *
     Py_AlembicGetCameraDict(PY_PyObject *self, PY_PyObject *args)

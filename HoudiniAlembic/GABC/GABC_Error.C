@@ -34,10 +34,6 @@ using namespace GABC_NAMESPACE;
 
 static UT_Lock	theLock;
 
-GABC_Error::~GABC_Error()
-{
-}
-
 bool
 GABC_Error::wasInterrupted() const
 {

@@ -1064,12 +1064,11 @@ namespace
     }
 
     static bool
-    cacheNeedWrite(const GABC_OOptions &ctx, const GT_DataArrayHandle &data,
+    cacheNeedWrite(const GABC_OOptions &ctx,
+            const GT_DataArrayHandle &data,
 	    GT_DataArrayHandle &cache)
     {
-	if (ctx.optimizeSpace() < GABC_OOptions::OPTIMIZE_TOPOLOGY || !data)
-	    return true;
-	if (!cache || !cache->isEqual(*data))
+	if (!data || !cache || !cache->isEqual(*data))
 	{
 	    cache = data->harden();
 	    return true;

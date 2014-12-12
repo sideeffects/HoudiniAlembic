@@ -309,7 +309,6 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     //
     //  START PACKED
     //
-
     if (num_pckd)
     {
         bool    calc_inverse = (ctx.packedAlembicPriority()
@@ -367,12 +366,10 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
             ++myNumShapes;
         }
     }
-
     //
     //  START DEFORMING
     //
-
-    if (num_dfrm && !myNumShapes)
+    else
     {
         shape = new ROP_AbcGTShape(myName,
                 myPath,
@@ -398,7 +395,8 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
         myDeforming.insert(deforming(0)->getPrimitiveType(), shape);
         ++myNumShapes;
     }
-    for (exint i = (myNumShapes == 1) ? 1 : 0; i < num_dfrm; ++i)
+
+    for (exint i = (num_pckd ? 0 : 1); i < num_dfrm; ++i)
     {
         shape_namebuf.sprintf("%s_%d", myName.c_str(), (int)myNumShapes);
         shape_name = shape_namebuf.buffer();

@@ -33,7 +33,6 @@
 #include <GABC/GABC_GEOWalker.h>
 #include <GABC/GABC_Util.h>
 
-
 /// SOP to read Alembic geometry
 class SOP_AlembicIn2 : public SOP_Node
 {

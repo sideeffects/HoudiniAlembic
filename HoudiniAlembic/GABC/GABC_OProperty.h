@@ -46,7 +46,7 @@ class GABC_OOptions;
 /// The Alembic equivalent of attributes are Alembic arbitrary geometry
 /// parameters (arbGeomParams). In addition, Alembic geometry can have user
 /// properties which have no direct equivalent in Houdini. We store user
-/// properties as in a JSON dictionary exposed to users through a special
+/// properties as a JSON dictionary exposed to users through a special
 /// attribute (see: GABC_Util::theUserPropsValsAttrib).
 ///
 /// User properties are stored using OScalarProperty and OArrayProperty

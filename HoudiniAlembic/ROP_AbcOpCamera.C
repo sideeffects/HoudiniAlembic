@@ -36,28 +36,30 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef Alembic::AbcGeom::OCamera		OCamera;
-    typedef Alembic::AbcGeom::CameraSample	CameraSample;
+    typedef Alembic::AbcGeom::CameraSample      CameraSample;
+    typedef Alembic::AbcGeom::FilmBackXformOp   FilmBackXformOp;
+    typedef Alembic::AbcGeom::OCamera           OCamera;
 
     static bool
     fillSample(CameraSample &sample, OBJ_Camera *cam, const ROP_AbcContext &ctx)
     {
-	const CH_Manager	*chman = OPgetDirector()->getChannelManager();
-	fpreal	now = ctx.cookTime();
-	fpreal	winx = cam->WINX(now);
-	fpreal	winy = cam->WINY(now);
-	fpreal	winsizex = cam->WINSIZEX(now);
-	fpreal	winsizey = cam->WINSIZEY(now);
-	fpreal	focal = cam->FOCAL(now);
-	fpreal	aperture = cam->APERTURE(now);
-	fpreal	aspect = cam->ASPECT(now);
-	fpreal	resx = cam->RESX(now);
-	fpreal	resy = cam->RESY(now);
-	fpreal	fstop = cam->FSTOP(now);
-	fpreal	focus = cam->FOCUS(now);
-	fpreal	hither = cam->getNEAR(now);
-	fpreal	yon = cam->getFAR(now);
-	fpreal	shutter = cam->SHUTTER(now);
+	const CH_Manager   *chman = OPgetDirector()->getChannelManager();
+	FilmBackXformOp     winsize;
+	fpreal              now = ctx.cookTime();
+	fpreal              winx = cam->WINX(now);
+	fpreal              winy = cam->WINY(now);
+	fpreal              winsizex = cam->WINSIZEX(now);
+	fpreal              winsizey = cam->WINSIZEY(now);
+	fpreal              focal = cam->FOCAL(now);
+	fpreal              aperture = cam->APERTURE(now);
+	fpreal              aspect = cam->ASPECT(now);
+	fpreal              resx = cam->RESX(now);
+	fpreal              resy = cam->RESY(now);
+	fpreal              fstop = cam->FSTOP(now);
+	fpreal              focus = cam->FOCUS(now);
+	fpreal              hither = cam->getNEAR(now);
+	fpreal              yon = cam->getFAR(now);
+	fpreal              shutter = cam->SHUTTER(now);
 
 	// Compute resolution aspect
 	fpreal	raspect = resy/resx;
@@ -66,33 +68,31 @@ namespace
 	aperture *= 0.1;
 
 	sample.setFocalLength(focal);
-
-	sample.setHorizontalAperture(aperture);
-	sample.setVerticalAperture(aperture * raspect);
-	sample.setHorizontalFilmOffset(winx * aperture / aspect);
-	sample.setVerticalFilmOffset(winy * aperture * raspect / aspect);
-	sample.setLensSqueezeRatio(aspect);
+	sample.setFStop(fstop);
+	sample.setFocusDistance(focus);
+	sample.setShutterOpen(0);
+	sample.setShutterClose(chman->getTimeDelta(shutter));
+	sample.setNearClippingPlane(hither);
+	sample.setFarClippingPlane(yon);
 
 	sample.setOverScanLeft(0);
 	sample.setOverScanRight(0);
 	sample.setOverScanTop(0);
 	sample.setOverScanBottom(0);
 
-	sample.setFStop(fstop);
-	sample.setFocusDistance(focus);
-
-	sample.setShutterOpen(0);
-	sample.setShutterClose(chman->getTimeDelta(shutter));
-
-	sample.setNearClippingPlane(hither);
-	sample.setFarClippingPlane(yon);
-
 	// We need to output the filmback fit and post projection transform
-	Alembic::AbcGeom::FilmBackXformOp	winsize(
-		Alembic::AbcGeom::kScaleFilmBackOperation, "winsize");
+	winsize = FilmBackXformOp(Alembic::AbcGeom::kScaleFilmBackOperation,
+	        "winsize");
 	sample.addOp(winsize);
-	sample[0].setChannelValue(0, winsizex);
-	sample[0].setChannelValue(1, winsizey);
+	sample[0].setChannelValue(0, (1.0 / winsizex));
+	sample[0].setChannelValue(1, (1.0 / winsizey));
+
+	sample.setHorizontalAperture(aperture / aspect);
+	sample.setVerticalAperture(aperture * raspect / aspect);
+	sample.setHorizontalFilmOffset(winx * aperture / aspect);
+	sample.setVerticalFilmOffset(winy * aperture * raspect / aspect);
+	sample.setLensSqueezeRatio(aspect);
+
 	return true;
     }
 

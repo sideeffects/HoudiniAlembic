@@ -35,6 +35,7 @@
 class ROP_AbcContext;
 class ROP_AbcArchive;
 
+// The Alembic output ROP. Outputs scene data to an Alembic archive.
 class ROP_AlembicOut : public ROP_Node
 {
 public:
@@ -49,7 +50,7 @@ public:
     virtual void	getDescriptiveParmName(UT_String &str) const
 			{ str = "filename"; }
 
-    /// We need to hint to the merge ROP that we can't be called on frame at a
+    /// We need to hint to the merge ROP that we can't be called one frame at a
     /// time.
     virtual void	buildRenderDependencies(
 				const ROP_RenderDepParms &p);

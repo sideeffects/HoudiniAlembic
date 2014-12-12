@@ -172,6 +172,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
 {
     const OObject          *pobj = &parent;
     OXform                 *xform = NULL;
+    const UT_Matrix4D      *stored_mat = NULL;
     UT_Matrix4D             inverse_mat(1.0);
     UT_Matrix4D             packed_mat(1.0);
     InverseMap::iterator    i_it;
@@ -237,19 +238,43 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
                 {
                     UT_ASSERT(myType == ALEMBIC);
 
-                    xform->getSchema().getNextXform().invert(inverse_mat);
-                    packed_mat = inverse_mat * packed_mat;
+                    stored_mat = xform->getSchema().getNextXform();
+                    if (stored_mat)
+                    {
+                        stored_mat->invert(inverse_mat);
+                        packed_mat = inverse_mat * packed_mat;
+                    }
                 }
             }
 
             // If the transform we're currently processing hasn't been
             // updated for this frame, AND it's either a) not the direct
-            // parent to the object we're currently processing, b) we're
-            // processing a packed transform, or c) we're processing
-            // deforming geometry, THEN write the transform data for the
-            // current frame.
+            // parent to the object we own, or b) the object we own is deforming
+            // geometry, THEN write the transform data for
+            // the current frame.
+            //
+            // Partitions are sorted into order first by which ones
+            // contain packed Alembics, then by the length of the path
+            // (/a/b is shorter than /a/b/c), then alphabetically.
+            //
+            // CASE A:  If the OXform we're currently processing is not the
+            //          direct parent, then we're at least one step removed from
+            //          it (our object has path /a/b/c and we're
+            //          currently looking at transform a). Due to the sorting
+            //          method, this means that there are no more paths that
+            //          use the current transform as a direct parent, so we can
+            //          finalize it's sample.
+            //
+            // CASE B:  Due to the sorting order, the OXform we're currently
+            //          processing must be the parent (otherwise case a would be
+            //          triggered instead) and there must be no packed Alembics
+            //          under the same path (if there were, we would have
+            //          already encountered them and the first one should have
+            //          called finalize on the OXform). No packed Alembics means
+            //          nothing will mess with the OXform sample, so finalize.
+            //
             if ((getNumSamples(xform) < myElapsedFrames)
-                    &&  ((i < numx - 1) || is_xform || (myType != ALEMBIC)))
+                    &&  ((i < numx - 1) || (myType != ALEMBIC)))
             {
                 xform->getSchema().finalize();
             }
@@ -278,7 +303,11 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
             else if (xform && (getNumSamples(xform) < myElapsedFrames))
             {
                 // Merge the computed transform with the parent transform.
-                packed_mat = packed_mat * xform->getSchema().getNextXform();
+                stored_mat = xform->getSchema().getNextXform();
+                if (stored_mat)
+                {
+                    packed_mat = packed_mat * (*stored_mat);
+                }
                 xform->getSchema().setMatrix(packed_mat);
                 xform->getSchema().finalize();
 
@@ -291,7 +320,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
             //
             // NOTE: We can end up here if either the current shape is not the
             //       first packed Alembic under the parent transform, or there
-            //       is not parent transform.
+            //       is no parent transform.
             else if (ctx.packedAlembicPriority()
                     == ROP_AbcContext::PRIORITY_TRANSFORM)
             {
@@ -393,6 +422,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
             {
                 err.error("Transform and geometry have same path %s.",
                         partial_path.c_str());
+                delete xform;
                 return false;
             }
 
@@ -401,6 +431,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
             {
                 err.error("Multiple transforms have path %s.",
                         partial_path.c_str());
+                delete xform;
                 return false;
             }
 
@@ -482,6 +513,7 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
 	bool calc_inverse)
 {
     OXform                 *xform = NULL;
+    const UT_Matrix4D      *stored_mat = NULL;
     UT_Matrix4D             inverse_mat;
     UT_Matrix4D             packed_mat;
     InverseMap::iterator    i_it;
@@ -524,14 +556,18 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
             {
                 UT_ASSERT(myType == ALEMBIC);
 
-                xform->getSchema().getNextXform().invert(inverse_mat);
-                packed_mat = inverse_mat * packed_mat;
+                stored_mat = xform->getSchema().getNextXform();
+                if (stored_mat)
+                {
+                    stored_mat->invert(inverse_mat);
+                    packed_mat = inverse_mat * packed_mat;
+                }
             }
 
             UT_ASSERT(getNumSamples(xform) >= (myElapsedFrames - 1));
 
             if ((getNumSamples(xform) < myElapsedFrames)
-                    &&  ((i < numx - 1) || is_xform || (myType != ALEMBIC)))
+                    &&  ((i < numx - 1) || (myType != ALEMBIC)))
             {
                 xform->getSchema().finalize();
             }
@@ -549,7 +585,11 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
             // First packed Alembic, regardless of prioritization
             else if (xform && (getNumSamples(xform) < myElapsedFrames))
             {
-                packed_mat = packed_mat * xform->getSchema().getNextXform();
+                stored_mat = xform->getSchema().getNextXform();
+                if (stored_mat)
+                {
+                    packed_mat = packed_mat * (*stored_mat);
+                }
                 xform->getSchema().setMatrix(packed_mat);
                 xform->getSchema().finalize();
 

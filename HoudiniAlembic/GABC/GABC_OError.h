@@ -34,7 +34,8 @@
 namespace GABC_NAMESPACE
 {
 
-/// Class to handle error messages for output of Alembic geometry
+/// This class handles error messages and warnings during the export of
+/// Alembic geometry.
 class GABC_API GABC_OError : public GABC_Error
 {
 public:

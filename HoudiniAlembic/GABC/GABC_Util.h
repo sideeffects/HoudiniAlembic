@@ -93,7 +93,7 @@ public:
 	Walker()
 	    : myFilename()
 	{}
-	virtual ~Walker();
+	virtual ~Walker() {}
 
 	/// @c preProcess() is called on the "root" of the walk.  The root may
 	/// @b not be the root of the Alembic file (i.e. when walking lists of
@@ -120,8 +120,9 @@ public:
 	/// @}
 
     private:
-	std::string	myFilename;
-	friend class GABC_Util;
+	std::string     myFilename;
+
+	friend class    GABC_Util;
     };
 
     /// Event functor called when an archive is flushed from the cache
@@ -129,7 +130,7 @@ public:
     {
     public:
 	ArchiveEventHandler() {}
-	virtual ~ArchiveEventHandler();
+	virtual ~ArchiveEventHandler() {}
 
 	/// Return whether the event handler is wired up to an archive
 	bool		valid() const	{ return myArchive != NULL; }

@@ -39,6 +39,7 @@
 
 namespace GABC_NAMESPACE
 {
+
 /// This class wraps an Alembic data array and provides convenience methods
 /// that allow thread-safe access to its data.
 ///
@@ -180,6 +181,7 @@ public:
     /// @{
     virtual void	purge();
     /// @}
+
 private:
     Container		myContainer;
     GT_Size		mySize;
@@ -187,6 +189,7 @@ private:
     GT_Type		myType;
     bool		myIsConstant;
 };
+
 }
 
 #endif

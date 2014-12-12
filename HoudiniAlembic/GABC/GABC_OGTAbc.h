@@ -39,6 +39,13 @@
 namespace GABC_NAMESPACE
 {
 
+/// This class will read an existing packed Alembic object and output it to
+/// a new Alembic archive. It will reuse geometry, face sets, and
+/// arbGeomProperties. User properties can either be reused or overwritten.
+///
+/// This class allows things like merging objects from multiple Alembic archives
+/// into one new one, and modifying the transforms of existing Alembic archives
+/// without modifying the geometry or even loading it.
 class GABC_API GABC_OGTAbc
 {
 public:
@@ -177,41 +184,71 @@ public:
     GABC_OGTAbc(const std::string &name);
     ~GABC_OGTAbc();
 
-    bool    makeUserProperties(const GT_PrimitiveHandle &prim,
-                    OCompoundProperty *parent,
-                    GABC_OError &err,
-                    const GABC_OOptions &ctx);
-    bool    writeUserProperties(const GT_PrimitiveHandle &prim,
-                    GABC_OError &err,
-                    const GABC_OOptions &ctx);
-    void    writeUserPropertiesFromPrevious();
-
+    // Create the output Alembic object, as well as it's attribute and user
+    // properties (if it has them and they are to be output).
     bool    start(const GT_PrimitiveHandle &prim,
                     const OObject &parent,
                     fpreal cook_time,
                     const GABC_OOptions &ctx,
                     GABC_OError &err,
                     ObjectVisibility vis);
+    // Special start method for OXform objects. Skip type checking and skip
+    // object creation.
     bool    startXform(const GT_PrimitiveHandle &prim,
                     OXform *xform,
                     fpreal cook_time,
                     const GABC_OOptions &ctx,
                     GABC_OError &err,
                     ObjectVisibility vis);
+    // Output geometry, attribute, and user property samples to Alembic for the
+    // current frame.
     bool    update(const GT_PrimitiveHandle &prim,
                     fpreal cook_time,
                     const GABC_OOptions &ctx,
                     GABC_OError &err,
                     ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
+    // Output samples to Alembic, reusing the samples for the previous frame.
     bool    updateFromPrevious(GABC_OError &err,
                     ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
                     exint frames = 1);
 
 protected:
+    // Make Alembic user properties.
+    bool    makeUserProperties(const GT_PrimitiveHandle &prim,
+                    OCompoundProperty *parent,
+                    GABC_OError &err,
+                    const GABC_OOptions &ctx);
+    // Output user property samples to Alembic.
+    bool    writeUserProperties(const GT_PrimitiveHandle &prim,
+                    GABC_OError &err,
+                    const GABC_OOptions &ctx);
+    // Reuse previous user property sample for current frame.
+    void    writeUserPropertiesFromPrevious();
+
+    // Clear out existing data.
     void    clear();
     void    clearUserProperties();
 
 private:
+    // User properties output states.
+    //
+    //  IGNORE_USER_PROPERTIES:     An error occurred reading user property
+    //                              data on the first frame. Ignore user
+    //                              properties completely.
+    //  WRITE_USER_PROPERTIES:      User property data output successfully for
+    //                              first frame. Try to write user property
+    //                              info for subsequent frames, but if there
+    //                              is a problem fall back to the previous
+    //                              existing samples.
+    //  REUSE_USER_PROPERTIES:      No user property data on the first frame.
+    //                              Try to reuse the user property data on the
+    //                              packed Alembic. Keep checking for errors on
+    //                              subsequent frames.
+    //  REUSE_AND_ERROR_OCCURRED:   Started with REUSE_USER_PROPERTIES state,
+    //                              then a user properties error was detected on
+    //                              a subsequent frame. Can stop checking for
+    //                              errors, just reuse packed Alembic user
+    //                              property data.
     enum UserPropertiesState
     {
         IGNORE_USER_PROPERTIES,

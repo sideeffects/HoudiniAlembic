@@ -512,7 +512,6 @@ namespace {
             exint nvertex = 0,
             exint nprim = 0)
     {
-
 	GA_RWAttributeRef   attrib;
 	GA_Storage          store = getGAStorage(data_type);
 	GU_Detail          &gdp = walk.detail();
@@ -1637,7 +1636,10 @@ namespace {
 	else if (walk.reusePrimitives())
 	{
 	    if (reusePolySoup(walk))
+	    {
 		nprim = 1;
+            }
+
 	    if (!walk.includeXform() || walk.transformConstant())
 	    {
 		walk.trackLastFace(nprim);
@@ -1645,6 +1647,7 @@ namespace {
 		return;
 	    }
 	}
+
 	if (!walk.reusePrimitives())
 	{
 	    bool    soup;
@@ -1752,6 +1755,7 @@ namespace {
 		return;
 	    }
 	}
+
 	if (!walk.reusePrimitives())
 	{
 	    bool    soup;
@@ -1764,7 +1768,7 @@ namespace {
 
 	    // Assert that we need to create the polygons
 	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
-	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
+	    UT_ASSERT(walk.detail().getNumPrimitives() == walk.primitiveCount());
 	    if (soup)
 		nprim = 1;
 
@@ -2000,6 +2004,7 @@ namespace {
 		return;
 	    }
 	}
+
 	if (!walk.reusePrimitives())
 	{
 	    // Assert that we need to create the polygons
@@ -2903,7 +2908,9 @@ GABC_GEOWalker::trackSubd(GA_Size nfaces)
 
 void
 GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
-        exint npoint, exint nvertex, exint nprim,
+        exint npoint,
+        exint nvertex,
+        exint nprim,
 	bool do_transform)
 {
     UT_ASSERT(myDetail.getNumPoints() >= myPointCount + npoint);

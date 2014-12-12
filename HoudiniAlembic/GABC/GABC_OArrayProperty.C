@@ -197,7 +197,7 @@ namespace
         delete[] orig;
     }
 
-    // Reinterpret the GT_DataArray to the correct numeric type and pass
+    // Cast the GT_DataArray to the correct numeric type and pass
     // the data to Alembic.
     template <typename POD_T, GT_Storage GT_STORE>
     static void
@@ -211,6 +211,9 @@ namespace
 
         numeric = dynamic_cast<GT_DANumeric<POD_T, GT_STORE> *>(src.get());
 
+        // Sometimes the data GT_DataArray will be a little wonky (usually
+        // happens with attribute data), so it will need to be converted
+        // in a buffer array.
         if (!numeric)
         {
             return reinterpretArray<POD_T>(prop, src, tuple_size);
@@ -224,6 +227,7 @@ namespace
         prop.set(sample);
     }
 
+    // Output string data to Alembic.
     static void
     writeStringProperty(OArrayProperty &prop,
 	    const GT_DataArrayHandle &src,
@@ -277,13 +281,13 @@ namespace
 	prop.set(sample);
     }
 
+    // Output indexed string data to Alembic.
     static void
     writeStringProperty(OArrayProperty &prop,
 	    OUInt32ArrayProperty &iprop,
 	    const GT_DataArrayHandle &src,
 	    int tuple_size)
     {
-        //
 	UT_StringArray  gtstrings;
 	UT_IntArray     gtindices;
 	exint           nstrings = 0;
@@ -922,19 +926,12 @@ GABC_OArrayProperty::update(const GT_DataArrayHandle &array,
         return false;
     }
 
-//  TODO: Alembic does a check like this for geometry regardless of whether we
-//          do or not. However, our check is 10% faster. It's likely the same
-//          case for attribute caching. I haven't done a check to be sure.
-//    if (ctx.optimizeSpace() >= GABC_OOptions::OPTIMIZE_ATTRIBUTES)
-    if (true)
+    if (myCache && array->isEqual(*myCache))
     {
-	if (myCache && array->isEqual(*myCache))
-	{
-	    return updateFromPrevious();
-	}
-	// Keep previous version cached
-	myCache = array->harden();
+        return updateFromPrevious();
     }
+    // Keep previous version cached
+    myCache = array->harden();
 
     switch (myPOD)
     {

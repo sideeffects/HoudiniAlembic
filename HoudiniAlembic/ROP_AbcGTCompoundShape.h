@@ -33,9 +33,16 @@
 #include <GABC/GABC_OXform.h>
 #include <GABC/GABC_Types.h>
 
-/// Houdini geometry can be composed of multiple simple shapes.
-/// This class "splits" the houdini geometry into multiple simple shapes which
-/// can be represented in Alembic.
+/// This class contains all of the geometry in a SOP node that has been grouped
+/// into one partition (it may contain all of the geometry in the SOP). Houdini
+/// geometry can have a heterogeneous mix of primitive types, so this class
+/// splits the geometry into multiple simple shapes which can be represented in
+/// Alembic.
+///
+/// Ex:     A ROP_AbcGTComnpoundShape object for a SOP containing geometry made
+///         of curves and polygons will have 2 (or more) children: one
+///         containing a curvemesh and one containing a polymesh.
+///
 class ROP_AbcGTCompoundShape
 {
 public:
@@ -57,11 +64,11 @@ public:
     typedef UT_Map<std::string, ROP_AbcGTShape *>       PackedMap;
     typedef std::pair<std::string, ROP_AbcGTShape *>    PackedMapInsert;
 
-    // Helper class that stores a list of related GTShapes. Can walk through the
-    // list, remembering where we left off. If we walk past the end of the
-    // list, we know to create more shapes. If we don't reach the end, we
+    // Helper class that stores a list of related ROP_AbcGTShapes. Can walk
+    // through the list, remembering where we left off. If we walk past the end
+    // of the list, we know to create more shapes. If we don't reach the end, we
     // know that we did not encounter all existing shapes this frame and need
-    // to write them as hidden.
+    // to update them as hidden.
     class GTShapeList
     {
     public:
@@ -122,15 +129,16 @@ public:
         int                         myPos;
     };
 
-    // Helper class used to store the relationship between the GTShapes in
-    // a GTShapeList helper. For deforming geometry, the key is the primitive
+    // Helper class used to store the relationship between the ROP_AbcGTShapes
+    // in a GTShapeList helper. For deforming geometry, the key is the primitive
     // type: the shapes in a GTShapeList are all of the same type, thus
     // interchangable. For Packed Alembics, the key is their path within
     // the input Alembic archive: the shapes are copies of the same packed
     // Alembic.
     //
     // TODO: Make the key for packed Alembics a combination of path in archive
-    //       AND archive path?
+    //       AND archive path (Unrelated shapes with same path within different
+    //       archives will muck this up).
     template <typename T>
     class GTShapeMap
     {
@@ -211,16 +219,18 @@ public:
 	    bool geo_lock);
     ~ROP_AbcGTCompoundShape();
 
+    // Output the first frame to Alembic. Does most of the setup.
     bool	first(const GT_PrimitiveHandle &prim,
 			const OObject &parent,
 			GABC_OError &err,
 			const ROP_AbcContext &ctx,
 			bool create_container,
                         ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
-
+    // Output an additional frame to Alembic.
     bool	update(const GT_PrimitiveHandle &prim,
 			GABC_OError &err,
 			const ROP_AbcContext &ctx);
+    // Output additional frames, reusing the data from the previous sample.
     bool	updateFromPrevious(GABC_OError &err,
                         ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
                         exint frames = 1);

@@ -30,8 +30,7 @@
 using namespace GABC_NAMESPACE;
 
 GABC_OOptions::GABC_OOptions()
-    : myOptimizeSpace(OPTIMIZE_DEFAULT)
-    , myFaceSetMode(FACESET_DEFAULT)
+    : myFaceSetMode(FACESET_DEFAULT)
     , mySubdGroup()
     , mySaveAttributes(true)
     , myUseDisplaySOP(false)
@@ -42,10 +41,7 @@ GABC_OOptions::GABC_OOptions()
 	myAttributePatterns[i] = "*";
 }
 
-GABC_OOptions::~GABC_OOptions()
-{
-}
-
+// Check if all of the attribute masks are "*".
 void
 GABC_OOptions::checkAttributeStars()
 {
@@ -60,21 +56,30 @@ GABC_OOptions::checkAttributeStars()
     }
 }
 
+// Check if the given attribute matches the mask for it's level.
 bool
 GABC_OOptions::matchAttribute(GA_AttributeOwner own, const char *name) const
 {
     if (myAttributeStars)
+    {
 	return true;
+    }
+
     UT_String	str(name);
     return str.multiMatch(myAttributePatterns[own]) != 0;
 }
 
+// Determine the attribute owner from the Alembic scope and compare the
+// attribute against the mask for that owner.
 bool
 GABC_OOptions::matchAttribute(Alembic::AbcGeom::GeometryScope scope,
 			const char *name) const
 {
     if (myAttributeStars)
+    {
 	return true;
+    }
+
     switch (scope)
     {
 	case Alembic::AbcGeom::kConstantScope:
