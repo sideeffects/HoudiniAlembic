@@ -83,7 +83,6 @@ namespace
 	rparms.setPolysAsSubdivision(polys_as_subd);
 	rparms.setShowUnusedPoints(show_unused_points);
 	rparms.setCoalesceFragments(false);
-	rparms.setViewportAgentSkip(true);
     }
 
     static bool
