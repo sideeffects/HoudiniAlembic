@@ -31,6 +31,7 @@
 #include "ROP_AbcGTShape.h"
 #include <GABC/GABC_OError.h>
 #include <GABC/GABC_OXform.h>
+#include <GABC/GABC_PackedImpl.h>
 #include <GABC/GABC_Types.h>
 
 /// This class contains all of the geometry in a SOP node that has been grouped
@@ -52,6 +53,7 @@ public:
 
     typedef GABC_NAMESPACE::GABC_NodeType               GABC_NodeType;
     typedef GABC_NAMESPACE::GABC_OError                 GABC_OError;
+    typedef GABC_NAMESPACE::GABC_PackedImpl             GABC_PackedImpl;
 
     typedef GABC_NAMESPACE::GABC_OXform                 OXform;
 
@@ -132,13 +134,8 @@ public:
     // Helper class used to store the relationship between the ROP_AbcGTShapes
     // in a GTShapeList helper. For deforming geometry, the key is the primitive
     // type: the shapes in a GTShapeList are all of the same type, thus
-    // interchangable. For Packed Alembics, the key is their path within
-    // the input Alembic archive: the shapes are copies of the same packed
-    // Alembic.
-    //
-    // TODO: Make the key for packed Alembics a combination of path in archive
-    //       AND archive path (Unrelated shapes with same path within different
-    //       archives will muck this up).
+    // interchangable. For Packed Alembics, the key is a the unique ID of their
+    // implementation.
     template <typename T>
     class GTShapeMap
     {
@@ -213,10 +210,11 @@ public:
             InverseMap * const inv_map,
             GeoSet * const shape_set,
             XformMap * const xform_map,
-	    bool has_path,
+	    bool is_partition,
 	    bool polygons_as_subd,
 	    bool show_unused_points,
-	    bool geo_lock);
+	    bool geo_lock,
+	    const ROP_AbcContext &ctx);
     ~ROP_AbcGTCompoundShape();
 
     // Output the first frame to Alembic. Does most of the setup.
@@ -240,21 +238,21 @@ public:
 private:
     void	clear();
 
-    InverseMap                  * const myInverseMap;
-    GeoSet                      * const myGeoSet;
-    const OObject              *myShapeParent;
-    OObject                     myRoot;
-    OXform                     *myContainer;
-    GTShapeMap<int>             myDeforming;
-    GTShapeMap<std::string>     myPacked;
-    const UT_DeepString         myPath;
-    XformMap                    * const myXformMap;
-    exint                       myElapsedFrames;
-    exint                       myNumShapes;
-    std::string                 myName;
-    const bool                  myGeoLock;
-    const bool                  myPolysAsSubd;
-    const bool                  myShowUnusedPoints;
+    InverseMap         * const myInverseMap;
+    GeoSet             * const myGeoSet;
+    const OObject      *myShapeParent;
+    OObject             myRoot;
+    OXform             *myContainer;
+    GTShapeMap<int>     myDeforming;
+    GTShapeMap<int64>   myPacked;
+    UT_DeepString       myPath;
+    XformMap           * const myXformMap;
+    exint               myElapsedFrames;
+    exint               myNumShapes;
+    std::string         myName;
+    const bool          myGeoLock;
+    const bool          myPolysAsSubd;
+    const bool          myShowUnusedPoints;
 };
 
 #endif

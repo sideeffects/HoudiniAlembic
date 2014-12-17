@@ -74,15 +74,16 @@ namespace
     }
 
     static void
-    initializeRefineParms(GT_RefineParms &rparms, const ROP_AbcContext &ctx,
-		bool polys_as_subd,
-		bool show_unused_points)
+    initializeRefineParms(GT_RefineParms &rparms,
+            const ROP_AbcContext &ctx,
+            bool polys_as_subd,
+            bool show_unused_points)
     {
-	rparms.setFaceSetMode(ctx.faceSetMode());
+	rparms.setCoalesceFragments(false);
 	rparms.setFastPolyCompacting(false);
+	rparms.setFaceSetMode(ctx.faceSetMode());
 	rparms.setPolysAsSubdivision(polys_as_subd);
 	rparms.setShowUnusedPoints(show_unused_points);
-	rparms.setCoalesceFragments(false);
     }
 
     static bool
@@ -183,15 +184,15 @@ ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &identifier,
                 InverseMap * const inv_map,
                 GeoSet * const shape_set,
                 XformMap * const xform_map,
-		bool has_path,
+		bool is_partition,
 		bool polys_as_subd,
 		bool show_unused_pts,
-		bool geo_lock)
+		bool geo_lock,
+		const ROP_AbcContext &ctx)
     : myInverseMap(inv_map)
     , myGeoSet(shape_set)
     , myShapeParent(NULL)
     , myContainer(NULL)
-    , myPath(has_path ? UT_DeepString(identifier) : UT_DeepString())
     , myXformMap(xform_map)
     , myElapsedFrames(0)
     , myNumShapes(0)
@@ -200,8 +201,9 @@ ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &identifier,
     , myShowUnusedPoints(show_unused_pts)
 {
     // If the shape has a path, extract the name
-    if (has_path)
+    if (is_partition && ctx.buildFromPath())
     {
+        myPath = UT_DeepString(identifier);
         int pos = identifier.find_last_of('/');
         // The last '/' will never be in the first position.
         if (pos > 0)
@@ -333,7 +335,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
             return false;
         }
 
-        myPacked.insert(getGABCImpl(packed(0))->objectPath(), shape);
+        myPacked.insert(getGABCImpl(packed(0))->getPropertiesHash(), shape);
         ++myNumShapes;
 
         for (exint i = 1; i < num_pckd; ++i)
@@ -361,7 +363,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
                 return false;
             }
 
-            myPacked.insert(getGABCImpl(packed(i))->objectPath(), shape);
+            myPacked.insert(getGABCImpl(packed(i))->getPropertiesHash(), shape);
             ++myNumShapes;
         }
     }
@@ -497,7 +499,7 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
         calc_inverse = ((i == 0)
                 || (ctx.packedAlembicPriority()
                         == ROP_AbcContext::PRIORITY_TRANSFORM));
-        shape = myPacked.getNext(getGABCImpl(packed(i))->objectPath());
+        shape = myPacked.getNext(getGABCImpl(packed(i))->getPropertiesHash());
 
         if (shape)
         {
@@ -539,7 +541,7 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
             shape->nextFrameFromPrevious(err,
                     Alembic::AbcGeom::kVisibilityDeferred);
 
-            myPacked.insert(getGABCImpl(packed(i))->objectPath(), shape);
+            myPacked.insert(getGABCImpl(packed(i))->getPropertiesHash(), shape);
         }
     }
     myPacked.updateHidden(err);

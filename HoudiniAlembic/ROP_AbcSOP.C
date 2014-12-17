@@ -54,7 +54,7 @@ namespace
 	    const GU_Detail &gdp,
 	    const GA_Range &range,
             const std::string &identifier,
-            bool has_partition,
+            bool is_partition,
             bool check_alembic,
 	    bool force_subd_mode,
 	    bool show_pts)
@@ -96,9 +96,9 @@ namespace
 	    primitives.append(abc_PrimContainer(detail,
 	            *id_ptr,
 	            has_alembic,
-	            has_partition,
+	            is_partition,
 	            force_subd_mode,
-	            show_pts));
+	            (show_pts && !is_partition))); // Add free points to the base partition
 	}
     }
 
@@ -304,6 +304,8 @@ ROP_AbcSOP::start(const OObject &parent,
     SOP_Node               *sop = getSop(mySopId);
     UT_Set<std::string>     uniquenames;
     std::string             name = getName();
+    bool                    part_by_name = ctx.partitionByName();
+    bool                    part_by_path = ctx.buildFromPath();
 
     if (!sop)
     {
@@ -333,7 +335,7 @@ ROP_AbcSOP::start(const OObject &parent,
         gdp->computeQuickBounds(myBox);
         box = myBox;
     }
-    if (ctx.buildFromPath())
+    if (part_by_path)
     {
         myPathAttribName = ctx.pathAttribute();
         GABC_OGTGeometry::getDefaultSkip().addSkip(myPathAttribName);
@@ -346,7 +348,7 @@ ROP_AbcSOP::start(const OObject &parent,
             *gdp,
             ctx,
             err);
-    if (ctx.buildFromPath())
+    if (part_by_path)
     {
         prims.sort(comparePrims);
     }
@@ -358,10 +360,11 @@ ROP_AbcSOP::start(const OObject &parent,
                 &myInverseMap,
                 &myGeoSet,
                 &myXformMap,
-                prims(i).myHasPartition,
+                prims(i).myIsPartition,
                 prims(i).mySubdMode,
                 prims(i).myShowPts,
-                (myGeoLock == 1));
+                (myGeoLock == 1),
+                ctx);
 
         if (!shape->first(prims(i).myPrim, myParent, err, ctx, false))
         {
@@ -374,7 +377,7 @@ ROP_AbcSOP::start(const OObject &parent,
         myShapes.append(shape);
 
         // Map partition names to specific compound shapes
-        if (ctx.buildFromPath())
+        if (part_by_path || part_by_name)
         {
             myNameMap.insert(NameMapInsert(prims(i).myIdentifier, i));
         }
@@ -384,7 +387,7 @@ ROP_AbcSOP::start(const OObject &parent,
 
     // Update any OXform objects that were created and set for this
     // frame but not written out.
-    if (ctx.buildFromPath())
+    if (part_by_path)
     {
         for (auto it = myXformMap.begin(); it != myXformMap.end(); ++it)
         {
@@ -464,10 +467,11 @@ ROP_AbcSOP::update(GABC_OError &err,
                         &myInverseMap,
                         &myGeoSet,
                         &myXformMap,
-                        prims(i).myHasPartition,
+                        prims(i).myIsPartition,
                         prims(i).mySubdMode,
                         prims(i).myShowPts,
-                        (myGeoLock == 1));
+                        (myGeoLock == 1),
+                        ctx);
 
                 // Write out the first frame with hidden visibility
                 if (!shape->first(prims(i).myPrim,
@@ -515,7 +519,7 @@ ROP_AbcSOP::update(GABC_OError &err,
             // primitives always
             UT_ASSERT(myShapes.entries() == prims.entries());
 
-            for (int i = 0; i < prims.entries(); ++i)
+            for (int j = 0; j < prims.entries(); ++j)
             {
                 if (!myShapes(i)->update(prims(i).myPrim, err, ctx))
                 {
@@ -580,16 +584,16 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
         bool force_subd_mode,
         bool show_pts)
 {
-    GA_ROHandleS            str;
-    GA_StringIndexType      idx;
-    UT_WorkBuffer           namebuf;
-    int                     pos;
-    const char             *aname;
-    const char             *strval;
-    bool                    from_path = ctx.buildFromPath();
-    bool                    flag = false;
+    GA_ROHandleS        str;
+    GA_StringIndexType  idx;
+    UT_WorkBuffer       namebuf;
+    int                 pos;
+    const char         *aname;
+    const char         *strval;
+    bool                part_by_path = ctx.buildFromPath();
+    bool                flag = false;
 
-    aname = from_path ? ctx.pathAttribute() : ctx.partitionAttribute();
+    aname = part_by_path ? ctx.pathAttribute() : ctx.partitionAttribute();
 
     str = GA_ROHandleS(gdp.findStringTuple(GA_ATTRIB_PRIMITIVE, aname));
     if (!str.isValid() || !str.getAttribute()->getAIFSharedStringTuple())
@@ -619,7 +623,7 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
         {
             // Read and process the path string.
             strval = str.get(*it);
-            strval = from_path
+            strval = part_by_path
                     ? homogenizePath(strval, namebuf, flag)
                     : ctx.partitionModeValue(strval, namebuf);
 
@@ -635,7 +639,7 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
                 myPartitionIndices(0).append(*it);
                 continue;
             }
-            else if (from_path && flag)
+            else if (part_by_path && flag)
             {
                 err.warning("%s attribute value for primitive %" SYS_PRId64
                         " has odd value. Value interpreted as %s.",
@@ -679,7 +683,7 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
                     range,
                     myPartitionNames[i],
                     (i != 0),
-                    from_path,
+                    part_by_path,
                     force_subd_mode,
                     show_pts);
 

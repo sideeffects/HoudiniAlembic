@@ -61,7 +61,8 @@ ROP_AbcGTInstance::Instance::setGeometry(GABC_OError &err,
                                             false,
 					    subd_mode,
 					    add_unused_pts,
-					    myGeoLock);
+					    myGeoLock,
+					    ctx);
     if (!geo->first(g, myOXform, err, ctx, true))
     {
 	delete geo;

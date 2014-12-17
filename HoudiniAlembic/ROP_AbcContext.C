@@ -48,6 +48,7 @@ ROP_AbcContext::ROP_AbcContext()
     , myPartitionMode(ROP_AbcContext::PATHMODE_FULLPATH)
     , myCollapseIdentity(false)
     , myBuildFromPath(false)
+    , myPartition(false)
     , mySaveHidden(true)
     , myUseInstancing(true)
 {

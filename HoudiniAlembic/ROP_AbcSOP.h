@@ -73,13 +73,13 @@ public:
 	abc_PrimContainer(const GT_PrimitiveHandle &prim,
 	        const std::string &identifier,
 	        bool has_alembic,
-	        bool has_partition,
+	        bool is_partition,
                 bool subd_mode,
                 bool show_unused_points)
 	    : myPrim(prim)
 	    , myIdentifier(identifier)
 	    , myHasAlembic(has_alembic)
-	    , myHasPartition(has_partition)
+	    , myIsPartition(is_partition)
 	    , mySubdMode(subd_mode)
 	    , myShowPts(show_unused_points)
 	{}
@@ -87,7 +87,7 @@ public:
 	GT_PrimitiveHandle	myPrim;
 	std::string             myIdentifier;
 	bool                    myHasAlembic;
-	bool                    myHasPartition;
+	bool                    myIsPartition;
 	bool			mySubdMode;
 	bool			myShowPts;
     };

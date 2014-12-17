@@ -149,16 +149,21 @@ public:
 	PATHMODE_XFORM,		// The second last path component
 	PATHMODE_XFORM_SHAPE,	// The last two components of the path
     };
-    int		 partitionMode() const		{ return myPartitionMode; }
-    void	 setPartitionMode(int m)	{ myPartitionMode = m; }
-    const char	*partitionAttribute() const	{ return myPartitionAttribute; }
-    void	 setPartitionAttribute(const char *s)
-		    { myPartitionAttribute.harden(s); }
-    void	 clearPartitionAttribute()
-		 {
-		     myPartitionMode = PATHMODE_FULLPATH;
-		     myPartitionAttribute.clear();
-		 }
+    bool        partitionByName() const     { return myPartition; }
+    int         partitionMode() const       { return myPartitionMode; }
+    void        setPartitionMode(int m)     { myPartitionMode = m; }
+    const char *partitionAttribute() const  { return myPartitionAttribute; }
+    void        setPartitionAttribute(const char *s)
+                {
+                    myPartitionAttribute.harden(s);
+                    myPartition = true;
+                }
+    void        clearPartitionAttribute()
+                {
+                    myPartitionMode = PATHMODE_FULLPATH;
+                    myPartitionAttribute.clear();
+                    myPartition = false;
+		}
     /// @}
 
     /// @{
@@ -194,6 +199,7 @@ private:
     int                 myPackedAbcPriority;
     int                 myPartitionMode;
     bool                myBuildFromPath;
+    bool                myPartition;
     bool                mySaveHidden;
     bool                myUseInstancing;
 };
