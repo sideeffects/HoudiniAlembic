@@ -34,6 +34,7 @@
 #include "GABC_Util.h"
 #include <GA/GA_Handle.h>
 #include <GU/GU_Detail.h>
+#include <stack>
 
 class GU_PrimPacked;
 
