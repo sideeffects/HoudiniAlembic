@@ -3179,7 +3179,10 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
 	bool &isConstant, bool &inheritsXform) const
 {
     if (!valid())
+    {
+	xform.identity();
 	return false;
+    }
     IObject		obj = object();
     GABC_AlembicLock	lock(archive());
     bool		ascended = false;
@@ -3190,7 +3193,10 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
 	ascended = true;
     }
     if (!obj.valid())
+    {
+	xform.identity();
 	return false;
+    }
     lock.unlock();
     if (ascended)
     {
@@ -3219,6 +3225,7 @@ GABC_IObject::localTransform(fpreal t, UT_Matrix4D &mat,
 {
     if (!valid())
     {
+	mat.identity();
 	return false;
     }
 
