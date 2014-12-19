@@ -2434,48 +2434,99 @@ GABC_IObject::visibilityCache() const
 {
     // TODO: This reqires lots of traversal of the hierarchy, so it might be a
     // good idea to have a cache.
+
     if (!myObject.valid())
+    {
 	return new GABC_VisibilityCache();
+    }
 
     GABC_AlembicLock	lock(archive());
+    GABC_IObject        parent(getParent());
     IVisibilityProperty	vprop = Alembic::AbcGeom::GetVisibilityProperty(
 				    const_cast<IObject &>(myObject));
     if (vprop.valid())
     {
-	GABC_VisibilityType	vis;
-	vis = vprop.getValue(ISampleSelector((index_t)0))
-		    ? GABC_VISIBLE_VISIBLE : GABC_VISIBLE_HIDDEN;
+	GABC_VisibilityType     vis;
+	GT_DABool              *bits;
+	TimeSamplingPtr         t_samp = vprop.getTimeSampling();
+	exint                   nsamples = vprop.getNumSamples();
+	exint                   ntrue = 0;
+	bool                    anim;
+
+	switch (vprop.getValue(ISampleSelector((index_t)0)))
+	{
+	    case -1:
+                vis = GABC_VISIBLE_DEFER;
+                break;
+
+	    case 0:
+	        vis = GABC_VISIBLE_HIDDEN;
+                break;
+
+	    case 1:
+	        vis = GABC_VISIBLE_VISIBLE;
+                break;
+	}
+
 	if (vprop.isConstant())
 	{
+	    if (vis == GABC_VISIBLE_DEFER)
+	    {
+	        return parent.visibilityCache();
+	    }
+
 	    return new GABC_VisibilityCache(vis, NULL);
 	}
 
 	// Create a data array for the visibility cache
-	exint		 nsamples = vprop.getNumSamples();
-	exint		 ntrue = 0;
-	GT_DABool	*bits = new GT_DABool(nsamples);
+	bits = new GT_DABool(nsamples);
 	bits->setAllBits(false);
 	for (exint i = 0; i < nsamples; ++i)
 	{
-	    if (vprop.getValue(ISampleSelector((index_t)i)))
+	    index_t idx = (index_t)i;
+	    switch (vprop.getValue(ISampleSelector(idx)))
 	    {
-		bits->setBit(i, true);
-		ntrue++;
+	        case -1:
+	            if (parent.visibility(anim, t_samp->getSampleTime(idx), true))
+	            {
+                        bits->setBit(i, true);
+                        ++ntrue;
+	            }
+	            break;
+
+	        case 1:
+	            bits->setBit(i, true);
+                    ++ntrue;
+                    break;
+
+                default:
+                    break;
 	    }
 	}
+
 	if (ntrue == nsamples || ntrue == 0)
 	{
 	    if (ntrue)
+	    {
 		UT_ASSERT(vis == GABC_VISIBLE_VISIBLE);
+            }
+            else
+            {
+                UT_ASSERT(vis == GABC_VISIBLE_HIDDEN);
+            }
+
 	    return new GABC_VisibilityCache(vis, NULL);
 	}
+
 	return new GABC_VisibilityCache(vis,
-			new GABC_ChannelCache(GT_DataArrayHandle(bits),
-						vprop.getTimeSampling()));
+                new GABC_ChannelCache(GT_DataArrayHandle(bits), t_samp));
     }
-    GABC_IObject	parent(getParent());
+
     if (!parent.valid())
+    {
 	return new GABC_VisibilityCache(GABC_VISIBLE_VISIBLE, NULL);
+    }
+
     return parent.visibilityCache();
 }
 
@@ -2644,13 +2695,16 @@ GABC_IObject::clampTime(fpreal input_time) const
 
 GT_PrimitiveHandle
 GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
-	fpreal t, GEO_AnimationType &atype,
-	const GEO_PackedNameMapPtr &namemap,
-	int load_style) const
+        fpreal t,
+        GEO_AnimationType &atype,
+        const GEO_PackedNameMapPtr &namemap,
+        int load_style) const
 {
     GABC_AlembicLock	lock(archive());
     GT_PrimitiveHandle	prim;
+
     atype = GEO_ANIMATION_CONSTANT;
+
     try
     {
 	switch (nodeType())

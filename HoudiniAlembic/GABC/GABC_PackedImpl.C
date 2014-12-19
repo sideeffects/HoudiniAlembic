@@ -1208,11 +1208,14 @@ GABC_PackedImpl::GTCache::visible(const GABC_PackedImpl *abc)
 GABC_VisibilityType
 GABC_PackedImpl::computeVisibility(bool check_parent) const
 {
-    const GABC_IObject	&o = object();
-    if (!o.valid())
-	return GABC_VISIBLE_HIDDEN;
+    const GABC_IObject &o = object();
+    bool                animated;
 
-    bool		 animated;
+    if (!o.valid())
+    {
+	return GABC_VISIBLE_HIDDEN;
+    }
+
     return o.visibility(animated, frame(), check_parent);
 }
 
@@ -1225,7 +1228,8 @@ GABC_PackedImpl::GTCache::refreshTransform(const GABC_PackedImpl *abc)
 	const GABC_IObject	&o = abc->object();
 	if (myAnimationType == GEO_ANIMATION_CONSTANT
 		&& abc->useVisibility()
-		&& o.visibilityCache()->animated())
+		&& myVisibility
+		&& myVisibility->animated())
 	{
 	    // Mark animated visibility as animated transforms
 	    myAnimationType = GEO_ANIMATION_TRANSFORM;

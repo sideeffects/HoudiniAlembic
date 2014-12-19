@@ -2519,7 +2519,9 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
     bool                    process_children = true;
     bool                    vis = useVisibility();
 
-    if (vis)
+    // Packed Alembics handle visibility on their own through the
+    // GABC_PackedImpl (see: GABC_PackedImpl::build(), called by makeAbcPrim).
+    if (vis && myLoadMode != LOAD_ABC_PRIMITIVES)
     {
 	bool    animated;
 
@@ -2541,18 +2543,24 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
     {
 	IXform  xform(obj.object(), gabcWrapExisting);
 
-	if (buildLocator() && obj.isMayaLocator())
+	if (buildLocator()
+	        && obj.isMayaLocator()
+	        && filterObject(obj)
+	        && (!vis || (myVisibilityStack.top() == GABC_VISIBLE_VISIBLE)))
 	{
-	    if (filterObject(obj))
-	    {
-		if (buildAbcPrim())
-		    makeAbcPrim(*this, obj, ohead);
-		else
-		    makeLocator(*this, xform, obj);
-	    }
+            if (buildAbcPrim())
+            {
+                makeAbcPrim(*this, obj, ohead);
+            }
+            else
+            {
+                makeLocator(*this, xform, obj);
+            }
 	}
-	else if (buildAbcPrim() && buildAbcXform() && filterObject(obj)
-            && (!vis || (myVisibilityStack.top() == GABC_VISIBLE_VISIBLE)))
+	else if (buildAbcPrim()
+	        && buildAbcXform()
+	        && filterObject(obj)
+                && (!vis || (myVisibilityStack.top() == GABC_VISIBLE_VISIBLE)))
 	{
 	    makeAbcPrim(*this, obj, ohead);
 	}

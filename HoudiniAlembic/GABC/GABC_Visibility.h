@@ -51,16 +51,12 @@ public:
     GABC_VisibilityCache(GABC_VisibilityType vtype,
 			const GABC_ChannelCache *cache)
 	: myVisible(vtype)
-	, myCache(NULL)
-    {
-	if (cache)
-	    set(vtype, cache);
-    }
+	, myCache(cache)
+    {}
     GABC_VisibilityCache(const GABC_VisibilityCache &src)
 	: myVisible(src.myVisible)
-	, myCache(NULL)
     {
-	*this = src;
+	myCache = new GABC_ChannelCache(*(src.myCache));
     }
     ~GABC_VisibilityCache()
     {
@@ -103,8 +99,8 @@ public:
     void	set(GABC_VisibilityType vtype, const GABC_ChannelCache *vcache=NULL);
 
 private:
-    GABC_ChannelCache	*myCache;
-    GABC_VisibilityType	 myVisible;
+    const GABC_ChannelCache    *myCache;
+    GABC_VisibilityType         myVisible;
 };
 
 }

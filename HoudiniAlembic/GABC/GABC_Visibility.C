@@ -43,7 +43,11 @@ void
 GABC_VisibilityCache::clear()
 {
     myVisible = GABC_VISIBLE_DEFER;
-    delete myCache;
+
+    if (myCache)
+    {
+        delete myCache;
+    }
     myCache = NULL;
 }
 

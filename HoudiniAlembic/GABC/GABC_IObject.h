@@ -294,14 +294,14 @@ public:
     /// @}
 
 private:
-    void		 setObject(const IObject &o)	{ myObject = o; }
-    ICompoundProperty	 getArbGeomParams() const;
-    ICompoundProperty	 getUserProperties() const;
+    ICompoundProperty   getArbGeomParams() const;
+    ICompoundProperty   getUserProperties() const;
+    void                setObject(const IObject &o)	{ myObject = o; }
 
-    std::string		 myObjectPath;
-    IObject		 myObject;
+    std::string         myObjectPath;
+    IObject             myObject;
 
-    friend class	 GABC_IArchive;
+    friend class        GABC_IArchive;
 };
 }
 
