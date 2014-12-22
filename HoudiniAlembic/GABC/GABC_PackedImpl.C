@@ -1225,7 +1225,6 @@ GABC_PackedImpl::GTCache::refreshTransform(const GABC_PackedImpl *abc)
     UT_AutoLock	lock(theLock);
     if (!myTransform)
     {
-	const GABC_IObject	&o = abc->object();
 	if (myAnimationType == GEO_ANIMATION_CONSTANT
 		&& abc->useVisibility()
 		&& myVisibility
