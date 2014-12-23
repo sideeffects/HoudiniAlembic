@@ -1130,11 +1130,19 @@ namespace {
         }
     }
 
+    static GA_PrimitiveGroup *
+    findOrCreatePrimitiveGroup(GU_Detail &gdp, const char *name)
+    {
+	GA_ElementGroup	*g = gdp.findElementGroup(GA_ATTRIB_PRIMITIVE, name);
+	if (!g)
+	    g = gdp.createElementGroup(GA_ATTRIB_PRIMITIVE, name);
+	return UTverify_cast<GA_PrimitiveGroup *>(g);
+    }
+
     //
     //  Helper functions append geometry to existing details as part of
     //  the process to create Houdini geometry from packed Alembics.
     //
-
     static void
     appendParticles(GABC_GEOWalker &walk, exint npoint)
     {
@@ -1595,9 +1603,7 @@ namespace {
 	    exint		 size = faces->size();
 	    UT_String		 name(faceset.getName().c_str());
 	    name.forceValidVariableName();
-	    grp = gdp.findPrimitiveGroup(name);
-	    if (!grp)
-		grp = gdp.newPrimitiveGroup(name);
+	    grp = findOrCreatePrimitiveGroup(gdp, name);
 	    if (grp)
 	    {
 		for (exint i = 0; i < size; ++i)
@@ -2855,6 +2861,9 @@ GABC_GEOWalker::getGroupName(UT_String &name, const GABC_IObject &obj) const
 	case ABC_GROUP_XFORM_NODE:
 	    name.harden(getParentXform(obj).getFullName().c_str());
 	    break;
+	case ABC_GROUP_BASENAME:
+	    name.harden(obj.getName().c_str());
+	    break;
     }
     name.forceValidVariableName();
     return true;
@@ -2937,7 +2946,7 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
     GA_PrimitiveGroup	*g = NULL;
     if (nprim && getGroupName(gname, obj))
     {
-	g = myDetail.newPrimitiveGroup(gname);
+	g = findOrCreatePrimitiveGroup(myDetail, gname);
 	for (exint i = 0; i < nprim; ++i)
 	{
 	    g->addOffset(GA_Offset(myPrimitiveCount+i));
