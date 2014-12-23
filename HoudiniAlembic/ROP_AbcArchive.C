@@ -42,6 +42,7 @@ using namespace GABC_NAMESPACE;
 namespace
 {
     typedef Alembic::Abc::OArchive	OArchive;
+    typedef Alembic::Abc::Box3d		Box3d;
 
     OArchive
     openHDF5(const char *filename, const char *version, const char *userinfo)
@@ -73,8 +74,10 @@ namespace
 
 ROP_AbcArchive::ROP_AbcArchive()
     : myArchive()
+    , myTSIndex(-1)
     , myTimeDependent(false)
 {
+    myBox.makeInvalid();
 }
 
 ROP_AbcArchive::~ROP_AbcArchive()
@@ -159,8 +162,16 @@ bool
 ROP_AbcArchive::firstFrame(GABC_OError &err, const ROP_AbcContext &ctx)
 {
     UT_ASSERT(myArchive.valid());
+    myTSIndex = myArchive.addTimeSampling(*(ctx.timeSampling()));
+    myBox.makeInvalid();
     if (!startChildren(myArchive.getTop(), err, ctx, myBox))
 	return false;
+    if (ctx.fullBounds())
+    {
+	myBoxProp = Alembic::AbcGeom::CreateOArchiveBounds(myArchive, myTSIndex);
+	Box3d	b3 = GABC_Util::getBox(myBox);
+	myBoxProp.set(b3);
+    }
     updateTimeDependentKids();
     return true;
 }
@@ -168,7 +179,14 @@ ROP_AbcArchive::firstFrame(GABC_OError &err, const ROP_AbcContext &ctx)
 bool
 ROP_AbcArchive::nextFrame(GABC_OError &err, const ROP_AbcContext &ctx)
 {
-    return updateChildren(err, ctx, myBox);
+    myBox.makeInvalid();
+    bool status = updateChildren(err, ctx, myBox);
+    if (ctx.fullBounds())
+    {
+	Box3d	b3 = GABC_Util::getBox(myBox);
+	myBoxProp.set(b3);
+    }
+    return status;
 }
 
 bool

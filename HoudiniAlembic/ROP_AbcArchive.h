@@ -38,7 +38,8 @@ class OBJ_Node;
 class ROP_AbcArchive : public ROP_AbcObject
 {
 public:
-    typedef Alembic::Abc::OArchive	OArchive;
+    typedef Alembic::Abc::OArchive		OArchive;
+    typedef Alembic::Abc::OBox3dProperty	OBox3dProperty;
 
     ROP_AbcArchive();
     virtual ~ROP_AbcArchive();
@@ -71,6 +72,8 @@ protected:
 
 private:
     OArchive		 myArchive;
+    int			 myTSIndex;
+    OBox3dProperty	 myBoxProp;
     UT_BoundingBox	 myBox;
     bool		 myTimeDependent;
 };

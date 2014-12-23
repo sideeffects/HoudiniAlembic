@@ -324,22 +324,16 @@ ROP_AbcOpXform::update(GABC_OError &err,
 	sample.setMatrix(m);
 	myOXform.getSchema().set(sample);
     }
-    else if (ctx.fullBounds())
+    if (ctx.fullBounds())
     {
-	if (kidbox != myBox)
-	{
-	    myBox = kidbox;
-	}
-
 	// Set up bounding box for my parent
 	box = myBox;
 
+	Box3d   b3 = GABC_Util::getBox(myBox);
+	myOXform.getSchema().getChildBoundsProperty().set(b3);
+
 	if (!myIdentity)
-        {
-	    Box3d   b3 = GABC_Util::getBox(myBox);
-	    myOXform.getSchema().getChildBoundsProperty().set(b3);
             box.transform(myMatrix);
-        }
     }
 
     updateTimeDependentKids();
