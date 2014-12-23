@@ -172,6 +172,15 @@ ROP_AbcArchive::firstFrame(GABC_OError &err, const ROP_AbcContext &ctx)
 	Box3d	b3 = GABC_Util::getBox(myBox);
 	myBoxProp.set(b3);
     }
+    // Note this is a "custom" tag on exports to export the time samples
+    if (myTSIndex >= 0)
+    {
+	UT_WorkBuffer	pname;
+	pname.sprintf("%d.samples", myTSIndex);
+	Alembic::Abc::OUInt32Property	samp(myArchive.getTop().getProperties(),
+		pname.buffer());
+	samp.set(ctx.totalSamples());
+    }
     updateTimeDependentKids();
     return true;
 }

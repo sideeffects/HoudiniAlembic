@@ -53,7 +53,8 @@ public:
     virtual const TimeSamplingPtr	&timeSampling() const
 					    { return myTimeSampling; }
     const UT_Array<fpreal>	&blurTimes() const { return myBlurTimes; }
-    void			setTimeSampling(fpreal tstart,
+    void			setTimeSampling(int nframes,
+						fpreal tstart,
 						fpreal tstep,
 						int mb_samples = 1,
 						fpreal shutter_open = 0,
@@ -78,6 +79,12 @@ public:
 			    return myBlurTimes.entries();
 			}
     void		setTime(fpreal base_time, exint samp);
+    /// @}
+
+    /// @{
+    /// Total number of frames being exported
+    exint	frameCount() const { return myFrameCount; }
+    exint	totalSamples() const { return frameCount()*samplesPerFrame(); }
     /// @}
 
     /// @{
@@ -195,6 +202,7 @@ private:
     SOP_Node           *mySingletonSOP;
     UT_String           myPartitionAttribute;
     UT_String           myPathAttribute;
+    exint		myFrameCount;
     int                 myCollapseIdentity;
     int                 myPackedAbcPriority;
     int                 myPartitionMode;

@@ -46,6 +46,7 @@ ROP_AbcContext::ROP_AbcContext()
     , myPartitionAttribute()
     , myPathAttribute()
     , myPartitionMode(ROP_AbcContext::PATHMODE_FULLPATH)
+    , myFrameCount(0)
     , myCollapseIdentity(false)
     , myBuildFromPath(false)
     , myPartition(false)
@@ -55,7 +56,8 @@ ROP_AbcContext::ROP_AbcContext()
 }
 
 void
-ROP_AbcContext::setTimeSampling(fpreal tstart,
+ROP_AbcContext::setTimeSampling(int nframes,
+	fpreal tstart,
 	fpreal tstep,
 	int mb_samples,
 	fpreal shutter_open,
@@ -63,6 +65,7 @@ ROP_AbcContext::setTimeSampling(fpreal tstart,
 {
     fpreal	spf = CHgetManager()->getSecsPerSample();
     
+    myFrameCount = nframes;
     tstart += spf;
     myBlurTimes.setCapacity(0);
     if (mb_samples < 2)

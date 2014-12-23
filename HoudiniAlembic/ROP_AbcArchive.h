@@ -72,9 +72,9 @@ protected:
 
 private:
     OArchive		 myArchive;
-    int			 myTSIndex;
     OBox3dProperty	 myBoxProp;
     UT_BoundingBox	 myBox;
+    int			 myTSIndex;
     bool		 myTimeDependent;
 };
 

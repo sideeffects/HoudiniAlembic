@@ -685,7 +685,8 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 	    shutter_open = SHUTTEROPEN(start);
 	    shutter_close = SHUTTERCLOSE(start);
 	}
-	myContext->setTimeSampling(start,
+	myContext->setTimeSampling(nframes,
+		start,
 	        tstep,
 	        mb_samples,
 	        shutter_open,
