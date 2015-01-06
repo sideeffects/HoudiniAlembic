@@ -32,6 +32,8 @@
 #include <GABC/GABC_IObject.h>
 #include <GT/GT_Primitive.h>
 #include <GU/GU_PrimPacked.h>
+#include <GSTY/GSTY_SubjectPrim.h>
+#include <STY/STY_Styler.h>
 #include <UT/UT_EnvControl.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_JSONValue.h>
@@ -260,9 +262,16 @@ namespace
 		    }
 		}
 	    }
+
+	    // Build a new styler for this alembic prim.
+	    void *handle = queryObject(NULL);
+	    GSTY_SubjectPrim subject(myList(0));
+	    STY_Styler styler = queryStyler(handle).cloneWithSubject(subject);
+
 	    openProceduralObject();
 		setObjectName(myList(0));
 		processPrimitiveMaterial(myList(0));
+		setStyler(styler);
 		if (myPropertyMap)
 		{
 		    applyProperties(myList(0));
@@ -275,10 +284,10 @@ namespace
 		// time baked in).
 		addProcedural(new VRAY_ProcGT(gtlist, 1.0));
 	    closeObject();
+
 	    for (exint i = 0; i < nsegs; ++i)
-	    {
-		const_cast<GU_PrimPacked *>(myList(i))->implementation()->clearData();
-	    }
+		const_cast<GU_PrimPacked *>
+		    (myList(i))->implementation()->clearData();
 	}
     private:
 	UT_Array<const GU_PrimPacked *>	 myList;
