@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014
+ * Copyright (c) 2015
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -727,7 +727,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 		for (exint i = 0; i < bundle->entries(); ++i)
 		{
 		    OP_Node	*node = bundle->getNode(i);
-		    if (filterNode(node, start))
+		    if (filterNode(node, rootnode, start))
 			builder.addChild(*myError, node);
 		}
 		//builder.ls();
@@ -753,10 +753,15 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 }
 
 bool
-ROP_AlembicOut::filterNode(OP_Node *node, fpreal now)
+ROP_AlembicOut::filterNode(OP_Node *node, OP_Node *root, fpreal now)
 {
     if (!node)
 	return false;
+
+    // If the node is not a descendent of the root, do not attempt to
+    // add it as a child of a ROP_AbcOpBuilder.
+    if (!root || (!node->isInputAncestor(root) && !node->isParentAncestor(root)))
+        return false;
 
     OBJ_Node	*obj = node->castToOBJNode();
     if (!obj)

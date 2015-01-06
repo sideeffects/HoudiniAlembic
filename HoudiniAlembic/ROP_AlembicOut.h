@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014
+ * Copyright (c) 2015
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -88,7 +88,7 @@ public:
 
 protected:
     void	close();
-    bool	filterNode(OP_Node *obj, fpreal now);
+    bool	filterNode(OP_Node *obj, OP_Node *root, fpreal now);
 
     void	FILENAME(UT_String &str, fpreal time)
 		    { getOutputOverrideEx(str, time, "filename", "mkpath"); }
