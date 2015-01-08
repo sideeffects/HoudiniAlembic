@@ -85,6 +85,8 @@ static AlembicFactory	*theFactory = NULL;
 
 }
 
+GA_PrimitiveTypeId GABC_PackedImpl::theTypeId(-1);
+
 GU_PrimPacked *
 GABC_PackedImpl::build(GU_Detail &gdp,
 			const std::string &filename,
@@ -121,6 +123,7 @@ GABC_PackedImpl::install(GA_PrimitiveFactory *gafactory)
 	return;
     theFactory = new AlembicFactory();
     GU_PrimPacked::registerPacked(gafactory, theFactory);
+    theTypeId = theFactory->typeDef().getId();
 
     // Now, register the GT primitive
     GABC_CollectPacked	*gt = new GABC_CollectPacked();
@@ -132,14 +135,6 @@ GABC_PackedImpl::isInstalled()
 {
     return theFactory != NULL;
 }
-
-GA_PrimitiveTypeId
-GABC_PackedImpl::typeId()
-{
-    UT_ASSERT(theFactory);
-    return theFactory->typeDef().getId();
-}
-
 
 #ifdef USE_FAST_CACHE
 
