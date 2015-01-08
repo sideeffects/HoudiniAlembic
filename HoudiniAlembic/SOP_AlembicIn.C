@@ -355,7 +355,7 @@ static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
 
 static PRM_Name	loadModeOptions[] = {
     PRM_Name("alembic",	"Alembic Delayed Load Primitives"),
-    PRM_Name("houdini",	"Load Houdini Geometry"),
+    PRM_Name("houdini",	"Load Houdini Geometry (deprecated)"),
     PRM_Name("hpoints", "Houdini Point Cloud"),
     PRM_Name("hboxes",  "Bounding Boxes"),
     PRM_Name()
@@ -817,6 +817,9 @@ SOP_AlembicIn2::setPathAttributes(GABC_GEOWalker &walk, const Parms &parms)
     }
 }
 
+static const char	*theHoudiniGeometryWarning =
+    "Loading Houdini Geometry isn't always as accurate as unpacking Alembic primitives.";
+
 OP_ERROR
 SOP_AlembicIn2::cookMySop(OP_Context &context)
 {
@@ -824,6 +827,10 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     fpreal	now = context.getTime();
 
     evaluateParms(parms, context);
+    if (parms.myLoadMode == GABC_GEOWalker::LOAD_HOUDINI_PRIMITIVES)
+    {
+	addWarning(SOP_MESSAGE, theHoudiniGeometryWarning);
+    }
     if (gdp->getUniqueId() != myConstantUniqueId ||
 	    myLastParms.needsNewGeometry(parms))
     {
