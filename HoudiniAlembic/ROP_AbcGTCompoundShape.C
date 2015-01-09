@@ -136,11 +136,9 @@ namespace
     public:
 	abc_Refiner(PrimitiveList &dfrm,
 	        PrimitiveList &pckd,
-                GABC_OError &err,
 		const GT_RefineParms *parms,
 		bool use_instancing)
-	    : myErrorHandler(err)
-	    , myDeforming(dfrm)
+	    : myDeforming(dfrm)
 	    , myPacked(pckd)
 	    , myParms(parms)
 	    , myUseInstancing(use_instancing)
@@ -172,7 +170,6 @@ namespace
 	}
 
     private:
-        GABC_OError            &myErrorHandler;
 	PrimitiveList          &myDeforming;
 	PrimitiveList          &myPacked;
 	const GT_RefineParms   *myParms;
@@ -274,7 +271,6 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     {
 	abc_Refiner refiner(deforming,
 	        packed,
-	        err,
 	        &rparms,
 	        ctx.useInstancing());
 	prim->refine(refiner, &rparms);
@@ -461,7 +457,6 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
     {
         abc_Refiner refiner(deforming,
                 packed,
-                err,
                 &rparms,
                 ctx.useInstancing());
         prim->refine(refiner, &rparms);
