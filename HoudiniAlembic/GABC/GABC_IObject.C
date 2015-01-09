@@ -204,7 +204,6 @@ namespace
 	    // Remove the attribute if there are problems setting it's data.
 	    if (idx >= 0)
 	    {
-                alist.getMap()->remove(name);
                 UT_ErrorLog::mantraWarningOnce(
                         "Error reading %s attribute data for Alembic object "
                             "%s (%s). Ignoring attribute.",
@@ -963,6 +962,17 @@ namespace
 	}
     }
 
+    static GT_AttributeListHandle
+    clearBadAttributes(GT_AttributeList *alist, UT_StringArray &bad)
+    {
+	GT_AttributeListHandle	a(alist);
+	for (exint i = 0; a && i < bad.entries(); ++i)
+	{
+	    a = a->removeAttribute(bad(i));
+	}
+	return a;
+    }
+
     template <bool ONLY_ANIMATING>
     static void
     fillAttributeList(GT_AttributeList &alist,
@@ -980,7 +990,8 @@ namespace
 	    const IV2fGeomParam *uvs,
 	    const IUInt64ArrayProperty *ids,
 	    const IFloatGeomParam *widths,
-	    const IFloatArrayProperty *Pw)
+	    const IFloatArrayProperty *Pw,
+	    UT_StringArray &removals)
     {
 	UT_ASSERT(alist.entries());
 	if (!alist.entries())
@@ -1081,7 +1092,9 @@ namespace
 		    continue;
 		GT_DataArrayHandle data = obj.convertIProperty(arb, header, t);
 		if(data)
+		{
 		    setAttributeData(alist, obj, name, data, filled);
+		}
 	    }
 	}
 	// We need to fill Houdini attributes last.  Otherwise, when converting
@@ -1093,6 +1106,11 @@ namespace
 	{
 	    fillHoudiniAttributes(alist, *prim, GA_ATTRIB_PRIMITIVE, filled);
 	    fillHoudiniAttributes(alist, *prim, GA_ATTRIB_GLOBAL, filled);
+	}
+	for (exint i = 0; i < alist.entries(); ++i)
+	{
+	    if (!filled[i])
+		removals.append(alist.getName(i));
 	}
     }
 
@@ -1182,13 +1200,18 @@ namespace
 	    for (exint i = 0; i < arb.getNumProperties(); ++i)
 	    {
 		const PropertyHeader	&header = arb.getPropertyHeader(i);
-		if (!matchScope(getArbitraryPropertyScope(header), scope, scope_size))
+		GeometryScope		 arbscope = getArbitraryPropertyScope(header);
+		if (!matchScope(arbscope, scope, scope_size))
 		{
 		    continue;
 		}
+
 		const char	*name = header.getName().c_str();
 		if (namemap)
 		{
+		    if (!namemap->matchPattern(scopeToOwner(arbscope), name))
+			continue;
+
 		    name = namemap->getName(name);
 		    if (!name)
 			continue;
@@ -1210,18 +1233,23 @@ namespace
 
 	GT_AttributeList	*alist = NULL;
 	if (!map->entries())
-	    delete map;
-	else
 	{
-	    alist = new GT_AttributeList(GT_AttributeMapHandle(map));
-	    if (alist->entries())
-	    {
-		fillAttributeList<false>(*alist, namemap, load_style,
-			prim, obj, t, scope, scope_size,
-			arb, P, v, N, uvs, ids, widths, Pw);
-	    }
+	    delete map;
+	    return GT_AttributeListHandle();
 	}
-
+	UT_StringArray	removals;
+	alist = new GT_AttributeList(GT_AttributeMapHandle(map));
+	if (alist->entries())
+	{
+	    fillAttributeList<false>(*alist, namemap, load_style,
+		    prim, obj, t, scope, scope_size,
+		    arb, P, v, N, uvs, ids, widths, Pw,
+		    removals);
+	}
+	if (removals.entries())
+	{
+	    return clearBadAttributes(alist, removals);
+	}
 	return GT_AttributeListHandle(alist);
     }
 
@@ -1248,9 +1276,13 @@ namespace
 
 	// Copy the existing attributes
 	GT_AttributeList	*alist = new GT_AttributeList(*src);
+	UT_StringArray		 removals;
 	// Only fill animating attributes
 	fillAttributeList<true>(*alist, namemap, load_style, prim, obj, t,
-		    scope, scope_size, arb, P, v, N, uvs, ids, widths, Pw);
+		    scope, scope_size, arb, P, v, N, uvs, ids, widths, Pw,
+		    removals);
+	if (removals.entries())
+	    return clearBadAttributes(alist, removals);
 	return GT_AttributeListHandle(alist);
     }
 
