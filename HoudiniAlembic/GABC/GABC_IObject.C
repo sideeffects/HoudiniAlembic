@@ -1231,14 +1231,13 @@ namespace
 	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_GLOBAL);
 	}
 
-	GT_AttributeList	*alist = NULL;
 	if (!map->entries())
 	{
 	    delete map;
 	    return GT_AttributeListHandle();
 	}
-	UT_StringArray	removals;
-	alist = new GT_AttributeList(GT_AttributeMapHandle(map));
+	GT_AttributeListHandle	alist(new GT_AttributeList(map));
+	UT_StringArray		removals;
 	if (alist->entries())
 	{
 	    fillAttributeList<false>(*alist, namemap, load_style,
@@ -1246,11 +1245,7 @@ namespace
 		    arb, P, v, N, uvs, ids, widths, Pw,
 		    removals);
 	}
-	if (removals.entries())
-	{
-	    return clearBadAttributes(alist, removals);
-	}
-	return GT_AttributeListHandle(alist);
+	return alist->removeAttributes(removals);
     }
 
     static GT_AttributeListHandle
@@ -1275,17 +1270,14 @@ namespace
 	    return src;
 
 	// Copy the existing attributes
-	GT_AttributeList	*alist = new GT_AttributeList(*src);
-	UT_StringArray		 removals;
+	GT_AttributeListHandle	alist(new GT_AttributeList(*src));
+	UT_StringArray		removals;
 	// Only fill animating attributes
 	fillAttributeList<true>(*alist, namemap, load_style, prim, obj, t,
 		    scope, scope_size, arb, P, v, N, uvs, ids, widths, Pw,
 		    removals);
-	if (removals.entries())
-	    return clearBadAttributes(alist, removals);
-	return GT_AttributeListHandle(alist);
+	return alist->removeAttributes(removals);
     }
-
 
     template <typename T>
     static bool
