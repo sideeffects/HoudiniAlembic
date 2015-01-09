@@ -39,7 +39,7 @@ namespace
     // Copy out of ABC array into a GT array
     template <typename ABC_TYPE, typename GT_TYPE, GT_Storage GT_STORAGE>
     GT_DataArray *
-    translate(const GABC_IArray &iarray)
+    translateStorage(const GABC_IArray &iarray)
     {
 	GT_DANumeric<GT_TYPE, GT_STORAGE>	*array;
 	const ABC_TYPE	*src = (const ABC_TYPE *)(iarray.data());
@@ -104,19 +104,19 @@ GABC_NAMESPACE::GABCarray(const GABC_IArray &iarray)
 	    data = new GABC_IGTStringArray(iarray);
 	    break;
 	case Alembic::Abc::kBooleanPOD:
-	    data = translate<bool, uint8, GT_STORE_UINT8>(iarray);
+	    data = translateStorage<bool, uint8, GT_STORE_UINT8>(iarray);
 	    break;
 	case Alembic::Abc::kInt8POD:
-	    data = translate<int8, int32, GT_STORE_INT32>(iarray);
+	    data = translateStorage<int8, int32, GT_STORE_INT32>(iarray);
 	    break;
 	case Alembic::Abc::kUint16POD:
-	    data = translate<uint16, int32, GT_STORE_INT32>(iarray);
+	    data = translateStorage<uint16, int32, GT_STORE_INT32>(iarray);
 	    break;
 	case Alembic::Abc::kInt16POD:
-	    data = translate<int16, int32, GT_STORE_INT32>(iarray);
+	    data = translateStorage<int16, int32, GT_STORE_INT32>(iarray);
 	    break;
 	case Alembic::Abc::kUint32POD:
-	    data = translate<uint32, int64, GT_STORE_INT64>(iarray);
+	    data = translateStorage<uint32, int64, GT_STORE_INT64>(iarray);
 	    break;
 
 	case Alembic::Abc::kWstringPOD:
