@@ -30,6 +30,7 @@
 
 #include "ROP_AbcObject.h"
 #include "ROP_AbcContext.h"
+#include "GABC/GABC_Util.h"
 
 class OBJ_Node;
 
@@ -38,9 +39,12 @@ class OBJ_Node;
 class ROP_AbcOpXform : public ROP_AbcObject
 {
 public:
+    typedef Alembic::Abc::OCompoundProperty             OCompoundProperty;
     typedef Alembic::AbcGeom::OXform			OXform;
     typedef Alembic::AbcGeom::OVisibilityProperty	OVisibilityProperty;
     typedef Alembic::Abc::OObject			OObject;
+
+    typedef GABC_NAMESPACE::GABC_Util::PropertyMap      PropertyMap;
 
     ROP_AbcOpXform(OBJ_Node *node, const ROP_AbcContext &ctx);
     virtual ~ROP_AbcOpXform();
@@ -60,11 +64,41 @@ public:
     /// @}
 
 private:
+    /// User properties state.
+    ///
+    /// NO_USER_PROPERTIES:	    No user properties found. This will happen
+    ///                             if the meta data or value isn't set.
+    /// ERROR_READING_PROPERTIES:   An error occured reading user property data,
+    ///		                    as a result, no properties will be written.
+    /// WRITE_USER_PROPERTIES:	    Try writing user properties for subsequent
+    ///				    frames, but if there's a problem, fall back
+    ///				    to existing samples.
+    enum UserPropertiesState
+    {
+	NO_USER_PROPERTIES,
+	ERROR_READING_PROPERTIES,
+	WRITE_USER_PROPERTIES,
+
+	UNSET=-1
+    };
+
     void                setVisibility(const ROP_AbcContext &ctx);
+
+    /// Based on the boolean write flag, this function will either make the
+    /// user property schema or write user properties to that parent schema.
+    /// The schema should always be created first before any writing.
+    bool		makeOrWriteUserProperties(const OBJ_Node *node,
+				GABC_OError &err,
+				const ROP_AbcContext &ctx,
+				bool write);
+    /// Clears the user property mapping.
+    void	        clearUserProperties();
     UT_Matrix4D         myMatrix;
     UT_BoundingBox      myBox;
     OXform              myOXform;
     OVisibilityProperty myVisibility;
+    PropertyMap         myUserProperties;
+    UserPropertiesState myUserPropertiesState;
     int                 myNodeId;
     bool                myTimeDependent;
     bool                myIdentity;

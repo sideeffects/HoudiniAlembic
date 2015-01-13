@@ -28,6 +28,7 @@
 #include "ROP_AbcOpXform.h"
 #include <OBJ/OBJ_Node.h>
 #include <OBJ/OBJ_SubNet.h>
+#include <PRM/PRM_Parm.h>
 #include <SOP/SOP_Node.h>
 #include "ROP_AbcContext.h"
 #include "ROP_AbcOpCamera.h"
@@ -64,6 +65,23 @@ namespace
 	    buf.sprintf("Node with unique id %d was deleted", id);
 	else
 	    o->getFullPath(buf);
+    }
+
+    static void
+    writePropertiesFromPrevious(const ROP_AbcOpXform::PropertyMap &pmap)
+    {
+	if (!pmap.size())
+	    return;
+
+	// Write a new sample using the previous sample, if it exists.
+	for (auto it = pmap.begin(); it != pmap.end(); ++it)
+	{
+	    exint num_samples = it->second->getNumSamples();
+	    if (num_samples)
+	    {
+		it->second->updateFromPrevious();
+	    }
+	}
     }
 
     static bool
@@ -124,6 +142,7 @@ ROP_AbcOpXform::ROP_AbcOpXform(OBJ_Node *node, const ROP_AbcContext &ctx)
     , myTimeDependent(false)
     , myIdentity(false)
     , myGeometryContainer(false)
+    , myUserPropertiesState(UNSET)
 {
     if (node->getObjectType() == OBJ_CAMERA)
     {
@@ -157,6 +176,123 @@ ROP_AbcOpXform::ROP_AbcOpXform(OBJ_Node *node, const ROP_AbcContext &ctx)
 
 ROP_AbcOpXform::~ROP_AbcOpXform()
 {
+    clearUserProperties();
+}
+
+void
+ROP_AbcOpXform::clearUserProperties()
+{
+    for (auto it = myUserProperties.begin();
+	    it != myUserProperties.end(); ++it)
+    {
+	delete it->second;
+    }
+    myUserProperties.clear();
+}
+
+/// Validates if the parameters of the object node are valid such that
+/// user properties can be written.
+static bool
+validateUserPropertyParameters(const OBJ_Node *node, GABC_OError &err)
+{
+    bool hasProps = node->hasParm("userProps");
+    bool hasMeta = node->hasParm("userPropsMeta");
+
+    if (!hasProps && !hasMeta)
+    {
+	return false;
+    }
+    else if (!hasProps)
+    {
+	err.warning("User property values are required.");
+	return false;
+    }
+    else if (!hasMeta)
+    {
+	err.warning("User property metadata is required.");
+	return false;
+    }
+
+    return true;
+}   
+
+bool
+ROP_AbcOpXform::makeOrWriteUserProperties(const OBJ_Node *node,
+	GABC_OError &err, const ROP_AbcContext &ctx, bool write)
+{
+    UT_ASSERT(node);
+
+    // If we wish to write and we are not in the writing state, return.
+    if (write && myUserPropertiesState != WRITE_USER_PROPERTIES)
+    	return false;
+
+    // If we are creating the schema, clear all current user properties.
+    if (!write)
+    {
+	myUserPropertiesState = NO_USER_PROPERTIES;
+	clearUserProperties();
+    }
+
+    // If we are writing to file and the parameters are invalid, write
+    // it out using the previous samples, if there are any.
+    if (!validateUserPropertyParameters(node, err))
+    {
+	if (write)
+	{
+	    writePropertiesFromPrevious(myUserProperties);
+	}
+	return false;
+    }
+
+    myUserPropertiesState = WRITE_USER_PROPERTIES;
+
+    OCompoundProperty *parent = NULL;
+    OCompoundProperty propSchema;
+
+    // If we are making the user property schema, we need to create a 
+    // parent container here.
+    if (!write) {
+	propSchema = myOXform.getSchema().getUserProperties();
+	parent = &propSchema;
+    }
+
+    UT_String           user_props;
+    UT_String           user_props_meta;
+    fpreal time = ctx.cookContext().getTime();
+
+    node->evalString(user_props, "userProps", 0, time);
+    node->evalString(user_props_meta, "userPropsMeta", 0, time);
+
+    UT_AutoJSONParser   vals_data(
+        user_props.buffer(), strlen(user_props.buffer()));
+    UT_AutoJSONParser   meta_data(
+        user_props_meta.buffer(), strlen(user_props_meta.buffer()));
+
+    vals_data->setBinary(false);
+    meta_data->setBinary(false);
+
+    if (!GABC_Util::readUserPropertyDictionary(meta_data,
+        vals_data,
+        myUserProperties,
+        parent,
+        err,
+        ctx)) {
+
+        myUserPropertiesState = ERROR_READING_PROPERTIES;
+
+	if (write)
+	{
+	    err.warning("Failed to write user properties for the current frame"
+	    		", falling back on previous samples.");
+	    writePropertiesFromPrevious(myUserProperties);
+	}
+	else
+	    err.warning("Unable to read the user property dictionary.");
+
+        return false;
+    }
+
+    return true;
 }
 
 bool
@@ -210,6 +346,13 @@ ROP_AbcOpXform::start(const OObject &parent,
     {
 	// Process children, computing their bounding box
 	myOXform = OXform(parent, getName(), ctx.timeSampling());
+
+	// Make the user properties and store the properties in myUserProperties.
+	makeOrWriteUserProperties(node, err, ctx, false);
+
+	// Write the properties to file.
+	makeOrWriteUserProperties(node, err, ctx, true);
+
 	if (!startChildren(myOXform, err, ctx, myBox))
 	    return false;
     }
@@ -334,6 +477,14 @@ ROP_AbcOpXform::update(GABC_OError &err,
 
 	if (!myIdentity)
             box.transform(myMatrix);
+    }
+
+    OBJ_Node *node = getXformNode(myNodeId);
+    PRM_Parm *parm = node->getParmList()->getParmPtr("userProps");
+
+    if (parm && parm->isTimeDependent())
+    {
+	makeOrWriteUserProperties(node, err, ctx, true);
     }
 
     updateTimeDependentKids();
