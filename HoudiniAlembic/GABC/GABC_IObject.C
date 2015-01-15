@@ -935,12 +935,12 @@ namespace
 	return GT_STORE_INVALID;
     }
 
-    static inline void
+    static inline int
     topologyUID(GT_AttributeList &alist, const GABC_IObject &obj)
     {
 	int __topologyIdx = alist.getIndex("__topology");
 	if (__topologyIdx < 0)
-	    return;
+	    return -1;
 
 	const GT_DataArrayHandle	&__topology = alist.get(__topologyIdx);
 	if (!__topology)
@@ -956,10 +956,11 @@ namespace
 		alist.set(__topologyIdx, new GT_IntConstant(1, hash));
 	    }
 	    else
-	    {
 		alist.set(__topologyIdx, new GT_IntConstant(1, -1));
-	    }
+	    
+	    return __topologyIdx;
 	}
+	return -1;
     }
 
     static GT_AttributeListHandle
@@ -1003,7 +1004,9 @@ namespace
 	GT_DataArrayHandle      p_data = 0;
 
 	memset(filled, 0, sizeof(bool)*alist.entries());
-	topologyUID(alist, obj);
+	int idx = topologyUID(alist, obj);
+	if(idx >= 0)
+	    filled[idx] = 1;
 
         if (P && *P && (!GEO_PackedNameMapPtr() || GEO_PackedNameMapPtr()->matchPattern(GA_ATTRIB_POINT, "P"))) {
             if (ONLY_ANIMATING && P->isConstant())
