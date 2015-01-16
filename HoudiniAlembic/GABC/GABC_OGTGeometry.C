@@ -2065,3 +2065,10 @@ GABC_OGTGeometry::getSecondaryCache()
 	mySecondaryCache = new SecondaryCache();
     return *mySecondaryCache;
 }
+
+void
+GABC_OGTGeometry::dump(int indent) const
+{
+    printf("%*sGeometry[%s] = %s\n", indent, "", myName.c_str(),
+	    GTprimitiveType(myType));
+}

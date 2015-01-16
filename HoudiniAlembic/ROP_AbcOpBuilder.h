@@ -130,7 +130,7 @@ public:
     void	buildTree(ROP_AbcArchive &arch, const ROP_AbcContext &ctx) const;
 
     /// List contents.  If @c full_tree is false, only the leaf nodes are dumped
-    void	ls(bool full_tree=false) const;
+    void	dump(bool full_tree=false) const;
 
 private:
     OP_Node        *myRootNode;

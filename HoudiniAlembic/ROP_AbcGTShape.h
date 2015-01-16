@@ -50,6 +50,17 @@ public:
         ALEMBIC
     };
 
+    static const char	*shapeType(ShapeType t)
+    {
+	switch (t)
+	{
+	    case GEOMETRY:	return "Geometry";
+	    case INSTANCE:	return "Instance";
+	    case ALEMBIC:	return "Alembic";
+	}
+	return "<invalid>";
+    }
+
     typedef Alembic::Abc::OObject		OObject;
 
     typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
@@ -103,6 +114,8 @@ public:
     /// Return the OObject for the shape
     OObject	getOObject() const;
 
+    virtual void	dump(int indent=0) const;
+
 private:
     /// @{
     /// Interface defined on ROP_AbcObject.
@@ -130,18 +143,18 @@ private:
         void               *myVoidPtr;
     } myObj;
 
-    InverseMap          * const myInverseMap;
-    GeoSet              * const myGeoSet;
-    const ShapeType     myType;
-    UT_String           myPath;
-    UT_WorkArgs         myTokens;
-    XformMap            * const myXformMap;
+    InverseMap		*const myInverseMap;
+    GeoSet		*const myGeoSet;
+    XformMap		*const myXformMap;
+    const ShapeType	 myType;
+    UT_String		 myPath;
+    UT_WorkArgs		 myTokens;
     // Use std::string since the name is shared by the ABCGTGeometry and
     // std::string has COW semantics.
-    const std::string   myName;
-    exint               myElapsedFrames;
-    int                 myPrimType;
-    const bool          myGeoLock;
+    const std::string	 myName;
+    exint		 myElapsedFrames;
+    int			 myPrimType;
+    const bool		 myGeoLock;
 };
 
 #endif

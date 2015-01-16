@@ -38,101 +38,102 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef Alembic::Abc::DataType                  DataType;
-    typedef Alembic::Abc::ISampleSelector           ISampleSelector;
-    typedef Alembic::Abc::MetaData                  MetaData;
-    typedef Alembic::Abc::PropertyHeader            PropertyHeader;
-    typedef Alembic::Abc::WrapExistingFlag          WrapExistingFlag;
+    typedef Alembic::Abc::DataType		DataType;
+    typedef Alembic::Abc::ISampleSelector	ISampleSelector;
+    typedef Alembic::Abc::MetaData		MetaData;
+    typedef Alembic::Abc::PropertyHeader	PropertyHeader;
+    typedef Alembic::Abc::WrapExistingFlag	WrapExistingFlag;
 
     typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
 
     // Geometry
-    //typedef Alembic::Abc::Box3d                     Box3d;
+    typedef Alembic::Abc::Box3d			Box3d;
+    typedef Alembic::Abc::M44d			M44d;
 
     // Array Samples
-    typedef Alembic::Abc::UcharArraySample          UcharArraySample;
-    typedef Alembic::Abc::UInt32ArraySample         UInt32ArraySample;
-    typedef Alembic::Abc::Int32ArraySample          Int32ArraySample;
-    typedef Alembic::Abc::FloatArraySample          FloatArraySample;
-    typedef Alembic::Abc::V3fArraySample            V3fArraySample;
-    typedef Alembic::Abc::ArraySamplePtr            ArraySamplePtr;
-    typedef Alembic::Abc::UcharArraySamplePtr       UcharArraySamplePtr;
-    typedef Alembic::Abc::Int32ArraySamplePtr       Int32ArraySamplePtr;
-    typedef Alembic::Abc::UInt32ArraySamplePtr      UInt32ArraySamplePtr;
-    typedef Alembic::Abc::UInt64ArraySamplePtr      UInt64ArraySamplePtr;
-    typedef Alembic::Abc::FloatArraySamplePtr       FloatArraySamplePtr;
-    typedef Alembic::Abc::N3fArraySamplePtr         N3fArraySamplePtr;
-    typedef Alembic::Abc::P3fArraySamplePtr         P3fArraySamplePtr;
-    typedef Alembic::Abc::V2fArraySamplePtr         V2fArraySamplePtr;
-    typedef Alembic::Abc::V3fArraySamplePtr         V3fArraySamplePtr;
+    typedef Alembic::Abc::UcharArraySample	UcharArraySample;
+    typedef Alembic::Abc::UInt32ArraySample	UInt32ArraySample;
+    typedef Alembic::Abc::Int32ArraySample	Int32ArraySample;
+    typedef Alembic::Abc::FloatArraySample	FloatArraySample;
+    typedef Alembic::Abc::V3fArraySample	V3fArraySample;
+    typedef Alembic::Abc::ArraySamplePtr	ArraySamplePtr;
+    typedef Alembic::Abc::UcharArraySamplePtr	UcharArraySamplePtr;
+    typedef Alembic::Abc::Int32ArraySamplePtr	Int32ArraySamplePtr;
+    typedef Alembic::Abc::UInt32ArraySamplePtr	UInt32ArraySamplePtr;
+    typedef Alembic::Abc::UInt64ArraySamplePtr	UInt64ArraySamplePtr;
+    typedef Alembic::Abc::FloatArraySamplePtr	FloatArraySamplePtr;
+    typedef Alembic::Abc::N3fArraySamplePtr	N3fArraySamplePtr;
+    typedef Alembic::Abc::P3fArraySamplePtr	P3fArraySamplePtr;
+    typedef Alembic::Abc::V2fArraySamplePtr	V2fArraySamplePtr;
+    typedef Alembic::Abc::V3fArraySamplePtr	V3fArraySamplePtr;
 
     // Properties
-    typedef Alembic::Abc::IScalarProperty           IScalarProperty;
-    typedef Alembic::Abc::OScalarProperty           OScalarProperty;
-    typedef Alembic::Abc::IArrayProperty            IArrayProperty;
-    typedef Alembic::Abc::OArrayProperty            OArrayProperty;
-    typedef Alembic::Abc::ICompoundProperty         ICompoundProperty;
-    typedef Alembic::Abc::OCompoundProperty         OCompoundProperty;
+    typedef Alembic::Abc::IScalarProperty	IScalarProperty;
+    typedef Alembic::Abc::OScalarProperty	OScalarProperty;
+    typedef Alembic::Abc::IArrayProperty	IArrayProperty;
+    typedef Alembic::Abc::OArrayProperty	OArrayProperty;
+    typedef Alembic::Abc::ICompoundProperty	ICompoundProperty;
+    typedef Alembic::Abc::OCompoundProperty	OCompoundProperty;
 
     // General
-    typedef Alembic::AbcGeom::IObject               IObject;
-    typedef Alembic::AbcGeom::OObject               OObject;
+    typedef Alembic::AbcGeom::IObject		IObject;
+    typedef Alembic::AbcGeom::OObject		OObject;
     // Xform
-    typedef Alembic::AbcGeom::IXform                IXform;
-    typedef GABC_OXform                             OXform;
-    typedef Alembic::AbcGeom::IXformSchema          IXformSchema;
-    typedef Alembic::AbcGeom::OXformSchema          OXformSchema;
-    typedef Alembic::AbcGeom::XformSample           XformSample;
+    typedef Alembic::AbcGeom::IXform		IXform;
+    typedef Alembic::AbcGeom::OXform		OXform;
+    typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
+    typedef Alembic::AbcGeom::OXformSchema	OXformSchema;
+    typedef Alembic::AbcGeom::XformSample	XformSample;
     // PolyMesh
-    typedef Alembic::AbcGeom::IPolyMesh             IPolyMesh;
-    typedef Alembic::AbcGeom::IPolyMeshSchema       IPolyMeshSchema;
-    typedef Alembic::AbcGeom::OPolyMesh             OPolyMesh;
-    typedef Alembic::AbcGeom::OPolyMeshSchema       OPolyMeshSchema;
+    typedef Alembic::AbcGeom::IPolyMesh		IPolyMesh;
+    typedef Alembic::AbcGeom::IPolyMeshSchema	IPolyMeshSchema;
+    typedef Alembic::AbcGeom::OPolyMesh		OPolyMesh;
+    typedef Alembic::AbcGeom::OPolyMeshSchema	OPolyMeshSchema;
     // Subdivision
-    typedef Alembic::AbcGeom::ISubD                 ISubD;
-    typedef Alembic::AbcGeom::ISubDSchema           ISubDSchema;
-    typedef Alembic::AbcGeom::OSubD                 OSubD;
-    typedef Alembic::AbcGeom::OSubDSchema           OSubDSchema;
+    typedef Alembic::AbcGeom::ISubD		ISubD;
+    typedef Alembic::AbcGeom::ISubDSchema	ISubDSchema;
+    typedef Alembic::AbcGeom::OSubD		OSubD;
+    typedef Alembic::AbcGeom::OSubDSchema	OSubDSchema;
     // Points
-    typedef Alembic::AbcGeom::IPoints		    IPoints;
-    typedef Alembic::AbcGeom::IPointsSchema	    IPointsSchema;
-    typedef Alembic::AbcGeom::OPoints		    OPoints;
-    typedef Alembic::AbcGeom::OPointsSchema	    OPointsSchema;
+    typedef Alembic::AbcGeom::IPoints		IPoints;
+    typedef Alembic::AbcGeom::IPointsSchema	IPointsSchema;
+    typedef Alembic::AbcGeom::OPoints		OPoints;
+    typedef Alembic::AbcGeom::OPointsSchema	OPointsSchema;
     // Curves
-    typedef Alembic::AbcGeom::ICurves		    ICurves;
-    typedef Alembic::AbcGeom::ICurvesSchema	    ICurvesSchema;
-    typedef Alembic::AbcGeom::OCurves		    OCurves;
-    typedef Alembic::AbcGeom::OCurvesSchema	    OCurvesSchema;
+    typedef Alembic::AbcGeom::ICurves		ICurves;
+    typedef Alembic::AbcGeom::ICurvesSchema	ICurvesSchema;
+    typedef Alembic::AbcGeom::OCurves		OCurves;
+    typedef Alembic::AbcGeom::OCurvesSchema	OCurvesSchema;
     // NuPatch
-    typedef Alembic::AbcGeom::INuPatch		    INuPatch;
-    typedef Alembic::AbcGeom::INuPatchSchema	    INuPatchSchema;
-    typedef Alembic::AbcGeom::ONuPatch		    ONuPatch;
-    typedef Alembic::AbcGeom::ONuPatchSchema	    ONuPatchSchema;
+    typedef Alembic::AbcGeom::INuPatch		INuPatch;
+    typedef Alembic::AbcGeom::INuPatchSchema	INuPatchSchema;
+    typedef Alembic::AbcGeom::ONuPatch		ONuPatch;
+    typedef Alembic::AbcGeom::ONuPatchSchema	ONuPatchSchema;
     // FaceSet
-    typedef Alembic::AbcGeom::IFaceSet		    IFaceSet;
-    typedef Alembic::AbcGeom::IFaceSetSchema	    IFaceSetSchema;
-    typedef Alembic::AbcGeom::OFaceSet		    OFaceSet;
-    typedef Alembic::AbcGeom::OFaceSetSchema	    OFaceSetSchema;
+    typedef Alembic::AbcGeom::IFaceSet		IFaceSet;
+    typedef Alembic::AbcGeom::IFaceSetSchema	IFaceSetSchema;
+    typedef Alembic::AbcGeom::OFaceSet		OFaceSet;
+    typedef Alembic::AbcGeom::OFaceSetSchema	OFaceSetSchema;
 
     // Curve/NURBS
-    typedef Alembic::AbcGeom::BasisType             BasisType;
-    typedef Alembic::AbcGeom::CurvePeriodicity      CurvePeriodicity;
-    typedef Alembic::AbcGeom::CurveType             CurveType;
+    typedef Alembic::AbcGeom::BasisType		BasisType;
+    typedef Alembic::AbcGeom::CurvePeriodicity	CurvePeriodicity;
+    typedef Alembic::AbcGeom::CurveType		CurveType;
 
     // Parameters
-    typedef Alembic::AbcGeom::IFloatGeomParam       IFloatGeomParam;
-    typedef Alembic::AbcGeom::OFloatGeomParam       OFloatGeomParam;
-    typedef Alembic::AbcGeom::IN3fGeomParam         IN3fGeomParam;
-    typedef Alembic::AbcGeom::ON3fGeomParam         ON3fGeomParam;
-    typedef Alembic::AbcGeom::IV2fGeomParam         IV2fGeomParam;
-    typedef Alembic::AbcGeom::OV2fGeomParam         OV2fGeomParam;
+    typedef Alembic::AbcGeom::IFloatGeomParam	IFloatGeomParam;
+    typedef Alembic::AbcGeom::OFloatGeomParam	OFloatGeomParam;
+    typedef Alembic::AbcGeom::IN3fGeomParam	IN3fGeomParam;
+    typedef Alembic::AbcGeom::ON3fGeomParam	ON3fGeomParam;
+    typedef Alembic::AbcGeom::IV2fGeomParam	IV2fGeomParam;
+    typedef Alembic::AbcGeom::OV2fGeomParam	OV2fGeomParam;
 
     // Visibility
-    typedef Alembic::AbcGeom::ObjectVisibility      ObjectVisibility;
-    typedef Alembic::AbcGeom::OVisibilityProperty   OVisibilityProperty;
+    typedef Alembic::AbcGeom::ObjectVisibility		ObjectVisibility;
+    typedef Alembic::AbcGeom::OVisibilityProperty	OVisibilityProperty;
 
-    typedef GABC_OGTAbc::GABCPropertyMap            GABCPropertyMap;
-    typedef GABC_OGTAbc::PropertyMap                PropertyMap;
+    typedef GABC_OGTAbc::GABCPropertyMap	GABCPropertyMap;
+    typedef GABC_OGTAbc::PropertyMap		PropertyMap;
 
     const static WrapExistingFlag   gabcWrapExisting
                                             = Alembic::Abc::kWrapExisting;
@@ -161,16 +162,19 @@ namespace
         }
     }
 
-    static const GABC_IObject &
-    getObject(const GT_PrimitiveHandle &prim)
+    static const GABC_PackedImpl *
+    getPackedImpl(const GT_PrimitiveHandle &prim)
     {
         const GT_GEOPrimPacked *gt = UTverify_cast<const GT_GEOPrimPacked *>(
                                         prim.get());
         const GU_PrimPacked    *gu = gt->getPrim();
-        const GABC_PackedImpl  *gabc = UTverify_cast<const GABC_PackedImpl *>(
-                                        gu->implementation());
+        return UTverify_cast<const GABC_PackedImpl *>(gu->implementation());
+    }
 
-        return gabc->object();
+    static const GABC_IObject &
+    getObject(const GT_PrimitiveHandle &prim)
+    {
+	return getPackedImpl(prim)->object();
     }
 
     // Read Property samples in then write them out to the new archive. Used
@@ -364,7 +368,7 @@ namespace
     // Read in sample info from an IXform
     static void
     sampleXform(const GABC_IObject &node,
-            OXform *obj,
+            GABC_OXform *obj,
             PropertyMap &arb_map,
             PropertyMap &p_map,
             bool reuse_user_props,
@@ -943,9 +947,13 @@ namespace
 }
 
 GABC_OGTAbc::GABC_OGTAbc(const std::string &name)
-    : myType(GABC_UNKNOWN)
+    : myTransform(NULL)
+    , myVisibility()
+    , myArbProps()
+    , myUserProps()
     , myUserPropState(UNSET)
     , myName(name)
+    , myType(GABC_UNKNOWN)
     , myElapsedFrames(0)
 {
     myShape.myVoidPtr = NULL;
@@ -985,6 +993,8 @@ GABC_OGTAbc::clear()
 	    break;
     }
     myShape.myVoidPtr = NULL;
+    delete myTransform;
+    myTransform = NULL;
 }
 
 void
@@ -1262,19 +1272,27 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
         fpreal cook_time,
         const GABC_OOptions &ctx,
         GABC_OError &err,
-        ObjectVisibility vis)
+        ObjectVisibility vis,
+	bool insert_xform)
 {
     UT_ASSERT(prim);
-
-    const GABC_IObject  obj = getObject(prim);
-    OCompoundProperty   user_props;
+    const GABC_PackedImpl	*gabc = getPackedImpl(prim);
+    const OObject		*pobj = &parent;
+    const GABC_IObject		 obj = gabc->object();
+    OCompoundProperty		 user_props;
+    if (insert_xform)
+    {
+	// Inserting a transform object to capture the transform for the shape
+	myTransform = new OXform(*pobj, myName, ctx.timeSampling());
+	pobj = myTransform;
+    }
 
     myElapsedFrames = 0;
     myType = obj.nodeType();
     switch (myType)
     {
         case GABC_POLYMESH:
-            myShape.myPolyMesh = new OPolyMesh(parent,
+            myShape.myPolyMesh = new OPolyMesh(*pobj,
                     myName,
                     ctx.timeSampling());
             createFaceSetsPolymesh(obj, myShape.myPolyMesh, ctx);
@@ -1286,7 +1304,7 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
             break;
 
         case GABC_SUBD:
-            myShape.mySubD = new OSubD(parent, myName, ctx.timeSampling());
+            myShape.mySubD = new OSubD(*pobj, myName, ctx.timeSampling());
             createFaceSetsSubd(obj, myShape.mySubD, ctx);
             user_props = myShape.mySubD->getSchema().getUserProperties();
 
@@ -1296,7 +1314,7 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
             break;
 
         case GABC_POINTS:
-            myShape.myPoints = new OPoints(parent, myName, ctx.timeSampling());
+            myShape.myPoints = new OPoints(*pobj, myName, ctx.timeSampling());
             user_props = myShape.myPoints->getSchema().getUserProperties();
 
             myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
@@ -1305,7 +1323,7 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
             break;
 
         case GABC_CURVES:
-            myShape.myCurves = new OCurves(parent, myName, ctx.timeSampling());
+            myShape.myCurves = new OCurves(*pobj, myName, ctx.timeSampling());
             user_props = myShape.myCurves->getSchema().getUserProperties();
 
             myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
@@ -1314,7 +1332,7 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
             break;
 
         case GABC_NUPATCH:
-            myShape.myNuPatch = new ONuPatch(parent,
+            myShape.myNuPatch = new ONuPatch(*pobj,
                     myName,
                     ctx.timeSampling());
             user_props = myShape.myNuPatch->getSchema().getUserProperties();
@@ -1341,7 +1359,7 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
 
 bool
 GABC_OGTAbc::startXform(const GT_PrimitiveHandle &prim,
-                        OXform *xform,
+                        GABC_OXform *xform,
                         fpreal cook_time,
                         const GABC_OOptions &ctx,
                         GABC_OError &err,
@@ -1382,6 +1400,22 @@ GABC_OGTAbc::update(const GT_PrimitiveHandle &prim,
     {
 	UT_ASSERT(0 && "Need to save first frame!");
 	return false;
+    }
+
+    if (myTransform)
+    {
+	UT_Matrix4D		 xform;
+	M44d			 m4;
+	const GABC_PackedImpl	*gabc = getPackedImpl(prim);
+
+	gabc->getPrim()->getFullTransform4(xform);
+	m4 = GABC_Util::getM(xform);
+
+	XformSample		 sample;
+	sample.setMatrix(m4);
+	myTransform->getSchema().set(sample);
+
+	// TODO: full bounds?
     }
 
     const GABC_IObject  obj = getObject(prim);
@@ -1489,6 +1523,13 @@ GABC_OGTAbc::updateFromPrevious(GABC_OError &err,
         UT_ASSERT(0 && "Attempted to update less than 0 frames.");
         return false;
     }
+    if (myTransform)
+    {
+	for (exint i = 0; i < frames; ++i)
+	{
+	    myTransform->getSchema().setFromPrevious();
+	}
+    }
 
     switch (myType)
     {
@@ -1559,4 +1600,12 @@ GABC_OGTAbc::updateFromPrevious(GABC_OError &err,
 
     myElapsedFrames += frames;
     return true;
+}
+
+void
+GABC_OGTAbc::dump(int indent) const
+{
+    const char	*x = myTransform ? "OXform -> " : "";
+    printf("%*sPackedAlembic[%s] = %s%s\n", indent, "", myName.c_str(),
+	    x, GABCnodeType(myType));
 }

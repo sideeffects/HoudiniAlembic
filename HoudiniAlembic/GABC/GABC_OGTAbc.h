@@ -50,24 +50,24 @@ class GABC_API GABC_OGTAbc
 {
 public:
     // Properties
-    typedef Alembic::Abc::OScalarProperty           OScalarProperty;
-    typedef Alembic::Abc::OArrayProperty            OArrayProperty;
-    typedef Alembic::Abc::OCompoundProperty         OCompoundProperty;
+    typedef Alembic::Abc::OScalarProperty	OScalarProperty;
+    typedef Alembic::Abc::OArrayProperty	OArrayProperty;
+    typedef Alembic::Abc::OCompoundProperty	OCompoundProperty;
 
     // Output Objects
-    typedef Alembic::AbcGeom::OObject               OObject;
-    typedef Alembic::AbcGeom::OPolyMesh             OPolyMesh;
-    typedef Alembic::AbcGeom::OSubD                 OSubD;
-    typedef Alembic::AbcGeom::OPoints		    OPoints;
-    typedef Alembic::AbcGeom::OCurves		    OCurves;
-    typedef Alembic::AbcGeom::ONuPatch		    ONuPatch;
-    typedef GABC_OXform                             OXform;
+    typedef Alembic::AbcGeom::OXform		OXform;
+    typedef Alembic::AbcGeom::OObject		OObject;
+    typedef Alembic::AbcGeom::OPolyMesh		OPolyMesh;
+    typedef Alembic::AbcGeom::OSubD		OSubD;
+    typedef Alembic::AbcGeom::OPoints		OPoints;
+    typedef Alembic::AbcGeom::OCurves		OCurves;
+    typedef Alembic::AbcGeom::ONuPatch		ONuPatch;
 
     // Visibility
     typedef Alembic::AbcGeom::ObjectVisibility      ObjectVisibility;
     typedef Alembic::AbcGeom::OVisibilityProperty   OVisibilityProperty;
 
-    typedef GABC_Util::PropertyMap                  GABCPropertyMap;
+    typedef GABC_Util::PropertyMap	GABCPropertyMap;
 
     // PropertyMap class is used to store pointers to Alembic Property
     // objects. Ideally we would use a regular map, but these 3 classes
@@ -185,17 +185,20 @@ public:
     ~GABC_OGTAbc();
 
     // Create the output Alembic object, as well as it's attribute and user
-    // properties (if it has them and they are to be output).
+    // properties (if it has them and they are to be output).  The insert_xform
+    // flag is used to preserve the transform on the packed Alembic when the
+    // Alembic is stored in world space.
     bool    start(const GT_PrimitiveHandle &prim,
                     const OObject &parent,
                     fpreal cook_time,
                     const GABC_OOptions &ctx,
                     GABC_OError &err,
-                    ObjectVisibility vis);
+                    ObjectVisibility vis,
+		    bool insert_xform);
     // Special start method for OXform objects. Skip type checking and skip
     // object creation.
     bool    startXform(const GT_PrimitiveHandle &prim,
-                    OXform *xform,
+                    GABC_OXform *xform,
                     fpreal cook_time,
                     const GABC_OOptions &ctx,
                     GABC_OError &err,
@@ -211,6 +214,9 @@ public:
     bool    updateFromPrevious(GABC_OError &err,
                     ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
                     exint frames = 1);
+
+    /// Dump information about the shape
+    void	dump(int indent=0) const;
 
 protected:
     // Make Alembic user properties.
@@ -260,23 +266,24 @@ private:
     };
 
     union {
-    	OPolyMesh	   *myPolyMesh;
-    	OSubD		   *mySubD;
-    	OPoints		   *myPoints;
-    	OCurves		   *myCurves;
-    	ONuPatch	   *myNuPatch;
-    	OXform             *myXform;
-    	void		   *myVoidPtr;
+	OPolyMesh	*myPolyMesh;
+	OSubD		*mySubD;
+	OPoints		*myPoints;
+	OCurves		*myCurves;
+	ONuPatch	*myNuPatch;
+	GABC_OXform	*myXform;
+	void		*myVoidPtr;
     } myShape;
 
-    GABC_NodeType           myType;
-    GABCPropertyMap         myNewUserProperties;
-    OVisibilityProperty     myVisibility;
-    PropertyMap             myArbProps;
-    PropertyMap             myUserProps;
-    UserPropertiesState     myUserPropState;
-    std::string             myName;
-    exint                   myElapsedFrames;
+    OXform		*myTransform;	// Vanilla OXform
+    GABCPropertyMap	 myNewUserProperties;
+    OVisibilityProperty	 myVisibility;
+    PropertyMap		 myArbProps;
+    PropertyMap		 myUserProps;
+    UserPropertiesState	 myUserPropState;
+    std::string		 myName;
+    GABC_NodeType	 myType;
+    exint		 myElapsedFrames;
 };
 
 } // GABC_NAMESPACE

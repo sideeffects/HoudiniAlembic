@@ -297,6 +297,9 @@ public:
     /// Return the secondary cache (allocating if needed)
     SecondaryCache  &getSecondaryCache();
 
+    /// Dump information
+    void	dump(int indent=0) const;
+
 protected:
     // Make Alembic OFaceSet objects from groups of polygons.
     void	makeFaceSets(const GT_PrimitiveHandle &prim,

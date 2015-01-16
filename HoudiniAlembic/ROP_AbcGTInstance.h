@@ -107,6 +107,8 @@ public:
     OObject	getOObject() const;
     exint	entries() const	{ return myInstances.entries(); }
 
+    void	dump(int indent=0) const;
+
 private:
     std::string             myName;
     ROP_AbcGTCompoundShape *myGeometry;

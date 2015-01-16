@@ -61,26 +61,28 @@ namespace {
         return mat;
     }
 
-    static GABC_NodeType
-    getNodeType(const GT_PrimitiveHandle &prim)
+    static const GABC_PackedImpl *
+    getPackedImpl(const GT_PrimitiveHandle &prim)
     {
         if (prim->getPrimitiveType() == GT_GEO_PACKED)
         {
-            const GT_GEOPrimPacked *gt = UTverify_cast<const GT_GEOPrimPacked *>(
-                                            prim.get());
+            const GT_GEOPrimPacked *gt = UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
             const GU_PrimPacked    *gu = gt->getPrim();
-            const GABC_PackedImpl  *gabc;
 
             if (gu->getTypeId() == GABC_PackedImpl::typeId())
             {
-                gabc = UTverify_cast<const GABC_PackedImpl *>(
-                        gu->implementation());
+                return UTverify_cast<const GABC_PackedImpl *>(gu->implementation());
 
-                return gabc->object().nodeType();
             }
         }
+	return NULL;
+    }
 
-        return GABC_UNKNOWN;
+    static GABC_NodeType
+    getNodeType(const GT_PrimitiveHandle &prim)
+    {
+	const GABC_PackedImpl  *gabc = getPackedImpl(prim);
+	return gabc ? gabc->object().nodeType() : GABC_UNKNOWN;
     }
 
     static exint
@@ -91,10 +93,10 @@ namespace {
 }
 
 ROP_AbcGTShape::ROP_AbcGTShape(const std::string &name,
-        const char * const path,
-        InverseMap * const inv_map,
-        GeoSet * const shape_set,
-        XformMap * const xform_map,
+        const char *const path,
+        InverseMap *const inv_map,
+        GeoSet *const shape_set,
+        XformMap *const xform_map,
         const ShapeType type,
         bool geo_lock)
     : myInverseMap(inv_map)
@@ -170,19 +172,20 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
         const bool subd_mode,
         const bool add_unused_pts)
 {
-    const OObject          *pobj = &parent;
-    OXform                 *xform = NULL;
-    const UT_Matrix4D      *stored_mat = NULL;
-    UT_Matrix4D             inverse_mat(1.0);
-    UT_Matrix4D             packed_mat(1.0);
-    InverseMap::iterator    i_it;
-    XformMap::iterator      x_it;
-    std::string             partial_path = "";
-    fpreal                  time;
-    int                     numt = myTokens.entries();
-    int                     numx = numt - 1;
-    const char             *current_token;
-    bool                    is_xform = (getNodeType(prim) == GABC_XFORM);
+    const OObject		*pobj = &parent;
+    OXform			*xform = NULL;
+    const UT_Matrix4D		*stored_mat = NULL;
+    UT_Matrix4D			 inverse_mat(1.0);
+    UT_Matrix4D			 packed_mat(1.0);
+    InverseMap::iterator	 i_it;
+    XformMap::iterator		 x_it;
+    std::string			 partial_path = "";
+    fpreal			 time;
+    int				 numt = myTokens.entries();
+    int				 numx = numt - 1;
+    const char			*current_token;
+    bool			 is_xform = (getNodeType(prim) == GABC_XFORM);
+    bool			 abc_insert_xform = false;
 
     clear();
     ++myElapsedFrames;
@@ -451,6 +454,12 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
             myGeoSet->insert(partial_path);
         }
     }
+    else if (myType == ALEMBIC)
+    {
+	// We need to insert a transform to capture the transform on the packed
+	// prim.
+	abc_insert_xform = true;
+    }
 
     myPrimType = prim->getPrimitiveType();
 
@@ -495,7 +504,8 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
             }
             else
             {
-                return myObj.myAlembic->start(prim, *pobj, time, ctx, err, vis);
+                return myObj.myAlembic->start(prim, *pobj, time,
+			ctx, err, vis, abc_insert_xform);
             }
 
         default:
@@ -843,4 +853,30 @@ ROP_AbcGTShape::getOObject() const
     }
 
     return Alembic::Abc::OObject();
+}
+
+void
+ROP_AbcGTShape::dump(int indent) const
+{
+    printf("%*sROP_AbcGTShape = {\n", indent, "");
+    indent += 2;
+    printf("%*sType := '%s'\n", indent, "", shapeType(myType));
+    printf("%*sPath := '%s'\n", indent, "", myPath.isstring() ? myPath.buffer() : "null");
+    printf("%*sName := '%s'\n", indent, "", myName.c_str());
+    printf("%*sFrames := %d\n", indent, "", (int)myElapsedFrames);
+    printf("%*sPrimType := %d\n", indent, "", myPrimType);
+    switch (myType)
+    {
+	case GEOMETRY:
+	    myObj.myShape->dump(indent);
+	    break;
+	case INSTANCE:
+	    myObj.myInstance->dump(indent);
+	    break;
+	case ALEMBIC:
+	    myObj.myAlembic->dump(indent);
+	    break;
+    }
+
+    printf("%*s}\n", indent-2, "");
 }

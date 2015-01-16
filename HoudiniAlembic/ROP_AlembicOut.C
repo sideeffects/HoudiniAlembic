@@ -730,7 +730,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 		    if (filterNode(node, rootnode, start))
 			builder.addChild(*myError, node);
 		}
-		//builder.ls();
+		//builder.dump();
 		builder.buildTree(*myArchive, *myContext);
 	    }
 	}
@@ -831,6 +831,7 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 		int total = 0;
 		countObjects(myArchive, total, tdep, stdep);
 		fprintf(stderr, "Nodes: %d %d/%d\n", total, stdep, tdep);
+		// myArchive->dump();
 #endif
 	    }
 	    for (int i = start; i < myContext->samplesPerFrame(); ++i)

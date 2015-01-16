@@ -109,6 +109,8 @@ public:
     virtual bool	getLastBounds(UT_BoundingBox &box) const;
     /// @}
 
+    virtual void	dump(int indent) const;
+
 private:
     // Clear all stored data and reset the object.
     void		clear();

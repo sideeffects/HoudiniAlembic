@@ -88,44 +88,44 @@ public:
             }
         }
 
-        ROP_AbcGTShape *    get(exint pos)
-                            {
-                                if (pos < myShapes.entries())
-                                {
-                                    return myShapes(pos);
-                                }
+	ROP_AbcGTShape	*get(exint pos)
+			{
+			    if (pos < myShapes.entries())
+			    {
+				return myShapes(pos);
+			    }
 
-                                return NULL;
-                            }
-        ROP_AbcGTShape *    getNext()
-                            {
-                                if (myPos < myShapes.entries())
-                                {
-                                    return myShapes(myPos++);
-                                }
+			    return NULL;
+			}
+	ROP_AbcGTShape	*getNext()
+			{
+			    if (myPos < myShapes.entries())
+			    {
+				return myShapes(myPos++);
+			    }
 
-                                return NULL;
-                            }
-        void                reset() { myPos = 0; }
-        void                insert(ROP_AbcGTShape *s)
-                            {
-                                myShapes.append(s);
-                                ++myPos;
-                            }
-        void                updateUnvisited(GABC_OError &err,
-                                    ObjectVisibility vis,
-                                    exint frames)
-                            {
-                                exint   n = myShapes.entries();
+			    return NULL;
+			}
+	void		reset() { myPos = 0; }
+	void		insert(ROP_AbcGTShape *s)
+			{
+			    myShapes.append(s);
+			    ++myPos;
+			}
+	void		updateUnvisited(GABC_OError &err,
+				ObjectVisibility vis,
+				exint frames)
+			{
+			    exint   n = myShapes.entries();
 
-                                for (exint i = myPos; i < n; ++i)
-                                {
-                                    myShapes(i)->nextFrameFromPrevious(err,
-                                            vis,
-                                            frames);
-                                }
-                            }
-
+			    for (exint i = myPos; i < n; ++i)
+			    {
+				myShapes(i)->nextFrameFromPrevious(err,
+					vis,
+					frames);
+			    }
+			}
+	void		dump(int indent=0) const;
     private:
         UT_Array<ROP_AbcGTShape *>  myShapes;
         int                         myPos;
@@ -141,9 +141,14 @@ public:
     {
     public:
         typedef UT_Map<T, GTShapeList>    GTShapeListMap;
+	typedef typename GTShapeListMap::const_iterator	const_iterator;
         typedef std::pair<T, GTShapeList> GTShapeListMapInsert;
 
         GTShapeMap() {}
+
+	const_iterator	begin() const	{ return myMap.begin(); }
+	const_iterator	end() const	{ return myMap.end(); }
+	exint		size() const	{ return myMap.size(); }
 
         ROP_AbcGTShape *    getFirst()
                             {
@@ -235,6 +240,8 @@ public:
 
     exint       getElapsedFrames() const { return myElapsedFrames; }
     OObject	getShape();
+
+    void	dump(int indent=0) const;
 private:
     void	clear();
 

@@ -693,6 +693,16 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
 }
 
 void
+ROP_AbcSOP::dump(int indent) const
+{
+    ROP_AbcObject::dump(indent);
+    printf("%*sshapes = {\n", indent, "");
+    for (int i = 0; i < myShapes.entries(); ++i)
+	myShapes(i)->dump(indent+2);
+    printf("%*s}\n", indent, "");
+}
+
+void
 ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
         const SOP_Node *sop,
         const GU_Detail &gdp,

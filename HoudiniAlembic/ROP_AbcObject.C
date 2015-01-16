@@ -140,6 +140,26 @@ ROP_AbcObject::~ROP_AbcObject()
 }
 
 void
+ROP_AbcObject::dump(int indent) const
+{
+    printf("%*s[ '%s', '%s' ]", indent, "", className(), myName.c_str());
+    if (myKids.size())
+    {
+	printf(" = {\n");
+	for (auto it = myKids.begin(); it != myKids.end(); ++it)
+	{
+	    it->second->dump(indent+2);
+	}
+	printf("%*s},\n", indent, "");
+    }
+    else
+    {
+	printf("\n");
+    }
+    fflush(stdout);
+}
+
+void
 ROP_AbcObject::deleteChildren()
 {
     for (ChildContainer::const_iterator it = myKids.begin();

@@ -314,3 +314,10 @@ ROP_AbcGTInstance::getOObject() const
 	return SYSconst_cast(this)->myInstances(0).oxform().getParent();
     return Alembic::Abc::OObject();
 }
+
+void
+ROP_AbcGTInstance::dump(int indent) const
+{
+    printf("%*sInstance %p (%d instances)\n", indent, "",
+	    myGeometry, (int)myInstances.entries());
+}

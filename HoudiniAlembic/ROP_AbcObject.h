@@ -112,6 +112,9 @@ public:
     ChildContainer::const_iterator	begin() const	{ return myKids.begin(); }
     ChildContainer::const_iterator	end() const	{ return myKids.end(); }
 
+    /// Dump contents
+    virtual void	dump(int indent=0) const;
+
 protected:
     /// Clear out children
     void	deleteChildren();

@@ -360,7 +360,8 @@ ROP_AbcOpXform::start(const OObject &parent,
     if (!myIdentity)
     {
 	XformSample	sample;
-	M44d	m = GABC_Util::getM(myMatrix);
+	M44d		m = GABC_Util::getM(myMatrix);
+
 	sample.setMatrix(m);
 	myOXform.getSchema().set(sample);
 

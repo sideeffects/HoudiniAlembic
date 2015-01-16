@@ -135,7 +135,7 @@ ROP_AbcOpBuilder::buildTree(ROP_AbcArchive &arch,
 }
 
 void
-ROP_AbcOpBuilder::ls(bool full) const
+ROP_AbcOpBuilder::dump(bool full) const
 {
     dumpTree(myTree, "", full);
     fflush(stdout);

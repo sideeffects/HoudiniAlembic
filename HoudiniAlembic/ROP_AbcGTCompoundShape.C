@@ -239,6 +239,38 @@ ROP_AbcGTCompoundShape::clear()
     myNumShapes = 0;
 }
 
+void
+ROP_AbcGTCompoundShape::GTShapeList::dump(int indent) const
+{
+    printf("%*sShapeList[%d] = [\n", indent, "", (int)myShapes.entries());
+    for (int i = 0; i < myShapes.entries(); ++i)
+    {
+	myShapes(i)->dump(indent+2);
+    }
+    printf("%*s]\n", indent, "");
+}
+
+void
+ROP_AbcGTCompoundShape::dump(int indent) const
+{
+    if (myPacked.size())
+    {
+	printf("%*sCompound-PackedShapes = [\n", indent, "");
+	for (auto it = myPacked.begin(); it != myPacked.end(); ++it)
+	{
+	    it->second.dump(indent+2);
+	}
+    }
+    if (myDeforming.size())
+    {
+	printf("%*sCompound-DeformingShapes = [\n", indent, "");
+	for (auto it = myDeforming.begin(); it != myDeforming.end(); ++it)
+	{
+	    it->second.dump(indent+2);
+	}
+    }
+}
+
 bool
 ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
 			const OObject &parent,
