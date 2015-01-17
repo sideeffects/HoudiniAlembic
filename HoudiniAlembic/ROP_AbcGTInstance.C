@@ -275,16 +275,14 @@ ROP_AbcGTInstance::updateFromPrevious(GABC_OError &err,
         ObjectVisibility vis,
         exint frames)
 {
-    UT_Matrix4D m;
     switch (primType)
     {
 	case GT_PRIM_INSTANCE:
 	{
 	    for (exint i = 0; i < myInstances.entries(); ++i)
 	    {
-	        for (exint j = 0; j < frames; ++j) {
+	        for (exint j = 0; j < frames; ++j)
 		    myInstances(i).updateFromPrevious(vis);
-		}
 	    }
 	}
 	break;
@@ -293,9 +291,8 @@ ROP_AbcGTInstance::updateFromPrevious(GABC_OError &err,
 	{
 	    if (myInstances.entries() == 1)
 	    {
-	        for (exint j = 0; j < frames; ++j) {
+	        for (exint j = 0; j < frames; ++j)
 		    myInstances(0).updateFromPrevious(vis);
-                }
 	    }
 	}
 	break;

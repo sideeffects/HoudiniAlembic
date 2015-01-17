@@ -43,20 +43,15 @@ namespace {
     static UT_Matrix4D
     getTransform(const GT_PrimitiveHandle &prim)
     {
-        GT_TransformHandle      transform;
-        UT_Matrix4D             mat;
+	UT_Matrix4D mat;
 
-        transform = UTverify_cast<const GT_GEOPrimPacked *>(prim.get())
-                ->getInstanceTransform();
+        GT_TransformHandle transform =
+	    UTverify_cast<const GT_GEOPrimPacked *>(prim.get())->getInstanceTransform();
 
         if (transform)
-        {
             transform->getMatrix(mat);
-        }
         else
-        {
             mat.identity();
-        }
 
         return mat;
     }
@@ -66,8 +61,8 @@ namespace {
     {
         if (prim->getPrimitiveType() == GT_GEO_PACKED)
         {
-            const GT_GEOPrimPacked *gt = UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
-            const GU_PrimPacked    *gu = gt->getPrim();
+	    const GU_PrimPacked *gu =
+		UTverify_cast<const GT_GEOPrimPacked *>(prim.get())->getPrim();
 
             if (gu->getTypeId() == GABC_PackedImpl::typeId())
             {
@@ -129,24 +124,15 @@ ROP_AbcGTShape::clear()
     switch (myType)
     {
         case INSTANCE:
-            if (myObj.myInstance)
-            {
-                delete myObj.myInstance;
-            }
+	    delete myObj.myInstance;
             break;
 
         case GEOMETRY:
-            if (myObj.myShape)
-            {
-                delete myObj.myShape;
-            }
+	    delete myObj.myShape;
             break;
 
         case ALEMBIC:
-            if (myObj.myAlembic)
-            {
-                delete myObj.myAlembic;
-            }
+	    delete myObj.myAlembic;
             break;
 
         default:
@@ -177,13 +163,10 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
     const UT_Matrix4D		*stored_mat = NULL;
     UT_Matrix4D			 inverse_mat(1.0);
     UT_Matrix4D			 packed_mat(1.0);
-    InverseMap::iterator	 i_it;
-    XformMap::iterator		 x_it;
     std::string			 partial_path = "";
     fpreal			 time;
     int				 numt = myTokens.entries();
     int				 numx = numt - 1;
-    const char			*current_token;
     bool			 is_xform = (getNodeType(prim) == GABC_XFORM);
     bool			 abc_insert_xform = false;
 
@@ -202,18 +185,16 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
         // packed Alembic we've encountered for this path and whether we
         // should preserve it's transform. For transforms, we always do it.
         if (!calc_inverse && is_xform)
-        {
             calc_inverse = true;
-        }
 
         // Go through the tokens, building up the path.
         for (int i = 0; i < numx; ++i)
         {
-            current_token = myTokens.getArg(i);
+            const char *current_token = myTokens.getArg(i);
             partial_path.append("/");
             partial_path.append(current_token);
 
-            x_it = myXformMap->find(partial_path);
+            auto x_it = myXformMap->find(partial_path);
             if (x_it == myXformMap->end())
             {
                 // We cannot have a transform have the same name as a
@@ -285,7 +266,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
             pobj = xform;
         }
 
-        current_token = myTokens.getArg(numx);
+        const char *current_token = myTokens.getArg(numx);
 
         // If we've computed the inverse of the ancestor transforms:
         if (calc_inverse)
@@ -295,7 +276,8 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
             packed_mat = packed_mat * getTransform(prim);
 
             // If we're processing a transform:
-            if (is_xform) {
+            if (is_xform)
+	    {
                 // Create the transform object and set its transform.
                 xform = new OXform(*pobj, myName, ctx.timeSampling());
                 xform->getSchema().setMatrix(packed_mat);
@@ -308,9 +290,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
                 // Merge the computed transform with the parent transform.
                 stored_mat = xform->getSchema().getNextXform();
                 if (stored_mat)
-                {
                     packed_mat = packed_mat * (*stored_mat);
-                }
                 xform->getSchema().setMatrix(packed_mat);
                 xform->getSchema().finalize();
 
@@ -340,7 +320,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
                 // the relative transform.
                 if (xform)
                 {
-                    i_it = myInverseMap->find(partial_path);
+                    auto i_it = myInverseMap->find(partial_path);
                     if (i_it == myInverseMap->end())
                     {
                         UT_ASSERT(0 && "Not first packed Alembic under parent,"
@@ -390,7 +370,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
         // we're processing deforming geometry:
         else if (myType != ALEMBIC)
         {
-            i_it = myInverseMap->find(partial_path);
+            auto i_it = myInverseMap->find(partial_path);
 
             if (i_it != myInverseMap->end())
             {
@@ -429,7 +409,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
                 return false;
             }
 
-            x_it = myXformMap->find(partial_path);
+            auto x_it = myXformMap->find(partial_path);
             if (x_it != myXformMap->end())
             {
                 err.error("Multiple transforms have path %s.",
@@ -444,7 +424,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
         {
             // If processing a shape, check that no transform exists with
             // this path.
-            x_it = myXformMap->find(partial_path);
+            auto x_it = myXformMap->find(partial_path);
             if (x_it != myXformMap->end())
             {
                 err.error("Transform and geometry have same path %s.",
@@ -526,13 +506,10 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
     const UT_Matrix4D      *stored_mat = NULL;
     UT_Matrix4D             inverse_mat;
     UT_Matrix4D             packed_mat;
-    InverseMap::iterator    i_it;
-    XformMap::iterator      x_it;
     std::string             partial_path = "";
     fpreal                  time;
     int                     numt = myTokens.entries();
     int                     numx = numt - 1;
-    const char             *current_token;
     bool                    is_xform = (getNodeType(prim) == GABC_XFORM);
 
     ++myElapsedFrames;
@@ -543,17 +520,15 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
     if (numt)
     {
         if (!calc_inverse && is_xform)
-        {
             calc_inverse = true;
-        }
 
         for (int i = 0; i < numx; ++i)
         {
-            current_token = myTokens.getArg(i);
+            const char *current_token = myTokens.getArg(i);
             partial_path.append("/");
             partial_path.append(current_token);
 
-            x_it = myXformMap->find(partial_path);
+            auto x_it = myXformMap->find(partial_path);
             if (x_it == myXformMap->end())
             {
                 UT_ASSERT(0 && "Missing transform!");
@@ -583,13 +558,14 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
             }
         }
 
-        current_token = myTokens.getArg(numx);
+        const char *current_token = myTokens.getArg(numx);
 
         if (calc_inverse)
         {
             packed_mat = packed_mat * getTransform(prim);
 
-            if (is_xform) {
+            if (is_xform)
+	    {
                 // DO NOTHING
             }
             // First packed Alembic, regardless of prioritization
@@ -597,9 +573,7 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
             {
                 stored_mat = xform->getSchema().getNextXform();
                 if (stored_mat)
-                {
                     packed_mat = packed_mat * (*stored_mat);
-                }
                 xform->getSchema().setMatrix(packed_mat);
                 xform->getSchema().finalize();
 
@@ -624,7 +598,7 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
 
                 if (xform)
                 {
-                    i_it = myInverseMap->find(partial_path);
+                    auto i_it = myInverseMap->find(partial_path);
                     if (i_it == myInverseMap->end())
                     {
                         UT_ASSERT(0 && "Not first packed Alembic under parent,"
@@ -634,7 +608,7 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
                     packed_mat = packed_mat * i_it->second;
                 }
 
-                x_it = myXformMap->find(extra_xform_path);
+                auto x_it = myXformMap->find(extra_xform_path);
                 if (x_it == myXformMap->end())
                 {
                     UT_ASSERT(0 && "Missing transform!");
@@ -647,7 +621,7 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
         }
         else if (myType != ALEMBIC)
         {
-            i_it = myInverseMap->find(partial_path);
+            auto i_it = myInverseMap->find(partial_path);
 
             if (i_it != myInverseMap->end())
             {
@@ -662,7 +636,7 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
             partial_path.append("/");
             partial_path.append(current_token);
 
-            x_it = myXformMap->find(partial_path);
+            auto x_it = myXformMap->find(partial_path);
             if (x_it == myXformMap->end())
             {
                 UT_ASSERT(0 && "Missing transform!");
@@ -684,10 +658,7 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
                 return myObj.myShape->updateFromPrevious(err,
                         Alembic::AbcGeom::kVisibilityDeferred);
             }
-            else
-            {
-                return myObj.myShape->update(prim, ctx, err);
-            }
+            return myObj.myShape->update(prim, ctx, err);
 
         case ALEMBIC:
             if (myGeoLock)
@@ -695,12 +666,9 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
                 return myObj.myAlembic->updateFromPrevious(err,
                         Alembic::AbcGeom::kVisibilityDeferred);
             }
-            else
-            {
-                time = ctx.cookTime() +
-                        ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
-                return myObj.myAlembic->update(prim, time, ctx, err);
-            }
+            time = ctx.cookTime() +
+                   ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
+            return myObj.myAlembic->update(prim, time, ctx, err);
 
         default:
             UT_ASSERT(0 && "Unknown type, how did this happen?");
@@ -714,13 +682,6 @@ ROP_AbcGTShape::nextFrameFromPrevious(GABC_OError &err,
         ObjectVisibility vis,
         exint frames)
 {
-    OXform                 *xform = NULL;
-    XformMap::iterator      x_it;
-    std::string             partial_path = "";
-    int                     numt = myTokens.entries();
-    int                     numx = numt - 1;
-    const char             *current_token;
-
     if (frames < 0)
     {
         UT_ASSERT(0 && "Attempted to update less than 0 frames.");
@@ -728,9 +689,11 @@ ROP_AbcGTShape::nextFrameFromPrevious(GABC_OError &err,
     }
 
     if (!frames)
-    {
         return true;
-    }
+
+    std::string partial_path = "";
+    int numt = myTokens.entries();
+    int numx = numt - 1;
 
     myElapsedFrames += frames;
 
@@ -738,24 +701,22 @@ ROP_AbcGTShape::nextFrameFromPrevious(GABC_OError &err,
     {
         for (int i = 0; i < numx; ++i)
         {
-            current_token = myTokens.getArg(i);
+            const char *current_token = myTokens.getArg(i);
             partial_path.append("/");
             partial_path.append(current_token);
 
-            x_it = myXformMap->find(partial_path);
+            auto x_it = myXformMap->find(partial_path);
             if (x_it == myXformMap->end())
             {
                 UT_ASSERT(0 && "Missing transform!");
                 return false;
             }
 
-            xform = x_it->second;
+	    OXform *xform = x_it->second;
             if (getNumSamples(xform) < myElapsedFrames)
             {
                 for (exint i = 0; i < frames; ++i)
-                {
                     xform->getSchema().setFromPrevious();
-                }
 
                 UT_ASSERT(getNumSamples(xform) == myElapsedFrames);
             }
@@ -770,11 +731,9 @@ ROP_AbcGTShape::nextFrameFromPrevious(GABC_OError &err,
             partial_path.append("/");
             partial_path.append(myName);
 
-            x_it = myXformMap->find(partial_path);
+            auto x_it = myXformMap->find(partial_path);
             if (x_it != myXformMap->end())
-            {
                 x_it->second->getSchema().setFromPrevious();
-            }
         }
     }
 
