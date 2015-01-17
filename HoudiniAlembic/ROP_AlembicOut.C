@@ -648,7 +648,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
         mapPackedAbcPriority(packed_priority, packed_priority_val);
 
     	myContext->setPathAttribute(path_attrib);
-        myContext->serPackedAlembicPriority(packed_priority_val);
+        myContext->setPackedAlembicPriority(packed_priority_val);
     }
     else
     {

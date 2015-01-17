@@ -40,7 +40,7 @@
 /// splits the geometry into multiple simple shapes which can be represented in
 /// Alembic.
 ///
-/// Ex:     A ROP_AbcGTComnpoundShape object for a SOP containing geometry made
+/// Ex:     A ROP_AbcGTCompoundShape object for a SOP containing geometry made
 ///         of curves and polygons will have 2 (or more) children: one
 ///         containing a curvemesh and one containing a polymesh.
 ///

@@ -140,7 +140,7 @@ public:
         PRIORITY_TRANSFORM      // Keep transform, modify hierarchy path
     };
     int         packedAlembicPriority() const   { return myPackedAbcPriority; }
-    void        serPackedAlembicPriority(int p) { myPackedAbcPriority = p; }
+    void        setPackedAlembicPriority(int p) { myPackedAbcPriority = p; }
     /// @}
 
     /// @{
