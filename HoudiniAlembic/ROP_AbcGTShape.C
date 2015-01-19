@@ -124,18 +124,15 @@ ROP_AbcGTShape::clear()
     switch (myType)
     {
         case INSTANCE:
-	    if (myObj.myInstance)
-		delete myObj.myInstance;
+	    delete myObj.myInstance;
             break;
 
         case GEOMETRY:
-	    if (myObj.myShape)
-		delete myObj.myShape;
+	    delete myObj.myShape;
             break;
 
         case ALEMBIC:
-	    if (myObj.myAlembic)
-		delete myObj.myAlembic;
+	    delete myObj.myAlembic;
             break;
 
         default:

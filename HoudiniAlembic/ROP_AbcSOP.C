@@ -662,25 +662,25 @@ ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
 	// All polygons should be rendered as subd primitives
 	partitionGeometryRange(primitives, gdp, gdp.getPrimitiveRange(), ctx,
 			       err, true, true);
+	return;
     }
 
     // If there's a group name, only the primitives in the group
     // should be rendered as subd surfaces.
     const GA_PrimitiveGroup *subdgroup =
 		gdp.findPrimitiveGroup(subdgroupname);
-    if (subdgroup)
-    {
-	// Build subdivision groups first
-	partitionGeometryRange(primitives, gdp, GA_Range(*subdgroup), ctx, err,
-			       true, false);
-	// Now, build the polygons
-	partitionGeometryRange(primitives, gdp, GA_Range(*subdgroup, true), ctx,
-			       err, false, true);
-    }
-    else
+    if (!subdgroup)
     {
 	// If there was no group, then there are no subd surfaces
 	partitionGeometryRange(primitives, gdp, gdp.getPrimitiveRange(), ctx,
 			       err, false, true);
+	return;
     }
+
+    // Build subdivision groups first
+    partitionGeometryRange(primitives, gdp, GA_Range(*subdgroup), ctx, err,
+			   true, false);
+    // Now, build the polygons
+    partitionGeometryRange(primitives, gdp, GA_Range(*subdgroup, true), ctx,
+			   err, false, true);
 }
