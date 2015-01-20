@@ -222,7 +222,8 @@ public:
     GT_DataArrayHandle	convertIProperty(ICompoundProperty &arb,
 					const PropertyHeader &head,
 					fpreal time,
-					GEO_AnimationType *atype=NULL) const;
+					GEO_AnimationType *atype=NULL,
+					exint expected_size=-1) const;
 
     /// Get position property from shape node
     GT_DataArrayHandle	getPosition(fpreal t, GEO_AnimationType &atype) const;
