@@ -439,6 +439,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
 	// We need to insert a transform to capture the transform on the packed
 	// prim.
 	abc_insert_xform = true;
+	is_xform = false;	// Don't special case this
     }
 
     myPrimType = prim->getPrimitiveType();

@@ -271,7 +271,7 @@ private:
 	OPoints		*myPoints;
 	OCurves		*myCurves;
 	ONuPatch	*myNuPatch;
-	GABC_OXform	*myXform;
+	GABC_OXform	*myGABCXform;
 	void		*myVoidPtr;
     } myShape;
 
@@ -284,6 +284,7 @@ private:
     std::string		 myName;
     GABC_NodeType	 myType;
     exint		 myElapsedFrames;
+    bool		 myOwnXform;
 };
 
 } // GABC_NAMESPACE

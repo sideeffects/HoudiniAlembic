@@ -955,6 +955,7 @@ GABC_OGTAbc::GABC_OGTAbc(const std::string &name)
     , myName(name)
     , myType(GABC_UNKNOWN)
     , myElapsedFrames(0)
+    , myOwnXform(false)
 {
     myShape.myVoidPtr = NULL;
 }
@@ -988,6 +989,8 @@ GABC_OGTAbc::clear()
 	    break;
 	case GABC_XFORM:
 	    // Xform in XformMap, will be deleted from there.
+	    if (myOwnXform)
+		delete myShape.myGABCXform;
 	    break;
 	default:
 	    break;
@@ -1342,6 +1345,17 @@ GABC_OGTAbc::start(const GT_PrimitiveHandle &prim,
                     ctx.timeSampling());
             break;
 
+	case GABC_XFORM:
+	    myOwnXform = true;
+	    myShape.myGABCXform = new GABC_OXform(*pobj, myName,
+		    ctx.timeSampling());
+	    user_props = myShape.myGABCXform->getSchema().getUserProperties();
+
+            myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
+                    *(myShape.myGABCXform),
+                    ctx.timeSampling());
+            break;
+
         default:
             UT_ASSERT(0 && "Unhandled primitive");
             return false;
@@ -1370,7 +1384,7 @@ GABC_OGTAbc::startXform(const GT_PrimitiveHandle &prim,
     OCompoundProperty   user_props = xform->getSchema().getUserProperties();
 
     myType = GABC_XFORM;
-    myShape.myXform = xform;
+    myShape.myGABCXform = xform;
     myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                         *xform,
                         ctx.timeSampling());
@@ -1478,7 +1492,7 @@ GABC_OGTAbc::update(const GT_PrimitiveHandle &prim,
 
         case GABC_XFORM:
             sampleXform(obj,
-                    myShape.myXform,
+                    myShape.myGABCXform,
                     myArbProps,
                     myUserProps,
                     reuse_up,
@@ -1587,7 +1601,7 @@ GABC_OGTAbc::updateFromPrevious(GABC_OError &err,
 	    for (exint i = 0; i < frames; ++i)
 	    {
                 myVisibility.set(vis);
-                myShape.myXform->getSchema().setFromPrevious();
+                myShape.myGABCXform->getSchema().setFromPrevious();
                 myArbProps.setFromPrevious();
                 myUserProps.setFromPrevious();
             }
