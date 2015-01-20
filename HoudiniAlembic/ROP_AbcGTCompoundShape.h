@@ -128,6 +128,12 @@ public:
 	void		dump(int indent=0) const;
     private:
         UT_Array<ROP_AbcGTShape *>  myShapes;
+	// Ideally, we shouldn't store iteration state information in the
+	// class.  However, while updating primitives in
+	// ROP_AbcGTCompoundShape::update(), we need to find primitive lists
+	// based on the search key, then update the next entry in found list.
+	// So, rather than keeping separate iterators for each map entry, we
+	// store the iteration state with the list.
         int                         myPos;
     };
 
