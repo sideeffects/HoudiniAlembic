@@ -90,20 +90,15 @@ public:
                             myNextSample = ioSamp;
                         }
     // Records a matrix to output with a sample.
-    void                setMatrix(UT_Matrix4D &mat)
+    void                setMatrix(const UT_Matrix4D &mat)
                         {
                             myNextXform = mat;
                             myXformSet = true;
                         }
     // Return the currently set matrix, if there is one.
-    const UT_Matrix4D  *getNextXform()
+    const UT_Matrix4D  &getNextXform()
                         {
-                            if (myXformSet)
-                            {
-                                return &myNextXform;
-                            }
-
-                            return NULL;
+			    return myNextXform;
                         }
     // Write out the sample and matrix data.
     void                finalize()
@@ -115,7 +110,6 @@ public:
                             OXformSchema::set(myNextSample);
 
                             myNextSample.reset();
-                            myNextXform.identity();
                             myXformSet = false;
                         }
 
