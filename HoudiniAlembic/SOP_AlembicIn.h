@@ -85,6 +85,8 @@ protected:
     virtual void	syncNodeVersion(const char *old_version,
 				const char *new_version, bool *node_deleted);
     //--------------------------------------------------------------------------
+    virtual void        getNodeSpecificInfoText(OP_Context &context,
+				OP_NodeInfoParms &iparms);
 
 private:
     void	setupEventHandler(const std::string &filename);
@@ -160,6 +162,11 @@ private:
     bool			myTopologyConstant;
     bool			myEntireSceneIsConstant;
     int				myConstantUniqueId; // Detail id for constant topology
+    bool			myComputedFrameRange;
+
+    // Global and end frame in the alembic archive.
+    fpreal		        myStartFrame;
+    fpreal			myEndFrame;
 };
 
 #endif

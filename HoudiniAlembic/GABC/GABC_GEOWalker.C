@@ -43,7 +43,6 @@
 #include <GU/GU_PrimRBezCurve.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_StackBuffer.h>
-
 namespace Alembic {
     namespace Abc {
         namespace ALEMBIC_VERSION_NS {
@@ -71,6 +70,7 @@ namespace {
     typedef Alembic::Abc::ObjectHeader		    ObjectHeader;
     typedef Alembic::Abc::PropertyHeader	    PropertyHeader;
     typedef Alembic::Abc::WrapExistingFlag	    WrapExistingFlag;
+    typedef Alembic::Abc::TimeSamplingPtr           TimeSamplingPtr;
 
     typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
     typedef Alembic::Abc::ICompoundProperty	    ICompoundProperty;
@@ -2392,6 +2392,9 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err)
     , myTransformConstant(true)
     , myAllTransformConstant(true)
     , myRebuiltNURBS(false)
+    , myStartTime(0)
+    , myEndTime(0)
+    , myComputedTimes(false)
 {
     if (myBoss)
     {
@@ -2516,6 +2519,33 @@ GABC_GEOWalker::preProcess(const GABC_IObject &root)
     return true;
 }
 
+void
+GABC_GEOWalker::computeTimeRange(const GABC_IObject &obj)
+{
+    TimeSamplingPtr ts = obj.timeSampling();
+    if (ts)
+    {
+	exint nSamples = obj.numSamples();
+
+	// If the number of samples is zero it's an invalid range.
+	if (nSamples == 0)
+	    return;
+
+	if (!myComputedTimes || !myStartTime || !myEndTime)
+	{
+	    myStartTime = ts->getSampleTime(0);
+	    myEndTime = ts->getSampleTime(nSamples - 1);
+	    myComputedTimes = true;
+	}
+	else
+	{
+	    // Expand the start time backwards, expand the end time forwards.
+	    myStartTime = std::min(myStartTime, ts->getSampleTime(0));
+	    myEndTime = std::max(myEndTime, ts->getSampleTime(nSamples - 1));
+	}
+    }
+}
+
 bool
 GABC_GEOWalker::process(const GABC_IObject &obj)
 {
@@ -2524,6 +2554,9 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
     // Let the walker process children naturally by default
     bool                    process_children = true;
     bool                    vis = useVisibility();
+
+    // Recompute the time range bounds for this object
+    computeTimeRange(obj);
 
     // Packed Alembics handle visibility on their own through the
     // GABC_PackedImpl (see: GABC_PackedImpl::build(), called by makeAbcPrim).

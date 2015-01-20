@@ -256,6 +256,8 @@ public:
     /// Access the time sampling pointer
     TimeSamplingPtr	timeSampling() const;
 
+    exint		numSamples() const;
+
     /// Clamp the time to the animated time range
     fpreal		clampTime(fpreal input_time) const;
 

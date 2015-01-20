@@ -2231,9 +2231,18 @@ namespace
     static TimeSamplingPtr
     abcTimeSampling(const IObject &obj)
     {
-	ABC_T					 prim(obj, gabcWrapExisting);
-	const typename ABC_T::schema_type	&ss = prim.getSchema();
+	ABC_T				    prim(obj, gabcWrapExisting);
+	const typename ABC_T::schema_type   &ss = prim.getSchema();
 	return ss.getTimeSampling();
+    }
+
+    template <typename ABC_T>
+    static exint
+    abcNumSamples(const IObject &obj)
+    {
+	ABC_T				    prim(obj, gabcWrapExisting);
+	const typename ABC_T::schema_type   &ss = prim.getSchema();
+	return ss.getNumSamples();
     }
 
     template <typename ABC_T>
@@ -2749,6 +2758,29 @@ GABC_IObject::timeSampling() const
 	    break;
     }
     return TimeSamplingPtr();
+}
+
+exint
+GABC_IObject::numSamples() const
+{
+    switch (nodeType())
+    {
+	case GABC_POLYMESH:
+	    return abcNumSamples<IPolyMesh>(object());
+	case GABC_SUBD:
+	    return abcNumSamples<ISubD>(object());
+	case GABC_CURVES:
+	    return abcNumSamples<ICurves>(object());
+	case GABC_POINTS:
+	    return abcNumSamples<IPoints>(object());
+        case GABC_NUPATCH:
+	    return abcNumSamples<INuPatch>(object());
+        case GABC_XFORM:
+            return abcNumSamples<IXform>(object());
+	default:
+	    break;
+    }
+    return 0;
 }
 
 fpreal

@@ -40,6 +40,7 @@
 #include <PRM/PRM_SpareData.h>
 #include <OP/OP_OperatorTable.h>
 #include <OP/OP_Director.h>
+#include <OP/OP_NodeInfoParms.h>
 
 #if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
     #define CUSTOM_ALEMBIC_TOKEN_PREFIX	""
@@ -532,6 +533,7 @@ SOP_AlembicIn2::SOP_AlembicIn2(OP_Network *net, const char *name,
     , myTopologyConstant(false)
     , myEntireSceneIsConstant(false)
     , myConstantUniqueId(-1)
+    , myComputedFrameRange(false)
 {
     mySopFlags.setNeedGuide1(1);
 }
@@ -820,6 +822,21 @@ SOP_AlembicIn2::setPathAttributes(GABC_GEOWalker &walk, const Parms &parms)
 static const char	*theHoudiniGeometryWarning =
     "Loading Houdini Geometry isn't always as accurate as unpacking Alembic primitives.";
 
+void
+SOP_AlembicIn2::getNodeSpecificInfoText(OP_Context &context,
+    OP_NodeInfoParms &iparms)
+{
+    // Get parent's text.
+    SOP_Node::getNodeSpecificInfoText(context, iparms);
+
+    // If the scene is animated and we have computed valid start and end frames,
+    // display this information.
+    if (!myEntireSceneIsConstant && myStartFrame != myEndFrame && myComputedFrameRange)
+    {
+        iparms.appendSprintf("Frame range: %g to %g", myStartFrame, myEndFrame);
+    }
+}
+
 OP_ERROR
 SOP_AlembicIn2::cookMySop(OP_Context &context)
 {
@@ -842,7 +859,10 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     myConstantUniqueId = gdp->getUniqueId();
 
     if (myEntireSceneIsConstant && !myLastParms.needsPathAttributeUpdate(parms))
+    {
+	myComputedFrameRange = false;
 	return error();
+    }
 
     SOP_AlembicInErr    error_handler(*this, UTgetInterrupt());
     GABC_GEOWalker	walk(*gdp, error_handler);
@@ -979,8 +999,20 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	myEntireSceneIsConstant = walk.isConstant();
 	myTopologyConstant = walk.topologyConstant();
     }
+    else
+    {
+	myComputedFrameRange = false;
+    }
 
     myLastParms = parms;
+
+    if (!myEntireSceneIsConstant && walk.computedValidTimeRange())
+    {
+	fpreal fps = evalFloat("fps", 0, now);
+	myStartFrame = walk.getStartTime() * fps;
+	myEndFrame = walk.getEndTime() * fps;
+        myComputedFrameRange = true;
+    }
 
     return error();
 }
