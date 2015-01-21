@@ -833,7 +833,10 @@ SOP_AlembicIn2::getNodeSpecificInfoText(OP_Context &context,
     // display this information.
     if (!myEntireSceneIsConstant && myStartFrame != myEndFrame && myComputedFrameRange)
     {
-        iparms.appendSprintf("Frame range: %g to %g", myStartFrame, myEndFrame);
+	fpreal fps = evalFloat("fps", 0, context.getTime());
+
+        iparms.appendSprintf("Frame range: %g to %g (%g fps)\n", myStartFrame, myEndFrame, fps);
+	iparms.appendSprintf("Time range: %.2fs to %.2fs", myStartFrame/fps, myEndFrame/fps);
     }
 }
 

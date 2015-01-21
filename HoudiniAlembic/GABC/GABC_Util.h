@@ -92,6 +92,9 @@ public:
     public:
 	Walker()
 	    : myFilename()
+	    , myStartTime(0)
+	    , myEndTime(0)
+	    , myComputedTimes(false)
 	{}
 	virtual ~Walker() {}
 
@@ -112,6 +115,19 @@ public:
 	/// walk was interrupted, true if the walk was completed.
 	bool		walkChildren(const GABC_IObject &node);
 
+	/// Recomputes the time range of the archive given a new object during
+	/// a walk.
+	void		computeTimeRange(const GABC_IObject &obj);
+
+    	/// Returns true if a valid time range has been computed during the walk.
+   	bool        	computedValidTimeRange() const
+                    		{ return myComputedTimes && myStartTime != myEndTime; }
+
+    	/// Get global start and end times, computed when walking the archive.
+	fpreal      	getStartTime() const
+                    		{ return myStartTime; }
+    	fpreal      	getEndTime() const
+                    		{ return myEndTime; }
 	/// @{
 	///  Access the current filename
 	const std::string	&filename() const	{ return myFilename; }
@@ -121,6 +137,9 @@ public:
 
     private:
 	std::string     myFilename;
+	fpreal		myStartTime;
+	fpreal		myEndTime;
+	bool		myComputedTimes;
 
 	friend class    GABC_Util;
     };

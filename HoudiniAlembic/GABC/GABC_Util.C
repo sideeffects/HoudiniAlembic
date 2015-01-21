@@ -1676,6 +1676,34 @@ GABC_Util::Walker::walkChildren(const GABC_IObject &obj)
     return true;
 }
 
+void
+GABC_Util::Walker::computeTimeRange(const GABC_IObject &obj)
+{
+    TimeSamplingPtr ts = obj.timeSampling();
+    if (ts)
+    {
+        exint nSamples = obj.numSamples();
+
+        // If the number of samples is zero it's an invalid range.
+        if (nSamples == 0)
+            return;
+
+        if (!myComputedTimes)
+        {
+            myStartTime = ts->getSampleTime(0);
+            myEndTime = ts->getSampleTime(nSamples - 1);
+            myComputedTimes = true;
+        }
+        else
+        {
+            // Expand the start time backwards, expand the end time forwards.
+            myStartTime = SYSmin(myStartTime, ts->getSampleTime(0));
+            myEndTime = SYSmax(myEndTime, ts->getSampleTime(nSamples - 1));
+        }
+    }
+}
+
+
 //------------------------------------------------
 //  ArchiveEventHandler
 //------------------------------------------------

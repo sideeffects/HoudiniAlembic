@@ -158,9 +158,6 @@ public:
     /// Quickly update ABC primitives with the new time
     void		updateAbcPrims();
 
-    /// Update the start and end times with this object
-    void	        computeTimeRange(const GABC_IObject &obj);
-
     /// @{
     /// Get state
     GU_Detail			&detail() const
@@ -280,16 +277,6 @@ public:
     /// not allowed.
     bool	translateAttributeName(GA_AttributeOwner own, UT_String &name);
 
-    // Returns true if a valid time range has been computed during the walk.
-    bool	computedValidTimeRange() const
-		    { return myComputedTimes && myStartTime != myEndTime; }
-
-    // Get global start and end times, computed when walking the archive.
-    fpreal	getStartTime() const
-		    { return myStartTime; }
-    fpreal	getEndTime() const
-		    { return myEndTime; }
-
     /// @{
     /// Access information about last poly/subd/curve mesh loaded
     GA_Size	lastFaceCount() const	{ return myLastFaceCount; }
@@ -340,8 +327,6 @@ private:
     UT_String               myObjectPattern;
     std::stack<GABC_VisibilityType> myVisibilityStack;
     fpreal                  myTime;                 // Alembic evaluation time
-    fpreal		    myStartTime;	    // The time of the first sample.
-    fpreal		    myEndTime;		    // The time of the last sample.
 
     exint                   myPointCount;           // Points added
     exint                   myPrimitiveCount;       // Primitive's added count
@@ -361,7 +346,6 @@ private:
     bool                    myTransformConstant;    // All xforms down the tree are const
     bool                    myAllTransformConstant; // All transforms in scene are const
     bool                    myRebuiltNURBS;         // Whether NURBS were rebuilt
-    bool		    myComputedTimes;
 };
 }
 

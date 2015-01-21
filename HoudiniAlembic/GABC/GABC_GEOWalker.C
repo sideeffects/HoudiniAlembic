@@ -2392,9 +2392,6 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err)
     , myTransformConstant(true)
     , myAllTransformConstant(true)
     , myRebuiltNURBS(false)
-    , myStartTime(0)
-    , myEndTime(0)
-    , myComputedTimes(false)
 {
     if (myBoss)
     {
@@ -2517,33 +2514,6 @@ GABC_GEOWalker::preProcess(const GABC_IObject &root)
     }
 
     return true;
-}
-
-void
-GABC_GEOWalker::computeTimeRange(const GABC_IObject &obj)
-{
-    TimeSamplingPtr ts = obj.timeSampling();
-    if (ts)
-    {
-	exint nSamples = obj.numSamples();
-
-	// If the number of samples is zero it's an invalid range.
-	if (nSamples == 0)
-	    return;
-
-	if (!myComputedTimes || !myStartTime || !myEndTime)
-	{
-	    myStartTime = ts->getSampleTime(0);
-	    myEndTime = ts->getSampleTime(nSamples - 1);
-	    myComputedTimes = true;
-	}
-	else
-	{
-	    // Expand the start time backwards, expand the end time forwards.
-	    myStartTime = std::min(myStartTime, ts->getSampleTime(0));
-	    myEndTime = std::max(myEndTime, ts->getSampleTime(nSamples - 1));
-	}
-    }
 }
 
 bool

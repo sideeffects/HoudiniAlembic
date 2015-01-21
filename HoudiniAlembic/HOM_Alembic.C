@@ -300,6 +300,90 @@ namespace
 	return "unknown";
     }
 
+        /// This class processes Alembic archives. Starting with the node passed
+        /// to the process function as root, it creates a tree of nested tuples
+        /// representing the structure of the Alembic archive. Each tuple contains
+        /// the object name, type, and child tuples.
+    class PyWalker : public GABC_Util::Walker
+    {
+        public:
+    	PyWalker()
+    	    : myRoot(NULL)
+    	{}
+    	~PyWalker() {}
+
+    	virtual bool	process(const GABC_IObject &root)
+    			{
+    			    myRoot = walkNode(root);
+    			    return false;
+    			}
+
+    	PY_PyObject	*walkNode(const GABC_IObject &obj)
+    	{
+    	    const char *otype = "<unknown>";
+
+	    computeTimeRange(obj);
+
+    	    switch (obj.nodeType())
+    	    {
+    		case GABC_XFORM:
+    		    {
+    			IXform	xform(obj.object(), Alembic::Abc::kWrapExisting);
+    			if (xform.getSchema().isConstant())
+    			    otype = "cxform";
+    			else
+    			    otype = "xform";
+    		    }
+    		    break;
+    		case GABC_POLYMESH:
+    		    otype = "polymesh";
+    		    break;
+    		case GABC_SUBD:
+    		    otype = "subdmesh";
+    		    break;
+    		case GABC_CAMERA:
+    		    otype = "camera";
+    		    break;
+    		case GABC_FACESET:
+    		    otype = "faceset";
+    		    break;
+    		case GABC_CURVES:
+    		    otype = "curves";
+    		    break;
+    		case GABC_POINTS:
+    		    otype = "points";
+    		    break;
+    		case GABC_NUPATCH:
+    		    otype = "nupatch";
+    		    break;
+    		default:
+    		    otype = "unknown";
+    		    break;
+    	    }
+
+    	    exint nkids = const_cast<GABC_IObject *>(&obj)->getNumChildren();
+    	    PY_PyObject *result = PY_PyTuple_New(3);
+    	    PY_PyObject *kids = PY_PyTuple_New(nkids);;
+
+    	    PY_PyTuple_SET_ITEM(result, 0,
+    		    PY_PyString_FromString(obj.getName().c_str()));
+    	    PY_PyTuple_SET_ITEM(result, 1, PY_PyString_FromString(otype));
+    	    PY_PyTuple_SET_ITEM(result, 2, kids);
+
+    	    for (exint i = 0; i < nkids; ++i)
+    	    {
+    		PY_PyTuple_SET_ITEM(kids, i,
+    			walkNode(const_cast<GABC_IObject *>(&obj)->getChild(i)));
+    	    }
+    	    return result;
+    	}
+
+    	PY_PyObject	*getObject() const	{ return myRoot; }
+
+        private:
+    	PY_PyObject	*myRoot;
+    };
+
     static const char	*Doc_AlembicArbGeometry =
 	"(value, isConstant, scope) = alembicArbGeometry(abcPath, objectPath, name, sampleTime)\n"
 	"\n"
@@ -660,6 +744,56 @@ namespace
         return result;
     }
 
+    static const char	*Doc_AlembicTimeRange =
+	"(start_time, end_time) = alembicTimeRange(abcPath, [objectPath=None])\n"
+	"\n"
+	"Returns None or a tuple (start_time, end_time). The tuple contains\n"
+	"the global start and end times for the alembic archive, using the fps\n"
+	"information in the archive. If an object path is provided, it computes\n"
+	"the start and end times for the object.\n"
+	"Returns None if the archive is constant.\n";
+
+    PY_PyObject *
+    Py_AlembicTimeRange(PY_PyObject *self, PY_PyObject *args)
+    {
+	const char		    *filename;
+	const char		    *objectPath;
+	UT_StringArray		    objects;
+
+	objectPath = "";
+	if (!PY_PyArg_ParseTuple(args, "s|s", &filename, &objectPath))
+	    return NULL;
+
+        PyWalker        walker;
+
+	if (objectPath && *objectPath)
+	{
+	    objects.append(objectPath);
+	    if (!GABC_Util::walk(filename, walker, objects))
+		PY_Py_RETURN_NONE;
+	}
+	else
+	{
+	    if (!GABC_Util::walk(filename, walker))
+		PY_Py_RETURN_NONE;
+	}
+
+	if (walker.computedValidTimeRange())
+	{
+	    PY_PyObject     *result = PY_PyTuple_New(2);
+	    fpreal start            = walker.getStartTime();
+	    fpreal end              = walker.getEndTime();
+
+	    PY_PyTuple_SetItem(result, 0, PY_PyFloat_FromDouble(start));
+	    PY_PyTuple_SetItem(result, 1, PY_PyFloat_FromDouble(end));
+
+	    return result;
+	}
+
+	PY_Py_RETURN_NONE;
+    }
+
+
     static const char	*Doc_AlembicVisibility =
 	"(value, isConstant) = alembicVisibility(abcPath, objectPath, sampleTime, [check_ancestor=False])\n"
 	"\n"
@@ -701,87 +835,6 @@ namespace
 	PY_Py_INCREF(rcode);
 	return rcode;
     }
-
-    /// This class processes Alembic archives. Starting with the node passed
-    /// to the process function as root, it creates a tree of nested tuples
-    /// representing the structure of the Alembic archive. Each tuple contains
-    /// the object name, type, and child tuples.
-    class PyWalker : public GABC_Util::Walker
-    {
-    public:
-	PyWalker()
-	    : myRoot(NULL)
-	{}
-	~PyWalker() {}
-
-	virtual bool	process(const GABC_IObject &root)
-			{
-			    myRoot = walkNode(root);
-			    return false;
-			}
-
-	PY_PyObject	*walkNode(const GABC_IObject &obj)
-	{
-	    const char *otype = "<unknown>";
-	    switch (obj.nodeType())
-	    {
-		case GABC_XFORM:
-		    {
-			IXform	xform(obj.object(), Alembic::Abc::kWrapExisting);
-			if (xform.getSchema().isConstant())
-			    otype = "cxform";
-			else
-			    otype = "xform";
-		    }
-		    break;
-		case GABC_POLYMESH:
-		    otype = "polymesh";
-		    break;
-		case GABC_SUBD:
-		    otype = "subdmesh";
-		    break;
-		case GABC_CAMERA:
-		    otype = "camera";
-		    break;
-		case GABC_FACESET:
-		    otype = "faceset";
-		    break;
-		case GABC_CURVES:
-		    otype = "curves";
-		    break;
-		case GABC_POINTS:
-		    otype = "points";
-		    break;
-		case GABC_NUPATCH:
-		    otype = "nupatch";
-		    break;
-		default:
-		    otype = "unknown";
-		    break;
-	    }
-
-	    exint nkids = const_cast<GABC_IObject *>(&obj)->getNumChildren();
-	    PY_PyObject *result = PY_PyTuple_New(3);
-	    PY_PyObject *kids = PY_PyTuple_New(nkids);;
-
-	    PY_PyTuple_SET_ITEM(result, 0,
-		    PY_PyString_FromString(obj.getName().c_str()));
-	    PY_PyTuple_SET_ITEM(result, 1, PY_PyString_FromString(otype));
-	    PY_PyTuple_SET_ITEM(result, 2, kids);
-
-	    for (exint i = 0; i < nkids; ++i)
-	    {
-		PY_PyTuple_SET_ITEM(kids, i,
-			walkNode(const_cast<GABC_IObject *>(&obj)->getChild(i)));
-	    }
-	    return result;
-	}
-
-	PY_PyObject	*getObject() const	{ return myRoot; }
-
-    private:
-	PY_PyObject	*myRoot;
-    };
 
     //-*************************************************************************
     static const char	*Doc_AlembicGetSceneHierarchy =
@@ -1121,6 +1174,8 @@ HOMextendLibrary()
 
 	{ "alembicVisibility",	Py_AlembicVisibility,
 		PY_METH_VARARGS(), Doc_AlembicVisibility },
+	{ "alembicTimeRange", Py_AlembicTimeRange,
+		PY_METH_VARARGS(), Doc_AlembicTimeRange },
 
         { NULL, NULL, 0, NULL }
     };
