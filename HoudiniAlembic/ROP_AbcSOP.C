@@ -396,8 +396,6 @@ ROP_AbcSOP::update(GABC_OError &err,
         return err.error("Error saving first frame: %s", path.buffer());
     }
 
-    myTimeDependent = sop->isTimeDependent(ctx.cookContext());
-
     if (ctx.fullBounds())
     {
 	gdp->computeQuickBounds(myBox);

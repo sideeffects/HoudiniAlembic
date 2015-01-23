@@ -34,6 +34,7 @@
 #include <GT/GT_RefineParms.h>
 #include <GT/GT_Primitive.h>
 #include <GT/GT_GEOPrimPacked.h>
+#include <SOP/SOP_Node.h>
 #include <UT/UT_WorkArgs.h>
 #include <UT/UT_WorkBuffer.h>
 
@@ -66,9 +67,8 @@ namespace
     static const GABC_PackedImpl *
     getGABCImpl(const GT_PrimitiveHandle &prim)
     {
-        const GT_GEOPrimPacked *gt = UTverify_cast<const GT_GEOPrimPacked *>(
-                                        prim.get());
-        const GU_PrimPacked    *gu = gt->getPrim();
+        const GU_PrimPacked *gu =
+		UTverify_cast<const GT_GEOPrimPacked *>(prim.get())->getPrim();
 
         return UTverify_cast<const GABC_PackedImpl *>(gu->implementation());
     }
@@ -93,16 +93,11 @@ namespace
 
         if (ptype == GT_GEO_PACKED)
         {
-            const GT_GEOPrimPacked     *gt;
-            const GU_PrimPacked	       *gu;
-
-            gt = UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
-            gu = gt->getPrim();
+            const GU_PrimPacked *gu =
+		UTverify_cast<const GT_GEOPrimPacked *>(prim.get())->getPrim();
 
             if (gu->getTypeId() == GABC_PackedImpl::typeId())
-            {
                 return true;
-            }
         }
 
         return false;
@@ -115,17 +110,12 @@ namespace
 
 	if (ptype == GT_GEO_PACKED)
 	{
-            const GT_GEOPrimPacked     *gt;
-            const GU_PrimPacked	       *gu;
-
-            gt = UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
-            gu = gt->getPrim();
+            const GU_PrimPacked *gu =
+		UTverify_cast<const GT_GEOPrimPacked *>(prim.get())->getPrim();
 
 	    // We don't want to instance packed Alembics
 	    if (gu->getTypeId() == GABC_PackedImpl::typeId())
-	    {
 		return false;
-	    }
 	}
 
 	return ptype == GT_GEO_PACKED || ptype == GT_PRIM_INSTANCE;
@@ -204,18 +194,12 @@ ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &identifier,
         int pos = identifier.find_last_of('/');
         // The last '/' will never be in the first position.
         if (pos > 0)
-        {
             myName = identifier.substr(pos + 1);
-        }
         else
-        {
             myName = identifier;
-        }
     }
     else
-    {
         myName = identifier;
-    }
 }
 
 ROP_AbcGTCompoundShape::~ROP_AbcGTCompoundShape()
@@ -244,9 +228,7 @@ ROP_AbcGTCompoundShape::GTShapeList::dump(int indent) const
 {
     printf("%*sShapeList[%d] = [\n", indent, "", (int)myShapes.entries());
     for (int i = 0; i < myShapes.entries(); ++i)
-    {
 	myShapes(i)->dump(indent+2);
-    }
     printf("%*s]\n", indent, "");
 }
 
@@ -257,17 +239,13 @@ ROP_AbcGTCompoundShape::dump(int indent) const
     {
 	printf("%*sCompound-PackedShapes = [\n", indent, "");
 	for (auto it = myPacked.begin(); it != myPacked.end(); ++it)
-	{
 	    it->second.dump(indent+2);
-	}
     }
     if (myDeforming.size())
     {
 	printf("%*sCompound-DeformingShapes = [\n", indent, "");
 	for (auto it = myDeforming.begin(); it != myDeforming.end(); ++it)
-	{
 	    it->second.dump(indent+2);
-	}
     }
 }
 
@@ -284,34 +262,25 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     clear();
 
     // Refine the primitive into it's atomic shapes
-    GT_RefineParms	rparms;
     PrimitiveList	deforming;
     PrimitiveList       packed;
     ROP_AbcGTShape     *shape;
     UT_WorkBuffer       shape_namebuf;
-    std::string         shape_name;
-    exint               num_dfrm;
-    exint               num_pckd;
-
-    initializeRefineParms(rparms, ctx, myPolysAsSubd, myShowUnusedPoints);
 
     if (ROP_AbcGTShape::isPrimitiveSupported(prim))
-    {
 	deforming.append(prim);
-    }
     else
     {
-	abc_Refiner refiner(deforming,
-	        packed,
-	        &rparms,
-	        ctx.useInstancing());
+	GT_RefineParms rparms;
+	initializeRefineParms(rparms, ctx, myPolysAsSubd, myShowUnusedPoints);
+	abc_Refiner refiner(deforming, packed, &rparms, ctx.useInstancing());
 	prim->refine(refiner, &rparms);
     }
 
     myShapeParent = &parent;
 
-    num_dfrm = deforming.entries();
-    num_pckd = packed.entries();
+    exint num_dfrm = deforming.entries();
+    exint num_pckd = packed.entries();
     // Move on if there's no shapes this frame.
     if (!num_dfrm && !num_pckd)
     {
@@ -319,20 +288,32 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
 	return true;
     }
 
+    UT_WorkBuffer path;
+    if(myPath)
+	path.append(myPath);
+    else if(myXformMap)
+    {
+	SOP_Node *sop = ctx.singletonSOP();
+	if(sop && ctx.buildFromPath())
+	{
+	    // Primitive does not specify a path.
+	    path.sprintf("%s/%s",
+			 sop->getCreator()->getName().buffer(),
+			 myName.c_str());
+	}
+    }
+
     // If we're using a path, the parent for the OObjects should be
     // the root node.
-    if (myPath)
+    if (path.length())
     {
         myRoot = findRoot(myShapeParent);
         myShapeParent = &myRoot;
     }
-    else
+    else if ((num_dfrm > 1) && create_container)
     {
-        if ((num_dfrm > 1) && create_container)
-        {
-            myContainer = new OXform(parent, myName, ctx.timeSampling());
-            myShapeParent = myContainer;
-        }
+	myContainer = new OXform(parent, myName, ctx.timeSampling());
+	myShapeParent = myContainer;
     }
 
     //
@@ -344,7 +325,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
                         == ROP_AbcContext::PRIORITY_TRANSFORM);
 
         shape = new ROP_AbcGTShape(myName,
-                myPath,
+                path.buffer(),
                 myInverseMap,
                 myGeoSet,
                 myXformMap,
@@ -369,10 +350,9 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
         for (exint i = 1; i < num_pckd; ++i)
         {
             shape_namebuf.sprintf("%s_%d", myName.c_str(), (int)myNumShapes);
-            shape_name = shape_namebuf.buffer();
 
-            shape = new ROP_AbcGTShape(shape_name,
-                    myPath,
+            shape = new ROP_AbcGTShape(shape_namebuf.buffer(),
+                    path.buffer(),
                     myInverseMap,
                     myGeoSet,
                     myXformMap,
@@ -401,7 +381,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     else
     {
         shape = new ROP_AbcGTShape(myName,
-                myPath,
+                path.buffer(),
                 myInverseMap,
                 myGeoSet,
                 myXformMap,
@@ -428,10 +408,9 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
     for (exint i = (num_pckd ? 0 : 1); i < num_dfrm; ++i)
     {
         shape_namebuf.sprintf("%s_%d", myName.c_str(), (int)myNumShapes);
-        shape_name = shape_namebuf.buffer();
 
-        shape = new ROP_AbcGTShape(shape_name,
-                myPath,
+        shape = new ROP_AbcGTShape(shape_namebuf.buffer(),
+                path.buffer(),
                 myInverseMap,
                 myGeoSet,
                 myXformMap,
@@ -469,33 +448,24 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
 			const ROP_AbcContext &ctx)
 {
     // Refine the primitive into it's atomic shapes
-    GT_RefineParms	rparms;
     PrimitiveList	deforming;
     PrimitiveList       packed;
     ROP_AbcGTShape     *shape;
     UT_WorkBuffer       shape_namebuf;
-    std::string         shape_name;
-    exint               num_dfrm;
-    exint               num_pckd;
     bool                calc_inverse;
 
-    initializeRefineParms(rparms, ctx, myPolysAsSubd, myShowUnusedPoints);
-
     if (ROP_AbcGTShape::isPrimitiveSupported(prim))
-    {
         deforming.append(prim);
-    }
     else
     {
-        abc_Refiner refiner(deforming,
-                packed,
-                &rparms,
-                ctx.useInstancing());
+	GT_RefineParms rparms;
+	initializeRefineParms(rparms, ctx, myPolysAsSubd, myShowUnusedPoints);
+        abc_Refiner refiner(deforming, packed, &rparms, ctx.useInstancing());
         prim->refine(refiner, &rparms);
     }
 
-    num_dfrm = deforming.entries();
-    num_pckd = packed.entries();
+    exint num_dfrm = deforming.entries();
+    exint num_pckd = packed.entries();
 
     // Packed Alembics and deforming geometry are updated in the same way.
     // Try to read the next shape in the GTShape list for their object
@@ -539,10 +509,9 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
         else
         {
             shape_namebuf.sprintf("%s_%d", myName.c_str(), (int)myNumShapes);
-            shape_name = shape_namebuf.buffer();
             ++myNumShapes;
 
-            shape = new ROP_AbcGTShape(shape_name,
+            shape = new ROP_AbcGTShape(shape_namebuf.buffer(),
                     myPath,
                     myInverseMap,
                     myGeoSet,
@@ -594,10 +563,9 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
         else
         {
             shape_namebuf.sprintf("%s_%d", myName.c_str(), (int)myNumShapes);
-            shape_name = shape_namebuf.buffer();
             ++myNumShapes;
 
-            shape = new ROP_AbcGTShape(shape_name,
+            shape = new ROP_AbcGTShape(shape_namebuf.buffer(),
                     myPath,
                     myInverseMap,
                     myGeoSet,
@@ -661,9 +629,7 @@ Alembic::Abc::OObject
 ROP_AbcGTCompoundShape::getShape()
 {
     if (myContainer)
-    {
 	return *myContainer;
-    }
 
     UT_ASSERT(myNumShapes == 1);
     return myDeforming.getFirst()->getOObject();

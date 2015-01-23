@@ -78,9 +78,7 @@ namespace
 	{
 	    exint num_samples = it->second->getNumSamples();
 	    if (num_samples)
-	    {
 		it->second->updateFromPrevious();
-	    }
 	}
     }
 
@@ -182,11 +180,8 @@ ROP_AbcOpXform::~ROP_AbcOpXform()
 void
 ROP_AbcOpXform::clearUserProperties()
 {
-    for (auto it = myUserProperties.begin();
-	    it != myUserProperties.end(); ++it)
-    {
+    for (auto it = myUserProperties.begin(); it != myUserProperties.end(); ++it)
 	delete it->second;
-    }
     myUserProperties.clear();
 }
 
@@ -199,9 +194,7 @@ validateUserPropertyParameters(const OBJ_Node *node, GABC_OError &err)
     bool hasMeta = node->hasParm("userPropsMeta");
 
     if (!hasProps && !hasMeta)
-    {
 	return false;
-    }
     else if (!hasProps)
     {
 	err.warning("User property values are required.");
@@ -238,9 +231,7 @@ ROP_AbcOpXform::makeOrWriteUserProperties(const OBJ_Node *node,
     if (!validateUserPropertyParameters(node, err))
     {
 	if (write)
-	{
 	    writePropertiesFromPrevious(myUserProperties);
-	}
 	return false;
     }
 
@@ -251,7 +242,8 @@ ROP_AbcOpXform::makeOrWriteUserProperties(const OBJ_Node *node,
 
     // If we are making the user property schema, we need to create a 
     // parent container here.
-    if (!write) {
+    if (!write)
+    {
 	propSchema = myOXform.getSchema().getUserProperties();
 	parent = &propSchema;
     }
@@ -276,7 +268,8 @@ ROP_AbcOpXform::makeOrWriteUserProperties(const OBJ_Node *node,
         myUserProperties,
         parent,
         err,
-        ctx)) {
+        ctx))
+    {
 
         myUserPropertiesState = ERROR_READING_PROPERTIES;
 
@@ -300,6 +293,19 @@ ROP_AbcOpXform::start(const OObject &parent,
 	GABC_OError &err, const ROP_AbcContext &ctx, UT_BoundingBox &box)
 {
     OBJ_Node   *node = getXformNode(myNodeId);
+
+    if(ctx.singletonSOP() && ctx.buildFromPath())
+    {
+	if(node)
+	    myTimeDependent = node->isTimeDependent(ctx.cookContext());
+
+	if(!startChildren(parent, err, ctx, myBox))
+	    return false;
+
+	updateTimeDependentKids();
+	return true;
+    }
+
     bool        evaluated = false;
 
     if (node)
@@ -310,9 +316,7 @@ ROP_AbcOpXform::start(const OObject &parent,
 	    evaluated = sub->getSubnetTransform(ctx.cookContext(), myMatrix);
 	}
 	else
-	{
 	    evaluated = node->getLocalTransform(ctx.cookContext(), myMatrix);
-	}
     }
     if (!evaluated)
     {
@@ -395,9 +399,7 @@ ROP_AbcOpXform::start(const OObject &parent,
 	box = myBox;
 
 	if (!myIdentity)
-	{
 	    box.transform(myMatrix);
-        }
     }
 
     updateTimeDependentKids();
@@ -423,6 +425,17 @@ bool
 ROP_AbcOpXform::update(GABC_OError &err,
 	const ROP_AbcContext &ctx, UT_BoundingBox &box)
 {
+    if(ctx.singletonSOP() && ctx.buildFromPath())
+    {
+	UT_BoundingBox kidbox;
+	kidbox.initBounds();
+	if(!updateChildren(err, ctx, kidbox))
+	    return false;
+
+	updateTimeDependentKids();
+	return true;
+    }
+
     if (selfTimeDependent())
     {
 	if (!myIdentity)
@@ -438,9 +451,7 @@ ROP_AbcOpXform::update(GABC_OError &err,
                     evaluated = sub->getSubnetTransform(ctx.cookContext(), myMatrix);
                 }
                 else
-                {
                     evaluated = node->getLocalTransform(ctx.cookContext(), myMatrix);
-                }
             }
 
 	    if (!evaluated)
@@ -484,9 +495,7 @@ ROP_AbcOpXform::update(GABC_OError &err,
     PRM_Parm *parm = node->getParmList()->getParmPtr("userProps");
 
     if (parm && parm->isTimeDependent())
-    {
 	makeOrWriteUserProperties(node, err, ctx, true);
-    }
 
     updateTimeDependentKids();
 
