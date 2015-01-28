@@ -329,25 +329,14 @@ ROP_AbcSOP::start(const OObject &parent,
     for (int i = 0; i < prims.entries(); ++i)
     {
         // Create new compound shapes
-	ROP_AbcGTCompoundShape *shape =
-	    new ROP_AbcGTCompoundShape(prims(i).myIdentifier,
-                &myInverseMap,
-                &myGeoSet,
-                &myXformMap,
-                prims(i).myIsPartition,
-                prims(i).mySubdMode,
-                prims(i).myShowPts,
-                (myGeoLock == 1),
-                ctx);
-
-        if (!shape->first(prims(i).myPrim, myParent, err, ctx, false))
+	ROP_AbcGTCompoundShape *shape = newShape(prims(i), ctx, err);
+        if (!shape)
         {
             clear();
             UT_WorkBuffer   path;
             sop->getFullPath(path);
             return err.error("Error saving first frame: %s", path.buffer());
         }
-
         myShapes.append(shape);
 
         // Map partition names to specific compound shapes
@@ -407,10 +396,12 @@ ROP_AbcSOP::update(GABC_OError &err,
     if (ctx.buildFromPath())
         prims.sort(comparePrims);
 
+    bool use_name_map = ctx.partitionByName() || ctx.buildFromPath();
+
     for (int i = 0; i < prims.entries(); ++i)
     {
         // Use myNameMap if we're partitioning the data.
-        if (!myNameMap.empty())
+        if (!myNameMap.empty() || (use_name_map && !myShapes.entries()))
         {
             auto it = myNameMap.find(prims(i).myIdentifier);
 
@@ -418,24 +409,10 @@ ROP_AbcSOP::update(GABC_OError &err,
             // for the current partition.
             if (it == myNameMap.end())
             {
-		ROP_AbcGTCompoundShape *shape =
-		    new ROP_AbcGTCompoundShape(prims(i).myIdentifier,
-                        &myInverseMap,
-                        &myGeoSet,
-                        &myXformMap,
-                        prims(i).myIsPartition,
-                        prims(i).mySubdMode,
-                        prims(i).myShowPts,
-                        (myGeoLock == 1),
-                        ctx);
-
+		ROP_AbcGTCompoundShape *shape = newShape(prims(i), ctx, err,
+				Alembic::AbcGeom::kVisibilityHidden);
                 // Write out the first frame with hidden visibility
-                if (!shape->first(prims(i).myPrim,
-                        myParent,
-                        err,
-                        ctx,
-                        false,
-                        Alembic::AbcGeom::kVisibilityHidden))
+                if (!shape)
                 {
                     clear();
                     UT_WorkBuffer   path;
@@ -471,13 +448,43 @@ ROP_AbcSOP::update(GABC_OError &err,
         // in the same order they were written in the first frame.
         else
         {
+	    // Create primitives for missing shapes
+	    for (exint j = myShapes.entries(); j < prims.entries(); ++j)
+	    {
+		// TODO: It isn't clear whether the primitive will have a
+		// unique identifier.
+		ROP_AbcGTCompoundShape	*shape = newShape(prims(i), ctx, err,
+				Alembic::AbcGeom::kVisibilityHidden);
+		if (!shape)
+		{
+                    clear();
+                    UT_WorkBuffer   path;
+                    sop->getFullPath(path);
+                    return err.error("Error saving next frame: %s", path.buffer());
+		}
+		// Update the shape as hidden (up to our current frame)
+		shape->updateFromPrevious(err,
+			Alembic::AbcGeom::kVisibilityHidden,
+			myElapsedFrames - 1);
+		// Mark the shape as visible this frame
+		shape->updateFromPrevious(err,
+			Alembic::AbcGeom::kVisibilityDeferred);
+		myShapes.append(shape);
+	    }
             // The number of existing shapes should match the number of existing
             // primitives always
-            UT_ASSERT(myShapes.entries() == prims.entries());
+            UT_ASSERT(myShapes.entries() >= prims.entries());
 
-            for (int j = 0; j < prims.entries(); ++j)
+            for (exint j = 0; j < myShapes.entries(); ++j)
             {
-                if (!myShapes(i)->update(prims(i).myPrim, err, ctx))
+		if (j > prims.entries())
+		{
+		    // The primitive has disappeared, so we need to mark this
+		    // shape as hidden.
+		    myShapes(i)->updateFromPrevious(err,
+			    Alembic::AbcGeom::kVisibilityHidden);
+		}
+		else if (!myShapes(i)->update(prims(i).myPrim, err, ctx))
                 {
                     clear();
                     UT_WorkBuffer   path;
@@ -525,6 +532,37 @@ ROP_AbcSOP::getLastBounds(UT_BoundingBox &box) const
 {
     box = myBox;
     return true;
+}
+
+ROP_AbcGTCompoundShape *
+ROP_AbcSOP::newShape(const abc_PrimContainer &prim,
+        const ROP_AbcContext &ctx,
+        GABC_OError &err,
+	Alembic::AbcGeom::ObjectVisibility vis)
+{
+    ROP_AbcGTCompoundShape *shape =
+	new ROP_AbcGTCompoundShape(prim.myIdentifier,
+	    &myInverseMap,
+	    &myGeoSet,
+	    &myXformMap,
+	    prim.myIsPartition,
+	    prim.mySubdMode,
+	    prim.myShowPts,
+	    (myGeoLock == 1),
+	    ctx);
+
+    // Write out the first frame with hidden visibility
+    if (!shape->first(prim.myPrim,
+	    myParent,
+	    err,
+	    ctx,
+	    false,
+	    vis))
+    {
+	delete shape;
+	return 0;
+    }
+    return shape;
 }
 
 void

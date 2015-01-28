@@ -131,6 +131,11 @@ private:
                                 bool force_subd_mode,
                                 bool show_pts);
 
+    ROP_AbcGTCompoundShape	*newShape(const abc_PrimContainer &prim,
+				    const ROP_AbcContext &ctx,
+				    GABC_OError &err,
+				    Alembic::AbcGeom::ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
+
     InverseMap                          myInverseMap;
     GeoSet                              myGeoSet;
     NameList                            myPartitionNames;
