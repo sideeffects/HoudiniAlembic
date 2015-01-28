@@ -95,7 +95,7 @@ public:
 
     const GABC_ChannelCache	*cache() const	{ return myCache; }
 
-    // Set visibility to a specific value (whether animated or static)
+    /// Set visibility to a specific value (whether animated or static)
     void	set(GABC_VisibilityType vtype, const GABC_ChannelCache *vcache=NULL);
 
 private:

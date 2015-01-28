@@ -66,7 +66,7 @@ public:
     GT_Storage	storageType() const
 		    { return myData ? myData->getStorage() : GT_STORE_INVALID; }
 
-    // Return the sample associated with the given time
+    /// Return the sample associated with the given time
     exint	getSample(fpreal t) const
 		{
 		    if (!myTime)

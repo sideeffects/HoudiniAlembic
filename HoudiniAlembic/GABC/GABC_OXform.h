@@ -60,7 +60,7 @@ public:
 
     GABC_OXformSchema() {}
 
-    // Copies of the base constructors.
+    /// Copies of the base constructors.
     template <class CPROP_PTR>
     GABC_OXformSchema( CPROP_PTR iParent,
             const std::string &iName,
@@ -84,23 +84,23 @@ public:
     }
 
 
-    // Record an XformSample to output.
+    /// Record an XformSample to output.
     void                set(XformSample &ioSamp)
                         {
                             myNextSample = ioSamp;
                         }
-    // Records a matrix to output with a sample.
+    /// Records a matrix to output with a sample.
     void                setMatrix(const UT_Matrix4D &mat)
                         {
                             myNextXform = mat;
                             myXformSet = true;
                         }
-    // Return the currently set matrix, if there is one.
+    /// Return the currently set matrix, if there is one.
     const UT_Matrix4D  &getNextXform()
                         {
 			    return myNextXform;
                         }
-    // Write out the sample and matrix data.
+    /// Write out the sample and matrix data.
     void                finalize()
                         {
                             if (myNextSample.getNumOps() == 0)

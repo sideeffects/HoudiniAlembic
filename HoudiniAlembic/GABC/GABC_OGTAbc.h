@@ -69,9 +69,9 @@ public:
 
     typedef GABC_Util::PropertyMap	GABCPropertyMap;
 
-    // PropertyMap class is used to store pointers to Alembic Property
-    // objects. Ideally we would use a regular map, but these 3 classes
-    // are templated and so is their common ancestor.
+    /// PropertyMap class is used to store pointers to Alembic Property
+    /// objects. Ideally we would use a regular map, but these 3 classes
+    /// are templated and so is their common ancestor.
     class PropertyMap
     {
     public:
@@ -184,10 +184,10 @@ public:
     GABC_OGTAbc(const std::string &name);
     ~GABC_OGTAbc();
 
-    // Create the output Alembic object, as well as it's attribute and user
-    // properties (if it has them and they are to be output).  The insert_xform
-    // flag is used to preserve the transform on the packed Alembic when the
-    // Alembic is stored in world space.
+    /// Create the output Alembic object, as well as it's attribute and user
+    /// properties (if it has them and they are to be output).  The insert_xform
+    /// flag is used to preserve the transform on the packed Alembic when the
+    /// Alembic is stored in world space.
     bool    start(const GT_PrimitiveHandle &prim,
                     const OObject &parent,
                     fpreal cook_time,
@@ -195,22 +195,22 @@ public:
                     GABC_OError &err,
                     ObjectVisibility vis,
 		    bool insert_xform);
-    // Special start method for OXform objects. Skip type checking and skip
-    // object creation.
+    /// Special start method for OXform objects. Skip type checking and skip
+    /// object creation.
     bool    startXform(const GT_PrimitiveHandle &prim,
                     GABC_OXform *xform,
                     fpreal cook_time,
                     const GABC_OOptions &ctx,
                     GABC_OError &err,
                     ObjectVisibility vis);
-    // Output geometry, attribute, and user property samples to Alembic for the
-    // current frame.
+    /// Output geometry, attribute, and user property samples to Alembic for the
+    /// current frame.
     bool    update(const GT_PrimitiveHandle &prim,
                     fpreal cook_time,
                     const GABC_OOptions &ctx,
                     GABC_OError &err,
                     ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
-    // Output samples to Alembic, reusing the samples for the previous frame.
+    /// Output samples to Alembic, reusing the samples for the previous frame.
     bool    updateFromPrevious(GABC_OError &err,
                     ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
                     exint frames = 1);
@@ -219,19 +219,19 @@ public:
     void	dump(int indent=0) const;
 
 protected:
-    // Make Alembic user properties.
+    /// Make Alembic user properties.
     bool    makeUserProperties(const GT_PrimitiveHandle &prim,
                     OCompoundProperty *parent,
                     GABC_OError &err,
                     const GABC_OOptions &ctx);
-    // Output user property samples to Alembic.
+    /// Output user property samples to Alembic.
     bool    writeUserProperties(const GT_PrimitiveHandle &prim,
                     GABC_OError &err,
                     const GABC_OOptions &ctx);
-    // Reuse previous user property sample for current frame.
+    /// Reuse previous user property sample for current frame.
     void    writeUserPropertiesFromPrevious();
 
-    // Clear out existing data.
+    /// Clear out existing data.
     void    clear();
     void    clearUserProperties();
 
