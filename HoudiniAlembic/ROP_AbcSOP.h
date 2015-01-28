@@ -64,9 +64,9 @@ public:
     typedef std::pair<std::string, int>                 PartitionMapInsert;
     typedef UT_Array<abc_PrimContainer>                 PrimitiveList;
 
-    // Helper class stores a GT_PrimitiveHandle to a GT_GEODetail containing
-    // all geometry in a single partition, as well as additional information
-    // about how to output that geometry.
+    /// Helper class stores a GT_PrimitiveHandle to a GT_GEODetail containing
+    /// all geometry in a single partition, as well as additional information
+    /// about how to output that geometry.
     class abc_PrimContainer
     {
     public:
@@ -112,17 +112,17 @@ public:
     virtual void	dump(int indent) const;
 
 private:
-    // Clear all stored data and reset the object.
+    /// Clear all stored data and reset the object.
     void		clear();
-    // Router method for partitionGeometryRange, determines what the
-    // arguments to it should be.
+    /// Router method for partitionGeometryRange, determines what the
+    /// arguments to it should be.
     void                partitionGeometry(PrimitiveList &primitives,
                                 const SOP_Node *sop,
                                 const GU_Detail &gdp,
                                 const ROP_AbcContext &ctx,
                                 GABC_OError &err);
-    // Partitions the geometry in the range into one or more groups. A child
-    // ROP_AbcGTCompoundShape will be created for each group.
+    /// Partitions the geometry in the range into one or more groups. A child
+    /// ROP_AbcGTCompoundShape will be created for each group.
     void                partitionGeometryRange(PrimitiveList &primitives,
                                 const GU_Detail &gdp,
                                 const GA_Range &range,

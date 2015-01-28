@@ -38,8 +38,8 @@ class ROP_AbcObject;
 class ROP_AbcArchive;
 class ROP_AbcContext;
 
-// This class records the nodes that will be output to Alembic in
-// a tree structure, and registers them as children of a given archive.
+/// This class records the nodes that will be output to Alembic in
+/// a tree structure, and registers them as children of a given archive.
 class ROP_AbcOpBuilder
 {
 public:

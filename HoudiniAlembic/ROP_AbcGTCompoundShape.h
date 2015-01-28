@@ -66,11 +66,11 @@ public:
     typedef UT_Map<std::string, ROP_AbcGTShape *>       PackedMap;
     typedef std::pair<std::string, ROP_AbcGTShape *>    PackedMapInsert;
 
-    // Helper class that stores a list of related ROP_AbcGTShapes. Can walk
-    // through the list, remembering where we left off. If we walk past the end
-    // of the list, we know to create more shapes. If we don't reach the end, we
-    // know that we did not encounter all existing shapes this frame and need
-    // to update them as hidden.
+    /// Helper class that stores a list of related ROP_AbcGTShapes. Can walk
+    /// through the list, remembering where we left off. If we walk past the end
+    /// of the list, we know to create more shapes. If we don't reach the end, we
+    /// know that we did not encounter all existing shapes this frame and need
+    /// to update them as hidden.
     class GTShapeList
     {
     public:
@@ -137,11 +137,11 @@ public:
         int                         myPos;
     };
 
-    // Helper class used to store the relationship between the ROP_AbcGTShapes
-    // in a GTShapeList helper. For deforming geometry, the key is the primitive
-    // type: the shapes in a GTShapeList are all of the same type, thus
-    // interchangable. For Packed Alembics, the key is a the unique ID of their
-    // implementation.
+    /// Helper class used to store the relationship between the ROP_AbcGTShapes
+    /// in a GTShapeList helper. For deforming geometry, the key is the primitive
+    /// type: the shapes in a GTShapeList are all of the same type, thus
+    /// interchangable. For Packed Alembics, the key is a the unique ID of their
+    /// implementation.
     template <typename T>
     class GTShapeMap
     {
@@ -228,18 +228,18 @@ public:
 	    const ROP_AbcContext &ctx);
     ~ROP_AbcGTCompoundShape();
 
-    // Output the first frame to Alembic. Does most of the setup.
+    /// Output the first frame to Alembic. Does most of the setup.
     bool	first(const GT_PrimitiveHandle &prim,
 			const OObject &parent,
 			GABC_OError &err,
 			const ROP_AbcContext &ctx,
 			bool create_container,
                         ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
-    // Output an additional frame to Alembic.
+    /// Output an additional frame to Alembic.
     bool	update(const GT_PrimitiveHandle &prim,
 			GABC_OError &err,
 			const ROP_AbcContext &ctx);
-    // Output additional frames, reusing the data from the previous sample.
+    /// Output additional frames, reusing the data from the previous sample.
     bool	updateFromPrevious(GABC_OError &err,
                         ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
                         exint frames = 1);

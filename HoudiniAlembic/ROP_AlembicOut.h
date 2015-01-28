@@ -35,7 +35,7 @@
 class ROP_AbcContext;
 class ROP_AbcArchive;
 
-// The Alembic output ROP. Outputs scene data to an Alembic archive.
+/// The Alembic output ROP. Outputs scene data to an Alembic archive.
 class ROP_AlembicOut : public ROP_Node
 {
 public:

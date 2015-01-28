@@ -44,8 +44,8 @@ public:
     typedef Alembic::AbcGeom::OXform                OXform;
     typedef Alembic::AbcGeom::XformSample           XformSample;
 
-    // Helper class that stores an OXform object and visibility property for
-    // each instance of the geometry.
+    /// Helper class that stores an OXform object and visibility property for
+    /// each instance of the geometry.
     class Instance
     {
     public:
@@ -85,7 +85,7 @@ public:
     ROP_AbcGTInstance(const std::string &name, bool geo_lock);
     ~ROP_AbcGTInstance();
 
-    // Output the first frame to Alembic. Does most of the setup.
+    /// Output the first frame to Alembic. Does most of the setup.
     bool	first(const OObject &parent,
 			GABC_OError &err,
 			const ROP_AbcContext &ctx,
@@ -93,12 +93,12 @@ public:
 			bool subd_mode,
 			bool add_unused_pts,
                         ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
-    // Output an additional frame to Alembic.
+    /// Output an additional frame to Alembic.
     bool	update(const GT_PrimitiveHandle &prim,
 			const ROP_AbcContext &ctx,
                         GABC_OError &err,
                         ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
-    // Output additional frames, reusing the data from the previous sample.
+    /// Output additional frames, reusing the data from the previous sample.
     bool	updateFromPrevious(GABC_OError &err,
                         int primType,
                         ObjectVisibility vis = Alembic::AbcGeom::kVisibilityHidden,
