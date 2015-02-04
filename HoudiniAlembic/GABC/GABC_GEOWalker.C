@@ -768,7 +768,8 @@ namespace {
 
 	indices.get(isample, iss);
 	vals.get(vsample, iss);
-	if (!isample || !vsample)
+	if (!isample || !vsample
+		|| getGAStorage(vsample->getDataType()) != GA_STORE_STRING)
 	{
 	    return;
 	}
