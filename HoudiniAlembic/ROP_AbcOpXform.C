@@ -436,9 +436,9 @@ ROP_AbcOpXform::update(GABC_OError &err,
 	return true;
     }
 
-    if (selfTimeDependent())
+    if (!myIdentity)
     {
-	if (!myIdentity)
+	if (selfTimeDependent())
 	{
 	    bool        evaluated = false;
 	    OBJ_Node	*node = getXformNode(myNodeId);
@@ -462,9 +462,9 @@ ROP_AbcOpXform::update(GABC_OError &err,
 			fullpath.buffer(), ctx.cookContext().getTime());
 	    }
 	}
+	if (myVisibility)
+	    setVisibility(ctx);
     }
-    if (myVisibility)
-	setVisibility(ctx);
 
     // Process children, computing their bounding box
     UT_BoundingBox	kidbox;
@@ -472,30 +472,33 @@ ROP_AbcOpXform::update(GABC_OError &err,
     if (!updateChildren(err, ctx, kidbox))
 	return false;
 
-    if (selfTimeDependent() && !myIdentity)
+    if (!myIdentity)
     {
-	XformSample	sample;
-	M44d	m = GABC_Util::getM(myMatrix);
-	sample.setMatrix(m);
-	myOXform.getSchema().set(sample);
+	if (selfTimeDependent())
+	{
+	    XformSample	sample;
+	    M44d	m = GABC_Util::getM(myMatrix);
+	    sample.setMatrix(m);
+	    myOXform.getSchema().set(sample);
+	}
+	if (ctx.fullBounds())
+	{
+	    // Set up bounding box for my parent
+	    box = myBox;
+
+	    Box3d   b3 = GABC_Util::getBox(myBox);
+	    myOXform.getSchema().getChildBoundsProperty().set(b3);
+
+	    if (!myIdentity)
+		box.transform(myMatrix);
+	}
+
+	OBJ_Node *node = getXformNode(myNodeId);
+	PRM_Parm *parm = node->getParmList()->getParmPtr("userProps");
+
+	if (parm && parm->isTimeDependent())
+	    makeOrWriteUserProperties(node, err, ctx, true);
     }
-    if (ctx.fullBounds())
-    {
-	// Set up bounding box for my parent
-	box = myBox;
-
-	Box3d   b3 = GABC_Util::getBox(myBox);
-	myOXform.getSchema().getChildBoundsProperty().set(b3);
-
-	if (!myIdentity)
-            box.transform(myMatrix);
-    }
-
-    OBJ_Node *node = getXformNode(myNodeId);
-    PRM_Parm *parm = node->getParmList()->getParmPtr("userProps");
-
-    if (parm && parm->isTimeDependent())
-	makeOrWriteUserProperties(node, err, ctx, true);
 
     updateTimeDependentKids();
 
