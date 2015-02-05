@@ -748,7 +748,7 @@ namespace
 	gparam.getExpanded(v0, i0);
 	if (!v0.getVals() || !v0.getVals()->size())
 	{
-	    UT_ASSERT(0 && "This is likely a corrupt indexed alembic array");
+	    UT_ASSERT(!v0.getVals()->size() && "This is likely a corrupt indexed alembic array");
 	    gparam.getIndexed(v0, i0);
 	    return arrayFromSample(arch,
 	            v0.getVals(),
@@ -1508,6 +1508,8 @@ namespace
     static exint
     maxArrayValue(const GT_DataArrayHandle &array)
     {
+	if (array->entries() == 0)
+	    return 0;
 	exint	lo, hi;
 	array->getRange(lo, hi);
 	return hi;
@@ -1534,9 +1536,11 @@ namespace
 
 	counts = simpleArrayFromSample(*obj.archive(), sample.getFaceCounts(),
 			ss.getFaceCountsProperty().isConstant());
+	if (!counts || !counts->entries())
+	    return GT_PrimitiveHandle();
 	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices(),
 			ss.getFaceIndicesProperty().isConstant());
-	UT_ASSERT(counts && indices);
+	UT_ASSERT(indices);
 
 	GT_AttributeListHandle	 point;
 	GT_AttributeListHandle	 vertex;
@@ -1663,9 +1667,11 @@ namespace
 
 	counts = simpleArrayFromSample(*obj.archive(), sample.getFaceCounts(),
 			ss.getFaceCountsProperty().isConstant());
+	if (!counts || !counts->entries())
+	    return GT_PrimitiveHandle();
 	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices(),
 			ss.getFaceIndicesProperty().isConstant());
-	UT_ASSERT(counts && indices);
+	UT_ASSERT(indices);
 
 	GT_AttributeListHandle	 point;
 	GT_AttributeListHandle	 vertex;

@@ -158,12 +158,12 @@ public:
 			}
 	const void	*data() const
 			{
-			    UT_ASSERT(myArray && myArray->getData());
+			    UT_ASSERT(myArray);
 			    return myArray->getData();
 			}
 	PlainOldDataType	abcType() const
 			{
-			    UT_ASSERT(myArray && myArray->getData());
+			    UT_ASSERT(myArray);
 			    return myArray->getDataType().getPod();
 			}
     private:

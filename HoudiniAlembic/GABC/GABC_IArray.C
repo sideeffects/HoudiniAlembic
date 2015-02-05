@@ -114,10 +114,10 @@ GABC_IArray::getSample(GABC_IArchive &arch,
 	int array_extent,
 	bool is_constant)
 {
+    UT_ASSERT(sample);
     if (!sample->valid())
 	return GABC_IArray();
 
-    UT_ASSERT(sample && sample->getData());
     UT_ASSERT(array_extent == 1 || sample->size() % array_extent == 0);
 
     const DataType	&dtype = sample->getDataType();
