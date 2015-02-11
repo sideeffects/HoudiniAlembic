@@ -85,6 +85,7 @@ public:
     CollectData(const GT_GEODetailListHandle &geometry,
 	    bool useViewportLOD)
 	: GT_GEOPrimCollectData()
+	, myGeometry(geometry)
 	, myUseViewportLOD(useViewportLOD)
     {
     }
@@ -152,7 +153,7 @@ public:
 	if (!nprims)
 	    return GT_PrimitiveHandle();
 
-	GT_GEOPrimCollectBoxes		boxdata(true);
+	GT_GEOPrimCollectBoxes		boxdata(myGeometry, true);
 	UT_StackBuffer<UT_BoundingBox>	boxes(nprims);
 	UT_StackBuffer<UT_Matrix4F>	xforms(nprims);
 	if (nbox)
@@ -164,6 +165,7 @@ public:
 	    {
 		boxdata.appendBox(boxes[i], xforms[i],
 			myBoxPrims(i)->getMapOffset(),
+			myBoxPrims(i)->getVertexOffset(0),
 			myBoxPrims(i)->getPointOffset(0));
 	    }
 	}
@@ -176,6 +178,7 @@ public:
 	    {
 		boxdata.appendCentroid(boxes[i], xforms[i],
 			myCentroidPrims(i)->getMapOffset(),
+			myCentroidPrims(i)->getVertexOffset(0),
 			myCentroidPrims(i)->getPointOffset(0));
 	    }
 	}
@@ -188,6 +191,7 @@ public:
     }
 
 private:
+    const GT_GEODetailListHandle	myGeometry;
     UT_Array<const GU_PrimPacked *>	myBoxPrims;
     UT_Array<const GU_PrimPacked *>	myCentroidPrims;
     bool				myUseViewportLOD;
