@@ -205,16 +205,10 @@ namespace
     static PRM_Default	theRootDefault(0, "/obj");
     static PRM_Default	theStarDefault(0, "*");
     static PRM_Default	theCollapseDefault(0, "off");
-    static PRM_Default	theFullBoundsDefault(0, "no");
-    static PRM_Default	theDisplaySOPDefault(0, "no");
     static PRM_Default	theSaveAttributesDefault(1, "yes");
-    static PRM_Default  theBuildHierarchyFromPathDefault(0, "no");
+    static PRM_Default  thePathAttribDefault(0, "path");
     static PRM_Default  thePackedAbcPriorityDefault(0, "hier");
-    static PRM_Default	thePartitionModeDefault(0, "no");
-    static PRM_Default	thePartitionAttributeDefault(0, "");
     static PRM_Default	theFaceSetModeDefault(1, "nonempty");
-    static PRM_Default	theVerboseDefault(0);
-    static PRM_Default	theMotionBlurDefault(0, "no");
     static PRM_Default	theSampleDefault(2);
     static PRM_Default	theShutterDefault[] = {0, 1};
     //static PRM_Default	theFaceSetDefault(0);
@@ -376,17 +370,15 @@ namespace
 
         PRM_Template(PRM_SEPARATOR, 1, &separator1Name),
 
-	PRM_Template(PRM_TOGGLE, 1, &theBuildHierarchyFromPathName,
-				    &theBuildHierarchyFromPathDefault),
-        PRM_Template(PRM_STRING, 1, &thePathAttribName, 0, &thePathAttribMenu),
+	PRM_Template(PRM_TOGGLE, 1, &theBuildHierarchyFromPathName),
+        PRM_Template(PRM_STRING, 1, &thePathAttribName, &thePathAttribDefault,
+				    &thePathAttribMenu),
         PRM_Template(PRM_ORD, 1, &thePackedAbcPriorityName,
                                     &thePackedAbcPriorityDefault,
                                     &thePackedAbcPriorityMenu),
-	PRM_Template(PRM_ORD, 1, &thePartitionModeName,
-				    &thePartitionModeDefault,
+	PRM_Template(PRM_ORD, 1, &thePartitionModeName, 0,
 				    &thePartitionModeMenu),
-	PRM_Template(PRM_STRING, 1, &thePartitionAttributeName,
-				    &thePartitionAttributeDefault,
+	PRM_Template(PRM_STRING, 1, &thePartitionAttributeName, 0,
 				    &thePartitionAttributeMenu),
 
         PRM_Template(PRM_SEPARATOR, 1, &separator2Name),
@@ -395,10 +387,8 @@ namespace
 				    &theCollapseMenu),
 	PRM_Template(PRM_TOGGLE, 1, &theSaveHiddenName, PRMoneDefaults),
 	PRM_Template(PRM_TOGGLE, 1, &theUseInstancingName, PRMoneDefaults),
-	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName,
-				    &theFullBoundsDefault),
-	PRM_Template(PRM_TOGGLE, 1, &theDisplaySOPName,
-				    &theDisplaySOPDefault),
+	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName),
+	PRM_Template(PRM_TOGGLE, 1, &theDisplaySOPName),
 	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
 				    &theSaveAttributesDefault),
 
@@ -420,9 +410,8 @@ namespace
 				    &theFaceSetModeDefault,
 				    &theFaceSetModeMenu),
 	PRM_Template(PRM_STRING, 1, &theSubdGroupName),
-	PRM_Template(PRM_INT,	1, &theVerboseName, &theVerboseDefault,
-				    0, &theVerboseRange),
-        PRM_Template(PRM_TOGGLE, 1, &theMotionBlurName, &theMotionBlurDefault),
+	PRM_Template(PRM_INT,	1, &theVerboseName, 0, 0, &theVerboseRange),
+        PRM_Template(PRM_TOGGLE, 1, &theMotionBlurName),
         PRM_Template(PRM_INT,	 1, &theSampleName, &theSampleDefault),
         PRM_Template(PRM_FLT,	 2, &theShutterName, theShutterDefault),
 	PRM_Template()
