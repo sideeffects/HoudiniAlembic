@@ -44,6 +44,7 @@
 #include <UT/UT_SymbolTable.h>
 #include <UT/UT_SysClone.h>
 #include <UT/UT_WorkBuffer.h>
+#include <FS/FS_Info.h>
 #include <boost/tokenizer.hpp>
 
 using namespace GABC_NAMESPACE;
@@ -825,18 +826,8 @@ namespace
 	{
 	    return false;
         }
-
-	if (UTaccess(path.buffer(), R_OK) == 0)
-        {
-	    return true;
-        }
-
-	if (!UT_PathSearch::pathMap(path))
-	{
-	    return false;
-        }
-
-	return UTaccess(path.buffer(), R_OK) == 0;
+	FS_Info	finfo(path.buffer());
+	return finfo.hasAccess(FS_READ);
     }
 
     static ArchiveCacheEntryPtr
