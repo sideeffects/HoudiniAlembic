@@ -118,13 +118,15 @@ private:
     /// arguments to it should be.
     void                partitionGeometry(PrimitiveList &primitives,
                                 const SOP_Node *sop,
-                                const GU_Detail &gdp,
+                                const GU_ConstDetailHandle &gdh,
+				const GU_Detail &gdp,
                                 const ROP_AbcContext &ctx,
                                 GABC_OError &err);
     /// Partitions the geometry in the range into one or more groups. A child
     /// ROP_AbcGTCompoundShape will be created for each group.
     void                partitionGeometryRange(PrimitiveList &primitives,
-                                const GU_Detail &gdp,
+                                const GU_ConstDetailHandle &gdh,
+				const GU_Detail &gdp,
                                 const GA_Range &range,
                                 const ROP_AbcContext &ctx,
                                 GABC_OError &err,

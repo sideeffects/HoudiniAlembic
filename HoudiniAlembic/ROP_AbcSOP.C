@@ -51,6 +51,7 @@ namespace
 
     static void
     buildGeometry(PrimitiveList &primitives,
+	    const GU_ConstDetailHandle &gdh,
 	    const GU_Detail &gdp,
 	    const GA_Range &range,
             const std::string &identifier,
@@ -63,7 +64,7 @@ namespace
 	/// (i.e. all custom ones, Tetra, etc.), we build a GT primitive for the
 	/// detail.  We can refine this into simpler primitives until we *do*
 	/// understand them.
-	GT_PrimitiveHandle	detail = GT_GEODetail::makeDetail(&gdp, &range);
+	GT_PrimitiveHandle	detail = GT_GEODetail::makeDetail(gdh, &range);
 	if (detail)
 	{
 	    const std::string  *id_ptr = &identifier;
@@ -75,15 +76,28 @@ namespace
                 // Check the range for packed Alembic primitives.
                 // This is used for sorting primitives; partitions with
                 // packed Alembics must come first.
-                for (GA_Iterator it(range); !it.atEnd(); ++it)
-                {
-                    if (gdp.getPrimitive(*it)->getTypeId()
-                            == GABC_PackedImpl::typeId())
-                    {
-                        has_alembic = true;
-                        break;
-                    }
-                }
+		if (gdp.containsPrimitiveType(GABC_PackedImpl::typeId()))
+		{
+		    // We can do a quick check to see if the range is equal to
+		    // the full range.
+		    if (range.getRTI() == gdp.getPrimitiveRange().getRTI())
+		    {
+			has_alembic = true;
+		    }
+		    else
+		    {
+			// We have 
+			for (GA_Iterator it(range); !it.atEnd(); ++it)
+			{
+			    if (gdp.getPrimitive(*it)->getTypeId()
+				    == GABC_PackedImpl::typeId())
+			    {
+				has_alembic = true;
+				break;
+			    }
+			}
+		    }
+		}
             }
 
             if (force_subd_mode && !show_pts)
@@ -290,8 +304,9 @@ ROP_AbcSOP::start(const OObject &parent,
     sop->getParent()->evalParameterOrProperty(
             GABC_Util::theLockGeometryParameter, 0, 0, myGeoLock);
 
-    GU_DetailHandleAutoReadLock gdl(sop->getCookedGeoHandle(ctx.cookContext()));
-    const GU_Detail *gdp = gdl.getGdp();
+    GU_ConstDetailHandle	gdh(sop->getCookedGeoHandle(ctx.cookContext()));
+    GU_DetailHandleAutoReadLock rlock(gdh);
+    const GU_Detail		*gdp = rlock.getGdp();
 
     if (!gdp)
     {
@@ -322,7 +337,7 @@ ROP_AbcSOP::start(const OObject &parent,
     myPartitionNames.push_back(getName());
 
     PrimitiveList prims;
-    partitionGeometry(prims, sop, *gdp, ctx, err);
+    partitionGeometry(prims, sop, gdh, *gdp, ctx, err);
     if (part_by_path)
         prims.sort(comparePrims);
 
@@ -375,8 +390,9 @@ ROP_AbcSOP::update(GABC_OError &err,
         return err.error("Unable to find SOP: %d", mySopId);
     }
 
-    GU_DetailHandleAutoReadLock gdl(sop->getCookedGeoHandle(ctx.cookContext()));
-    const GU_Detail *gdp = gdl.getGdp();
+    GU_ConstDetailHandle	gdh(sop->getCookedGeoHandle(ctx.cookContext()));
+    GU_DetailHandleAutoReadLock rlock(gdh);
+    const GU_Detail		*gdp = rlock.getGdp();
     if (!gdp)
     {
         clear();
@@ -392,7 +408,7 @@ ROP_AbcSOP::update(GABC_OError &err,
     }
 
     PrimitiveList prims;
-    partitionGeometry(prims, sop, *gdp, ctx, err);
+    partitionGeometry(prims, sop, gdh, *gdp, ctx, err);
     if (ctx.buildFromPath())
         prims.sort(comparePrims);
 
@@ -567,7 +583,8 @@ ROP_AbcSOP::newShape(const abc_PrimContainer &prim,
 
 void
 ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
-        const GU_Detail &gdp,
+        const GU_ConstDetailHandle &gdh,
+	const GU_Detail &gdp,
         const GA_Range &range,
         const ROP_AbcContext &ctx,
         GABC_OError &err,
@@ -583,7 +600,7 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
 		GA_ROHandleS(gdp.findStringTuple(GA_ATTRIB_PRIMITIVE, aname));
     if (!str.isValid() || !str.getAttribute()->getAIFSharedStringTuple())
     {
-        buildGeometry(primitives, gdp, range, getName(), false, false,
+        buildGeometry(primitives, gdh, gdp, range, getName(), false, false,
 		      force_subd_mode, show_pts);
         return;
     }
@@ -659,7 +676,7 @@ ROP_AbcSOP::partitionGeometryRange(PrimitiveList &primitives,
         {
             GA_Range    range(gdp.getPrimitiveMap(), myPartitionIndices(i));
 
-            buildGeometry(primitives, gdp, range, myPartitionNames[i],
+            buildGeometry(primitives, gdh, gdp, range, myPartitionNames[i],
 			  (i != 0), part_by_path, force_subd_mode, show_pts);
 
             myPartitionIndices(i).clear();
@@ -680,6 +697,7 @@ ROP_AbcSOP::dump(int indent) const
 void
 ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
         const SOP_Node *sop,
+	const GU_ConstDetailHandle &gdh,
         const GU_Detail &gdp,
         const ROP_AbcContext &ctx,
         GABC_OError &err)
@@ -688,7 +706,7 @@ ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
     if (!objectSubd(sop, ctx, subdgroupname))
     {
         // No subdivision primitives
-        partitionGeometryRange(primitives, gdp, gdp.getPrimitiveRange(), ctx,
+        partitionGeometryRange(primitives, gdh, gdp, gdp.getPrimitiveRange(), ctx,
 			       err, false, true);
 	return;
     }
@@ -696,7 +714,7 @@ ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
     if (!subdgroupname.isstring())
     {
 	// All polygons should be rendered as subd primitives
-	partitionGeometryRange(primitives, gdp, gdp.getPrimitiveRange(), ctx,
+	partitionGeometryRange(primitives, gdh, gdp, gdp.getPrimitiveRange(), ctx,
 			       err, true, true);
 	return;
     }
@@ -708,15 +726,15 @@ ROP_AbcSOP::partitionGeometry(PrimitiveList &primitives,
     if (!subdgroup)
     {
 	// If there was no group, then there are no subd surfaces
-	partitionGeometryRange(primitives, gdp, gdp.getPrimitiveRange(), ctx,
+	partitionGeometryRange(primitives, gdh, gdp, gdp.getPrimitiveRange(), ctx,
 			       err, false, true);
 	return;
     }
 
     // Build subdivision groups first
-    partitionGeometryRange(primitives, gdp, GA_Range(*subdgroup), ctx, err,
+    partitionGeometryRange(primitives, gdh, gdp, GA_Range(*subdgroup), ctx, err,
 			   true, false);
     // Now, build the polygons
-    partitionGeometryRange(primitives, gdp, GA_Range(*subdgroup, true), ctx,
+    partitionGeometryRange(primitives, gdh, gdp, GA_Range(*subdgroup, true), ctx,
 			   err, false, true);
 }
