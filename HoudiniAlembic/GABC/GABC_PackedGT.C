@@ -34,8 +34,9 @@ namespace
 class GABC_API GABC_PackedGT : public GT_GEOPrimPacked
 {
 public:
-    GABC_PackedGT(const GU_PrimPacked *prim)
-	: GT_GEOPrimPacked(prim),
+    GABC_PackedGT(const GU_ConstDetailHandle &prim_gdh,
+		const GU_PrimPacked *prim)
+	: GT_GEOPrimPacked(prim_gdh, prim),
 	  myID(0)
     {
 	if(prim)
@@ -396,7 +397,7 @@ GABC_CollectPacked::collect(const GT_GEODetailListHandle &geo,
     CollectData		*collector = data->asPointer<CollectData>();
     const GU_PrimPacked *pack = UTverify_cast<const GU_PrimPacked *>(prim[0]);
     if (!collector->append(*pack))
-	return GT_PrimitiveHandle(new GABC_PackedGT(pack));
+	return GT_PrimitiveHandle(new GABC_PackedGT(geo->getGeometry(0), pack));
     return GT_PrimitiveHandle();
 }
 
