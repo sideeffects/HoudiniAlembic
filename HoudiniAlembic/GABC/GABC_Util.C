@@ -600,8 +600,6 @@ namespace
                 // Get our local transform
                 GABC_IObject    dad = obj.getParent();
                 M44d            localXform;
-                M44d            dm;
-                bool            dadConst;
 
                 getLocalTransform(localXform,
                         obj,
@@ -611,7 +609,10 @@ namespace
 
                 if (dad.valid() && inheritsXform)
                 {
-                    getWorldTransform(dm, dad, now, dadConst, inheritsXform);
+		    M44d	dm;
+		    bool	dadConst;
+		    bool	dadInherit;
+                    getWorldTransform(dm, dad, now, dadConst, dadInherit);
 
                     if (!dadConst)
                     {
