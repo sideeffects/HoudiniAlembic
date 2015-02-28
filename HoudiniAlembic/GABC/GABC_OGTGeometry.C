@@ -45,6 +45,8 @@
 #include <GT/GT_TrimNuCurves.h>
 #include <UT/UT_JSONParser.h>
 #include <UT/UT_StackBuffer.h>
+#include <UT/UT_HashFunctor.h>
+#include <UT/UT_FSATable.h>
 
 // For simple refinement
 #include <GT/GT_GEOPrimTPSurf.h>
@@ -95,6 +97,137 @@ namespace
     typedef GABC_OGTGeometry::IgnoreList        IgnoreList;
     typedef GABC_OGTGeometry::IntrinsicCache    IntrinsicCache;
     typedef GABC_OGTGeometry::SecondaryCache    SecondaryCache;
+
+    static UT_FSATableT<GT_Owner, GT_OWNER_INVALID>	theXlateOwner(
+	    GT_OWNER_POINT,	"pt",
+	    GT_OWNER_VERTEX,	"vtx",
+	    GT_OWNER_PRIMITIVE,	"prim",
+	    GT_OWNER_DETAIL,	"detail",
+	    GT_OWNER_INVALID,	NULL
+    );
+
+    class RiXlate
+    {
+    public:
+	class Key
+	{
+	public:
+	    Key(const UT_StringHolder &name, GT_Owner owner)
+		: myName(name)
+		, myOwner(owner)
+	    {
+	    }
+	    uint	hash() const
+	    {
+		return myName.hash() ^ SYSwang_inthash(myOwner);
+	    }
+	    bool	operator==(const Key &k) const
+	    {
+		return myOwner == k.myOwner && myName == k.myName;
+	    }
+	    UT_StringHolder	myName;
+	    GT_Owner		myOwner;
+	};
+	class Item
+	{
+	public:
+	    Item()
+		: myName()
+		, myRibName()
+		, myGTOwner(GT_OWNER_INVALID)
+		, myScope(Alembic::AbcGeom::kUnknownScope)
+	    {
+	    }
+	    Item(const UT_StringHolder &name,
+		    const UT_StringHolder &ribname,
+		    GT_Owner owner,
+		    Alembic::AbcGeom::GeometryScope scope)
+		: myName(name)
+		, myRibName(ribname)
+		, myGTOwner(owner)
+		, myScope(scope)
+	    {
+	    }
+	    const UT_StringHolder	&name() const { return myName; }
+	    const UT_StringHolder	&ribname() const { return myRibName; }
+	    GT_Owner			 owner() const { return myGTOwner; }
+	    Alembic::AbcGeom::GeometryScope scope() const { return myScope; }
+	private:
+	    UT_StringHolder			myName;
+	    UT_StringHolder			myRibName;
+	    GT_Owner				myGTOwner;
+	    Alembic::AbcGeom::GeometryScope	myScope;
+	};
+	typedef UT_Map<Key, Item, UT_HashFunctor<Key> >	MapType;
+	RiXlate(const GT_Primitive &prim)
+	{
+	    GT_Owner		owner;
+	    GT_DataArrayHandle	rixlate = prim.findAttribute("rixlate", owner, 0);
+	    if (!rixlate || rixlate->entries() != 1 || !rixlate->getTupleSize())
+		return;
+	    int		nstrings = rixlate->getTupleSize();
+	    for (exint i = 0; i < nstrings; ++i)
+	    {
+		addXlate(rixlate->getS(0, i));
+	    }
+	}
+	void	addXlate(const char *src)
+	{
+	    UT_String				 str(src);
+	    char				*f[8];
+
+	    if (str.tokenize(f, 8, ':') < 4)
+		return;
+
+	    GT_Owner owner = theXlateOwner.findSymbol(f[0]);
+	    if (owner == GT_OWNER_INVALID)
+		return;
+
+	    Alembic::AbcGeom::GeometryScope	scope;
+	    switch (owner)
+	    {
+		case GT_OWNER_POINT:
+		    scope = Alembic::AbcGeom::kVaryingScope;
+		    break;
+		case GT_OWNER_VERTEX:
+		    if (!strncmp(f[3], "v_", 2))
+			scope = Alembic::AbcGeom::kFacevaryingScope;
+		    else
+			scope = Alembic::AbcGeom::kVertexScope;
+		    break;
+		case GT_OWNER_UNIFORM:
+		    scope = Alembic::AbcGeom::kUniformScope;
+		    break;
+		default:
+		    scope = Alembic::AbcGeom::kConstantScope;
+	    }
+	    UT_StringHolder	name(f[1]);
+	    UT_StringHolder	ribname(f[2]);
+	    myMap[Key(name, owner)] = Item(name, ribname, owner, scope);
+	}
+	Alembic::AbcGeom::GeometryScope	getScope(const UT_StringHolder &name,
+					    GT_Owner owner) const
+	{
+	    auto	it = myMap.find(Key(name, owner));
+	    if (it != myMap.end())
+	    {
+		return it->second.scope();
+	    }
+	    switch (owner)
+	    {
+		case GT_OWNER_POINT:
+		    return Alembic::AbcGeom::kVaryingScope;
+		case GT_OWNER_VERTEX:
+		    return Alembic::AbcGeom::kFacevaryingScope;
+		case GT_OWNER_UNIFORM:
+		    return Alembic::AbcGeom::kUniformScope;
+		default:
+		    return Alembic::AbcGeom::kConstantScope;
+	    }
+	}
+    private:
+	MapType	myMap;
+    };
 
     UInt8ArraySample
     uint8Array(const GT_DataArrayHandle &data, GT_DataArrayHandle &storage)
@@ -166,7 +299,8 @@ namespace
     makeGeomParams(PropertyMap &arb_map,
             const GT_AttributeListHandle &attribs,
             OCompoundProperty &cp,
-            Alembic::AbcGeom::GeometryScope scope,
+            GT_Owner owner,
+	    const RiXlate &xlate,
             GABC_OError &err,
             const GABC_OOptions &ctx,
             const IgnoreList &skips)
@@ -184,6 +318,9 @@ namespace
             const char                 *name = attribs->getName(i);
             const char                 *exp_name = attribs->getExportName(i);
             const GT_DataArrayHandle   &data = attribs->get(i);
+	    Alembic::AbcGeom::GeometryScope	scope;
+
+	    scope = xlate.getScope(UT_StringRef(name), owner);
 
             if (!data
                     || skips.contains(exp_name)
@@ -321,7 +458,8 @@ namespace
 	    const char *name,
 	    GT_DataArrayHandle &store,
 	    const GT_AttributeListHandle &alist,
-	    Alembic::AbcGeom::GeometryScope scope)
+	    const RiXlate &rixlate,
+	    GT_Owner owner)
     {
 	GT_DataArrayHandle	data;
 
@@ -329,6 +467,8 @@ namespace
 	    return false;
 	if (!cache.needWrite(ctx, name, data))
 	    return true;
+
+	Alembic::AbcGeom::GeometryScope scope = rixlate.getScope(name, owner);
 
 	typedef Alembic::Abc::TypedArraySample<TRAITS>	ArraySample;
 	typedef typename TRAITS::value_type		ValueType;
@@ -368,6 +508,7 @@ namespace
 	    const GABC_OOptions &ctx,
 	    const char *name,
 	    GT_DataArrayHandle &store,
+	    const RiXlate &rixlate,
 	    const GT_AttributeListHandle &point,
 	    const GT_AttributeListHandle &vertex = GT_AttributeListHandle(),
 	    const GT_AttributeListHandle &uniform = GT_AttributeListHandle(),
@@ -376,28 +517,28 @@ namespace
 	// Fill vertex attributes first
 	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
-		    vertex, Alembic::AbcGeom::kFacevaryingScope))
+		    vertex, rixlate, GT_OWNER_VERTEX))
 	{
 	    return true;
 	}
 	// Followed by point attributes
 	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
-		    point, Alembic::AbcGeom::kVertexScope))
+		    point, rixlate, GT_OWNER_POINT))
 	{
 	    return true;
 	}
 	// Followed by uniform
 	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
-		    uniform, Alembic::AbcGeom::kUniformScope))
+		    uniform, rixlate, GT_OWNER_UNIFORM))
 	{
 	    return true;
 	}
 	// Followed by detail attribs
 	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
-		    detail, Alembic::AbcGeom::kConstantScope))
+		    detail, rixlate, GT_OWNER_DETAIL))
 	{
 	    return true;
 	}
@@ -410,6 +551,7 @@ namespace
 	    const GABC_OOptions &ctx, \
 	    const char *name, \
 	    GT_DataArrayHandle &store, \
+	    const RiXlate &rixlate, \
 	    const GT_AttributeListHandle &point, \
 	    const GT_AttributeListHandle &vertex = GT_AttributeListHandle(), \
 	    const GT_AttributeListHandle &uniform = GT_AttributeListHandle(), \
@@ -417,7 +559,7 @@ namespace
 	{ \
 	    return fillAttribute<H_TYPE, GT_STORAGE, \
 		Alembic::AbcGeom::GEOM_PARAM::Sample, Alembic::Abc::TRAITS>( \
-				sample, cache, ctx, name, store, \
+				sample, cache, ctx, name, store, rixlate, \
 				point, vertex, uniform, detail); \
 	}
     TYPED_FILL(fillP3f, OP3fGeomParam, P3fTPTraits, fpreal32, GT_STORE_REAL32);
@@ -547,6 +689,7 @@ namespace
 	const GT_AttributeListHandle   &pt = pointAttributes(src);
 	const GT_AttributeListHandle   &vtx = vertexAttributes(src);
 	const GT_AttributeListHandle   &uniform = uniformAttributes(src);
+	RiXlate				rixlate(src);
 
 	counts = src.getFaceCountArray().extractCounts();
 	if (cache.needVertex(ctx, src.getVertexList()))
@@ -555,16 +698,16 @@ namespace
 	if (cache.needCounts(ctx, counts))
 	    iCnt = int32Array(counts, storage.counts());
 
-	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
+	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, pt);
 
 	if (matchAttribute(ctx, "uv", pt, vtx, uniform))
-	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt, vtx, uniform);
+	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), rixlate, pt, vtx, uniform);
 
 	if (matchAttribute(ctx, "N", pt, vtx))
-	    fillN3f(iNml, cache, ctx, "N", storage.N(), pt, vtx);
+	    fillN3f(iNml, cache, ctx, "N", storage.N(), rixlate, pt, vtx);
 
 	if (matchAttribute(ctx, "v", pt, vtx))
-	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt, vtx);
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), rixlate, pt, vtx);
 
 	OPolyMeshSchema::Sample	sample(iPos.getVals(), iInd, iCnt, iUVs, iNml);
 	if (iVel.valid())
@@ -594,17 +737,18 @@ namespace
 	const GT_AttributeListHandle   &pt = pointAttributes(src);
 	const GT_AttributeListHandle   &vtx = vertexAttributes(src);
 	const GT_AttributeListHandle   &uniform = uniformAttributes(src);
+	RiXlate				rixlate(src);
 
 	counts = src.getFaceCountArray().extractCounts();
 	if (cache.needVertex(ctx, src.getVertexList()))
 	    iInd = int32Array(src.getVertexList(), storage.vertexList());
 	if (cache.needCounts(ctx, counts))
 	    iCnt = int32Array(counts, storage.counts());
-	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
+	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, pt);
 	if (matchAttribute(ctx, "uv", pt, vtx, uniform))
-	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), pt, vtx, uniform);
+	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), rixlate, pt, vtx, uniform);
 	if (matchAttribute(ctx, "v", pt, vtx))
-	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt, vtx);
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), rixlate, pt, vtx);
 
 	const GT_PrimSubdivisionMesh::Tag	*tag;
 	tag = src.findTag("crease");
@@ -701,6 +845,7 @@ namespace
 	IntrinsicCache                  storage;
 	const GT_AttributeListHandle   &pt = pointAttributes(src);
 	const GT_AttributeListHandle   &detail = detailAttributes(src);
+	RiXlate				rixlate(src);
 
 	ids = pt->get("id");
 	if (!ids)
@@ -714,9 +859,9 @@ namespace
 	    }
 	}
 	iId = uint64Array(ids, storage.id());
-	fillP3f(iPos, cache, ctx, "P", storage.P(), pt);
+	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, pt);
 	if (matchAttribute(ctx, "v", pt))
-	    fillV3f(iVel, cache, ctx, "v", storage.v(), pt);
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), rixlate, pt);
 	if (matchAttribute(ctx,
 	        "width",
 	        pt,
@@ -729,6 +874,7 @@ namespace
 	            ctx,
 	            "width",
 	            storage.width(),
+		    rixlate,
 	            pt,
 		    GT_AttributeListHandle(),
 		    GT_AttributeListHandle(),
@@ -757,27 +903,28 @@ namespace
     fillCurves(OCurves &dest, const GT_PrimCurveMesh &src,
 	    IntrinsicCache &cache, const GABC_OOptions &ctx)
     {
-	OP3fGeomParam::Sample               iPos;
-	FloatArraySample                    iPosWeight;
-	Int32ArraySample                    iCnt;
-	OFloatGeomParam::Sample             iWidths;
-	OV2fGeomParam::Sample               iUVs;
-	ON3fGeomParam::Sample               iNml;
-	OV3fGeomParam::Sample               iVel;
-	FloatArraySample                    iKnots;
-	UInt8ArraySample                    iOrders;
-	GT_DataArrayHandle                  counts;
-	GT_DataArrayHandle                  orders, order_storage;
-	GT_DataArrayHandle                  knots = src.knots();
-	IntrinsicCache                      storage;
-	Alembic::AbcGeom::CurveType         iOrder;
-	Alembic::AbcGeom::CurvePeriodicity  iPeriod;
-	Alembic::AbcGeom::BasisType         iBasis;
-	P3fArraySamplePtr                   homogenized_vals;
-	const GT_AttributeListHandle       &vtx = vertexAttributes(src);
-	const GT_AttributeListHandle       &uniform = uniformAttributes(src);
-	const GT_AttributeListHandle       &detail = detailAttributes(src);
-	const GT_DataArrayHandle           &Pw = vtx->get("Pw");
+	OP3fGeomParam::Sample			 iPos;
+	FloatArraySample			 iPosWeight;
+	Int32ArraySample			 iCnt;
+	OFloatGeomParam::Sample			 iWidths;
+	OV2fGeomParam::Sample			 iUVs;
+	ON3fGeomParam::Sample			 iNml;
+	OV3fGeomParam::Sample			 iVel;
+	FloatArraySample			 iKnots;
+	UInt8ArraySample			 iOrders;
+	GT_DataArrayHandle			 counts;
+	GT_DataArrayHandle			 orders, order_storage;
+	GT_DataArrayHandle			 knots = src.knots();
+	IntrinsicCache				 storage;
+	Alembic::AbcGeom::CurveType		 iOrder;
+	Alembic::AbcGeom::CurvePeriodicity	 iPeriod;
+	Alembic::AbcGeom::BasisType		 iBasis;
+	P3fArraySamplePtr			 homogenized_vals;
+	const GT_AttributeListHandle		&vtx = vertexAttributes(src);
+	const GT_AttributeListHandle		&uniform=uniformAttributes(src);
+	const GT_AttributeListHandle		&detail=detailAttributes(src);
+	const GT_DataArrayHandle		&Pw = vtx->get("Pw");
+	RiXlate					 rixlate(src);
 
 	switch (src.getBasis())
 	{
@@ -838,7 +985,7 @@ namespace
 
 	// We pass in "vtx" for the point attributes since we can't
 	// differentiate between them at this point.
-	fillP3f(iPos, cache, ctx, "P", storage.P(), vtx);
+	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, vtx);
 
 	if (matchAttribute(ctx,
                 "uv",
@@ -851,6 +998,7 @@ namespace
                     ctx,
                     "uv",
                     storage.uv(),
+		    rixlate, 
                     GT_AttributeListHandle(),
                     vtx,
                     uniform);
@@ -863,6 +1011,7 @@ namespace
 	            ctx,
 	            "N",
 	            storage.N(),
+		    rixlate,
 	            GT_AttributeListHandle(),
 	            vtx);
         }
@@ -874,6 +1023,7 @@ namespace
 	            ctx,
 	            "v",
 	            storage.v(),
+		    rixlate,
 	            GT_AttributeListHandle(),
 	            vtx);
         }
@@ -890,6 +1040,7 @@ namespace
 	            ctx,
 	            "width",
 	            storage.width(),
+		    rixlate,
 	            GT_AttributeListHandle(),
 		    vtx,
 		    uniform,
@@ -933,12 +1084,13 @@ namespace
 	const GT_AttributeListHandle   &vtx = vertexAttributes(src);
 	const GT_AttributeListHandle   &detail = detailAttributes(src);
 	const GT_DataArrayHandle       &Pw = vtx->get("Pw");
+	RiXlate				rixlate(src);
 
 	// We pass in "vtx" for the point attributes since we can't
 	// differentiate between them at this point.
 	//
 	// Also pass in "detail" for primitive attributes.
-	fillP3f(iPos, cache, ctx, "P", storage.P(), vtx);
+	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, vtx);
 
 	if (matchAttribute(ctx,
 	        "uv",
@@ -951,16 +1103,17 @@ namespace
 	            ctx,
 	            "uv",
 	            storage.uv(),
+		    rixlate,
 	            GT_AttributeListHandle(),
 	            vtx,
 	            detail);
         }
 
 	if (matchAttribute(ctx, "N", vtx, vtx))
-	    fillN3f(iNml, cache, ctx, "N", storage.N(), vtx, vtx);
+	    fillN3f(iNml, cache, ctx, "N", storage.N(), rixlate, vtx, vtx);
 
 	if (matchAttribute(ctx, "v", vtx, vtx))
-	    fillV3f(iVel, cache, ctx, "v", storage.v(), vtx, vtx);
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), rixlate, vtx, vtx);
 
 	if (cache.needWrite(ctx, "uknots", src.getUKnots()))
 	    iUKnot = floatArray(src.getUKnots(), storage.uknots());
@@ -1383,42 +1536,35 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
         return true;
     }
 
-    Alembic::AbcGeom::GeometryScope     pt = Alembic::AbcGeom::kUnknownScope;
-    Alembic::AbcGeom::GeometryScope     vtx = Alembic::AbcGeom::kUnknownScope;
-    const IgnoreList                   *skip = &theEmptySkip;
-    OCompoundProperty                   cp;
-    bool                                result = true;
+    const IgnoreList	*skip = &theEmptySkip;
+    OCompoundProperty	 cp;
+    bool		 result = true;
+
+    RiXlate		 rixlate(*prim);
 
     switch (myType)
     {
 	case GT_PRIM_POLYGON_MESH:
-	    pt = Alembic::AbcGeom::kVaryingScope;
-	    vtx = Alembic::AbcGeom::kFacevaryingScope;
 	    skip = &thePolyMeshSkip;
 	    cp = myShape.myPolyMesh->getSchema().getArbGeomParams();
 	    break;
 
 	case GT_PRIM_SUBDIVISION_MESH:
-	    pt = Alembic::AbcGeom::kVaryingScope;
-	    vtx = Alembic::AbcGeom::kFacevaryingScope;
 	    skip = &theSubDSkip;
 	    cp = myShape.mySubD->getSchema().getArbGeomParams();
 	    break;
 
 	case GT_PRIM_POINT_MESH:
-	    pt = Alembic::AbcGeom::kVaryingScope;
 	    skip = &thePointsSkip;
 	    cp = myShape.myPoints->getSchema().getArbGeomParams();
 	    break;
 
 	case GT_PRIM_CURVE_MESH:
-	    vtx = Alembic::AbcGeom::kFacevaryingScope;
 	    skip = &theCurvesSkip;
 	    cp = myShape.myCurves->getSchema().getArbGeomParams();
 	    break;
 
 	case GT_PRIM_NUPATCH:
-	    vtx = Alembic::AbcGeom::kFacevaryingScope;
 	    skip = &theNuPatchSkip;
 	    cp = myShape.myNuPatch->getSchema().getArbGeomParams();
 	    break;
@@ -1428,42 +1574,38 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 	    return false;
     }
 
-    if (pt != Alembic::AbcGeom::kUnknownScope)
-    {
-	result &= makeGeomParams(myArbProperties[POINT_PROPERTIES],
+    result = result && makeGeomParams(myArbProperties[POINT_PROPERTIES],
                 prim->getPointAttributes(),
                 cp,
-                pt,
+                GT_OWNER_POINT,
+		rixlate,
                 err,
                 ctx,
                 *skip);
-    }
-    if (vtx != Alembic::AbcGeom::kUnknownScope)
-    {
-	// We don't need to transform the attributes to build the Alembic
-	// objects, only when we write their values.
-	result &= makeGeomParams(myArbProperties[VERTEX_PROPERTIES],
+    result = result && makeGeomParams(myArbProperties[VERTEX_PROPERTIES],
                 prim->getVertexAttributes(),
                 cp,
-                vtx,
+                GT_OWNER_VERTEX,
+		rixlate,
                 err,
                 ctx,
                 *skip);
-    }
-    result &= makeGeomParams(myArbProperties[UNIFORM_PROPERTIES],
-            prim->getUniformAttributes(),
-            cp,
-            Alembic::AbcGeom::kUniformScope,
-            err,
-            ctx,
-            *skip);
-    result &= makeGeomParams(myArbProperties[DETAIL_PROPERTIES],
-            prim->getDetailAttributes(),
-            cp,
-            Alembic::AbcGeom::kConstantScope,
-            err,
-            ctx,
-            *skip);
+    result = result && makeGeomParams(myArbProperties[UNIFORM_PROPERTIES],
+		prim->getUniformAttributes(),
+		cp,
+		GT_OWNER_UNIFORM,
+		rixlate,
+		err,
+		ctx,
+		*skip);
+    result = result && makeGeomParams(myArbProperties[DETAIL_PROPERTIES],
+		prim->getDetailAttributes(),
+		cp,
+		GT_OWNER_DETAIL,
+		rixlate,
+		err,
+		ctx,
+		*skip);
 
     return result;
 }
