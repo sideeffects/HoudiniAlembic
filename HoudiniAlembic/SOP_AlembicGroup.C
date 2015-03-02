@@ -36,6 +36,7 @@
 #include <GU/GU_PrimSelection.h>
 #include <GU/GU_PrimPacked.h>
 #include <GABC/GABC_PackedImpl.h>
+#include <SYS/SYS_ParseNumber.h>
 
 #if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
     #define CUSTOM_ALEMBIC_TOKEN_PREFIX	""
