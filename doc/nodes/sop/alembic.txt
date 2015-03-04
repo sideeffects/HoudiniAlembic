@@ -34,6 +34,13 @@ Frames per second:
         current frames-per-second setting). If the archive file was created with a
         different FPS, you will need to enter it here.
 
+Missing File:
+	What should be done if the specified file does not exist on disk.
+	By default, if there's a missing or invalid Alembic archive,
+	the SOP will error.  This can be troublesome in a network that can
+	recover from the error.  In these cases the behavior can be set to No
+	Geometry so only a warning is posted.
+
 == Geometry ==
 Load As:
         #id: loadmode

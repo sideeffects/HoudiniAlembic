@@ -166,6 +166,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myObjectPattern()
     , mySubdGroupName()
     , myIncludeXform(true)
+    , myMissingFileError(true)
     , myUseVisibility(true)
     , myBuildLocator(false)
     , myLoadUserProps(GABC_GEOWalker::UP_LOAD_NONE)
@@ -191,6 +192,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myObjectPattern()
     , mySubdGroupName()
     , myIncludeXform(true)
+    , myMissingFileError(true)
     , myUseVisibility(true)
     , myBuildLocator(false)
     , myLoadUserProps(GABC_GEOWalker::UP_LOAD_NONE)
@@ -217,6 +219,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myBuildAbcShape = src.myBuildAbcShape;
     myBuildAbcXform = src.myBuildAbcXform;
     myIncludeXform = src.myIncludeXform;
+    myMissingFileError = src.myMissingFileError;
     myUseVisibility = src.myUseVisibility;
     myBuildLocator = src.myBuildLocator;
     myLoadUserProps = src.myLoadUserProps;
@@ -278,6 +281,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	return true;
     if (myIncludeXform != src.myIncludeXform)
 	return true;
+    if (myMissingFileError != src.myMissingFileError)
+	return true;
     if (myUseVisibility != src.myUseVisibility)
 	return true;
     if (myBuildLocator != src.myBuildLocator)
@@ -319,6 +324,7 @@ static PRM_Template prm_AttributeRemapTemplate[] = {
 static PRM_Name prm_reloadbutton("reload", "Reload Geometry");
 static PRM_Name prm_filenameName("fileName", "File Name");
 static PRM_Name prm_frameName("frame", "Frame");
+static PRM_Name prm_missingFileName("missingfile", "Missing File");
 static PRM_Name prm_fpsName("fps", "Frames Per Second");
 static PRM_Name prm_objectPathName("objectPath", "Object Path");
 static PRM_Name	prm_pickObjectPathName("pickobjectPath", "Pick");
@@ -363,6 +369,14 @@ static PRM_Name	loadModeOptions[] = {
 };
 static PRM_Default prm_loadmodeDefault(0, "alembic");
 static PRM_ChoiceList menu_loadmode(PRM_CHOICELIST_SINGLE, loadModeOptions);
+
+static PRM_Name	missingFileOptions[] = {
+    PRM_Name("error",	"Report Error"),
+    PRM_Name("empty",	"No Geometry"),
+    PRM_Name(0),
+};
+static PRM_Default missingFileDefault(0, "error");
+static PRM_ChoiceList menu_missingFile(PRM_CHOICELIST_SINGLE, missingFileOptions);
 
 static PRM_Name pointModeOptions[] = {
     PRM_Name("shared",	"Shared Point"),
@@ -466,6 +480,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_FILE,  1, &prm_filenameName, 0, 0, 0, 0, &theAbcPattern),
     PRM_Template(PRM_FLT_J, 1, &prm_frameName, &prm_frameDefault),
     PRM_Template(PRM_FLT_J, 1, &prm_fpsName, &prm_fpsDefault),
+    PRM_Template(PRM_ORD,   1, &prm_missingFileName, &missingFileDefault,
+	    &menu_missingFile),
 
     // Define 3 tabs of folders
     PRM_Template(PRM_SWITCHER, 3, &PRMswitcherName, mainSwitcher),
@@ -693,6 +709,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     evalString(parms.myObjectPattern, "objectPattern", 0, now);
     evalString(parms.mySubdGroupName, "subdgroup", 0, now);
     parms.myIncludeXform = evalInt("includeXform", 0, now) != 0;
+    parms.myMissingFileError = evalInt("missingfile", 0, now) == 0;
     parms.myUseVisibility = evalInt("usevisibility", 0, now) != 0;
     parms.myBuildLocator = evalInt("loadLocator", 0, now) != 0;
     if (evalInt("addpath", 0, now))
@@ -981,7 +998,18 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 		removeDuplicates(olist);
 
 		if (!GABC_Util::walk(parms.myFilename, walk, olist))
-		    addError(SOP_MESSAGE, "Error evaluating objects in file");
+		{
+		    if (parms.myMissingFileError || !walk.badArchive())
+		    {
+			addError(SOP_MESSAGE,
+				"Error evaluating objects in file");
+		    }
+		    else
+		    {
+			addWarning(SOP_MESSAGE,
+				"Invalid or missing Alembic archive");
+		    }
+		}
 	    }
 	}
 	else
@@ -989,9 +1017,18 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	    if (!GABC_Util::walk(parms.myFilename, walk))
 	    {
 		UT_WorkBuffer msg;
-		msg.sprintf("Error evaluating Alembic file (%s)",
-			    parms.myFilename.c_str());
-		addError(SOP_MESSAGE, msg.buffer());
+		if (parms.myMissingFileError || !walk.badArchive())
+		{
+		    msg.sprintf("Error evaluating Alembic file (%s)",
+				parms.myFilename.c_str());
+		    addError(SOP_MESSAGE, msg.buffer());
+		}
+		else
+		{
+		    msg.sprintf("Invalid or missing Alembic file (%s)",
+				parms.myFilename.c_str());
+		    addWarning(SOP_MESSAGE, msg.buffer());
+		}
 	    }
 	}
 	setupEventHandler(parms.myFilename);

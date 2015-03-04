@@ -95,6 +95,7 @@ public:
 	    , myStartTime(0)
 	    , myEndTime(0)
 	    , myComputedTimes(false)
+	    , myBadArchive(false)
 	{}
 	virtual ~Walker() {}
 
@@ -135,11 +136,15 @@ public:
 					{ myFilename = f; }
 	/// @}
 
+	/// Return whether the walking error was caused by a bad Alembic archive
+	bool	badArchive() const		{ return myBadArchive; }
+
     private:
 	std::string     myFilename;
 	fpreal		myStartTime;
 	fpreal		myEndTime;
 	bool		myComputedTimes;
+	bool		myBadArchive;		// Invalid alembic archive
 
 	friend class    GABC_Util;
     };

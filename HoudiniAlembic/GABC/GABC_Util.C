@@ -1760,6 +1760,7 @@ GABC_Util::walk(const std::string &filename,
     ArchiveCacheEntryPtr    cacheEntry = LoadArchive(filename);
     WalkPushFile            walkfile(walker, filename);
 
+    walker.myBadArchive = !cacheEntry->isValid();
     for (auto it = objects.begin(); it != objects.end(); ++it)
     {
 	GABC_IObject    obj = findObject(filename, *it);
@@ -1784,8 +1785,15 @@ bool
 GABC_Util::walk(const std::string &filename, GABC_Util::Walker &walker)
 {
     ArchiveCacheEntryPtr    cacheEntry = LoadArchive(filename);
+
+    walker.myBadArchive = !cacheEntry->isValid();
+    if (walker.myBadArchive)
+    {
+	return false;
+    }
+
     WalkPushFile            walkfile(walker, filename);
-    return cacheEntry->isValid() ? cacheEntry->walk(walker) : false;
+    return cacheEntry->walk(walker);
 }
 
 void
