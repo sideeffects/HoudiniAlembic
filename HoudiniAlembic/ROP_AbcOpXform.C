@@ -374,22 +374,26 @@ ROP_AbcOpXform::start(const OObject &parent,
 	    Box3d	b3 = GABC_Util::getBox(myBox);
 	    myOXform.getSchema().getChildBoundsProperty().set(b3);
 	}
-	if (node->isDisplayTimeDependent())
+	// If the ROP is saving a SOP, ignore visibility
+	if (!ctx.singletonSOP())
 	{
-	    // Note:  This is only a valid check if the display channels have
-	    // been evaluated, so there could be problems in hbatch.  However,
-	    // we already performed the evaluation when building the tree, so
-	    // we should be ok.
-	    myVisibility = CreateVisibilityProperty(myOXform,
-				ctx.timeSampling());
-	    setVisibility(ctx);
-	    myTimeDependent = true;
-	}
-	else if (!node->getObjectDisplay(ctx.cookContext().getTime()))
-	{
-	    OVisibilityProperty	 vis;
-	    vis = CreateVisibilityProperty(myOXform, ctx.timeSampling());
-	    vis.set(Alembic::AbcGeom::kVisibilityHidden);
+	    if (node->isDisplayTimeDependent())
+	    {
+		// Note:  This is only a valid check if the display channels
+		// have been evaluated, so there could be problems in hbatch.
+		// However, we already performed the evaluation when building
+		// the tree, so we should be ok.
+		myVisibility = CreateVisibilityProperty(myOXform,
+				    ctx.timeSampling());
+		setVisibility(ctx);
+		myTimeDependent = true;
+	    }
+	    else if (!node->getObjectDisplay(ctx.cookContext().getTime()))
+	    {
+		OVisibilityProperty	 vis;
+		vis = CreateVisibilityProperty(myOXform, ctx.timeSampling());
+		vis.set(Alembic::AbcGeom::kVisibilityHidden);
+	    }
 	}
     }
 
