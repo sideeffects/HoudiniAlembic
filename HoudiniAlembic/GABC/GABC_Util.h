@@ -336,9 +336,9 @@ public:
                                 GABC_OError &err,
                                 const GABC_OOptions &ctx);
 
-    static const UT_DeepString  theLockGeometryParameter;
-    static const UT_DeepString  theUserPropsValsAttrib;
-    static const UT_DeepString  theUserPropsMetaAttrib;
+    static const UT_StringHolder	theLockGeometryParameter;
+    static const UT_StringHolder	theUserPropsValsAttrib;
+    static const UT_StringHolder	theUserPropsMetaAttrib;
 };
 
 } // GABC_NAMESPACE

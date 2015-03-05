@@ -1710,10 +1710,12 @@ GABC_Util::ArchiveEventHandler::stopReceivingEvents()
 //  GABC_Util
 //------------------------------------------------
 
-const UT_DeepString GABC_Util::theLockGeometryParameter("abc_lock_geom");
-const UT_DeepString GABC_Util::theUserPropsValsAttrib("abc_userProperties");
-const UT_DeepString GABC_Util::theUserPropsMetaAttrib(
-        "abc_userPropertiesMetadata");
+#define GABC_CONST_STR(VAR, VAL) \
+    const UT_StringHolder GABC_Util::VAR(UTmakeUnsafeRef(VAL));
+
+GABC_CONST_STR(theLockGeometryParameter, "abc_lock_geom");
+GABC_CONST_STR(theUserPropsValsAttrib,   "abc_userProperties");
+GABC_CONST_STR(theUserPropsMetaAttrib,   "abc_userPropertiesMetadata");
 
 #define YSTR(X)	#X		// Stringize
 #define XSTR(X)	YSTR(X)		// Expand the stringized version
