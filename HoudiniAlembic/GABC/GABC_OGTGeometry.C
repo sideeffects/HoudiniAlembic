@@ -1305,7 +1305,7 @@ GABC_OGTGeometry::SecondaryCache::needWrite(const GABC_OOptions &ctx,
 //-----------------------------------------------
 
 GABC_OGTGeometry::IgnoreList::IgnoreList(const char *arg0, ...)
-     : myStrings()
+     : UT_StringSet()
 {
     if (arg0)
     {
@@ -1313,7 +1313,7 @@ GABC_OGTGeometry::IgnoreList::IgnoreList(const char *arg0, ...)
         va_start(args, arg0);
         for (const char *s = arg0; s; s = va_arg(args, const char *))
         {
-            myStrings.insert(UT_StringRef(s));
+            insert(UTmakeUnsafeRef(s));
         }
         va_end(args);
     }

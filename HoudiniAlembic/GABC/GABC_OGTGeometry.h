@@ -33,6 +33,7 @@
 #include "GABC_Util.h"
 #include <Alembic/AbcGeom/All.h>
 #include <GT/GT_Primitive.h>
+#include <UT/UT_StringSet.h>
 
 namespace GABC_NAMESPACE
 {
@@ -66,40 +67,23 @@ public:
 
     /// A simple set of strings
     class IgnoreList
+	: public UT_StringSet
     {
     public:
         IgnoreList()
-            : myStrings()
+	    : UT_StringSet()
         {}
         IgnoreList(const char *arg0, ...);
         ~IgnoreList() {}
 
-        void    clear()
-                {
-                    myStrings.clear();
-                }
-
         void    addSkip(const UT_StringHolder &skip)
-                {
-                    myStrings.insert(skip);
-                }
-
+		    { insert(skip); }
         bool    deleteSkip(const UT_StringHolder &skip)
-                {
-                    return myStrings.erase(skip);
-                }
-
+		    { return erase(skip); }
         bool	contains(const UT_StringHolder &token) const
-                {
-                    return myStrings.count(token) > 0;
-                }
+		    { return count(token) > 0; }
         bool	contains(const char *token) const
-                {
-                    return myStrings.count(UT_StringRef(token)) > 0;
-                }
-
-    private:
-        UT_Set<UT_StringHolder>	myStrings;
+		    { return count(UTmakeUnsafeRef(token)) > 0; }
     };
 
     /// The intrinsic cache is used to cache array values frame to frame when
