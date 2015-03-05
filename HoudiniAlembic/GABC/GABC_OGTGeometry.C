@@ -1313,7 +1313,7 @@ GABC_OGTGeometry::IgnoreList::IgnoreList(const char *arg0, ...)
         va_start(args, arg0);
         for (const char *s = arg0; s; s = va_arg(args, const char *))
         {
-            myStrings.insert(s, (void *)0);
+            myStrings.insert(UT_StringRef(s));
         }
         va_end(args);
     }
@@ -1327,16 +1327,22 @@ GABC_OGTGeometry::IgnoreList &
 GABC_OGTGeometry::getDefaultSkip()
 {
     // Construct on first use to avoid the static initialization order fiasco
-    static IgnoreList *def = new IgnoreList("P",
+    static IgnoreList *def = NULL;
+    
+    if (!def)
+    {
+	def = new IgnoreList("P",
             "v",
             "__topology",
             "__primitive_id",
             "__point_id",
             "__vertex_id",
             "varmap",
-            GABC_Util::theUserPropsValsAttrib.buffer(),
-            GABC_Util::theUserPropsMetaAttrib.buffer(),
             (void *)NULL);
+	// Add these after the initial construction.
+	def->addSkip(GABC_Util::theUserPropsValsAttrib);
+	def->addSkip(GABC_Util::theUserPropsMetaAttrib);
+    }
 
     return *def;
 }

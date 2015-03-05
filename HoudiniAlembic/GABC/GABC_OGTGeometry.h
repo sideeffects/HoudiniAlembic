@@ -79,23 +79,27 @@ public:
                     myStrings.clear();
                 }
 
-        void    addSkip(const char *skip)
+        void    addSkip(const UT_StringHolder &skip)
                 {
-                    myStrings.insert(skip, (void *)0);
+                    myStrings.insert(skip);
                 }
 
-        bool    deleteSkip(const char *skip)
+        bool    deleteSkip(const UT_StringHolder &skip)
                 {
-                    return myStrings.deleteSymbol(skip);
+                    return myStrings.erase(skip);
                 }
 
-        bool	contains(const char *token) const
+        bool	contains(const UT_StringHolder &token) const
                 {
                     return myStrings.count(token) > 0;
                 }
+        bool	contains(const char *token) const
+                {
+                    return myStrings.count(UT_StringRef(token)) > 0;
+                }
 
     private:
-        UT_SymbolMap<void *, false>	myStrings;
+        UT_Set<UT_StringHolder>	myStrings;
     };
 
     /// The intrinsic cache is used to cache array values frame to frame when
