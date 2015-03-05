@@ -78,12 +78,10 @@ public:
 
         void    addSkip(const UT_StringHolder &skip)
 		    { insert(skip); }
-        bool    deleteSkip(const UT_StringHolder &skip)
+        bool    deleteSkip(const UT_StringRef &skip)
 		    { return erase(skip); }
-        bool	contains(const UT_StringHolder &token) const
+        bool	contains(const UT_StringRef &token) const
 		    { return count(token) > 0; }
-        bool	contains(const char *token) const
-		    { return count(UTmakeUnsafeRef(token)) > 0; }
     };
 
     /// The intrinsic cache is used to cache array values frame to frame when
