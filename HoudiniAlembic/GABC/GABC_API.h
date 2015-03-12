@@ -30,7 +30,7 @@
 
 #include <SYS/SYS_Visibility.h>
 
-#ifdef EXPORT_GABC
+#ifdef GABC_EXPORTS
 #define GABC_API SYS_VISIBILITY_EXPORT
 #define GABC_API_TINST SYS_VISIBILITY_EXPORT_TINST
 #else
