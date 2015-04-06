@@ -63,6 +63,7 @@ namespace
     typedef Alembic::Abc::UcharArraySample	UcharArraySample;
     typedef Alembic::Abc::UcharArraySample	UInt8ArraySample;
     typedef Alembic::Abc::Int32ArraySample	Int32ArraySample;
+    typedef Alembic::Abc::UInt32ArraySample	UInt32ArraySample;
     typedef Alembic::Abc::UInt64ArraySample	UInt64ArraySample;
     typedef Alembic::Abc::FloatArraySample	FloatArraySample;
     typedef Alembic::Abc::V2fArraySample	V2fArraySample;
@@ -449,8 +450,7 @@ namespace
 	return values;
     }
 
-    template <typename POD_T, GT_Storage T_STORAGE,
-	     typename GeomParamSample, typename TRAITS>
+    template <typename GeomParamSample, typename TRAITS>
     static bool
     fillAttributeFromList(GeomParamSample &sample,
 	    IntrinsicCache &cache,
@@ -459,7 +459,9 @@ namespace
 	    GT_DataArrayHandle &store,
 	    const GT_AttributeListHandle &alist,
 	    const RiXlate &rixlate,
-	    GT_Owner owner)
+	    GT_Owner owner,
+	    UT_ValArray<uint32> *uv_idx_storage,
+	    UT_Fpreal32Array *uv_data_storage)
     {
 	GT_DataArrayHandle	data;
 
@@ -468,16 +470,54 @@ namespace
 	if (!cache.needWrite(ctx, name, data))
 	    return true;
 
-	Alembic::AbcGeom::GeometryScope scope = rixlate.getScope(name, owner);
-
 	typedef Alembic::Abc::TypedArraySample<TRAITS>	ArraySample;
 	typedef typename TRAITS::value_type		ValueType;
-	int			 tsize = TRAITS::dataType().getExtent();
-	const POD_T		*vals;
-	if (!(vals = fillArray<POD_T, T_STORAGE>(data, store, tsize)))
+	int tsize = TRAITS::dataType().getExtent();
+	int n = data->entries();
+	const fpreal32 *flatarray =
+		fillArray<fpreal32, GT_STORE_REAL32>(data, store, tsize);
+	if(!flatarray)
 	    return false;
-	sample.setScope(scope);
-	sample.setVals(ArraySample((const ValueType *)vals, data->entries()));
+
+	sample.setScope(rixlate.getScope(name, owner));
+
+	// Use indexed samples for UV as other tools use this to identify
+	// shared vertices.
+	if(uv_idx_storage && uv_data_storage && tsize == 2)
+	{
+	    uv_idx_storage->clear();
+	    uv_data_storage->clear();
+	    UT_Map<std::pair<fpreal32, fpreal32>, int> map;
+
+	    int idx = 0;
+	    for(int i = 0; i < n; ++i)
+	    {
+		fpreal32 u = flatarray[idx++];
+		fpreal32 v = flatarray[idx++];
+		std::pair<fpreal32, fpreal32> key(u, v);
+
+		int j;
+		auto it = map.find(key);
+		if(it != map.end())
+		    j = it->second;
+		else
+		{
+		    uv_data_storage->append(u);
+		    uv_data_storage->append(v);
+		    j = map.size();
+		    map.emplace(key, j);
+		}
+		uv_idx_storage->append(j);
+	    }
+
+	    sample.setIndices(UInt32ArraySample(uv_idx_storage->array(),
+						uv_idx_storage->entries()));
+	    sample.setVals(ArraySample((const ValueType *)uv_data_storage->array(),
+				       map.size()));
+	}
+	else
+	    sample.setVals(ArraySample((const ValueType *)flatarray, n));
+
 	return true;
     }
 
@@ -500,8 +540,7 @@ namespace
 	return true;
     }
 
-    template <typename POD_T, GT_Storage T_STORAGE,
-	     typename GeomParamSample, typename TRAITS>
+    template <typename GeomParamSample, typename TRAITS>
     static bool
     fillAttribute(GeomParamSample &sample,
 	    IntrinsicCache &cache,
@@ -510,42 +549,48 @@ namespace
 	    GT_DataArrayHandle &store,
 	    const RiXlate &rixlate,
 	    const GT_AttributeListHandle &point,
-	    const GT_AttributeListHandle &vertex = GT_AttributeListHandle(),
-	    const GT_AttributeListHandle &uniform = GT_AttributeListHandle(),
-	    const GT_AttributeListHandle &detail = GT_AttributeListHandle())
+	    const GT_AttributeListHandle &vertex,
+	    const GT_AttributeListHandle &uniform,
+	    const GT_AttributeListHandle &detail,
+	    UT_ValArray<uint32> *uv_idx_storage,
+	    UT_Fpreal32Array *uv_data_storage)
     {
 	// Fill vertex attributes first
-	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
+	if (fillAttributeFromList<GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
-		    vertex, rixlate, GT_OWNER_VERTEX))
+		    vertex, rixlate, GT_OWNER_VERTEX,
+		    uv_idx_storage, uv_data_storage))
 	{
 	    return true;
 	}
 	// Followed by point attributes
-	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
+	if (fillAttributeFromList<GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
-		    point, rixlate, GT_OWNER_POINT))
+		    point, rixlate, GT_OWNER_POINT,
+		    uv_idx_storage, uv_data_storage))
 	{
 	    return true;
 	}
 	// Followed by uniform
-	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
+	if (fillAttributeFromList<GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
-		    uniform, rixlate, GT_OWNER_UNIFORM))
+		    uniform, rixlate, GT_OWNER_UNIFORM,
+		    uv_idx_storage, uv_data_storage))
 	{
 	    return true;
 	}
 	// Followed by detail attribs
-	if (fillAttributeFromList<POD_T, T_STORAGE, GeomParamSample, TRAITS>(
+	if (fillAttributeFromList<GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
-		    detail, rixlate, GT_OWNER_DETAIL))
+		    detail, rixlate, GT_OWNER_DETAIL,
+		    uv_idx_storage, uv_data_storage))
 	{
 	    return true;
 	}
 	return false;
     }
 
-    #define TYPED_FILL(METHOD, GEOM_PARAM, TRAITS, H_TYPE, GT_STORAGE) \
+    #define TYPED_FILL(METHOD, GEOM_PARAM, TRAITS) \
 	static bool METHOD(Alembic::AbcGeom::GEOM_PARAM::Sample &sample, \
 	    IntrinsicCache &cache, \
 	    const GABC_OOptions &ctx, \
@@ -555,18 +600,21 @@ namespace
 	    const GT_AttributeListHandle &point, \
 	    const GT_AttributeListHandle &vertex = GT_AttributeListHandle(), \
 	    const GT_AttributeListHandle &uniform = GT_AttributeListHandle(), \
-	    const GT_AttributeListHandle &detail = GT_AttributeListHandle()) \
+	    const GT_AttributeListHandle &detail = GT_AttributeListHandle(), \
+	    UT_ValArray<uint32> *uv_idx_storage = 0, \
+	    UT_Fpreal32Array *uv_data_storage = 0) \
 	{ \
-	    return fillAttribute<H_TYPE, GT_STORAGE, \
-		Alembic::AbcGeom::GEOM_PARAM::Sample, Alembic::Abc::TRAITS>( \
-				sample, cache, ctx, name, store, rixlate, \
-				point, vertex, uniform, detail); \
+	    return fillAttribute<Alembic::AbcGeom::GEOM_PARAM::Sample, \
+		Alembic::Abc::TRAITS>(sample, cache, ctx, name, \
+				      store, rixlate, \
+				      point, vertex, uniform, detail, \
+				      uv_idx_storage, uv_data_storage); \
 	}
-    TYPED_FILL(fillP3f, OP3fGeomParam, P3fTPTraits, fpreal32, GT_STORE_REAL32);
-    TYPED_FILL(fillV2f, OV2fGeomParam, V2fTPTraits, fpreal32, GT_STORE_REAL32);
-    TYPED_FILL(fillV3f, OV3fGeomParam, V3fTPTraits, fpreal32, GT_STORE_REAL32);
-    TYPED_FILL(fillN3f, ON3fGeomParam, N3fTPTraits, fpreal32, GT_STORE_REAL32);
-    TYPED_FILL(fillF32, OFloatGeomParam, Float32TPTraits, fpreal32, GT_STORE_REAL32);
+    TYPED_FILL(fillP3f, OP3fGeomParam, P3fTPTraits);
+    TYPED_FILL(fillV2f, OV2fGeomParam, V2fTPTraits);
+    TYPED_FILL(fillV3f, OV3fGeomParam, V3fTPTraits);
+    TYPED_FILL(fillN3f, ON3fGeomParam, N3fTPTraits);
+    TYPED_FILL(fillF32, OFloatGeomParam, Float32TPTraits);
 
     static GT_AttributeListHandle
     transformedAttributes(const GT_Primitive &prim,
@@ -700,8 +748,14 @@ namespace
 
 	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, pt);
 
+	UT_ValArray<uint32> uv_idx_storage;
+	UT_Fpreal32Array uv_data_storage;
 	if (matchAttribute(ctx, "uv", pt, vtx, uniform))
-	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), rixlate, pt, vtx, uniform);
+	{
+	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), rixlate, pt, vtx,
+		    uniform, GT_AttributeListHandle(),
+		    &uv_idx_storage, &uv_data_storage);
+	}
 
 	if (matchAttribute(ctx, "N", pt, vtx))
 	    fillN3f(iNml, cache, ctx, "N", storage.N(), rixlate, pt, vtx);
@@ -745,8 +799,14 @@ namespace
 	if (cache.needCounts(ctx, counts))
 	    iCnt = int32Array(counts, storage.counts());
 	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, pt);
+	UT_ValArray<uint32> uv_idx_storage;
+	UT_Fpreal32Array uv_data_storage;
 	if (matchAttribute(ctx, "uv", pt, vtx, uniform))
-	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), rixlate, pt, vtx, uniform);
+	{
+	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), rixlate, pt, vtx,
+		    uniform, GT_AttributeListHandle(),
+		    &uv_idx_storage, &uv_data_storage);
+	}
 	if (matchAttribute(ctx, "v", pt, vtx))
 	    fillV3f(iVel, cache, ctx, "v", storage.v(), rixlate, pt, vtx);
 
@@ -987,6 +1047,8 @@ namespace
 	// differentiate between them at this point.
 	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, vtx);
 
+	UT_ValArray<uint32> uv_idx_storage;
+	UT_Fpreal32Array uv_data_storage;
 	if (matchAttribute(ctx,
                 "uv",
                 GT_AttributeListHandle(),
@@ -1001,7 +1063,10 @@ namespace
 		    rixlate, 
                     GT_AttributeListHandle(),
                     vtx,
-                    uniform);
+                    uniform,
+		    GT_AttributeListHandle(),
+		    &uv_idx_storage,
+		    &uv_data_storage);
         }
 
 	if (matchAttribute(ctx, "N", vtx))
@@ -1092,6 +1157,8 @@ namespace
 	// Also pass in "detail" for primitive attributes.
 	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, vtx);
 
+	UT_ValArray<uint32> uv_idx_storage;
+	UT_Fpreal32Array uv_data_storage;
 	if (matchAttribute(ctx,
 	        "uv",
 	        GT_AttributeListHandle(),
@@ -1106,7 +1173,10 @@ namespace
 		    rixlate,
 	            GT_AttributeListHandle(),
 	            vtx,
-	            detail);
+	            detail,
+		    GT_AttributeListHandle(),
+		    &uv_idx_storage,
+		    &uv_data_storage);
         }
 
 	if (matchAttribute(ctx, "N", vtx, vtx))
