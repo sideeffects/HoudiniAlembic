@@ -41,6 +41,7 @@
 #include <UT/UT_StringMMPattern.h>
 #include <UT/UT_WorkArgs.h>
 #include "VRAY_ProcGT.h"
+#include "VRAY_StylerInfo.h"
 #include "VRAY_IO.h"
 
 //#define SHOW_COUNTS
@@ -265,13 +266,12 @@ namespace
 
 	    // Build a new styler for this alembic prim.
 	    void *handle = queryObject(NULL);
-	    GSTY_SubjectPrim subject(myList(0));
-	    STY_Styler styler = queryStyler(handle).cloneWithSubject(subject);
+	    STY_SubjectHandle subject(new GSTY_SubjectPrim(myList(0)));
 
 	    openProceduralObject();
 		setObjectName(myList(0));
 		processPrimitiveMaterial(myList(0));
-		setStyler(styler);
+		setStylerInfo(VRAY_StylerInfo(queryStyler(handle), subject));
 		if (myPropertyMap)
 		{
 		    applyProperties(myList(0));
