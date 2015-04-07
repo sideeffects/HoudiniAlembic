@@ -566,24 +566,21 @@ namespace
 	// Followed by point attributes
 	if (fillAttributeFromList<GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
-		    point, rixlate, GT_OWNER_POINT,
-		    uv_idx_storage, uv_data_storage))
+		    point, rixlate, GT_OWNER_POINT, 0, 0))
 	{
 	    return true;
 	}
 	// Followed by uniform
 	if (fillAttributeFromList<GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
-		    uniform, rixlate, GT_OWNER_UNIFORM,
-		    uv_idx_storage, uv_data_storage))
+		    uniform, rixlate, GT_OWNER_UNIFORM, 0, 0))
 	{
 	    return true;
 	}
 	// Followed by detail attribs
 	if (fillAttributeFromList<GeomParamSample, TRAITS>(
 		    sample, cache, ctx, name, store,
-		    detail, rixlate, GT_OWNER_DETAIL,
-		    uv_idx_storage, uv_data_storage))
+		    detail, rixlate, GT_OWNER_DETAIL, 0, 0))
 	{
 	    return true;
 	}
