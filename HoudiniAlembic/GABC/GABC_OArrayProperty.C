@@ -1087,6 +1087,8 @@ GABC_OArrayProperty::updateFromPrevious()
     if (getNumSamples())
     {
         myProperty.setFromPrevious();
+	if (myIndexProperty)
+	    myIndexProperty.setFromPrevious();
         return true;
     }
 
