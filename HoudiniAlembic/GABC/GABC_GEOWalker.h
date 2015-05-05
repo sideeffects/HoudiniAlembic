@@ -70,7 +70,8 @@ public:
 	ABC_GROUP_NONE,		// No geometry groups
 	ABC_GROUP_SHAPE_NODE,	// Name geometry group based on shape node
 	ABC_GROUP_XFORM_NODE,	// Name geometry group based on transform node
-	ABC_GROUP_BASENAME,	// Group by last path component
+	ABC_GROUP_SHAPE_BASENAME,	// Group by last path component
+	ABC_GROUP_XFORM_BASENAME,	// Group by last xform node path component
     };
 
     enum BoxCullMode

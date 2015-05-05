@@ -2865,8 +2865,11 @@ GABC_GEOWalker::getGroupName(UT_String &name, const GABC_IObject &obj) const
 	case ABC_GROUP_XFORM_NODE:
 	    name.harden(getParentXform(obj).getFullName().c_str());
 	    break;
-	case ABC_GROUP_BASENAME:
+	case ABC_GROUP_SHAPE_BASENAME:
 	    name.harden(obj.getName().c_str());
+	    break;
+	case ABC_GROUP_XFORM_BASENAME:
+	    name.harden(getParentXform(obj).getName().c_str());
 	    break;
     }
     name.forceValidVariableName();

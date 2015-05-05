@@ -426,6 +426,7 @@ static PRM_Name groupNameOptions[] = {
     PRM_Name("shape",	"Name Group Using Shape Node Full Path"),
     PRM_Name("xform",	"Name Group Using Transform Node Full Path"),
     PRM_Name("basename","Name Group Using Shape Node Name"),
+    PRM_Name("xformbase","Name Group Using Transform Node Name"),
     PRM_Name( 0 )
 };
 static PRM_Default prm_groupnamesDefault(0, "none");
@@ -735,8 +736,10 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	parms.myGroupMode = GABC_GEOWalker::ABC_GROUP_XFORM_NODE;
     else if (sval == "shape")
 	parms.myGroupMode = GABC_GEOWalker::ABC_GROUP_SHAPE_NODE;
+    else if (sval == "basename")
+	parms.myGroupMode = GABC_GEOWalker::ABC_GROUP_SHAPE_BASENAME;
     else
-	parms.myGroupMode = GABC_GEOWalker::ABC_GROUP_BASENAME;
+	parms.myGroupMode = GABC_GEOWalker::ABC_GROUP_XFORM_BASENAME;
 
     evalString(sval, "animationfilter", 0, now);
     if (sval == "all")
