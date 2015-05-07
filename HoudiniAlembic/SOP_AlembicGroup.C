@@ -33,7 +33,6 @@
 #include <OP/OP_OperatorTable.h>
 #include <PRM/PRM_Shared.h>
 #include <PRM/PRM_SpareData.h>
-#include <GU/GU_PrimSelection.h>
 #include <GU/GU_PrimPacked.h>
 #include <GABC/GABC_PackedImpl.h>
 #include <SYS/SYS_ParseNumber.h>
@@ -196,26 +195,21 @@ splitPathString(UT_String &str, PathList &paths)
 static void
 buildPrimSelection(GU_Detail *gdp, const std::vector<std::string> &group_names)
 {
-    GU_PrimSelection		*primSelection;
-
-    delete gdp->selection();
-    gdp->selection(0);
     if (group_names.size() == 1)
-	primSelection = new GU_PrimSelection(
-			gdp->findPrimitiveGroup(group_names[0].c_str()));
+	gdp->attachCookSelectionGroup(
+	    gdp->findPrimitiveGroup(group_names[0].c_str()));
     else
     {
-	primSelection = new GU_PrimSelection(
-			gdp->findPrimitiveGroup("_gu_pmselection_"));
+	GA_PrimitiveGroup *selgroup = 
+		gdp->getCookSelectionGroup<GA_PrimitiveGroup>();
 	for (int i = 0; i < group_names.size(); i++)
 	{
 	    const GA_PrimitiveGroup *group = gdp->findPrimitiveGroup(
 						    group_names[i].c_str());
 	    if (group)
-		primSelection->modifyGroup(*gdp, *group, GU_AddSelect);
+		selgroup->combine(group);
 	}
     }
-    gdp->selection(primSelection);
 }
 
 static PRM_Name	prm_excludeGrouped("exclude_grouped",
