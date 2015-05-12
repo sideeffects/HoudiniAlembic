@@ -52,7 +52,7 @@ public:
     /// which handles the point creation automatically (see the packedsphere
     /// HDK sample code).
     static GU_PrimPacked	*build(GU_Detail &gdp,
-					const std::string &filename,
+					const UT_StringHolder &filename,
 					const GABC_IObject &obj,
 					fpreal frame,
 					bool useTransform,
@@ -82,7 +82,12 @@ public:
 
     /// Give a UT_Options of load data, create resolver data for the primitive
     virtual bool	load(const UT_Options &options,
-				const GA_LoadMap &map);
+				const GA_LoadMap &map)
+			    { return loadFrom(options, map); }
+    virtual bool	supportsJSONLoad() const	{ return true; }
+    virtual bool	loadFromJSON(const UT_JSONValueMap &options,
+				const GA_LoadMap &map)
+			    { return loadFrom(options, map); }
 
     /// Depending on the update, the procedural should call one of:
     ///	- transformDirty()
@@ -152,10 +157,10 @@ public:
     GT_TransformHandle	xformGT() const;
 
     const GABC_IObject	&object() const;
-    const std::string	&filename() const { return myFilename; }
-    std::string		 intrinsicFilename() const { return myFilename; }
-    const std::string	&objectPath() const	{ return myObjectPath; }
-    std::string		 intrinsicObjectPath() const { return myObjectPath; }
+    const UT_StringHolder &filename() const { return myFilename; }
+    UT_StringHolder	  intrinsicFilename() const { return myFilename; }
+    const UT_StringHolder &objectPath() const	{ return myObjectPath; }
+    UT_StringHolder	 intrinsicObjectPath() const { return myObjectPath; }
     fpreal		 frame() const		{ return myFrame; }
     bool		 useTransform() const	{ return myUseTransform; }
     bool		 useVisibility() const	{ return myUseVisibility; }
@@ -179,8 +184,8 @@ public:
     int64		 getPropertiesHash() const;
 
     void	setObject(const GABC_IObject &v);
-    void	setFilename(const std::string &v);
-    void	setObjectPath(const std::string &v);
+    void	setFilename(const UT_StringHolder &v);
+    void	setObjectPath(const UT_StringHolder &v);
     void	setFrame(fpreal f);
     void	setUseTransform(bool v);
     void	setUseVisibility(bool v);
@@ -195,6 +200,10 @@ protected:
     /// Optional method to calculate perimeter (default uses bounding box)
     virtual fpreal	computePerimeter() const;
 #endif
+
+    /// Method to load from either UT_Options or UT_JSONValueMap
+    template <typename T>
+    bool	loadFrom(const T &options, const GA_LoadMap &map);
 
     class GTCache
     {
@@ -267,8 +276,8 @@ private:
     mutable GTCache		 myCache;
     mutable bool		 myCachedUniqueID;
     mutable int64		 myUniqueID;
-    std::string			 myFilename;
-    std::string			 myObjectPath;
+    UT_StringHolder		 myFilename;
+    UT_StringHolder		 myObjectPath;
     fpreal			 myFrame;
     bool			 myUseTransform;
     bool			 myUseVisibility;

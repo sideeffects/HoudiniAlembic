@@ -52,11 +52,11 @@ public:
 	registerIntrinsic("abctypename",
 	    StringGetterCast(&GABC_PackedImpl::intrinsicNodeType));
 	registerIntrinsic("abcfilename",
-	    StdStringGetterCast(&GABC_PackedImpl::intrinsicFilename),
-	    StdStringSetterCast(&GABC_PackedImpl::setFilename));
+	    StringHolderGetterCast(&GABC_PackedImpl::intrinsicFilename),
+	    StringHolderSetterCast(&GABC_PackedImpl::setFilename));
 	registerIntrinsic("abcobjectpath",
-	    StdStringGetterCast(&GABC_PackedImpl::intrinsicObjectPath),
-	    StdStringSetterCast(&GABC_PackedImpl::setObjectPath));
+	    StringHolderGetterCast(&GABC_PackedImpl::intrinsicObjectPath),
+	    StringHolderSetterCast(&GABC_PackedImpl::setObjectPath));
 	registerIntrinsic("abcframe",
 	    FloatGetterCast(&GABC_PackedImpl::frame),
 	    FloatSetterCast(&GABC_PackedImpl::setFrame));
@@ -89,7 +89,7 @@ GA_PrimitiveTypeId GABC_PackedImpl::theTypeId(-1);
 
 GU_PrimPacked *
 GABC_PackedImpl::build(GU_Detail &gdp,
-			const std::string &filename,
+			const UT_StringHolder &filename,
 			const GABC_IObject &obj,
 			fpreal frame,
 			bool useTransform,
@@ -199,13 +199,13 @@ public:
     gabc_VisibilityCache *vis_cache;
 };
    
-typedef UT_Map<std::string, gabc_ObjectCacheItem *>	gabc_ObjectCache;
-typedef UT_Map<std::string, gabc_ObjectCache *>		gabc_FileCache;
+typedef UT_Map<UT_StringHolder, gabc_ObjectCacheItem *>	gabc_ObjectCache;
+typedef UT_Map<UT_StringHolder, gabc_ObjectCache *>		gabc_FileCache;
     
 static gabc_FileCache theFileCache;
 
 gabc_ObjectCacheItem *
-getFileObject(const std::string &filename, const std::string &object_path)
+getFileObject(const UT_StringHolder &filename, const UT_StringHolder &object_path)
 {
     gabc_ObjectCacheItem *item = NULL;
     gabc_ObjectCache *cache = NULL;
@@ -308,8 +308,8 @@ GABC_PackedImpl::getMemoryUsage(bool inclusive) const
     //       playback noticably. 
     // mem += myCache.getMemoryUsage(false);
     
-    mem += (myFilename.capacity() + 1) * sizeof(std::string::value_type);
-    mem += (myObjectPath.capacity() + 1) * sizeof(std::string::value_type);
+    mem += myFilename.getMemoryUsage(inclusive);
+    mem += myObjectPath.getMemoryUsage(inclusive);
     return mem;
 }
 
@@ -342,21 +342,22 @@ GABC_PackedImpl::clearData()
     myCache.clear();
 }
 
+template <typename T>
 bool
-GABC_PackedImpl::load(const UT_Options &options, const GA_LoadMap &map)
+GABC_PackedImpl::loadFrom(const T &options, const GA_LoadMap &map)
 {
     clearData();
     bool	bval;
-    if (!options.importOption("filename", myFilename))
+    if (!import(options, "filename", myFilename))
 	myFilename = "";
-    if (!options.importOption("object", myObjectPath))
+    if (!import(options, "object", myObjectPath))
 	myObjectPath = "";
-    if (!options.importOption("frame", myFrame))
+    if (!import(options, "frame", myFrame))
 	myFrame = 0;
-    if (!options.importOption("usetransform", bval))
+    if (!import(options, "usetransform", bval))
 	bval = true;
     setUseTransform(bval);
-    if (!options.importOption("usevisibility", bval))
+    if (!import(options, "usevisibility", bval))
 	bval = true;
     setUseVisibility(bval);
     return true;
@@ -391,20 +392,20 @@ bool
 GABC_PackedImpl::loadUnknownToken(const char *token,
 	UT_JSONParser &p, const GA_LoadMap &map)
 {
-    UT_WorkBuffer	sval;
+    UT_StringHolder	sval;
     fpreal64		fval;
     bool		bval;
     if (!strcmp(token, "filename"))
     {
 	if (!p.parseString(sval))
 	    return false;
-	myFilename = sval.toStdString();
+	myFilename = sval;
     }
     else if (!strcmp(token, "object"))
     {
 	if (!p.parseString(sval))
 	    return false;
-	myObjectPath = sval.toStdString();
+	myObjectPath = sval;
     }
     else if (!strcmp(token, "frame"))
     {
@@ -898,7 +899,10 @@ const GABC_IObject &
 GABC_PackedImpl::object() const
 {
     if (!myObject.valid())
-	myObject = GABC_Util::findObject(myFilename, myObjectPath);
+    {
+	myObject = GABC_Util::findObject(myFilename.toStdString(),
+					myObjectPath.toStdString());
+    }
     return myObject;
 }
 
@@ -911,7 +915,7 @@ GABC_PackedImpl::setObject(const GABC_IObject &v)
 }
 
 void
-GABC_PackedImpl::setFilename(const std::string &v)
+GABC_PackedImpl::setFilename(const UT_StringHolder &v)
 {
     if (myFilename != v)
     {
@@ -922,7 +926,7 @@ GABC_PackedImpl::setFilename(const std::string &v)
 }
 
 void
-GABC_PackedImpl::setObjectPath(const std::string &v)
+GABC_PackedImpl::setObjectPath(const UT_StringHolder &v)
 {
     if (myObjectPath != v)
     {
