@@ -612,17 +612,14 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     }
     if (myContext->buildFromPath())
     {
-        OP_Context          context(CHgetEvalTime());
-        GA_Attribute       *attrib;
-        const GU_Detail    *ref = sop->getCookedGeo(context);
-        UT_String           packed_priority;
-    	UT_String           path_attrib;
-        int                 packed_priority_val;
-
+    	UT_String path_attrib;
         PATH_ATTRIBUTE(path_attrib, start);
 
-        attrib = ref->getAttributeDict(GA_ATTRIB_PRIMITIVE)
-                .find(GA_SCOPE_PUBLIC, path_attrib);
+        OP_Context          context(CHgetEvalTime());
+        const GU_Detail    *ref = sop->getCookedGeo(context);
+        const GA_Attribute *attrib = 0;
+	if(ref)
+	    attrib = ref->getAttributeDict(GA_ATTRIB_PRIMITIVE).find(GA_SCOPE_PUBLIC, path_attrib);
         if (!attrib)
         {
             abcError("Cannot find path attribute in primitive attributes.");
@@ -633,7 +630,10 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
             abcError("Path attribute is not a string tuple size 1.");
         }
 
+        UT_String packed_priority;
     	PACKED_ABC_PRIORITY(packed_priority, start);
+
+        int packed_priority_val;
         mapPackedAbcPriority(packed_priority, packed_priority_val);
 
     	myContext->setPathAttribute(path_attrib);
