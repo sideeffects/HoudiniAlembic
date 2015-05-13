@@ -110,11 +110,14 @@ namespace
 
 	if (ptype == GT_GEO_PACKED)
 	{
-            const GU_PrimPacked *gu =
-		UTverify_cast<const GT_GEOPrimPacked *>(prim.get())->getPrim();
+	    const GT_GEOPrimPacked *pack =
+		UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
+
+	    if (!pack->canInstance())
+		return false;
 
 	    // We don't want to instance packed Alembics
-	    if (gu->getTypeId() == GABC_PackedImpl::typeId())
+	    if (pack->getPrim()->getTypeId() == GABC_PackedImpl::typeId())
 		return false;
 	}
 
