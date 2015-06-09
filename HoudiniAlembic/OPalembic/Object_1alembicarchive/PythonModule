@@ -25,6 +25,7 @@ def BuildHierarchyRoot(rootNode):
 
     buildSubnet = rootNode.evalParm('buildSubnet')
     channelRefs = rootNode.evalParm('channelRef')
+    buildSingleGeoNode = rootNode.evalParm('buildSingleGeoNode')
     flatVisibility = rootNode.evalParm('flattenVisibility')
     userPropsLoadMode = rootNode.evalParm('loadUserProps')
     pathList = [x for x in rootNode.evalParm('objectPath').strip('/').split('/') if x]
@@ -32,17 +33,40 @@ def BuildHierarchyRoot(rootNode):
     tree = _abc.alembicGetSceneHierarchy(fileName, "")
     if not tree:
         return
-    for entry in tree[2]:
-        WalkHierarchy(fileName,
-                        rootNode,
-                        rootNode,
-                        '',
-                        entry,
-                        pathList,
-                        buildSubnet,
-                        channelRefs,
-                        flatVisibility,
-                        userPropsLoadMode)
+
+    if buildSingleGeoNode:
+        for entry in tree[2]:
+            cameraPathList = []
+            findCameraPath('', entry, cameraPathList)
+            # Build camera nodes
+            for cameraPath in cameraPathList:
+                pathList = [x for x in cameraPath.strip('/').split('/') if x]
+                WalkHierarchy(fileName,
+                                rootNode,
+                                rootNode,
+                                '',
+                                entry,
+                                pathList,
+                                buildSubnet,
+                                channelRefs,
+                                buildSingleGeoNode,
+                                flatVisibility,
+                                userPropsLoadMode)
+            # Build single geo node
+            createSingleGeoNode(fileName, rootNode, '', entry, buildSubnet, channelRefs, flatVisibility, userPropsLoadMode)
+    else:
+        for entry in tree[2]:
+            WalkHierarchy(fileName,
+                            rootNode,
+                            rootNode,
+                            '',
+                            entry,
+                            pathList,
+                            buildSubnet,
+                            channelRefs,
+                            buildSingleGeoNode,
+                            flatVisibility,
+                            userPropsLoadMode)
 
     rootNode.layoutChildren()
 
@@ -177,7 +201,7 @@ def ExpressionToParm(srcParm, dstParm, isString=False):
             bool(isString)*'s', relPath, srcParm.name()),
             hou.exprLanguage.Hscript)
 
-def _setupAbcGeo(geo, issubd):
+def _setupAbcGeo(geo):
     # We've just created an empty geometry node, we need to add the
     # properties we want.
     # Add mantra default properties
@@ -202,8 +226,80 @@ def _newAlembicNode(root, parent, node_type, subnet, run_init_scripts=True):
             node.setInput(0, parent.indirectInputs()[0])
     return node
 
-def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
-                pathList, buildSubnet, channelRefs, flatVisibility, userPropsLoadMode):
+def findCameraPath(parentPath, childEntry, cameraPathList):
+    name, typeName, children = childEntry
+
+    currentPath = parentPath + '/' + name
+    if typeName == 'camera':
+        cameraPathList.append(currentPath)
+    elif typeName != 'xform' or typeName == 'cxform':
+        for entry in children:
+            findCameraPath(currentPath, entry, cameraPathList)
+    else:
+        return
+
+def createSingleGeoNode(fileName, rootNode, parentPath, childEntry, 
+                        buildSubnet, channelRefs, flatVisibility, userPropsLoadMode): 
+    name, typeName, children = childEntry
+    currentPath = parentPath + '/' + name
+
+    currentNode = _newAlembicNode(rootNode, rootNode, 'geo', buildSubnet, run_init_scripts=False)
+    _setupAbcGeo(currentNode)
+
+    _setNodeName(currentNode, name)
+    if flatVisibility:
+        _setVisibility(currentNode, fileName, currentPath, "../")
+
+    sopNode = currentNode.createNode('alembic')
+    _setNodeName(sopNode, name)
+
+    relPath = sopNode.relativePathTo(rootNode)
+    hou.hscript("opmultiparm %s 'abcName#' '%s/abcName#' 'hName#' '%s/hName#'" % (
+            sopNode.path(), relPath, relPath))
+
+    _setParmValue(sopNode, "addpath", 0)
+    if channelRefs:
+        ExpressionToParm(rootNode.parm('remapAttributes'),
+            sopNode.parm('remapAttributes'),
+            isString=True)
+        ExpressionToParm(rootNode.parm('fileName'),
+            sopNode.parm('fileName'),
+            isString=True)
+        ExpressionToParm(rootNode.parm('frame'), sopNode.parm('frame'))
+        ExpressionToParm(rootNode.parm('fps'), sopNode.parm('fps'))
+        ExpressionToParm(rootNode.parm('loadmode'), sopNode.parm('loadmode'))
+        ExpressionToParm(rootNode.parm('viewportlod'), sopNode.parm('viewportlod'))
+        ExpressionToParm(rootNode.parm('loadUserProps'), sopNode.parm('loadUserProps'))
+
+    objectPath = rootNode.evalParm('objectPath')
+    if not objectPath:
+        objectPath = currentPath
+ 
+    sopNode.parm('objectPath').set(objectPath)
+    sopNode.parm('includeXform').set(1)
+    sopNode.parm('usevisibility').set(1)
+    sopNode.parm('loadUserProps').set(userPropsLoadMode)
+    sopNode.parm('groupnames').set('none')
+
+def _findNode(buildSubnet, parentNode, rootNode, currentPath):
+    if buildSubnet:
+        for child in parentNode.children():
+            objPath = child.parm('objectPath')
+            if not objPath:
+                continue
+            if currentPath == objPath.eval():
+                return child
+    else:
+        for child in rootNode.children():
+            objPath = child.parm('objectPath')
+            if not objPath:
+                continue
+            if currentPath == objPath.eval():
+                return child
+    return None 
+
+def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathList,
+                buildSubnet, channelRefs, buildSingleGeoNode, flatVisibility, userPropsLoadMode):
     name, typeName, children = childEntry
     if pathList:
         if pathList[0] != name:
@@ -216,7 +312,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
         #currentNode = parentNode.createNode('geo', run_init_scripts=False)
         #currentNode.setInput(0, parentNode.indirectInputs()[0])
         subd = (typeName == 'subdmesh')
-        _setupAbcGeo(currentNode, subd)
+        _setupAbcGeo(currentNode)
         if subd:
             for parmname in ('vm_rendersubd', 'ri_rendersubd'):
                 _setParmValue(currentNode, parmname, 1)
@@ -256,37 +352,43 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry,
 
 
     elif typeName == 'xform' or typeName == 'cxform':
-        currentNode = _newAlembicNode(rootNode, parentNode, 'alembicxform', buildSubnet)
+        currentNode = None
+        if buildSingleGeoNode:
+            currentNode = _findNode(buildSubnet, parentNode, rootNode, currentPath)
 
-        _setNodeName(currentNode, name)
-        _setUserProperties(currentNode, name, fileName, userPropsLoadMode)
+        if not currentNode:
+            currentNode = _newAlembicNode(rootNode, parentNode, 'alembicxform', buildSubnet)
 
-        animated = typeName != 'cxform'
-        if flatVisibility:
-            if _checkAnimatedVisibility(fileName, currentPath):
-                animated = True
-        else:
-            if _setVisibility(currentNode, fileName, currentPath, ""):
-                animated = True
+            _setNodeName(currentNode, name)
+            _setUserProperties(currentNode, name, fileName, userPropsLoadMode)
 
-        if channelRefs:
-            ExpressionToParm(rootNode.parm('fileName'),
-                    currentNode.parm('fileName'),
-                    isString=True)
-            if animated:
-                ExpressionToParm(rootNode.parm('frame'),
-                        currentNode.parm('frame'))
-                ExpressionToParm(rootNode.parm('fps'),
-                        currentNode.parm('fps'))
+            animated = typeName != 'cxform'
+            if flatVisibility:
+                if _checkAnimatedVisibility(fileName, currentPath):
+                    animated = True
+            else:
+                if _setVisibility(currentNode, fileName, currentPath, ""):
+                    animated = True
 
-        currentNode.parm('objectPath').set(currentPath)
-        if not animated:
-            currentNode.parm('abcConstant').set(1)
+            if channelRefs:
+                ExpressionToParm(rootNode.parm('fileName'),
+                        currentNode.parm('fileName'),
+                        isString=True)
+                if animated:
+                    ExpressionToParm(rootNode.parm('frame'),
+                            currentNode.parm('frame'))
+                    ExpressionToParm(rootNode.parm('fps'),
+                            currentNode.parm('fps'))
+
+            currentNode.parm('objectPath').set(currentPath)
+            if not animated:
+                currentNode.parm('abcConstant').set(1)
 
         for entry in children:
             WalkHierarchy(fileName, rootNode, currentNode, currentPath,
-                        entry, pathList, buildSubnet, channelRefs,
+                        entry, pathList, buildSubnet, channelRefs, buildSingleGeoNode,
                         flatVisibility, userPropsLoadMode)
+
         currentNode.layoutChildren()
 
     elif typeName == 'camera':

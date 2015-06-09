@@ -246,6 +246,15 @@
 	    help	"If enabled, child objects will have channel references to the main archive."
 	}
 	parm {
+	    name	"buildSingleGeoNode"
+	    label	"Load Hierarchy As One Single Geometry Node"
+	    type	toggle
+	    default	{ 0 }
+	    export	none
+	    parmtag	{ "export_disable" "1" }
+	    help	"If enabled, the hierarchical geometries from an Alembic scene archive will be loaded as a single geometry node. However, the hierarchy for the camera will be preserved." 
+	}
+	parm {
 	    name	"flattenVisibility"
 	    label	"Flatten Visibilty Evaluation"
 	    type	toggle
