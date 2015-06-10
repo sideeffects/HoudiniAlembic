@@ -37,23 +37,42 @@ def BuildHierarchyRoot(rootNode):
     if buildSingleGeoNode:
         for entry in tree[2]:
             cameraPathList = []
-            findCameraPath('', entry, cameraPathList)
+            createGeoNode = [False]
+            entryPathList = pathList
+            ScanHierarchy('', entry, cameraPathList, createGeoNode, entryPathList)
+
             # Build camera nodes
             for cameraPath in cameraPathList:
-                pathList = [x for x in cameraPath.strip('/').split('/') if x]
+                camera = [x for x in cameraPath.strip('/').split('/') if x]
                 WalkHierarchy(fileName,
                                 rootNode,
                                 rootNode,
                                 '',
                                 entry,
-                                pathList,
+                                camera,
                                 buildSubnet,
                                 channelRefs,
                                 buildSingleGeoNode,
                                 flatVisibility,
                                 userPropsLoadMode)
+                
             # Build single geo node
-            createSingleGeoNode(fileName, rootNode, '', entry, buildSubnet, channelRefs, flatVisibility, userPropsLoadMode)
+            if createGeoNode[0]:
+                name, typeName, children = entry
+                currentPath = '/' + name
+
+                # An alembic scene can contain multiple archives.
+                # If an archive has both camera and geometry, 
+                # the geometry node is placed under the intermediate archive node that it belongs to,
+                # in order to preserve each archive's own hierarchy in a scene 
+                if cameraPathList:
+                    parentNode = _findNode(buildSubnet, rootNode, rootNode, currentPath)
+                    createSingleGeoNode(fileName, rootNode, parentNode, currentPath, name, buildSubnet, 
+                                        channelRefs, flatVisibility, userPropsLoadMode)
+                else:
+                    createSingleGeoNode(fileName, rootNode, rootNode, currentPath, name, buildSubnet, 
+                                        channelRefs, flatVisibility, userPropsLoadMode)
+
     else:
         for entry in tree[2]:
             WalkHierarchy(fileName,
@@ -140,7 +159,6 @@ def _setUserProperties(currentNode, name, fileName, userPropsLoadMode):
         if userPropsLoadMode == 2:
             currentNode.addSpareParmTuple(hou.StringParmTemplate('userPropsMeta', 'User Properties Metadata', 1, ['']))
 
-        #
         if props and (userPropsLoadMode == 2):
             values, metadata = _abc.alembicUserPropertyValuesAndMetadata(fileName, name, 0)
             currentNode.parm('userProps').set(values)
@@ -226,24 +244,27 @@ def _newAlembicNode(root, parent, node_type, subnet, run_init_scripts=True):
             node.setInput(0, parent.indirectInputs()[0])
     return node
 
-def findCameraPath(parentPath, childEntry, cameraPathList):
+def ScanHierarchy(parentPath, childEntry, cameraPathList, createGeoNode, pathList):
     name, typeName, children = childEntry
+    if pathList:
+        if pathList[0] != name:
+            return
+        pathList = pathList[1:]
 
     currentPath = parentPath + '/' + name
     if typeName == 'camera':
         cameraPathList.append(currentPath)
-    elif typeName != 'xform' or typeName == 'cxform':
+    elif typeName == 'xform' or typeName == 'cxform':
         for entry in children:
-            findCameraPath(currentPath, entry, cameraPathList)
+            ScanHierarchy(currentPath, entry, cameraPathList, createGeoNode, pathList)
+    elif typeName in _primitiveTypes:
+        createGeoNode[0] = True
     else:
         return
 
-def createSingleGeoNode(fileName, rootNode, parentPath, childEntry, 
+def createSingleGeoNode(fileName, rootNode, parentNode, currentPath, name, 
                         buildSubnet, channelRefs, flatVisibility, userPropsLoadMode): 
-    name, typeName, children = childEntry
-    currentPath = parentPath + '/' + name
-
-    currentNode = _newAlembicNode(rootNode, rootNode, 'geo', buildSubnet, run_init_scripts=False)
+    currentNode = _newAlembicNode(rootNode, parentNode, 'geo', buildSubnet, run_init_scripts=False)
     _setupAbcGeo(currentNode)
 
     _setNodeName(currentNode, name)
@@ -280,6 +301,8 @@ def createSingleGeoNode(fileName, rootNode, parentPath, childEntry,
     sopNode.parm('usevisibility').set(1)
     sopNode.parm('loadUserProps').set(userPropsLoadMode)
     sopNode.parm('groupnames').set('none')
+
+    parentNode.layoutChildren()
 
 def _findNode(buildSubnet, parentNode, rootNode, currentPath):
     if buildSubnet:
