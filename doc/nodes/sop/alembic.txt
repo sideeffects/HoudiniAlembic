@@ -162,8 +162,12 @@ Animating Objects:
                 Load primitives whether the are animating or static.
         Only Static Primitives:
                 Only load primitives which are *not* animated.
-        Only Animating Primitives:
-                Only load primitives which change over time.
+        Only Deforming Primitives:
+                Only load primitives with point positions that change over time.
+        Only Transforming Primitives:
+                Only load primitives with parent transformation nodes that change over time.
+        Only Deforming or Transforming Primitives:
+                Only load primitives which are animated.
 
 Box Culling:
         #id: boxcull

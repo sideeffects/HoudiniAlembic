@@ -435,7 +435,9 @@ static PRM_ChoiceList menu_groupnames(PRM_CHOICELIST_SINGLE, groupNameOptions);
 static PRM_Name animationFilterOptions[] = {
     PRM_Name("all",		"Include All Primitives"),
     PRM_Name("static",		"Only Static Primitives"),
-    PRM_Name("animating",	"Only Animating Primitives"),
+    PRM_Name("deforming",       "Only Deforming Primitives"),
+    PRM_Name("transforming",    "Only Transforming Primitives"),
+    PRM_Name("animating",       "Only Deforming or Transforming Primitives"),
     PRM_Name( 0 )
 };
 static PRM_Default prm_animationfilterDefault(1, "all");
@@ -742,12 +744,16 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	parms.myGroupMode = GABC_GEOWalker::ABC_GROUP_XFORM_BASENAME;
 
     evalString(sval, "animationfilter", 0, now);
-    if (sval == "all")
-	parms.myAnimationFilter = GABC_GEOWalker::ABC_AFILTER_ALL;
-    else if (sval == "static")
+    if (sval == "static")
 	parms.myAnimationFilter = GABC_GEOWalker::ABC_AFILTER_STATIC;
-    else
+    else if (sval == "animating")
 	parms.myAnimationFilter = GABC_GEOWalker::ABC_AFILTER_ANIMATING;
+    else if (sval == "deforming")
+        parms.myAnimationFilter = GABC_GEOWalker::ABC_AFILTER_DEFORMING;
+    else if (sval == "transforming")
+        parms.myAnimationFilter = GABC_GEOWalker::ABC_AFILTER_TRANSFORMING;
+    else
+        parms.myAnimationFilter = GABC_GEOWalker::ABC_AFILTER_ALL;
 
     evalString(sval, "polysoup", 0, now);
     if (sval == "none")

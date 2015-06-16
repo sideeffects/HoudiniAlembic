@@ -2724,26 +2724,19 @@ bool
 GABC_GEOWalker::matchAnimationFilter(const GABC_IObject &obj) const
 {
     if (myAnimationFilter == ABC_AFILTER_ALL)
-    {
 	return true;
-    }
+    if (myAnimationFilter == ABC_AFILTER_TRANSFORMING)
+        return !transformConstant();
+    if (myAnimationFilter == ABC_AFILTER_DEFORMING)
+        return obj.getAnimationType(false); 
 
-    bool	animating = !transformConstant();
-    if (!animating)
-    {
-	// If none of the transforms in are animating, maybe the object itself
-	// is animating.
-	animating = obj.getAnimationType(false);
-    }
-    switch (myAnimationFilter)
-    {
-	case ABC_AFILTER_STATIC:
-	    return !animating;
-	case ABC_AFILTER_ANIMATING:
-	    return animating;
-	case ABC_AFILTER_ALL:
-	    UT_ASSERT(0 && "Impossible code!");
-    }
+    bool animating = !transformConstant() || obj.getAnimationType(false);
+    if (myAnimationFilter == ABC_AFILTER_STATIC)
+	return !animating;
+    if (myAnimationFilter == ABC_AFILTER_ANIMATING)
+	return animating;
+
+    UT_ASSERT(0 && "Invalid animation filter type!");
     return true;
 }
 

@@ -94,9 +94,11 @@ public:
     /// Animating object filter
     enum AFilter
     {
-	ABC_AFILTER_STATIC	= 0x01,		// Only static geometry
-	ABC_AFILTER_ANIMATING	= 0x02,		// Only animating
-	ABC_AFILTER_ALL		= (ABC_AFILTER_STATIC|ABC_AFILTER_ANIMATING),
+	ABC_AFILTER_STATIC,            // Only static geometry
+	ABC_AFILTER_DEFORMING,         // Only deforming geometry
+        ABC_AFILTER_TRANSFORMING,      // Only transforming geometry
+        ABC_AFILTER_ANIMATING,         // Only animating geometry
+	ABC_AFILTER_ALL                // All geometry
     };
 
     /// How Alembic delayed load primitives are attached to GA points
