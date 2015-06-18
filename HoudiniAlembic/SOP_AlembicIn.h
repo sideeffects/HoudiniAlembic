@@ -121,6 +121,7 @@ private:
 	UT_String				myFilenameAttribute;
 	UT_String				myObjectPath;
 	UT_String				myObjectPattern;
+	UT_String				myExcludeObjectPath;
 	UT_String				myPathAttribute;
 	UT_String				mySubdGroupName;
 	std::string				myFilename;

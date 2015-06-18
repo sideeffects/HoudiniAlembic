@@ -72,16 +72,23 @@ namespace
 
     static int
     selectAlembicNodes(void *data, int index,
-	    fpreal t, const PRM_Template *)
+	    fpreal t, const PRM_Template *tplate)
     {
 	SOP_AlembicIn2	*sop = (SOP_AlembicIn2 *)(data);
 	UT_WorkBuffer	cmd;
 	UT_String	filename;
 	UT_String	objectpath;
+	UT_String	parm_name = tplate->getToken();
+
+	// Strip the "pick" part of the parm name away to leave the name of
+	// the object path parm we want to modify.
+	parm_name.eraseHead(4);
 	cmd.strcpy("treechooser");
 	sop->evalString(filename, "fileName", 0, t);
-	sop->evalString(objectpath, "objectPath", 0, t);
-	const PathList	&abcobjects = GABC_Util::getObjectList((const char *)filename);
+	sop->evalString(objectpath, parm_name, 0, t);
+	const PathList	&abcobjects =
+	    GABC_Util::getObjectList((const char *)filename);
+
 	if (objectpath.isstring())
 	{
 	    cmd.strcat(" -s ");
@@ -98,7 +105,7 @@ namespace
 	mgr->execute(cmd.buffer(), 0, &os);
 	UT_String	result(os.str().buffer());
 	result.trimBoundingSpace();
-	sop->setString(result, CH_STRING_LITERAL, "objectPath", 0, t);
+	sop->setString(result, CH_STRING_LITERAL, parm_name, 0, t);
 
 	return 0;
     }
@@ -164,6 +171,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myFilename()
     , myObjectPath()
     , myObjectPattern()
+    , myExcludeObjectPath()
     , mySubdGroupName()
     , myIncludeXform(true)
     , myMissingFileError(true)
@@ -190,6 +198,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myFilename()
     , myObjectPath()
     , myObjectPattern()
+    , myExcludeObjectPath()
     , mySubdGroupName()
     , myIncludeXform(true)
     , myMissingFileError(true)
@@ -230,6 +239,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myNameMapPtr = src.myNameMapPtr;
     myObjectPath.harden(src.myObjectPath);
     myObjectPattern.harden(src.myObjectPattern);
+    myExcludeObjectPath.harden(src.myExcludeObjectPath);
     mySubdGroupName.harden(src.mySubdGroupName);
     myPathAttribute.harden(src.myPathAttribute);
     myFilenameAttribute.harden(src.myFilenameAttribute);
@@ -250,8 +260,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	return true;
     if (myBoundMode != src.myBoundMode)
 	return true;
-    if (myLoadMode == GABC_GEOWalker::LOAD_ABC_PRIMITIVES
-	    && myPointMode != src.myPointMode)
+    if (myLoadMode == GABC_GEOWalker::LOAD_ABC_PRIMITIVES &&
+	myPointMode != src.myPointMode)
     {
 	return true;
     }
@@ -274,8 +284,11 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	return true;
     if (myViewportLOD != src.myViewportLOD)
 	return true;
-    if (myObjectPath != src.myObjectPath ||
-	    myObjectPattern != src.myObjectPattern)
+    if (myObjectPath != src.myObjectPath)
+	return true;
+    if (myObjectPattern != src.myObjectPattern)
+	return true;
+    if (myExcludeObjectPath != src.myExcludeObjectPath)
 	return true;
     if (mySubdGroupName != src.mySubdGroupName)
 	return true;
@@ -328,6 +341,8 @@ static PRM_Name prm_missingFileName("missingfile", "Missing File");
 static PRM_Name prm_fpsName("fps", "Frames Per Second");
 static PRM_Name prm_objectPathName("objectPath", "Object Path");
 static PRM_Name	prm_pickObjectPathName("pickobjectPath", "Pick");
+static PRM_Name prm_objectExcludeName("objectExclude", "Object Exclude");
+static PRM_Name	prm_pickObjectExcludeName("pickobjectExclude", "Pick");
 static PRM_Name prm_includeXformName("includeXform", "Transform Geometry To World Space");
 static PRM_Name prm_useVisibilityName("usevisibility", "Use Visibility");
 static PRM_Name prm_loadLocatorName("loadLocator", "Load Maya Locator");
@@ -457,6 +472,11 @@ static PRM_Name prm_objecPatternName("objectPattern", "Object Pattern");
 static PRM_Name prm_subdgroupName("subdgroup", "Subdivision Group");
 static PRM_Default prm_starDefault(0, "*");
 
+static PRM_SpareData theTreeButtonSpareData(
+    PRM_SpareArgs() <<
+    PRM_SpareToken(PRM_SpareData::getButtonIconToken(), "BUTTONS_tree")
+);
+
 // The order here must match the order of the GA_AttributeOwner enum
 static PRM_Name	theAttributePatternNames[GA_ATTRIB_OWNER_N] = {
     PRM_Name("vertexAttributes",	"Vertex Attributes"),
@@ -466,7 +486,7 @@ static PRM_Name	theAttributePatternNames[GA_ATTRIB_OWNER_N] = {
 };
 
 static PRM_SpareData	theAbcPattern(
-	PRM_SpareToken(PRM_SpareData::getFileChooserPatternToken(), "*.abc")
+    PRM_SpareToken(PRM_SpareData::getFileChooserPatternToken(), "*.abc")
 );
 
 static PRM_Default	mainSwitcher[] =
@@ -475,6 +495,33 @@ static PRM_Default	mainSwitcher[] =
     PRM_Default(8, "Selection"),
     PRM_Default(9, "Attributes"),
 };
+
+static PRM_SpareData *
+sopCreateObjectPathSpareData(bool clear_path, bool clear_exclude)
+{
+    static const char	*theBaseScript =
+	"import soputils\n"
+	"kwargs['objectPath'] = kwargs['node'].parmTuple('objectPath')\n"
+	"kwargs['objectExclude'] = kwargs['node'].parmTuple('objectExclude')\n"
+	"kwargs['clearObjectPath'] = %s\n"
+	"kwargs['clearObjectExclude'] = %s\n"
+	"soputils.selectAlembicPaths(kwargs)";
+    UT_WorkBuffer	 script;
+
+    script.sprintf(theBaseScript,
+		   clear_path ? "True" : "False",
+		   clear_exclude ? "True" : "False");
+
+    return new PRM_SpareData(
+	PRM_SpareArgs() <<
+	PRM_SpareToken(PRM_SpareData::getScriptActionToken(),
+		script.buffer()) <<
+	PRM_SpareToken(PRM_SpareData::getScriptActionHelpToken(),
+		"Select Alembic objects from an available viewport.") <<
+	PRM_SpareToken(PRM_SpareData::getScriptActionIconToken(),
+		"BUTTONS_reselect")
+    );
+}
 
 PRM_Template SOP_AlembicIn2::myTemplateList[] =
 {
@@ -500,18 +547,26 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
             &menu_abcxform),
     PRM_Template(PRM_ORD, 1, &prm_polysoup, &prm_polysoupDefault,
 	    &menu_polysoup),
-    PRM_Template(PRM_TOGGLE, 1, &prm_includeXformName, &prm_includeXformDefault),
-    PRM_Template(PRM_TOGGLE, 1, &prm_useVisibilityName, &prm_useVisibilityDefault),
+    PRM_Template(PRM_TOGGLE, 1, &prm_includeXformName,
+	    &prm_includeXformDefault),
+    PRM_Template(PRM_TOGGLE, 1, &prm_useVisibilityName,
+	    &prm_useVisibilityDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_loadLocatorName, &prm_loadLocatorDefault),
     PRM_Template(PRM_ORD, 1, &prm_groupnames, &prm_groupnamesDefault,
 	    &menu_groupnames),
     PRM_Template(PRM_STRING, 1, &prm_subdgroupName),
 
     // Selection tab
-    PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectPathName, &prm_objectPathDefault,
-            &prm_objectPathMenu, NULL),
-    PRM_Template(PRM_CALLBACK, 1, &prm_pickObjectPathName,
-	    0, 0, 0, selectAlembicNodes),
+    PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectPathName,
+	    &prm_objectPathDefault, &prm_objectPathMenu, NULL, NULL,
+	    sopCreateObjectPathSpareData(true, true)),
+    PRM_Template(PRM_CALLBACK, PRM_TYPE_NO_LABEL, 1, &prm_pickObjectPathName,
+	    0, 0, 0, selectAlembicNodes, &theTreeButtonSpareData),
+    PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectExcludeName,
+	    &prm_objectPathDefault, &prm_objectPathMenu, NULL, NULL,
+	    sopCreateObjectPathSpareData(false, true)),
+    PRM_Template(PRM_CALLBACK, PRM_TYPE_NO_LABEL, 1, &prm_pickObjectExcludeName,
+	    0, 0, 0, selectAlembicNodes, &theTreeButtonSpareData),
     PRM_Template(PRM_STRING, 1, &prm_objecPatternName, &prm_starDefault),
     PRM_Template(PRM_ORD, 1, &prm_animationfilter, &prm_animationfilterDefault,
 	    &menu_animationfilter),
@@ -710,6 +765,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 
     evalString(parms.myObjectPath, "objectPath", 0, now);
     evalString(parms.myObjectPattern, "objectPattern", 0, now);
+    evalString(parms.myExcludeObjectPath, "objectExclude", 0, now);
     evalString(parms.mySubdGroupName, "subdgroup", 0, now);
     parms.myIncludeXform = evalInt("includeXform", 0, now) != 0;
     parms.myMissingFileError = evalInt("missingfile", 0, now) == 0;
@@ -897,6 +953,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     GABC_GEOWalker	walk(*gdp, error_handler);
 
     walk.setObjectPattern(parms.myObjectPattern);
+    walk.setExcludeObjects(parms.myExcludeObjectPath);
     if (parms.myAnimationFilter == GABC_GEOWalker::ABC_AFILTER_STATIC)
     {
 	// When we only load static geometry, we don't need to evaluate the

@@ -37,6 +37,7 @@
 #include <stack>
 
 class GU_PrimPacked;
+class UT_StringArray;
 
 namespace GABC_NAMESPACE
 {
@@ -169,6 +170,8 @@ public:
                                     { return myErrorHandler; }
     const UT_String		&objectPattern() const
 				    { return myObjectPattern; }
+    const UT_StringArray	&excludeObjects() const
+				    { return myExcludeObjects; }
     const GEO_PackedNameMapPtr	&nameMapPtr() const
 				    { return myNameMapPtr; }
 
@@ -209,6 +212,7 @@ public:
 
     /// @{
     /// Set state
+    void	setExcludeObjects(const char *s);
     void	setObjectPattern(const char *s)
 		    { myObjectPattern.harden(s); }
     void	setNameMapPtr(const GEO_PackedNameMapPtr &ptr)
@@ -328,6 +332,7 @@ private:
     UT_BoundingBox          myCullBox;
     UT_Interrupt           *myBoss;
     UT_String               myObjectPattern;
+    UT_StringArray	    myExcludeObjects;
     std::stack<GABC_VisibilityType> myVisibilityStack;
     fpreal                  myTime;                 // Alembic evaluation time
 

@@ -43,6 +43,9 @@
 #include <GU/GU_PrimRBezCurve.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_StackBuffer.h>
+#include <UT/UT_StringArray.h>
+#include <algorithm>
+
 namespace Alembic {
     namespace Abc {
         namespace ALEMBIC_VERSION_NS {
@@ -2451,6 +2454,19 @@ GABC_GEOWalker::setPathAttribute(const GA_RWAttributeRef &a)
 }
 
 void
+GABC_GEOWalker::setExcludeObjects(const char *s)
+{
+    UT_String		 paths(s);
+    UT_WorkArgs		 args;
+
+    myExcludeObjects.clear();
+    paths.parse(args);
+    for (int i = 0; i < args.getArgc(); i++)
+	myExcludeObjects.append(args(i));
+    myExcludeObjects.sort();
+}
+
+void
 GABC_GEOWalker::updateAbcPrims()
 {
     bool    setPath = pathAttributeChanged() && myPathAttribute.isValid();
@@ -2717,7 +2733,34 @@ bool
 GABC_GEOWalker::matchObjectName(const GABC_IObject &obj) const
 {
     UT_String	path(obj.getFullName());
-    return path.multiMatch(objectPattern());
+
+    if (!path.multiMatch(objectPattern()))
+	return false;
+
+    // Test for exclusion based on object name.
+    if (excludeObjects().size() > 0)
+    {
+	const UT_StringHolder	*lb;
+	const UT_StringHolder	*start = excludeObjects().array();
+	const UT_StringHolder	*end = start + excludeObjects().size();
+	const UT_StringRef	 objname = obj.getFullName();
+
+	// Find the first element greater than or equal to the obj name.
+	lb = std::lower_bound(start, end, objname);
+	// Is there an exact match in our exclude list?
+	if (lb >= start && lb < end && objname == *lb)
+	    return false;
+	// Is the entry before the lower bound (closest entry less than
+	// the object) a parent of the object?
+	lb = lb - 1;
+	if (lb >= start &&
+	    objname.length() > lb->length() &&
+	    objname.c_str()[lb->length()] == '/' &&
+	    objname.startsWith(*lb))
+	    return false;
+    }
+
+    return true;
 }
 
 bool
