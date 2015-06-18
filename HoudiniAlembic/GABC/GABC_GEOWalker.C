@@ -44,6 +44,7 @@
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_StackBuffer.h>
 #include <UT/UT_StringArray.h>
+#include <UT/UT_WorkArgs.h>
 #include <algorithm>
 
 namespace Alembic {
