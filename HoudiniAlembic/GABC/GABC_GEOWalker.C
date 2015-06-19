@@ -2384,6 +2384,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err)
     , myGroupMode(ABC_GROUP_SHAPE_NODE)
     , myBoxCullMode(BOX_CULL_IGNORE)
     , myAnimationFilter(ABC_AFILTER_ALL)
+    , myGeometryFilter(ABC_GFILTER_ALL)
     , myIncludeXform(true)
     , myUseVisibility(true)
     , myReusePrimitives(false)
@@ -2727,6 +2728,7 @@ GABC_GEOWalker::filterObject(const GABC_IObject &obj) const
 {
     return matchObjectName(obj) &&
 	    matchAnimationFilter(obj) &&
+            matchGeometryFilter(obj) &&
 	    matchBounds(obj);
 }
 
@@ -2782,6 +2784,31 @@ GABC_GEOWalker::matchAnimationFilter(const GABC_IObject &obj) const
 
     UT_ASSERT(0 && "Invalid animation filter type!");
     return true;
+}
+
+bool
+GABC_GEOWalker::matchGeometryFilter(const GABC_IObject &obj) const
+{
+    if (myGeometryFilter == ABC_GFILTER_ALL)
+        return true;
+
+    GABC_NodeType nType = obj.nodeType();
+
+    if (nType == GABC_POLYMESH)
+        return (myGeometryFilter & ABC_GFILTER_POLYMESH) != 0;
+    if (nType == GABC_SUBD)
+        return (myGeometryFilter & ABC_GFILTER_SUBD) != 0;
+    if (nType == GABC_CURVES)
+        return (myGeometryFilter & ABC_GFILTER_CURVES) != 0;
+    if (nType == GABC_POINTS)
+        return (myGeometryFilter & ABC_GFILTER_POINTS) != 0;
+    if (nType == GABC_NUPATCH)
+        return (myGeometryFilter & ABC_GFILTER_NUPATCH) != 0;
+
+    if (nType < GABC_UNKNOWN || nType >= GABC_NUM_NODE_TYPES)
+        UT_ASSERT(0 && "Invalid primitive filter type!");
+
+    return true; 
 }
 
 bool

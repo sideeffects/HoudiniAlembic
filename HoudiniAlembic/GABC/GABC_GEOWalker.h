@@ -68,9 +68,9 @@ public:
 
     enum GroupMode
     {
-	ABC_GROUP_NONE,		// No geometry groups
-	ABC_GROUP_SHAPE_NODE,	// Name geometry group based on shape node
-	ABC_GROUP_XFORM_NODE,	// Name geometry group based on transform node
+	ABC_GROUP_NONE,		        // No geometry groups
+	ABC_GROUP_SHAPE_NODE,	        // Name geometry group based on shape node
+	ABC_GROUP_XFORM_NODE,	        // Name geometry group based on transform node
 	ABC_GROUP_SHAPE_BASENAME,	// Group by last path component
 	ABC_GROUP_XFORM_BASENAME,	// Group by last xform node path component
     };
@@ -100,6 +100,21 @@ public:
         ABC_AFILTER_TRANSFORMING,      // Only transforming geometry
         ABC_AFILTER_ANIMATING,         // Only animating geometry
 	ABC_AFILTER_ALL                // All geometry
+    };
+
+    /// Geometry type filter
+    enum GFilter
+    {
+        ABC_GFILTER_POLYMESH = 0x01,                    // Load primitives that are polygons
+        ABC_GFILTER_CURVES = 0x02,                      // Load primitives that are curves
+        ABC_GFILTER_NUPATCH = 0x04,                     // Load primitives that are NURBS
+        ABC_GFILTER_POINTS = 0x08,                      // Load primitives that are points
+        ABC_GFILTER_SUBD = 0x10,                        // Load primitives that are subdivision surfaces
+        ABC_GFILTER_ALL = (ABC_GFILTER_POLYMESH |       // Load all primitives 
+                           ABC_GFILTER_CURVES |
+                           ABC_GFILTER_NUPATCH |
+                           ABC_GFILTER_POINTS |
+                           ABC_GFILTER_SUBD)                  
     };
 
     /// How Alembic delayed load primitives are attached to GA points
@@ -231,6 +246,7 @@ public:
     void	setUserProps(LoadUserPropsMode m) { myLoadUserProps = m; }
     void	setGroupMode(GroupMode m)	{ myGroupMode = m; }
     void	setAnimationFilter(AFilter m)	{ myAnimationFilter = m; }
+    void        setGeometryFilter(int m)    { myGeometryFilter = m; }
     void	setBounds(BoxCullMode mode, const UT_BoundingBox &box);
     void	setPointMode(AbcPrimPointMode mode,
 			GA_Offset shared_point = GA_INVALID_OFFSET);
@@ -304,6 +320,7 @@ protected:
 private:
     bool		 matchObjectName(const GABC_IObject &obj) const;
     bool		 matchAnimationFilter(const GABC_IObject &obj) const;
+    bool                 matchGeometryFilter(const GABC_IObject &obj) const;
     bool		 matchBounds(const GABC_IObject &obj) const;
     bool		 abcPrimPointMode() const
 				{ return myAbcPrimPointMode; }
@@ -314,6 +331,7 @@ private:
     AbcPolySoup             myPolySoup;
     AbcPrimPointMode        myAbcPrimPointMode;
     AFilter                 myAnimationFilter;      // Animating object filter
+    int                     myGeometryFilter;       // Geometry type filter
     BoxCullMode             myBoxCullMode;
     GroupMode               myGroupMode;            // How to construct group names
     LoadMode                myLoadMode;             // Build Alembic primitives

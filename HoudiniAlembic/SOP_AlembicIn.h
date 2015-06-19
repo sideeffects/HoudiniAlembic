@@ -111,6 +111,7 @@ private:
 	GABC_GEOWalker::AbcPolySoup		myPolySoup;
 	GABC_GEOWalker::AbcPrimPointMode	myPointMode;
 	GABC_GEOWalker::AFilter			myAnimationFilter;
+        int                                     myGeometryFilter;
 	GABC_GEOWalker::BoxCullMode		myBoundMode;
 	GABC_GEOWalker::GroupMode		myGroupMode;
 	GABC_GEOWalker::LoadMode		myLoadMode;

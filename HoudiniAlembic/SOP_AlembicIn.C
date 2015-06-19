@@ -180,6 +180,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myLoadUserProps(GABC_GEOWalker::UP_LOAD_NONE)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
+    , myGeometryFilter(GABC_GEOWalker::ABC_GFILTER_ALL)
     , myPolySoup(GABC_GEOWalker::ABC_POLYSOUP_POLYMESH)
     , myViewportLOD(GEO_VIEWPORT_FULL)
     , myPathAttribute("")
@@ -207,6 +208,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myLoadUserProps(GABC_GEOWalker::UP_LOAD_NONE)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
     , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
+    , myGeometryFilter(GABC_GEOWalker::ABC_GFILTER_ALL)
     , myPolySoup(GABC_GEOWalker::ABC_POLYSOUP_POLYMESH)
     , myViewportLOD(GEO_VIEWPORT_FULL)
     , myPathAttribute("")
@@ -234,6 +236,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myLoadUserProps = src.myLoadUserProps;
     myGroupMode = src.myGroupMode;
     myAnimationFilter = src.myAnimationFilter;
+    myGeometryFilter = src.myGeometryFilter;
     myPolySoup = src.myPolySoup;
     myViewportLOD = src.myViewportLOD;
     myNameMapPtr = src.myNameMapPtr;
@@ -280,6 +283,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	return true;
     if (myAnimationFilter != src.myAnimationFilter)
 	return true;
+    if (myGeometryFilter != src.myGeometryFilter)
+        return true;
     if (myPolySoup != src.myPolySoup)
 	return true;
     if (myViewportLOD != src.myViewportLOD)
@@ -345,10 +350,15 @@ static PRM_Name prm_objectExcludeName("objectExclude", "Object Exclude");
 static PRM_Name	prm_pickObjectExcludeName("pickobjectExclude", "Pick");
 static PRM_Name prm_includeXformName("includeXform", "Transform Geometry To World Space");
 static PRM_Name prm_useVisibilityName("usevisibility", "Use Visibility");
-static PRM_Name prm_loadLocatorName("loadLocator", "Load Maya Locator");
 static PRM_Name prm_userPropsName("loadUserProps", "User Properties");
 static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
 static PRM_Name prm_animationfilter("animationfilter", "Animating Objects");
+static PRM_Name prm_geometryfilterPolygon("polygonFilter", "Load Polygons");
+static PRM_Name prm_geometryfilterCurve("curveFilter", "Load Curves");
+static PRM_Name prm_geometryfilterNURBS("NURBSFilter", "Load NURBS");
+static PRM_Name prm_geometryfilterPoints("pointsFilter", "Load Points");
+static PRM_Name prm_geometryfilterSubd("subdFilter", "Load Subdivision Surfaces");
+static PRM_Name prm_loadLocatorName("loadLocator", "Load Maya Locator");
 static PRM_Name prm_polysoup("polysoup", "Poly Soup Primitives");
 static PRM_Name prm_viewportlod("viewportlod", "Display As");
 static PRM_Name prm_boxcull("boxcull", "Box Culling");
@@ -370,6 +380,7 @@ static PRM_Default prm_useVisibilityDefault(true);
 static PRM_Default prm_loadLocatorDefault(false);
 static PRM_Default prm_pathattribDefault(0, "path");
 static PRM_Default prm_fileattribDefault(0, "abcFileName");
+static PRM_Default prm_geometryfilterDefault(true);
 
 static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
         "__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu"
@@ -491,9 +502,9 @@ static PRM_SpareData	theAbcPattern(
 
 static PRM_Default	mainSwitcher[] =
 {
-    PRM_Default(10, "Geometry"),
-    PRM_Default(8, "Selection"),
-    PRM_Default(9, "Attributes"),
+    PRM_Default(9, "Geometry"),
+    PRM_Default(16, "Selection"),
+    PRM_Default(10, "Attributes"),
 };
 
 static PRM_SpareData *
@@ -536,7 +547,9 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     // Define 3 tabs of folders
     PRM_Template(PRM_SWITCHER, 3, &PRMswitcherName, mainSwitcher),
 
-    // Geometry tab
+    // Geometry tab 
+    // Currently there are 9 elements (9 PRM_Template() calls below) in this tab, 
+    // which matches PRM_Default(9, "Geometry") defined in mainSwitcher
     PRM_Template(PRM_ORD, 1, &prm_loadmodeName, &prm_loadmodeDefault,
 	    &menu_loadmode),
     PRM_Template(PRM_ORD, 1, &prm_viewportlod, &prm_viewportlodDefault,
@@ -551,12 +564,13 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 	    &prm_includeXformDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_useVisibilityName,
 	    &prm_useVisibilityDefault),
-    PRM_Template(PRM_TOGGLE, 1, &prm_loadLocatorName, &prm_loadLocatorDefault),
     PRM_Template(PRM_ORD, 1, &prm_groupnames, &prm_groupnamesDefault,
 	    &menu_groupnames),
     PRM_Template(PRM_STRING, 1, &prm_subdgroupName),
 
     // Selection tab
+    // Currently there are 16 elements (16 PRM_Template() calls below) in this tab, 
+    // which matches PRM_Default(16, "Selection") defined in mainSwitcher
     PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectPathName,
 	    &prm_objectPathDefault, &prm_objectPathMenu, NULL, NULL,
 	    sopCreateObjectPathSpareData(true, true)),
@@ -570,6 +584,12 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_STRING, 1, &prm_objecPatternName, &prm_starDefault),
     PRM_Template(PRM_ORD, 1, &prm_animationfilter, &prm_animationfilterDefault,
 	    &menu_animationfilter),
+    PRM_Template(PRM_TOGGLE, 1, &prm_geometryfilterPolygon, &prm_geometryfilterDefault),
+    PRM_Template(PRM_TOGGLE, 1, &prm_geometryfilterCurve, &prm_geometryfilterDefault),
+    PRM_Template(PRM_TOGGLE, 1, &prm_geometryfilterNURBS, &prm_geometryfilterDefault),
+    PRM_Template(PRM_TOGGLE, 1, &prm_geometryfilterPoints, &prm_geometryfilterDefault),
+    PRM_Template(PRM_TOGGLE, 1, &prm_geometryfilterSubd, &prm_geometryfilterDefault),
+    PRM_Template(PRM_TOGGLE, 1, &prm_loadLocatorName, &prm_loadLocatorDefault),
     PRM_Template(PRM_ORD, 1, &prm_boxcull, &prm_boxcullDefault,
 	    &menu_boxcull),
     PRM_Template(PRM_TOGGLE, 1, &boxcullSource, PRMzeroDefaults),
@@ -578,6 +598,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_XYZ_J,  3, &boxcullCenter, PRMzeroDefaults),
 
     // Attribute tab
+    // Currently there are 10 elements (10 PRM_Template() calls below) in this tab, 
+    // which matches PRM_Default(10, "Attributes") defined in mainSwitcher
     PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_POINT],
 		&prm_starDefault),
     PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_VERTEX],
@@ -595,6 +617,7 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_MULTITYPE_LIST, prm_AttributeRemapTemplate, 2,
             &prm_remapAttribName, PRMzeroDefaults, 0,
             &PRM_SpareData::multiStartOffsetOne),
+
     PRM_Template()
 };
 
@@ -811,6 +834,19 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     else
         parms.myAnimationFilter = GABC_GEOWalker::ABC_AFILTER_ALL;
 
+    int geometryFilterBytes = 0x00;
+    if (evalInt("polygonFilter", 0, now) != 0)
+        geometryFilterBytes |= GABC_GEOWalker::ABC_GFILTER_POLYMESH;
+    if (evalInt("curveFilter", 0, now) != 0)
+        geometryFilterBytes |= GABC_GEOWalker::ABC_GFILTER_CURVES;
+    if (evalInt("NURBSFilter", 0, now) != 0)
+        geometryFilterBytes |= GABC_GEOWalker::ABC_GFILTER_NUPATCH;
+    if (evalInt("pointsFilter", 0, now) != 0)
+        geometryFilterBytes |= GABC_GEOWalker::ABC_GFILTER_POINTS;
+    if (evalInt("subdFilter", 0, now) != 0)
+        geometryFilterBytes |= GABC_GEOWalker::ABC_GFILTER_SUBD;
+    parms.myGeometryFilter = geometryFilterBytes;
+
     evalString(sval, "polysoup", 0, now);
     if (sval == "none")
 	parms.myPolySoup = GABC_GEOWalker::ABC_POLYSOUP_NONE;
@@ -998,6 +1034,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     walk.setUserProps(parms.myLoadUserProps);
     walk.setGroupMode(parms.myGroupMode);
     walk.setAnimationFilter(parms.myAnimationFilter);
+    walk.setGeometryFilter(parms.myGeometryFilter);
     walk.setPolySoup(parms.myPolySoup);
     walk.setViewportLOD(parms.myViewportLOD);
     walk.setBounds(parms.myBoundMode, parms.myBoundBox);

@@ -119,12 +119,6 @@ Use Visibility:
 	any visible geometry.  There may be additional cost to using visibility
 	with Alembic Delayed Load primitives.
 
-Load Maya Locater:
-        #id: loadLocator
-        
-        Test for transform nodes which match how Maya saves out locater nodes and
-        load these into Houdini.
-
 Primitive Groups:
         #id: groupnames
         
@@ -167,7 +161,7 @@ Animating Objects:
         This allows you to filter objects based on whether they are animated or not.
         
         Include All Primitives (default):
-                Load primitives whether the are animating or static.
+                Load primitives whether they are animating or static.
         Only Static Primitives:
                 Only load primitives which are *not* animated.
         Only Deforming Primitives:
@@ -176,6 +170,37 @@ Animating Objects:
                 Only load primitives with parent transformation nodes that change over time.
         Only Deforming or Transforming Primitives:
                 Only load primitives which are animated.
+
+Load Polygons:
+        #id : polygonFilter
+
+        This allows you to only load primitives that are polygons.
+
+Load Curves:
+        #id : curveFilter
+
+        This allows you to only load primitives that are curves.
+
+Load NURBS:
+        #id : NURBSFilter
+
+        This allows you to only load primitives that are NURBS.
+
+Load Points:
+        #id : pointsFilter
+
+        This allows you to only load primitives that are points.
+
+Load Subdivision Surfaces:
+        #id : subdFilter
+
+        This allows you to only load primitives that are subdivision surfaces.
+
+Load Maya Locater:
+        #id: loadLocator
+        
+        Test for transform nodes which match how Maya saves out locater nodes and
+        load these into Houdini.
 
 Box Culling:
         #id: boxcull
