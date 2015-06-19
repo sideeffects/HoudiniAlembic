@@ -174,27 +174,27 @@ Animating Objects:
 Load Polygons:
         #id : polygonFilter
 
-        This allows you to only load primitives that are polygons.
+        This allows loading of polygons.
 
 Load Curves:
         #id : curveFilter
 
-        This allows you to only load primitives that are curves.
+        This allows loading of curves.
 
 Load NURBS:
         #id : NURBSFilter
 
-        This allows you to only load primitives that are NURBS.
+        This allows loading of NURBS.
 
 Load Points:
         #id : pointsFilter
 
-        This allows you to only load primitives that are points.
+        This allows loading of points.
 
 Load Subdivision Surfaces:
         #id : subdFilter
 
-        This allows you to only load primitives that are subdivision surfaces.
+        This allows loading of subdivision surfaces.
 
 Load Maya Locater:
         #id: loadLocator
