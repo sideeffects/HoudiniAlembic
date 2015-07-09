@@ -372,6 +372,7 @@ static PRM_Name prm_loadmodeName("loadmode", "Load As");
 static PRM_Name prm_pointModeName("pointmode", "Points");
 static PRM_Name prm_abcxformName("abcxform", "Create Primitives For");
 
+static PRM_Default prm_filenameDefault(0, "$HH/geo/default.abc");
 static PRM_Default prm_frameDefault(1, "$FF");
 static PRM_Default prm_objectPathDefault(0, "");
 static PRM_Default prm_fpsDefault(24, "$FPS");
@@ -538,7 +539,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 {
     PRM_Template(PRM_CALLBACK, 1, &prm_reloadbutton,
 	    0, 0, 0, SOP_AlembicIn2::reloadGeo),
-    PRM_Template(PRM_FILE,  1, &prm_filenameName, 0, 0, 0, 0, &theAbcPattern),
+    PRM_Template(PRM_FILE,  1, &prm_filenameName, &prm_filenameDefault,
+	    0, 0, 0, &theAbcPattern),
     PRM_Template(PRM_FLT_J, 1, &prm_frameName, &prm_frameDefault),
     PRM_Template(PRM_FLT_J, 1, &prm_fpsName, &prm_fpsDefault),
     PRM_Template(PRM_ORD,   1, &prm_missingFileName, &missingFileDefault,
