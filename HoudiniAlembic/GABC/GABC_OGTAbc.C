@@ -177,12 +177,6 @@ namespace
 	return getPackedImpl(prim)->object();
     }
 
-    static const GABC_IArchivePtr &
-    getArchive(const GT_PrimitiveHandle &prim)
-    {
-        return getPackedImpl(prim)->object().archive();
-    }
-
     // Read Property samples in then write them out to the new archive. Used
     // for both arbitrary geometry parameters and user properties.
     static void
@@ -1405,26 +1399,6 @@ GABC_OGTAbc::startXform(const GT_PrimitiveHandle &prim,
     }
 
     return update(prim, cook_time, ctx, err, vis);
-}
-
-bool
-GABC_OGTAbc::fillXformUserProperties(const GT_PrimitiveHandle &prim,
-                                     std::string path,
-                                     GABC_OXform *xform,
-                                     fpreal cook_time,
-                                     const GABC_OOptions &ctx)
-{
-    GABC_IObject node(getArchive(prim), path.c_str());
-    ISampleSelector     iss(cook_time);
-    sampleXform(node,
-                xform,
-                myArbProps,
-                myUserProps,
-                true,
-                ctx,
-                iss);
-
-    return true;
 }
 
 bool
