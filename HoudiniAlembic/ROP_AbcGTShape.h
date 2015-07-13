@@ -61,21 +61,23 @@ public:
 	return "<invalid>";
     }
 
-    typedef Alembic::Abc::OObject		OObject;
+    typedef Alembic::Abc::OObject		    OObject;
 
-    typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
+    typedef Alembic::AbcGeom::ObjectVisibility	    ObjectVisibility;
 
-    typedef GABC_NAMESPACE::GABC_OError		GABC_OError;
-    typedef GABC_NAMESPACE::GABC_OGTAbc         GABC_OGTAbc;
-    typedef GABC_NAMESPACE::GABC_OGTGeometry	GABC_OGTGeometry;
+    typedef GABC_NAMESPACE::GABC_OError		    GABC_OError;
+    typedef GABC_NAMESPACE::GABC_OGTAbc             GABC_OGTAbc;
+    typedef GABC_NAMESPACE::GABC_OGTGeometry	    GABC_OGTGeometry;
 
-    typedef GABC_NAMESPACE::GABC_OXform         OXform;
+    typedef GABC_NAMESPACE::GABC_OXform             OXform;
 
-    typedef UT_Map<std::string, UT_Matrix4D>    InverseMap;
-    typedef std::pair<std::string, UT_Matrix4D> InverseMapInsert;
-    typedef UT_Set<std::string>                 GeoSet;
-    typedef UT_Map<std::string, OXform *>       XformMap;
-    typedef std::pair<std::string, OXform *>    XformMapInsert;
+    typedef UT_Map<std::string, UT_Matrix4D>        InverseMap;
+    typedef std::pair<std::string, UT_Matrix4D>     InverseMapInsert;
+    typedef UT_Set<std::string>                     GeoSet;
+    typedef UT_Map<std::string, OXform *>           XformMap;
+    typedef std::pair<std::string, OXform *>        XformMapInsert;
+    typedef UT_Map<std::string, GABC_OGTAbc *>      XformUserPropsMap;
+    typedef std::pair<std::string, GABC_OGTAbc *>   XformUserPropsMapInsert;
 
     ROP_AbcGTShape(const std::string &name,
             const char * const path,
@@ -146,6 +148,8 @@ private:
     InverseMap		*const myInverseMap;
     GeoSet		*const myGeoSet;
     XformMap		*const myXformMap;
+    XformUserPropsMap   myXformUserPropsMap;
+
     const ShapeType	 myType;
     UT_String		 myPath;
     UT_WorkArgs		 myTokens;

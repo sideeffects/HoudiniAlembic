@@ -140,6 +140,14 @@ ROP_AbcGTShape::clear()
     }
 
     myObj.myVoidPtr = NULL;
+
+    for (auto it = myXformUserPropsMap.begin(); 
+    	      it != myXformUserPropsMap.end(); 
+    	      ++it)
+    {
+        delete it->second;
+    }
+    myXformUserPropsMap.clear();
 }
 
 bool
@@ -160,6 +168,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
 {
     const OObject		*pobj = &parent;
     OXform			*xform = NULL;
+    GABC_OGTAbc                 *xformUserProps = NULL;
     UT_Matrix4D			 parent_mat(1.0);
     std::string			 partial_path = "";
     fpreal			 time;
@@ -170,6 +179,9 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
 
     clear();
     ++myElapsedFrames;
+
+    // Need to know at what time to sample the input Alembic archive.
+    time = ctx.cookTime() + ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
 
     // If we're using a path:
     if (numt)
@@ -208,7 +220,14 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
                 }
 
                 xform = new OXform(*pobj, current_token, ctx.timeSampling());
+                xformUserProps = new GABC_OGTAbc(current_token);
+                xformUserProps->fillXformUserProperties(prim,
+                				 	partial_path,
+                                     		 	xform,
+                                     		 	time,
+                                     		 	ctx);
                 myXformMap->insert(XformMapInsert(partial_path, xform));
+                myXformUserPropsMap.insert(XformUserPropsMapInsert(partial_path, xformUserProps));
             }
             else
             {
@@ -459,10 +478,6 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
             return myObj.myShape->start(prim, *pobj, ctx, err, vis);
 
         case ALEMBIC:
-            // Need to know at what time to sample the input Alembic archive.
-            time = ctx.cookTime()
-                + ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
-
             myObj.myAlembic = new GABC_OGTAbc(myName);
 
             if (is_xform)
@@ -498,6 +513,7 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
 	bool calc_inverse)
 {
     OXform                 *xform = NULL;
+    GABC_OGTAbc            *xformUserProps = NULL;
     UT_Matrix4D		    parent_mat(1.0);
     std::string             partial_path = "";
     fpreal                  time;
@@ -506,6 +522,8 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
     bool                    is_xform = (getNodeType(prim) == GABC_XFORM);
 
     ++myElapsedFrames;
+
+    time = ctx.cookTime() + ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
 
     // Same thing as when creating the first frame, but this time don't need
     // to make new transforms. They should already exist.
@@ -526,8 +544,25 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
                 UT_ASSERT(0 && "Missing transform!");
                 return false;
             }
-
             xform = x_it->second;
+
+            if (myXformUserPropsMap.size() > 0)
+            {
+                auto x_userprops_it = myXformUserPropsMap.find(partial_path);
+                if (x_userprops_it != myXformUserPropsMap.end())
+                {
+                    xformUserProps = x_userprops_it->second;
+                    xformUserProps->fillXformUserProperties(prim,
+                        			     	    partial_path,
+                                             	     	    xform,
+                                             	     	    time,
+                                             	     	    ctx);
+                }
+                else
+                {
+                    err.warning("%s is missing user properties.", partial_path.c_str());
+                }
+            }
 
             if (calc_inverse)
             {
@@ -648,8 +683,6 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
                 return myObj.myAlembic->updateFromPrevious(err,
                         Alembic::AbcGeom::kVisibilityDeferred);
             }
-            time = ctx.cookTime() +
-                   ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
             return myObj.myAlembic->update(prim, time, ctx, err);
 
         default:
