@@ -38,6 +38,7 @@ namespace
 {
     typedef Alembic::AbcCoreAbstract::DataType          DataType;
     typedef Alembic::AbcCoreAbstract::ArraySample       ArraySample;
+    typedef Alembic::AbcCoreAbstract::MetaData          MetaData;
 
     typedef Alembic::Abc::OCompoundProperty             OCompoundProperty;
     typedef Alembic::Abc::OArrayProperty                OArrayProperty;
@@ -380,13 +381,13 @@ do \
 { \
     if (myIsGeomParam) \
     { \
-        Alembic::AbcGeom::TYPE gp(parent, name, false, myScope, array_size, time); \
+        Alembic::AbcGeom::TYPE gp(parent, name, false, myScope, array_size, time, md); \
         myProperty = gp.getValueProperty(); \
         myProperty.setTimeSampling(ts); \
     } \
     else \
     { \
-        myProperty = Alembic::AbcGeom::TYPE::prop_type(parent, name, ts); \
+        myProperty = Alembic::AbcGeom::TYPE::prop_type(parent, name, ts, md); \
     } \
     valid = true; \
 } while(false)
@@ -395,7 +396,7 @@ do \
 #define DECL_INDEX_PARAM(TYPE) \
 do \
 { \
-    Alembic::AbcGeom::TYPE gp(parent, name, true, myScope, 1, time); \
+    Alembic::AbcGeom::TYPE gp(parent, name, true, myScope, 1, time, md); \
     myProperty = gp.getValueProperty(); \
     myIndexProperty = gp.getIndexProperty(); \
     myProperty.setTimeSampling(ts); \
@@ -465,6 +466,7 @@ GABC_OArrayProperty::start(OCompoundProperty &parent,
 	return false;
 
     const TimeSamplingPtr  &ts = options.timeSampling();
+    MetaData                md;
     exint                   array_size = 1;
     exint                   time = 0;
     bool                    valid = false;
@@ -617,6 +619,14 @@ GABC_OArrayProperty::start(OCompoundProperty &parent,
             }
             else
             {
+                // Maya only supports a very specific data type as their colors.
+                // Additionally, in order for Maya to recognize the colors, the
+                // property needs to have the "mayaColorSet" metadata defined.
+                // "1" means the "active" color. Since Houdini doesn't have the
+                // concept of "active" color, we'll just leave it as "0".
+                if(myScope == Alembic::AbcGeom::kFacevaryingScope)
+                    md.set("mayaColorSet", "0");
+
                 if (myTupleSize >= 4)
                 {
                     DETERMINE_FROM_STORAGE(GT_STORE_UINT8,
