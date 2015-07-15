@@ -203,6 +203,15 @@ public:
                     const GABC_OOptions &ctx,
                     GABC_OError &err,
                     ObjectVisibility vis);
+
+    /// Implicitly copy user properties for transform nodes, userful when transform nodes
+    /// are not explicitly loaded from an archive. 
+    bool    fillXformUserProperties(const GABC_IArchivePtr &archive,
+                                    std::string path,
+                                    GABC_OXform *xform,
+                                    fpreal cook_time,
+                                    const GABC_OOptions &ctx);
+
     /// Output geometry, attribute, and user property samples to Alembic for the
     /// current frame.
     bool    update(const GT_PrimitiveHandle &prim,

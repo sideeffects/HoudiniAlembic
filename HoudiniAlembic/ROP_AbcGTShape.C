@@ -140,6 +140,14 @@ ROP_AbcGTShape::clear()
     }
 
     myObj.myVoidPtr = NULL;
+
+    for (auto it = myXformUserPropsMap.begin(); 
+    	      it != myXformUserPropsMap.end(); 
+    	      ++it)
+    {
+        delete it->second;
+    }
+    myXformUserPropsMap.clear();
 }
 
 bool
@@ -160,6 +168,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
 {
     const OObject		*pobj = &parent;
     OXform			*xform = NULL;
+    GABC_OGTAbc                 *xformUserProps = NULL;
     UT_Matrix4D			 parent_mat(1.0);
     std::string			 partial_path = "";
     fpreal			 time;
@@ -167,6 +176,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
     int				 numx = numt - 1;
     bool			 is_xform = (getNodeType(prim) == GABC_XFORM);
     bool			 abc_insert_xform = false;
+    bool                         copy_xform_userprops = false;
 
     clear();
     ++myElapsedFrames;
@@ -209,6 +219,8 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
 
                 xform = new OXform(*pobj, current_token, ctx.timeSampling());
                 myXformMap->insert(XformMapInsert(partial_path, xform));
+
+                copy_xform_userprops = true;
             }
             else
             {
@@ -354,6 +366,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
             {
                 // This warning also posted whenever multiple packed Alembics
                 // stored under the same path
+                copy_xform_userprops = false;
                 err.warning("Ignoring transform for packed Alembic %s/%s to"
                         " preserve hierarchy.",
                         partial_path.c_str(),
@@ -377,6 +390,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
         // prioritizing hierarchy over transforms):
         else
         {
+            copy_xform_userprops = false;
             err.warning("Ignoring transform for packed Alembic %s/%s to"
                     " preserve hierarchy.",
                     partial_path.c_str(),
@@ -460,8 +474,7 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
 
         case ALEMBIC:
             // Need to know at what time to sample the input Alembic archive.
-            time = ctx.cookTime()
-                + ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
+            time = ctx.cookTime() + ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
 
             myObj.myAlembic = new GABC_OGTAbc(myName);
 
@@ -479,6 +492,49 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
             }
             else
             {
+                // Preserve user properties on transform nodes that are implicitly copied
+                if (copy_xform_userprops)
+                {
+		    const GABC_IObject& obj= getPackedImpl(prim)->object();
+
+		    UT_String obj_path(obj.objectPath());
+		    UT_WorkArgs objpathTokens;
+		    obj_path.tokenize(objpathTokens, '/');
+
+		    // If an object path is "/obj/a", objpathTokens = {"", "obj", "a"}
+                    // Note that the object path of a primitive can be different from its path attribute
+		    if (objpathTokens.entries()-1 != numt)
+		    {
+			err.warning("Ignoring transform user properties for %s due to mismatch in object path",
+				    partial_path.c_str());
+		    }
+		    else
+		    {
+			std::string userprops_partial_path = "";
+			std::string obj_partial_path = "";
+			for (int i = 0; i < numx; ++i)
+			{
+			    const char *userprops_current_token = myTokens.getArg(i);
+			    userprops_partial_path.append("/");
+			    userprops_partial_path.append(userprops_current_token);
+
+			    obj_partial_path.append("/");
+			    obj_partial_path.append(objpathTokens.getArg(i+1));
+
+			    auto x_it = myXformMap->find(userprops_partial_path);
+			    UT_ASSERT_P(x_it != myXformMap->end());
+
+			    xformUserProps = new GABC_OGTAbc(userprops_current_token);
+			    xformUserProps->fillXformUserProperties(obj.archive(),
+								    obj_partial_path,
+								    x_it->second,
+								    time,
+								    ctx);
+			    myXformUserPropsMap.insert(XformUserPropsMapInsert(userprops_partial_path, xformUserProps));
+			}
+		    }
+                }
+
                 return myObj.myAlembic->start(prim, *pobj, time,
 			ctx, err, vis, abc_insert_xform);
             }
@@ -498,6 +554,7 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
 	bool calc_inverse)
 {
     OXform                 *xform = NULL;
+    GABC_OGTAbc            *xformUserProps = NULL;
     UT_Matrix4D		    parent_mat(1.0);
     std::string             partial_path = "";
     fpreal                  time;
@@ -648,8 +705,58 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
                 return myObj.myAlembic->updateFromPrevious(err,
                         Alembic::AbcGeom::kVisibilityDeferred);
             }
-            time = ctx.cookTime() +
-                   ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
+
+            time = ctx.cookTime() + ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
+
+            // Update user properties on transform nodes that are implicitly copied
+            if (myXformUserPropsMap.size() > 0)
+            {
+                const GABC_IObject& obj= getPackedImpl(prim)->object();
+
+                UT_String obj_path(obj.objectPath());
+                UT_WorkArgs objpathTokens;
+                obj_path.tokenize(objpathTokens, '/');
+
+                // If an object path is "/obj/a", objpathTokens = {"", "obj", "a"}
+                // Note that the object path of a primitive can be different from its path attribute
+                if (objpathTokens.entries()-1 != numt)
+                {
+                    err.warning("Ignoring transform user properties for %s due to mismatch in object path",
+                                partial_path.c_str());
+                }
+                else
+                {
+                    std::string userprops_partial_path = "";
+                    std::string obj_partial_path = "";
+                    for (int i = 0; i < numx; ++i)
+                    {
+                        userprops_partial_path.append("/");
+                        userprops_partial_path.append(myTokens.getArg(i));
+                            
+                        obj_partial_path.append("/");
+                        obj_partial_path.append(objpathTokens.getArg(i+1));
+
+                        auto x_it = myXformMap->find(userprops_partial_path);
+                        UT_ASSERT_P(x_it != myXformMap->end());
+
+                        auto x_userprops_it = myXformUserPropsMap.find(userprops_partial_path);
+                        if (x_userprops_it != myXformUserPropsMap.end())
+                        {
+                            xformUserProps = x_userprops_it->second;
+                            xformUserProps->fillXformUserProperties(obj.archive(),
+                                                                    obj_partial_path,
+                                                                    x_it->second,
+                                                                    time,
+                                                                    ctx);
+                        }
+                        else
+                        {
+                            err.warning("%s is missing user properties.", userprops_partial_path.c_str());
+                        }
+                    }
+                }
+            }
+
             return myObj.myAlembic->update(prim, time, ctx, err);
 
         default:

@@ -1402,6 +1402,26 @@ GABC_OGTAbc::startXform(const GT_PrimitiveHandle &prim,
 }
 
 bool
+GABC_OGTAbc::fillXformUserProperties(const GABC_IArchivePtr &archive,
+                                     std::string path,
+                                     GABC_OXform *xform,
+                                     fpreal cook_time,
+                                     const GABC_OOptions &ctx)
+{
+    GABC_IObject node(archive, path.c_str());
+    ISampleSelector     iss(cook_time);
+    sampleXform(node,
+                xform,
+                myArbProps,
+                myUserProps,
+                true,
+                ctx,
+                iss);
+
+    return true;
+}
+
+bool
 GABC_OGTAbc::update(const GT_PrimitiveHandle &prim,
         fpreal cook_time,
 	const GABC_OOptions &ctx,
