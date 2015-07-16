@@ -1174,8 +1174,16 @@ GABC_PackedImpl::GTCache::centroid(const GABC_PackedImpl *abc)
 GEO_AnimationType
 GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
 {
-    if (myAnimationType == GEO_ANIMATION_INVALID)
-     	points(abc);	// Update lightest weight cache
+    if (myAnimationType == GEO_ANIMATION_INVALID && visible(abc))
+    {
+        if (myFrame != abc->frame())
+        {
+            myFrame = abc->frame();
+            const GABC_IObject &o = abc->object();
+            myAnimationType = o.getAnimationType(false);
+        }
+    }
+
     return myAnimationType;
 }
 
