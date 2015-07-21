@@ -525,7 +525,9 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     fpreal      shutter_close = 0;
     int         mb_samples = 1;
 
-    if (!input && USE_SOP_PATH(start))
+    if (input)
+        sop = CAST_SOPNODE(input);
+    if (!sop && USE_SOP_PATH(start))
     {
         SOP_PATH(sop_path, start);
         sop_path.trimBoundingSpace();
@@ -537,10 +539,6 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
                 abcError("Invalid SOP path: node either not found or not SOP");
             }
         }
-    }
-    else
-    {
-        sop = CAST_SOPNODE(input);
     }
 
     FILENAME(filename, start);
