@@ -419,8 +419,11 @@ ROP_AbcOpXform::setVisibility(const ROP_AbcContext &ctx)
 	OBJ_Node		*node = getXformNode(myNodeId);
 	ObjectVisibility	 v = Alembic::AbcGeom::kVisibilityDeferred;
 
-	if (node && !node->getObjectDisplay(ctx.cookContext().getTime()))
+	if (!ctx.singletonSOP() &&
+	    node && !node->getObjectDisplay(ctx.cookContext().getTime()))
+	{
 	    v = Alembic::AbcGeom::kVisibilityHidden;
+	}
 	myVisibility.set(v);
     }
 }
