@@ -1,8 +1,9 @@
 = Alembic extension functions =
 
-"""Contains utility functions for extracting information from Alembic files."""
+"""Utility functions for extracting information from Alembic files."""
 
-These functions are not part of "HOM proper". They are not under the `hou` package and are not integrated into the object model. Future versions of Houdini may have better integrated support for working with Alembic data in Python.
+:bug:
+	These functions are not part of "HOM proper". They are not under the `hou` package and are not integrated into the object model. Future versions of Houdini may have better integrated support for working with Alembic data in Python.
 
 To use the functions in this module, launch `hython` and import `_alembic_hom_extensions`.
 
@@ -33,7 +34,7 @@ To use the functions in this module, launch `hython` and import `_alembic_hom_ex
 `sampleTime`:
     The animation time at which to compute the value. This is a fractional value in seconds. If you have a frame number you must divide by the frames-per-second before passing it to the function.
 
-== Functions ==
+@functions
 
 ::`alembicArbGeometry(abcPath, objectPath, name, sampleTime)` -> `(value, isConstant, scope)`:
     Gets the value of an object attribute. Returns `None` or a tuple of the value of the attribute; a boolean indicating whether the attribute is constant over time; and a string indicating the scope of the attribute: `varying`, `vertex`, `facevarying`, `uniform`, `constant`, or `unknown`.

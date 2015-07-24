@@ -4,6 +4,7 @@
 #context: sop
 #internal: alembicprimitive
 #icon: SOP/alembicprimitive
+#tags: alembic, edit
 
 """Modifies intrinsic properties of Alembic primitives."""
 

@@ -4,6 +4,7 @@
 #context: sop
 #internal: alembic
 #icon: SOP/alembic
+#tags: alembic, io
 
 """Loads the geometry from an Alembic scene archive (`.abc`) file into a geometry network."""
 

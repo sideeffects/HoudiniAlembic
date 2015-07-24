@@ -4,6 +4,7 @@
 #context: sop
 #internal: alembicgroup
 #icon: SOP/alembicgroup
+#tags: alembic, groups
 
 """Creates a geometry group for Alembic primitives."""
 
