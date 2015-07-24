@@ -419,11 +419,8 @@ ROP_AbcOpXform::setVisibility(const ROP_AbcContext &ctx)
 	OBJ_Node		*node = getXformNode(myNodeId);
 	ObjectVisibility	 v = Alembic::AbcGeom::kVisibilityDeferred;
 
-	if (!ctx.singletonSOP() &&
-	    node && !node->getObjectDisplay(ctx.cookContext().getTime()))
-	{
+	if (node && !node->getObjectDisplay(ctx.cookContext().getTime()))
 	    v = Alembic::AbcGeom::kVisibilityHidden;
-	}
 	myVisibility.set(v);
     }
 }
@@ -469,7 +466,7 @@ ROP_AbcOpXform::update(GABC_OError &err,
 			fullpath.buffer(), ctx.cookContext().getTime());
 	    }
 	}
-	if (myVisibility)
+	if (!ctx.singletonSOP())
 	    setVisibility(ctx);
     }
 
