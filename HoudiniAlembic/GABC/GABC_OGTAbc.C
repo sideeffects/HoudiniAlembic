@@ -177,6 +177,61 @@ namespace
 	return getPackedImpl(prim)->object();
     }
 
+    static void
+    sampleScalarProperties(PropertyMap &p_map,
+            OCompoundProperty &out,
+            const IScalarProperty &in_property,
+            const GABC_OOptions &ctx,
+            const ISampleSelector &iss,
+            const PropertyHeader &header,
+            const std::string &name)
+    {
+        if (!out.valid())
+            return;
+
+        const DataType     &dtype = header.getDataType();
+        OScalarProperty    *out_property = p_map.findScalar(name);
+        void               *sample;
+
+        if (!out_property)
+        {
+            MetaData    metadata(in_property.getMetaData());
+            out_property = new OScalarProperty(out,
+                    header.getName(),
+                    dtype,
+                    metadata,
+                    ctx.timeSampling());
+                    p_map.insert(name, out_property);
+        }
+        else if (in_property.isConstant())
+        {
+            out_property->setFromPrevious();
+            return;
+        }
+
+        if (dtype.getPod() == Alembic::Abc::kStringPOD)
+        {
+            std::string     str;
+            sample = (void *)(&str);
+            in_property.get(sample, iss);
+            out_property->set(sample);
+        }
+        else if (dtype.getPod() == Alembic::Abc::kWstringPOD)
+        {
+            std::wstring     str;
+            sample = (void *)(&str);
+            in_property.get(sample, iss);
+            out_property->set(sample);
+        }
+        else
+        {
+            sample = malloc(dtype.getNumBytes());
+            in_property.get(sample, iss);
+            out_property->set(sample);
+            free(sample);
+        }
+    }
+
     // Read Property samples in then write them out to the new archive. Used
     // for both arbitrary geometry parameters and user properties.
     static void
@@ -187,6 +242,9 @@ namespace
             const ISampleSelector &iss,
             const std::string &base_name)
     {
+        if (!in.valid() || !out.valid())
+            return;
+
         CompoundPropertyReaderPtr   cpr_ptr = GetCompoundPropertyReaderPtr(in);
         exint                       num_props = in.getNumProperties();
 
@@ -197,49 +255,8 @@ namespace
 
             if (header.isScalar())
             {
-                const DataType     &dtype = header.getDataType();
-                IScalarProperty     in_property(cpr_ptr->getScalarProperty(i),
-                                            gabcWrapExisting);
-                OScalarProperty    *out_property = p_map.findScalar(name);
-                void               *sample;
-
-                if (!out_property)
-                {
-                    MetaData    metadata(in_property.getMetaData());
-                    out_property = new OScalarProperty(out,
-                            header.getName(),
-                            dtype,
-                            metadata,
-                            ctx.timeSampling());
-                    p_map.insert(name, out_property);
-                }
-                else if (in_property.isConstant())
-                {
-                    out_property->setFromPrevious();
-                    continue;
-                }
-
-                if (dtype.getPod() == Alembic::Abc::kStringPOD)
-                {
-                    std::string     str;
-                    sample = (void *)(&str);
-                    in_property.get(sample, iss);
-                    out_property->set(sample);
-                }
-                else if (dtype.getPod() == Alembic::Abc::kWstringPOD)
-                {
-                    std::wstring     str;
-                    sample = (void *)(&str);
-                    in_property.get(sample, iss);
-                    out_property->set(sample);
-                }
-                else
-                {
-                    sample = malloc(dtype.getNumBytes());
-                    in_property.get(sample, iss);
-                    out_property->set(sample);
-                    free(sample);
-                }
+                IScalarProperty in_property(cpr_ptr->getScalarProperty(i), gabcWrapExisting);
+                sampleScalarProperties(p_map, out, in_property, ctx, iss, header, name);
             }
             else if (header.isArray())
             {
@@ -371,6 +388,7 @@ namespace
             GABC_OXform *obj,
             PropertyMap &arb_map,
             PropertyMap &p_map,
+            PropertyMap &loc_map,
             bool reuse_user_props,
             const GABC_OOptions &ctx,
             const ISampleSelector &iss)
@@ -394,15 +412,16 @@ namespace
 //        }
 
         if (reuse_user_props)
+            sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+        
+        sampleCompoundProperties(arb_map, arb_in, arb_out, ctx, iss, "");
+
+        if (node.isMayaLocator())
         {
-            if (up_in.valid() && up_out.valid())
-            {
-                sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
-            }
-        }
-        if (arb_in.valid() && arb_out.valid())
-        {
-            sampleCompoundProperties(arb_map, arb_in, arb_out, ctx, iss, "");
+            IScalarProperty locator_scalarProp_in(xform.getProperties(), "locator");
+            const PropertyHeader *header = node.object().getProperties().getPropertyHeader("locator");
+            OCompoundProperty out = obj->getProperties();
+            sampleScalarProperties(loc_map, out, locator_scalarProp_in, ctx, iss, *header, header->getName());
         }
     }
 
@@ -486,16 +505,9 @@ namespace
                 faceset_names);
 
         if (reuse_user_props)
-        {
-            if (up_in.valid() && up_out.valid())
-            {
-                sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
-            }
-        }
-        if (arb_in.valid() && arb_out.valid())
-        {
-            sampleCompoundProperties(arb_map, arb_in, arb_out, ctx, iss, "");
-        }
+            sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+
+        sampleCompoundProperties(arb_map, arb_in, arb_out, ctx, iss, "");
     }
 
     // Read SubD samples in and then write them out to the new archive
@@ -630,16 +642,9 @@ namespace
                 faceset_names);
 
         if (reuse_user_props)
-        {
-            if (up_in.valid() && up_out.valid())
-            {
-                sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
-            }
-        }
-        if (arb_in.valid() && arb_out.valid())
-        {
-            sampleCompoundProperties(arb_map, arb_in, arb_out, ctx, iss, "");
-        }
+            sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+
+        sampleCompoundProperties(arb_map, arb_in, arb_out, ctx, iss, "");
     }
 
     // Read Points samples in and then write them out to the new archive
@@ -695,14 +700,10 @@ namespace
 
         obj->getSchema().set(sample);
 
-        if (up_in.valid() && up_out.valid())
-        {
+        if (reuse_user_props)
             sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
-        }
-        if (arb_in.valid() && arb_out.valid())
-        {
-            sampleCompoundProperties(arb_map, arb_in, arb_out, ctx, iss, "");
-        }
+
+        sampleCompoundProperties(arb_map, arb_in, arb_out, ctx, iss, "");
     }
 
     // Read Curves samples in and then write them out to the new archive
@@ -824,16 +825,9 @@ namespace
         obj->getSchema().set(sample);
 
         if (reuse_user_props)
-        {
-            if (up_in.valid() && up_out.valid())
-            {
-                sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
-            }
-        }
-        if (arb_in.valid() && arb_out.valid())
-        {
-            sampleCompoundProperties(arb_map, arb_in, arb_out, ctx, iss, "");
-        }
+            sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+
+        sampleCompoundProperties(arb_map, arb_in, arb_out, ctx, iss, "");
     }
 
     // Read NuPatch samples in and then write them out to the new archive
@@ -933,16 +927,9 @@ namespace
         obj->getSchema().set(sample);
 
         if (reuse_user_props)
-        {
-            if (up_in.valid() && up_out.valid())
-            {
-                sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
-            }
-        }
-        if (arb_in.valid() && arb_out.valid())
-        {
-            sampleCompoundProperties(arb_map, arb_in, arb_out, ctx, iss, "");
-        }
+            sampleCompoundProperties(p_map, up_in, up_out, ctx, iss, "");
+
+        sampleCompoundProperties(arb_map, arb_in, arb_out, ctx, iss, "");
     }
 }
 
@@ -951,6 +938,7 @@ GABC_OGTAbc::GABC_OGTAbc(const std::string &name)
     , myVisibility()
     , myArbProps()
     , myUserProps()
+    , myLocatorProps()
     , myUserPropState(UNSET)
     , myName(name)
     , myType(GABC_UNKNOWN)
@@ -1404,19 +1392,18 @@ GABC_OGTAbc::startXform(const GT_PrimitiveHandle &prim,
 bool
 GABC_OGTAbc::fillXformUserProperties(const GABC_IArchivePtr &archive,
                                      std::string path,
-                                     GABC_OXform *xform,
+                                     GABC_OXform *xform_out,
                                      fpreal cook_time,
                                      const GABC_OOptions &ctx)
 {
     GABC_IObject node(archive, path.c_str());
     ISampleSelector     iss(cook_time);
-    sampleXform(node,
-                xform,
-                myArbProps,
-                myUserProps,
-                true,
-                ctx,
-                iss);
+
+    IXform              xform_in(node.object(), gabcWrapExisting);
+    ICompoundProperty   up_in = xform_in.getSchema().getUserProperties();
+    OCompoundProperty   up_out = xform_out->getSchema().getUserProperties();
+
+    sampleCompoundProperties(myUserProps, up_in, up_out, ctx, iss, "");
 
     return true;
 }
@@ -1515,6 +1502,7 @@ GABC_OGTAbc::update(const GT_PrimitiveHandle &prim,
                     myShape.myGABCXform,
                     myArbProps,
                     myUserProps,
+                    myLocatorProps,
                     reuse_up,
                     ctx,
                     iss);
@@ -1624,6 +1612,7 @@ GABC_OGTAbc::updateFromPrevious(GABC_OError &err,
                 myShape.myGABCXform->getSchema().setFromPrevious();
                 myArbProps.setFromPrevious();
                 myUserProps.setFromPrevious();
+                myLocatorProps.setFromPrevious();
             }
             break;
 

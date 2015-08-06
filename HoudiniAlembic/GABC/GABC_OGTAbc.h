@@ -289,6 +289,7 @@ private:
     OVisibilityProperty	 myVisibility;
     PropertyMap		 myArbProps;
     PropertyMap		 myUserProps;
+    PropertyMap          myLocatorProps;
     UserPropertiesState	 myUserPropState;
     std::string		 myName;
     GABC_NodeType	 myType;
