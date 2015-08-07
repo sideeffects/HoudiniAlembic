@@ -63,20 +63,24 @@ Load As:
                 Load only the bounding boxes of the Alembic primitives.
 
 Display As:
-	#id: viewportlod
-
-	How the Alembic geometry is displayed in the viewport.
-
-	Full Geometry:
-		The Alembic geometry is fully displayed.
+        #id: viewportlod
+        
+        How the Alembic geometry is displayed in the viewport.
+        
+        Full Geometry:
+		    The Alembic geometry is fully displayed.
+		
 	Point Cloud:
-		Only the points are displayed.
+	    Only the points are displayed.
+	
 	Bounding Box:
-		Only the geometry bounding boxes are displayed.
+	    Only the geometry bounding boxes are displayed.
+	
 	Centroid:
-		Only the geometry centroid is displayed.
+	    Only the geometry centroid is displayed.
+	    
 	Hidden:
-		No geometry is displayed.
+	    No geometry is displayed.
 
 Points:
         #id: pointmode
@@ -94,7 +98,7 @@ Create Primitives For:
 		Transforms in the Alembic scene only.
 
 Poly Soup Primitives:
-	#id: polysoup
+    #id: polysoup
 
 	When loading Houdini geometry, this option determines whether Alembic Polygon Meshes will be converted to Houdini Poly Soup primitives.  Houdini Poly Soup primitives use less resources to store and render.  At the current time Poly Soups cannot be rendered as subdivision surfaces by Mantra.
 
@@ -259,15 +263,17 @@ NOTE:
         whether it matches the __Point Attribute__ pattern.
 
 User Properties:
-	#id: loadUserProps
-
-	How Alembic user properties should be handled.
-
-	Do Not Load:
-		User properties are not loaded.
+            #id: loadUserProps
+    	
+        How Alembic user properties should be handled.
+        
+        Do Not Load:
+    		User properties are not loaded.
+    	
 	Load Values Only:
 		User property values are loaded as a JSON dictionary into a
 		primitive string attribute.
+	
 	Load Values and Metadata:
 		User property values are loaded as a JSON dictionary into a
 		primitive string attribute. User property metadata, useful for
