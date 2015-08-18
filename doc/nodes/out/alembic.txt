@@ -225,6 +225,9 @@ Primitive Attributes:
 Detail Attributes:
 	Detail attributes whose name matches this pattern will be saved in the Alembic file.
 
+Additional UV Attributes:
+        Additional UV attributes whose name matches this pattern will be saved in the Alembic file.
+
 Face Sets:
         This parameter controls how Houdini primitive groups will be translated to
         Alembic face sets.  Alembic only supports face sets for polygon and

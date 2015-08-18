@@ -112,12 +112,19 @@ public:
 		 }
     /// @}
 
+    /// @{
+    /// Pattern matching for multiple uv sets
+    const char *uvAttribPattern() const                 { return myUVAttribPattern.buffer(); }
+    void        setUVAttribPattern(const char *pattern) { myUVAttribPattern.harden(pattern); }
+    /// @}
+
 private:
     void		checkAttributeStars();
 
     FaceSetMode		myFaceSetMode;
     UT_String		mySubdGroup;
     UT_String		myAttributePatterns[GA_ATTRIB_OWNER_N];
+    UT_String           myUVAttribPattern;
     exint               myFirstFrame;
     bool		myAttributeStars;
     bool		mySaveAttributes;

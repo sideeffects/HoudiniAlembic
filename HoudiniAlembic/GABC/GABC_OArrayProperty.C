@@ -802,6 +802,7 @@ GABC_OArrayProperty::start(OCompoundProperty &parent,
     if (!valid)
     {
 	array_size = myTupleSize;
+        UT_String attrib_name(name);
 
         switch (pod)
         {
@@ -825,7 +826,23 @@ GABC_OArrayProperty::start(OCompoundProperty &parent,
                         break;
 
                     case GT_STORE_REAL32:
-                        DECL_PARAM(OFloatGeomParam);
+                        if (myTupleSize > 1
+                                && attrib_name.multiMatch(options.uvAttribPattern()))
+                        {
+                            // In Houdini, additional UV attributes can be created with the data type of 2f,
+                            // where arrayExtent = 2 and podExtent = 1. They are NOT interpreted as vectors.
+                            // However, while exporting Alembic files to a third party tool, such as Maya, 
+                            // UV attributes must be interpreted as vectors with the data type of 2fv,
+                            // where arrayExtent = 1 and podExtent = 2.
+                            // See Bug #69971 for more information 
+                            array_size = 1;
+                            DECL_PARAM(OV2fGeomParam);
+                            myTupleSize = 2; // Clamp to 2
+                        }
+                        else
+                        {
+                            DECL_PARAM(OFloatGeomParam);
+                        }
                         break;
 
                     case GT_STORE_REAL64:
@@ -929,7 +946,6 @@ GABC_OArrayProperty::update(const GT_DataArrayHandle &array,
 {
     if ((myPOD != pod)
             || (myStorage != array->getStorage())
-            || (myTupleSize != array->getTupleSize())
             || (myType != array->getTypeInfo()))
     {
         err.warning("Error trying to update user property: data type mismatch");

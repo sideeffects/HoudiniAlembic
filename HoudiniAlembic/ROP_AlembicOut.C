@@ -192,6 +192,7 @@ namespace
 	PRM_Name("primitiveAttributes",	"Primitive Attributes"),
 	PRM_Name("detailAttributes",	"Detail Attributes"),
     };
+    static PRM_Name     theUVAttribPatternName("uvAttributes", "Additional UV Attributes");
     static PRM_Name	theFaceSetModeName("facesets", "Face Sets");
     static PRM_Name	theSubdGroupName("subdgroup",
 				"Subdivision Group");
@@ -406,6 +407,7 @@ namespace
 	PRM_Template(PRM_STRING, 1,
 		&theAttributePatternNames[GA_ATTRIB_DETAIL],
 		&theStarDefault),
+        PRM_Template(PRM_STRING, 1, &theUVAttribPatternName),
 	PRM_Template(PRM_ORD, 1, &theFaceSetModeName,
 				    &theFaceSetModeDefault,
 				    &theFaceSetModeMenu),
@@ -662,6 +664,10 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
 
     try
     {
+        UT_String       uv_pattern;
+        UV_ATTRIBUTE(uv_pattern, start);
+        myContext->setUVAttribPattern(uv_pattern);
+
 	UT_String	subdgroup;
 	SUBDGROUP(subdgroup, start);
 	myContext->setSubdGroup(subdgroup);
