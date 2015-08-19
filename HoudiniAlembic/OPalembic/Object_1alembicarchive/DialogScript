@@ -270,9 +270,19 @@
 	    default	{ "1" }
 	    export	none
 	    parmtag	{ "script_callback_language" "python" }
-	    parmtag { "script_callback" "kwargs['node'].hdaModule().PushParametersToChildren(kwargs['node'])" }
+	    parmtag 	{ "script_callback" "kwargs['node'].hdaModule().PushParametersToChildren(kwargs['node'])" }
 	    parmtag	{ "export_disable" "1" }
 	    disablewhen	"{ channelRef == on }"
+	}
+	parm {
+	    name	"reloadGeometry"
+	    label	"Reload Geometry"
+	    type	button
+	    default	{ "1" }
+	    export	none
+	    parmtag	{ "script_callback_language" "python" }
+	    parmtag 	{ "script_callback" "kwargs['node'].hdaModule().ReloadGeometry(kwargs['node'])" }
+	    parmtag	{ "export_disable" "1" }
 	}
     }
 

@@ -440,6 +440,13 @@ def PushParametersToChildren(rootNode):
     now = time.time()
     WalkAndPush(rootNode, rootNode)
 
+def ReloadGeometry(rootNode):
+    for child in rootNode.children():
+        if child.parm('reload') != None:
+            child.parm('reload').pressButton()
+        if not child.isLocked():
+            ReloadGeometry(child)
+
 def _pushStringParm(name, fnode, tnode):
     tparm = tnode.parm(name)
     if tparm == None:

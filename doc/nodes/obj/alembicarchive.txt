@@ -31,6 +31,9 @@ Flatten Visibility Evaluation:
 Push Parameters to Children:
     Propagate changes to parameters to the child objects (see __Build Hierarchy With Channel References__).
 
+Reload Geometry:
+	Clear the Alembic cache and reload fresh geometry for all the shapes without rebuilding or updating the archive hierarchy. Comparing to __Build or Update Hierarchy__, this is the faster way to update an Alembic archive version when there is no hierarchy change. 
+
 
 [Include:/nodes/sop/alembic#fileName]
 
