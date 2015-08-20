@@ -29,12 +29,9 @@
 #include "ROP_AbcGTCompoundShape.h"
 #include "ROP_AbcGTShape.h"
 #include <GABC/GABC_OError.h>
-#include <GABC/GABC_OXform.h>
 #include <GABC/GABC_PackedImpl.h>
-#include <GT/GT_Refine.h>
 #include <GT/GT_GEODetail.h>
 #include <GT/GT_Primitive.h>
-#include <GT/GT_RefineParms.h>
 #include <SOP/SOP_Node.h>
 
 using namespace GABC_NAMESPACE;
