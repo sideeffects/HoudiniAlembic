@@ -107,20 +107,6 @@ namespace
     isPacked(const GT_PrimitiveHandle &prim)
     {
 	int ptype = prim->getPrimitiveType();
-
-	if (ptype == GT_GEO_PACKED)
-	{
-	    const GT_GEOPrimPacked *pack =
-		UTverify_cast<const GT_GEOPrimPacked *>(prim.get());
-
-	    if (!pack->canInstance())
-		return false;
-
-	    // We don't want to instance packed Alembics
-	    if (pack->getPrim()->getTypeId() == GABC_PackedImpl::typeId())
-		return false;
-	}
-
 	return ptype == GT_GEO_PACKED || ptype == GT_PRIM_INSTANCE;
     }
 
