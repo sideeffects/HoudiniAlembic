@@ -34,6 +34,7 @@
 #include <OP/OP_Context.h>
 #include <UT/UT_Array.h>
 #include <UT/UT_String.h>
+#include <UT/UT_StringHolder.h>
 
 class UT_WorkBuffer;
 class SOP_Node;
@@ -127,8 +128,8 @@ public:
     /// Set path attribute for writing geometry to a specific hierarchy.
     bool        buildFromPath() const           { return myBuildFromPath; }
     void        setBuildFromPath(bool v)        { myBuildFromPath = v; }
-    const char *pathAttribute() const           { return myPathAttribute; }
-    void        setPathAttribute(const char *s) { myPathAttribute.harden(s); }
+    const UT_StringHolder &pathAttribute() const { return myPathAttribute; }
+    void        setPathAttribute(const UT_StringHolder &s) { myPathAttribute = s; }
     void        clearPathAttribute()            { myPathAttribute.clear(); }
 
     enum
@@ -159,10 +160,10 @@ public:
     bool        partitionByName() const     { return myPartition; }
     int         partitionMode() const       { return myPartitionMode; }
     void        setPartitionMode(int m)     { myPartitionMode = m; }
-    const char *partitionAttribute() const  { return myPartitionAttribute; }
-    void        setPartitionAttribute(const char *s)
+    const UT_StringHolder &partitionAttribute() const { return myPartitionAttribute; }
+    void        setPartitionAttribute(const UT_StringHolder &s)
                 {
-                    myPartitionAttribute.harden(s);
+                    myPartitionAttribute = s;
                     myPartition = true;
                 }
     void        clearPartitionAttribute()
@@ -200,8 +201,8 @@ private:
     UT_Array<fpreal>    myBlurTimes; // Sub-frame offsets for motion blur
     OP_Context          myCookContext;
     SOP_Node           *mySingletonSOP;
-    UT_String           myPartitionAttribute;
-    UT_String           myPathAttribute;
+    UT_StringHolder     myPartitionAttribute;
+    UT_StringHolder     myPathAttribute;
     exint		myFrameCount;
     int                 myCollapseIdentity;
     int                 myPackedAbcPriority;

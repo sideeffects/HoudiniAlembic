@@ -35,6 +35,7 @@
 #include <GA/GA_OffsetList.h>
 #include <GT/GT_Handles.h>
 #include <UT/UT_Array.h>
+#include <UT/UT_StringHolder.h>
 
 class SOP_Node;
 class ROP_AbcGTShape;
@@ -151,7 +152,7 @@ private:
     exint                               myElapsedFrames;
     int					myGeoLock;
     int					mySopId;
-    const char                         *myPathAttribName;
+    UT_StringHolder                     myPathAttribName;
     bool				myTimeDependent;
 };
 

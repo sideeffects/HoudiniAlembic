@@ -253,7 +253,7 @@ ROP_AbcSOP::ROP_AbcSOP(SOP_Node *node)
     : myElapsedFrames(0)
     , myGeoLock(0)
     , mySopId(node ? node->getUniqueId() : -1)
-    , myPathAttribName(NULL)
+    , myPathAttribName()
     , myTimeDependent(false)
 {
 }
@@ -281,7 +281,7 @@ ROP_AbcSOP::clear()
     myPartitionMap.clear();
     myPartitionNames.clear();
 
-    if (myPathAttribName)
+    if (myPathAttribName.isstring())
         GABC_OGTGeometry::getDefaultSkip().deleteSkip(myPathAttribName);
 }
 
