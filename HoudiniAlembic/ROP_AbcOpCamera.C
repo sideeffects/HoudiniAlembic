@@ -36,65 +36,15 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef Alembic::AbcGeom::CameraSample      CameraSample;
-    typedef Alembic::AbcGeom::FilmBackXformOp   FilmBackXformOp;
-    typedef Alembic::AbcGeom::OCamera           OCamera;
+    typedef Alembic::Abc::DataType		     DataType;
 
-    static bool
-    fillSample(CameraSample &sample, OBJ_Camera *cam, const ROP_AbcContext &ctx)
-    {
-	const CH_Manager   *chman = OPgetDirector()->getChannelManager();
-	FilmBackXformOp     winsize;
-	fpreal              now = ctx.cookTime();
-	fpreal              winx = cam->WINX(now);
-	fpreal              winy = cam->WINY(now);
-	fpreal              winsizex = cam->WINSIZEX(now);
-	fpreal              winsizey = cam->WINSIZEY(now);
-	fpreal              focal = cam->FOCAL(now);
-	fpreal              aperture = cam->APERTURE(now);
-	fpreal              aspect = cam->ASPECT(now);
-	fpreal              resx = cam->RESX(now);
-	fpreal              resy = cam->RESY(now);
-	fpreal              fstop = cam->FSTOP(now);
-	fpreal              focus = cam->FOCUS(now);
-	fpreal              hither = cam->getNEAR(now);
-	fpreal              yon = cam->getFAR(now);
-	fpreal              shutter = cam->SHUTTER(now);
+    typedef Alembic::Abc::BasePropertyWriterPtr      BasePropertyWriterPtr;
+    typedef Alembic::Abc::CompoundPropertyWriterPtr  CompoundPropertyWriterPtr;
+    typedef Alembic::Abc::ScalarPropertyWriterPtr    ScalarPropertyWriterPtr; 
 
-	// Compute resolution aspect
-	fpreal	raspect = resy/resx;
-
-	// Alembic stores value in cm. (not mm.)
-	aperture *= 0.1;
-
-	sample.setFocalLength(focal);
-	sample.setFStop(fstop);
-	sample.setFocusDistance(focus);
-	sample.setShutterOpen(0);
-	sample.setShutterClose(chman->getTimeDelta(shutter));
-	sample.setNearClippingPlane(hither);
-	sample.setFarClippingPlane(yon);
-
-	sample.setOverScanLeft(0);
-	sample.setOverScanRight(0);
-	sample.setOverScanTop(0);
-	sample.setOverScanBottom(0);
-
-	// We need to output the filmback fit and post projection transform
-	winsize = FilmBackXformOp(Alembic::AbcGeom::kScaleFilmBackOperation,
-	        "winsize");
-	sample.addOp(winsize);
-	sample[0].setChannelValue(0, (1.0 / winsizex));
-	sample[0].setChannelValue(1, (1.0 / winsizey));
-
-	sample.setHorizontalAperture(aperture / aspect);
-	sample.setVerticalAperture(aperture * raspect / aspect);
-	sample.setHorizontalFilmOffset(winx * aperture / aspect);
-	sample.setVerticalFilmOffset(winy * aperture * raspect / aspect);
-	sample.setLensSqueezeRatio(aspect);
-
-	return true;
-    }
+    typedef Alembic::AbcGeom::CameraSample           CameraSample;
+    typedef Alembic::AbcGeom::FilmBackXformOp        FilmBackXformOp;
+    typedef Alembic::AbcGeom::OCamera                OCamera;
 
     static const char	*theChannelNames[] = {
 	"winx",
@@ -185,9 +135,106 @@ ROP_AbcOpCamera::update(GABC_OError &err,
     if (!cam)
 	return false;
     CameraSample	sample;
-    fillSample(sample, cam, ctx);
+    fillSample(sample, cam, ctx, err);
     myOCamera.getSchema().set(sample);
     box.initBounds(0, 0, 0);
+
+    return true;
+}
+
+bool
+ROP_AbcOpCamera::fillSample(CameraSample &sample, OBJ_Camera *cam, const ROP_AbcContext &ctx, GABC_OError &err)
+{
+    const CH_Manager   *chman = OPgetDirector()->getChannelManager();
+    FilmBackXformOp     winsize;
+    fpreal              now = ctx.cookTime();
+    fpreal              winx = cam->WINX(now);
+    fpreal              winy = cam->WINY(now);
+    fpreal              winsizex = cam->WINSIZEX(now);
+    fpreal              winsizey = cam->WINSIZEY(now);
+    fpreal              focal = cam->FOCAL(now);
+    fpreal              aperture = cam->APERTURE(now);
+    fpreal              aspect = cam->ASPECT(now);
+    fpreal              resx = cam->RESX(now);
+    fpreal              resy = cam->RESY(now);
+    fpreal              fstop = cam->FSTOP(now);
+    fpreal              focus = cam->FOCUS(now);
+    fpreal              hither = cam->getNEAR(now);
+    fpreal              yon = cam->getFAR(now);
+    fpreal              shutter = cam->SHUTTER(now);
+
+    // Compute resolution aspect
+    fpreal		raspect = resy/resx;
+
+    // Alembic stores value in cm. (not mm.)
+    aperture *= 0.1;
+
+    sample.setFocalLength(focal);
+    sample.setFStop(fstop);
+    sample.setFocusDistance(focus);
+
+    // For Alembic camera, shutter open/close time are stored in seconds.
+    // For Houdini camera, shutter time is stored in frames.  
+    sample.setShutterOpen(0);
+    sample.setShutterClose(chman->getTimeDelta(shutter));
+
+    sample.setNearClippingPlane(hither);
+    sample.setFarClippingPlane(yon);
+
+    sample.setOverScanLeft(0);
+    sample.setOverScanRight(0);
+    sample.setOverScanTop(0);
+    sample.setOverScanBottom(0);
+
+    // We need to output the filmback fit and post projection transform
+    winsize = FilmBackXformOp(Alembic::AbcGeom::kScaleFilmBackOperation, "winsize");
+    sample.addOp(winsize);
+    sample[0].setChannelValue(0, (1.0 / winsizex));
+    sample[0].setChannelValue(1, (1.0 / winsizey));
+
+    sample.setHorizontalAperture(aperture / aspect);
+    sample.setVerticalAperture(aperture * raspect / aspect);
+    sample.setHorizontalFilmOffset(winx * aperture / aspect);
+    sample.setVerticalFilmOffset(winy * aperture * raspect / aspect);
+    sample.setLensSqueezeRatio(aspect);
+
+    // Write out Houdini camera resolution as the camera's user properties
+    DataType dtype = DataType(Alembic::Abc::kFloat32POD);
+    CompoundPropertyWriterPtr userPropWrtPtr = GetCompoundPropertyWriterPtr(myOCamera.getSchema().getUserProperties());
+
+    ScalarPropertyWriterPtr resXWrtPtr = NULL;
+    BasePropertyWriterPtr resXProp = userPropWrtPtr->getProperty("resx");
+    if (!resXProp)
+    	resXWrtPtr = userPropWrtPtr->createScalarProperty("resx", Alembic::Abc::MetaData(), dtype, now);
+    else
+    	resXWrtPtr = resXProp->asScalarPtr();
+
+    if (resXWrtPtr)
+    {
+    	Alembic::Util::float32_t sampleResX = resx;
+    	resXWrtPtr->setSample(&sampleResX);
+    }
+    else
+    {
+    	err.warning("Failed to export camera resolution x");
+    }
+
+    ScalarPropertyWriterPtr resYWrtPtr = NULL;
+    BasePropertyWriterPtr resYProp = userPropWrtPtr->getProperty("resy");
+    if (!resYProp)
+        resYWrtPtr = userPropWrtPtr->createScalarProperty("resy", Alembic::Abc::MetaData(), dtype, now);
+    else
+    	resYWrtPtr = resYProp->asScalarPtr();
+
+    if (resYWrtPtr)
+    {
+    	Alembic::Util::float32_t sampleResY = resy;
+    	resYWrtPtr->setSample(&sampleResY);
+    }
+    else
+    {
+    	err.warning("Failed to export camera resolution y");
+    }
 
     return true;
 }

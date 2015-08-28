@@ -155,7 +155,8 @@ def _setUserProperties(currentNode, name, fileName, userPropsLoadMode):
             currentNode.parm('userProps').set(_abc.alembicUserPropertyValues(fileName, name, 0))
         else:
             if (userPropsLoadMode == 2):
-                currentNode.parm('userPropsMeta').set(_abc.alembicUserPropertyMetadata(fileName, name, 0))
+                expr = '%s.alembicUserPropertyMetadata("%s", "%s", ch("frame")/ch("fps"))' % (_AbcModule, fileName, name)
+                currentNode.parm('userPropsMeta').setExpression(expr, hou.exprLanguage.Python)
 
             expr = '%s.alembicUserPropertyValues("%s", "%s", ch("frame")/ch("fps"))' % (_AbcModule, fileName, name)
             currentNode.parm('userProps').setExpression(expr, hou.exprLanguage.Python)
@@ -356,7 +357,6 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
         sopNode.parm('loadUserProps').set(userPropsLoadMode)
         sopNode.parm('groupnames').set('none')  # Don't build groups
 
-
     elif typeName == 'xform' or typeName == 'cxform':
         currentNode = None
         if buildSingleGeoNode:
@@ -414,24 +414,47 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
             ExpressionToParm(rootNode.parm('frame'), currentNode.parm('frame'))
             ExpressionToParm(rootNode.parm('fps'), currentNode.parm('fps'))
 
-        def camChannel(parmName):
-                    return '%s.alembicGetCameraDict(ch("fileName"), "%s", ch("frame")/ch("fps")).get("%s")' % (_AbcModule, currentPath, parmName)
+        sampleTime = currentNode.parm('frame').eval() / currentNode.parm('fps').eval()
+        cameraDict = _abc.alembicGetCameraDict(fileName, currentPath, sampleTime)
 
-        def camPixelAspect():
-                    return '%s*(ch("resy")/float(ch("resx")))' % camChannel('aspect')
+        # Set Houdini camera parameters
+        if cameraDict != None:
+            for parmName in (
+                    'aperture',
+                    'aspect',
+                    'focal',
+                    'near',
+                    'far',
+                    'focus',
+                    'fstop',
+                    'winx',
+                    'winy',
+                    'winsizex',
+                    'winsizey'):
+                currentNode.parm(parmName).set(cameraDict[parmName])
 
-        for parmName in (
-                'aperture',
-                'focal',
-                'near',
-                'far',
-                'focus',
-                'winx',
-                'winy',
-                'winsizex',
-                'winsizey'):
-             currentNode.parm(parmName).setExpression(camChannel(parmName), hou.exprLanguage.Python)
-        currentNode.parm('aspect').setExpression(camPixelAspect(), hou.exprLanguage.Python)
+            shutter = cameraDict['shutter']
+            if shutter < 0 or shutter > 1:
+                if ui:
+                    ui.displayMessage(title='Fail to import camera shutter time',
+                    text='Alembic camera shutter time is < 0 or > 1',
+                    severity=hou.severityType.Warning)
+                else:
+                    print 'Fail to import Alembic camera shutter time that is < 0 or > 1'
+            else:
+                currentNode.parm('shutter').set(shutter)
+
+            resTuple = _abc.alembicGetCameraResolution(fileName, currentPath, sampleTime)
+
+            if resTuple != None:
+                currentNode.parm('resx').set(resTuple[0])
+                currentNode.parm('resy').set(resTuple[1])
+
+            # Some imported camera (ex. Maya Camera) does not have a resolution. 
+            # In this case, set the Houdini Camera resolution according to the film aspect ratio.
+            else: 
+                resy = currentNode.parm('resx').eval() / cameraDict['filmaspectratio']
+                currentNode.parm('resy').set(int(resy))
 
     else:
         return

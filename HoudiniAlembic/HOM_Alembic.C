@@ -75,46 +75,50 @@
 #include <UT/UT_DSOVersion.h>
 #include <UT/UT_StackBuffer.h>
 #include <GT/GT_DataArray.h>
+#include <CH/CH_Channel.h>
+#include <OP/OP_Director.h>
 
 using namespace GABC_NAMESPACE;
 
 namespace
 {
     // Basic types
-    typedef Alembic::Abc::index_t		index_t;
-    typedef Alembic::Abc::chrono_t		chrono_t;
+    typedef Alembic::Abc::index_t		    index_t;
+    typedef Alembic::Abc::chrono_t		    chrono_t;
 
-    typedef Alembic::Abc::V2d			V2d;
+    typedef Alembic::Abc::V2d			    V2d;
 
     // Properties
-    typedef Alembic::Abc::ICompoundProperty     ICompoundProperty;
-    typedef Alembic::Abc::IArrayProperty        IArrayProperty;
-    typedef Alembic::Abc::IScalarProperty       IScalarProperty;
+    typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
+    typedef Alembic::Abc::ScalarPropertyReaderPtr   ScalarPropertyReaderPtr;
+    typedef Alembic::Abc::ICompoundProperty         ICompoundProperty;
+    typedef Alembic::Abc::IArrayProperty            IArrayProperty;
+    typedef Alembic::Abc::IScalarProperty           IScalarProperty;
 
     // Headers
-    typedef Alembic::Abc::PropertyHeader        PropertyHeader;
-    typedef Alembic::Abc::ObjectHeader		ObjectHeader;
+    typedef Alembic::Abc::PropertyHeader            PropertyHeader;
+    typedef Alembic::Abc::ObjectHeader		    ObjectHeader;
 
     // Sampling
-    typedef Alembic::Abc::ISampleSelector	ISampleSelector;
-    typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
+    typedef Alembic::Abc::ISampleSelector	    ISampleSelector;
+    typedef Alembic::Abc::TimeSamplingPtr	    TimeSamplingPtr;
 
     // Geometry
-    typedef Alembic::AbcGeom::IXform		IXform;
-    typedef Alembic::AbcGeom::IXform		IPolyMesh;
-    typedef Alembic::AbcGeom::IXform		ISubD;
-    typedef Alembic::AbcGeom::IXform		IPoints;
-    typedef Alembic::AbcGeom::IXform		ICurves;
-    typedef Alembic::AbcGeom::IXform		INuPatch;
+    typedef Alembic::AbcGeom::IXform		    IXform;
+    typedef Alembic::AbcGeom::IXform		    IPolyMesh;
+    typedef Alembic::AbcGeom::IXform		    ISubD;
+    typedef Alembic::AbcGeom::IXform		    IPoints;
+    typedef Alembic::AbcGeom::IXform		    ICurves;
+    typedef Alembic::AbcGeom::IXform		    INuPatch;
 
     // Camera
-    typedef Alembic::AbcGeom::ICamera		ICamera;
-    typedef Alembic::AbcGeom::ICameraSchema	ICameraSchema;
-    typedef Alembic::AbcGeom::CameraSample	CameraSample;
-    typedef Alembic::AbcGeom::FilmBackXformOp	FilmBackXformOp;
+    typedef Alembic::AbcGeom::ICamera		    ICamera;
+    typedef Alembic::AbcGeom::ICameraSchema	    ICameraSchema;
+    typedef Alembic::AbcGeom::CameraSample	    CameraSample;
+    typedef Alembic::AbcGeom::FilmBackXformOp	    FilmBackXformOp;
 
     // Wrap Existing
-    typedef Alembic::Abc::WrapExistingFlag      WrapExistingFlag;
+    typedef Alembic::Abc::WrapExistingFlag          WrapExistingFlag;
     static const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
     // Returns an Alembic objects transform, as well as if the transform
@@ -573,7 +577,6 @@ namespace
                         .getSchema()
                         .getUserProperties();
                 break;
-
             default:
                 uprops = ICompoundProperty();
         }
@@ -963,19 +966,25 @@ namespace
     public:
 	HoudiniCam(CameraSample &sample)
 	{
-	    fpreal  squeeze = sample.getLensSqueezeRatio();
+            const CH_Manager *chman = OPgetDirector()->getChannelManager();
+
 	    fpreal  winx = sample.getHorizontalFilmOffset()
 	                    / sample.getHorizontalAperture();
 	    fpreal  winy = sample.getVerticalFilmOffset()
 	                    / sample.getVerticalAperture();
 
-	    myAperture = sample.getHorizontalAperture() * 10.0 * squeeze;
+            myLensSqueezeRatio = sample.getLensSqueezeRatio();
+	    myAperture = sample.getHorizontalAperture() * 10.0 * myLensSqueezeRatio;
 	    myFocal = sample.getFocalLength();
 	    myFocus = sample.getFocusDistance();
-	    myPixelAspect = sample.getHorizontalAperture() * squeeze
-                    / sample.getVerticalAperture();
+            myFStop = sample.getFStop();
+	    myFilmAspectRatio = sample.getHorizontalAperture() / sample.getVerticalAperture();
 	    myClipping[0] = sample.getNearClippingPlane();
 	    myClipping[1] = sample.getFarClippingPlane();
+
+            // For Alembic camera, shutter open/close time are stored in seconds.
+            // For Houdini camera, shutter time is stored in frames.   
+            myShutter = chman->getSampleDelta(sample.getShutterClose() - sample.getShutterOpen());
 
 	    //TODO, full 2D transformations
 	    V2d postScale(1.0, 1.0);
@@ -1005,16 +1014,19 @@ namespace
 
 	void            blend(const HoudiniCam &src, fpreal w)
 	{
+            myLensSqueezeRatio = SYSlerp(myLensSqueezeRatio, src.myLensSqueezeRatio, w);
 	    myAperture = SYSlerp(myAperture, src.myAperture, w);
 	    myFocal = SYSlerp(myFocal, src.myFocal, w);
 	    myFocus = SYSlerp(myFocus, src.myFocus, w);
-	    myPixelAspect = SYSlerp(myPixelAspect, src.myPixelAspect, w);
+            myFStop = SYSlerp(myFStop, src.myFStop, w);
+	    myFilmAspectRatio = SYSlerp(myFilmAspectRatio, src.myFilmAspectRatio, w);
 	    myClipping[0] = SYSlerp(myClipping[0], src.myClipping[0], w);
 	    myClipping[1] = SYSlerp(myClipping[1], src.myClipping[1], w);
 	    myWinOffset[0] = SYSlerp(myWinOffset[0], src.myWinOffset[0], w);
 	    myWinOffset[1] = SYSlerp(myWinOffset[1], src.myWinOffset[1], w);
 	    myWinSize[0] = SYSlerp(myWinSize[0], src.myWinSize[0], w);
 	    myWinSize[1] = SYSlerp(myWinSize[1], src.myWinSize[1], w);
+            myShutter = SYSlerp(myShutter, src.myShutter, w);
 	}
 
 	static void	setItem(PY_PyObject *dict, const char *key, fpreal val)
@@ -1026,25 +1038,31 @@ namespace
 
 	void            setDict(PY_PyObject *dict) const
 	{
+            setItem(dict, "aspect", myLensSqueezeRatio);
 	    setItem(dict, "aperture", myAperture);
 	    setItem(dict, "focal", myFocal);
 	    setItem(dict, "focus", myFocus);
-	    setItem(dict, "aspect", myPixelAspect);
+            setItem(dict, "fstop", myFStop);
+	    setItem(dict, "filmaspectratio", myFilmAspectRatio);
 	    setItem(dict, "near", myClipping[0]);
 	    setItem(dict, "far", myClipping[1]);
 	    setItem(dict, "winx", myWinOffset[0]);
 	    setItem(dict, "winy", myWinOffset[1]);
 	    setItem(dict, "winsizex", myWinSize[0]);
 	    setItem(dict, "winsizey", myWinSize[1]);
+            setItem(dict, "shutter", myShutter);
 	}
 
+        fpreal  myLensSqueezeRatio;
 	fpreal	myAperture;
 	fpreal	myFocal;
 	fpreal	myFocus;
-	fpreal  myPixelAspect;
+        fpreal  myFStop;
+	fpreal  myFilmAspectRatio;
 	fpreal	myClipping[2];
 	fpreal	myWinOffset[2];
 	fpreal	myWinSize[2];
+        fpreal  myShutter;
     };
 
     // Determine the two samples that should be blended to create the sample
@@ -1126,6 +1144,77 @@ namespace
 
         return resultDict;
     }
+
+    static const char   *Doc_AlembicGetCameraResolution = 
+        "alembicGetCameraResolution(abcPath, objectPath, sampleTime)\n"
+        "\n"
+        "Returns None or a Tuple containing two floats.\n"
+        "The first value is resolution x of the Houdini Camera.\n"
+        "The second value is resolution y of the Houdini Camera.\n"
+        "Some camera (ex. Maya Camera) does not have a resolution,\n" 
+        "in this case, None is returned.\n";
+
+    PY_PyObject *
+    Py_AlembicGetCameraResolution(PY_PyObject *self, PY_PyObject *args)
+    {
+        ICompoundProperty  uprops;
+        GABC_IObject       obj;
+        const char        *filename;
+        const char        *objectPath;
+        double             sampleTime;
+
+        if (!PY_PyArg_ParseTuple(args, 
+                "ssd", 
+                &filename, 
+                &objectPath, 
+                &sampleTime))
+        {
+            return NULL;
+        }
+
+        obj = GABC_Util::findObject(filename, objectPath);
+        if (!obj.valid())
+        {
+            PY_Py_RETURN_NONE;
+        }
+
+        switch(obj.nodeType())
+        {
+            case GABC_CAMERA:
+                uprops = ICamera(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+                break;
+
+            default:
+                uprops = ICompoundProperty();
+        }
+
+        if (!uprops || uprops.getNumProperties() == 0)
+        {
+            PY_Py_RETURN_NONE;
+        }
+
+        CompoundPropertyReaderPtr userPropPtr = GetCompoundPropertyReaderPtr(uprops);
+        ScalarPropertyReaderPtr resxPtr = userPropPtr->getScalarProperty("resx");
+        ScalarPropertyReaderPtr resyPtr = userPropPtr->getScalarProperty("resy");
+
+        if (!resxPtr || !resyPtr)
+        {
+            PY_Py_RETURN_NONE;
+        }
+
+        Alembic::Util::float32_t resx = 0;
+        Alembic::Util::float32_t resy = 0;
+        resxPtr->getSample(sampleTime, &resx);
+        resyPtr->getSample(sampleTime, &resy);
+
+        PY_PyObject    *result = PY_PyTuple_New(2);
+        PY_PyTuple_SetItem(result, 0, PY_PyFloat_FromDouble(resx));
+        PY_PyTuple_SetItem(result, 1, PY_PyFloat_FromDouble(resy));
+
+        return result;
+    }
 }
 
 void
@@ -1158,6 +1247,8 @@ HOMextendLibrary()
                 PY_METH_VARARGS(), Doc_AlembicGetObjectPathListForMenu },
         {"alembicGetCameraDict", Py_AlembicGetCameraDict,
                 PY_METH_VARARGS(), Doc_AlembicGetCameraDict },
+        {"alembicGetCameraResolution", Py_AlembicGetCameraResolution,
+                PY_METH_VARARGS(), Doc_AlembicGetCameraResolution },   
 
 	{ "alembicArbGeometry", Py_AlembicArbGeometry,
 		PY_METH_VARARGS(), Doc_AlembicArbGeometry },

@@ -37,15 +37,16 @@ class OBJ_Camera;
 class ROP_AbcOpCamera : public ROP_AbcObject
 {
 public:
-    typedef Alembic::AbcGeom::OCamera	OCamera;
-    typedef Alembic::AbcGeom::OObject	OObject;
+    typedef Alembic::AbcGeom::CameraSample      CameraSample;
+    typedef Alembic::AbcGeom::OCamera	        OCamera;
+    typedef Alembic::AbcGeom::OObject	        OObject;
 
     ROP_AbcOpCamera(OBJ_Camera *node);
     virtual ~ROP_AbcOpCamera();
 
     /// @{
     /// Interface defined on ROP_AbcObject
-    virtual const char	*className() const	{ return "OpCamera"; }
+    virtual const char *className() const	{ return "OpCamera"; }
     virtual bool	start(const OObject &parent,
 				GABC_OError &err,
 				const ROP_AbcContext &ctx,
@@ -55,6 +56,11 @@ public:
 				UT_BoundingBox &box);
     virtual bool	selfTimeDependent() const;
     virtual bool	getLastBounds(UT_BoundingBox &box) const;
+
+    bool                fillSample(CameraSample &sample, 
+                                    OBJ_Camera *cam, 
+                                    const ROP_AbcContext &ctx,
+                                    GABC_OError &err);
     /// @}
 
 private:
