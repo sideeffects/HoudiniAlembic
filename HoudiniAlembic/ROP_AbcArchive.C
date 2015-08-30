@@ -98,17 +98,15 @@ ROP_AbcArchive::open(GABC_OError &err, const char *file, const char *format)
 
     UT_WorkBuffer	version;
     UT_WorkBuffer	userinfo;
-    UT_String		hip;
     UT_String		hipfile;
     UT_WorkBuffer	timestamp;
 
     version.sprintf("Houdini%s", SYS_Version::full());
 
-    OPgetDirector()->getCommandManager()->getVariable("HIP", hip);
     OPgetDirector()->getCommandManager()->getVariable("HIPFILE", hipfile);
     UT_Date::dprintf(timestamp, "%Y-%m-%d %H:%M:%S", time(0));
-    userinfo.sprintf("Exported from %s/%s on %s",
-	    hip.buffer(), hipfile.buffer(), timestamp.buffer());
+    userinfo.sprintf("Exported from %s on %s",
+	    hipfile.buffer(), timestamp.buffer());
     try
     {
 	if (!strcmp(format, "hdf5"))
