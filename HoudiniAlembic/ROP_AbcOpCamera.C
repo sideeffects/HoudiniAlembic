@@ -202,7 +202,7 @@ ROP_AbcOpCamera::fillSample(CameraSample &sample, OBJ_Camera *cam, const ROP_Abc
     DataType dtype = DataType(Alembic::Abc::kFloat32POD);
     CompoundPropertyWriterPtr userPropWrtPtr = GetCompoundPropertyWriterPtr(myOCamera.getSchema().getUserProperties());
 
-    ScalarPropertyWriterPtr resXWrtPtr = NULL;
+    ScalarPropertyWriterPtr resXWrtPtr;
     BasePropertyWriterPtr resXProp = userPropWrtPtr->getProperty("resx");
     if (!resXProp)
     	resXWrtPtr = userPropWrtPtr->createScalarProperty("resx", Alembic::Abc::MetaData(), dtype, now);
@@ -219,7 +219,7 @@ ROP_AbcOpCamera::fillSample(CameraSample &sample, OBJ_Camera *cam, const ROP_Abc
     	err.warning("Failed to export camera resolution x");
     }
 
-    ScalarPropertyWriterPtr resYWrtPtr = NULL;
+    ScalarPropertyWriterPtr resYWrtPtr;
     BasePropertyWriterPtr resYProp = userPropWrtPtr->getProperty("resy");
     if (!resYProp)
         resYWrtPtr = userPropWrtPtr->createScalarProperty("resy", Alembic::Abc::MetaData(), dtype, now);
