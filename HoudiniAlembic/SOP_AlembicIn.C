@@ -186,6 +186,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myPathAttribute("")
     , myFilenameAttribute("")
     , myNameMapPtr()
+    , myFacesetAttribute("*")
 {
     myBoundBox.makeInvalid();
 }
@@ -214,6 +215,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myPathAttribute("")
     , myFilenameAttribute("")
     , myNameMapPtr()
+    , myFacesetAttribute("*")
 {
     *this = src;
 }
@@ -240,6 +242,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myPolySoup = src.myPolySoup;
     myViewportLOD = src.myViewportLOD;
     myNameMapPtr = src.myNameMapPtr;
+    myFacesetAttribute.harden(src.myFacesetAttribute);
     myObjectPath.harden(src.myObjectPath);
     myObjectPattern.harden(src.myObjectPattern);
     myExcludeObjectPath.harden(src.myExcludeObjectPath);
@@ -318,6 +321,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
     {
 	return true;
     }
+    if (myFacesetAttribute != src.myFacesetAttribute)
+        return true;
     return false;
 }
 
@@ -367,6 +372,7 @@ static PRM_Name prm_fileattrib("fileattrib", "Filename Attribute");
 static PRM_Name prm_addpath("addpath", "Add Path Attribute");
 static PRM_Name prm_pathattrib("pathattrib", "Path Attribute");
 static PRM_Name prm_remapAttribName("remapAttributes", "Remap Attributes");
+static PRM_Name prm_facesetAttrib("facesetAttributes", "Faceset Attributes");
 
 static PRM_Name prm_loadmodeName("loadmode", "Load As");
 static PRM_Name prm_pointModeName("pointmode", "Points");
@@ -505,7 +511,7 @@ static PRM_Default	mainSwitcher[] =
 {
     PRM_Default(9, "Geometry"),
     PRM_Default(16, "Selection"),
-    PRM_Default(10, "Attributes"),
+    PRM_Default(11, "Attributes"),
 };
 
 static PRM_SpareData *
@@ -600,8 +606,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_XYZ_J,  3, &boxcullCenter, PRMzeroDefaults),
 
     // Attribute tab
-    // Currently there are 10 elements (10 PRM_Template() calls below) in this tab, 
-    // which matches PRM_Default(10, "Attributes") defined in mainSwitcher
+    // Currently there are 11 elements (11 PRM_Template() calls below) in this tab, 
+    // which matches PRM_Default(11, "Attributes") defined in mainSwitcher
     PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_POINT],
 		&prm_starDefault),
     PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_VERTEX],
@@ -610,6 +616,7 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 		&prm_starDefault),
     PRM_Template(PRM_STRING, 1, &theAttributePatternNames[GA_ATTRIB_DETAIL],
 		&prm_starDefault),
+    PRM_Template(PRM_STRING, 1, &prm_facesetAttrib, &prm_starDefault),
     PRM_Template(PRM_ORD, 1, &prm_userPropsName, &prm_userPropsDefault,
             &menu_userProps),
     PRM_Template(PRM_TOGGLE, 1, &prm_addpath, PRMoneDefaults),
@@ -792,6 +799,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     evalString(parms.myObjectPattern, "objectPattern", 0, now);
     evalString(parms.myExcludeObjectPath, "objectExclude", 0, now);
     evalString(parms.mySubdGroupName, "subdgroup", 0, now);
+    evalString(parms.myFacesetAttribute, "facesetAttributes", 0, now);
     parms.myIncludeXform = evalInt("includeXform", 0, now) != 0;
     parms.myMissingFileError = evalInt("missingfile", 0, now) == 0;
     parms.myUseVisibility = evalInt("usevisibility", 0, now) != 0;
@@ -1016,6 +1024,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     walk.setBuildAbcShape(parms.myBuildAbcShape);
     walk.setBuildAbcXform(parms.myBuildAbcXform);
     walk.setNameMapPtr(parms.myNameMapPtr);
+    walk.setFacesetAttribute(parms.myFacesetAttribute);
     if (myLastParms.myPathAttribute != parms.myPathAttribute)
     {
 	if (myLastParms.myPathAttribute.isstring())

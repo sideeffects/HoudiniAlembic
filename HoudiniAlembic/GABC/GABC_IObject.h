@@ -158,6 +158,7 @@ public:
 				fpreal t,
 				GEO_AnimationType &atype,
 				const GEO_PackedNameMapPtr &namemap,
+                                const UT_StringHolder &facesetAttrib,
 				int load_style=GABC_LOAD_FULL) const;
 
     /// Update primitive time.  Given a primitive created by @c getPrimitive(),
@@ -166,6 +167,7 @@ public:
 				const GEO_Primitive *prim,
 				fpreal new_time,
 				const GEO_PackedNameMapPtr &namemap,
+                                const UT_StringHolder &facesetAttrib,
 				int load_style=GABC_LOAD_FULL) const;
 
     /// Get a representation of the point cloud.  This doesn't include any

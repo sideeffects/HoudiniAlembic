@@ -1511,6 +1511,7 @@ namespace {
 	UT_ASSERT(GAisValid(pt));
 	packed->setVertexPoint(pt);
 	packed->setAttributeNameMap(walk.nameMapPtr());
+        packed->setFacesetAttribute(walk.facesetAttribute());
 	packed->setViewportLOD(walk.viewportLOD());
 	abc->setUseTransform(walk.includeXform());
 	if (!abc->isConstant())
@@ -2374,6 +2375,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err)
     , mySubdGroup(NULL)
     , myObjectPattern("*")
     , myNameMapPtr()
+    , myFacesetAttribute("*")
     , myBoss(UTgetInterrupt())
     , myBossId(-1)
     , myMatrix(identity44d)

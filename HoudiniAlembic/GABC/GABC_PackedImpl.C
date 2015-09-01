@@ -1058,8 +1058,12 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc, int load_style)
 	    myFrame = abc->frame();
 	    myRep = GEO_VIEWPORT_FULL;
 	    myLoadStyle = load_style;
-	    myPrim = o.getPrimitive(abc->getPrim(), myFrame, atype,
-		    abc->getPrim()->attributeNameMap(), myLoadStyle);
+	    myPrim = o.getPrimitive(abc->getPrim(), 
+                                    myFrame, 
+                                    atype,
+		                    abc->getPrim()->attributeNameMap(),
+                                    abc->getPrim()->facesetAttribute(), 
+                                    myLoadStyle);
 
 	    if (atype > myAnimationType)
 	    {

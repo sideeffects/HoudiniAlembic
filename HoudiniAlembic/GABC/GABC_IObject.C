@@ -34,6 +34,7 @@
 #include "GABC_ChannelCache.h"
 #include <SYS/SYS_AtomicInt.h>
 #include <GEO/GEO_PackedNameMap.h>
+#include <GEO/GEO_PrimPacked.h>
 #include <GU/GU_Detail.h>
 #include <GT/GT_DANumeric.h>
 #include <GT/GT_DAIndirect.h>
@@ -1451,7 +1452,7 @@ namespace
 
     template <typename GT_PRIMTYPE>
     static void
-    loadFaceSets(GT_PRIMTYPE &pmesh, const GABC_IObject &obj, fpreal t)
+    loadFaceSets(GT_PRIMTYPE &pmesh, const GABC_IObject &obj, const UT_StringHolder &attrib, fpreal t)
     {
 	exint		nkids = obj.getNumChildren();
 	GT_FaceSetPtr	set;
@@ -1461,9 +1462,10 @@ namespace
 	    const GABC_IObject	&kid = obj.getChild(i);
 	    if (kid.valid() && kid.nodeType() == GABC_FACESET)
 	    {
-		if (loadFaceSet(set, kid, iss))
+                UT_String name(kid.getName());
+		if (name.multiMatch(attrib) && loadFaceSet(set, kid, iss))
 		{
-		    pmesh.addFaceSet(kid.getName().c_str(), set);
+		    pmesh.addFaceSet(name, set);
 		}
 	    }
 	}
@@ -1522,6 +1524,7 @@ namespace
 			const GABC_IObject &obj,
 			fpreal t,
 			const GEO_PackedNameMapPtr &namemap,
+                        const UT_StringHolder &facesetAttrib,
 			int load_style)
     {
 	ISubD			 shape(obj.object(), gabcWrapExisting);
@@ -1641,7 +1644,7 @@ namespace
 	}
 
 	if (load_style & GABC_IObject::GABC_LOAD_FACESETS)
-	    loadFaceSets(*gt, obj, t);
+	    loadFaceSets(*gt, obj, facesetAttrib, t);
 
 	return GT_PrimitiveHandle(gt);
     }
@@ -1653,6 +1656,7 @@ namespace
 			const GABC_IObject &obj,
 			fpreal t,
 			const GEO_PackedNameMapPtr &namemap,
+                        const UT_StringHolder &facesetAttrib,
 			int load_style)
     {
 	IPolyMesh		 shape(obj.object(), gabcWrapExisting);
@@ -1715,8 +1719,9 @@ namespace
 					vertex,
 					uniform,
 					detail);
+
 	if (load_style & GABC_IObject::GABC_LOAD_FACESETS)
-	    loadFaceSets(*gt, obj, t);
+	    loadFaceSets(*gt, obj, facesetAttrib, t);
 
 	return GT_PrimitiveHandle(gt);
     }
@@ -1810,6 +1815,7 @@ namespace
 			const GABC_IObject &obj,
 			fpreal t,
 			const GEO_PackedNameMapPtr &namemap,
+                        const UT_StringHolder &facesetAttrib,
 			int load_style)
     {
 	ICurves			 shape(obj.object(), gabcWrapExisting);
@@ -1934,7 +1940,7 @@ namespace
 	}
 
 	if (load_style & GABC_IObject::GABC_LOAD_FACESETS)
-	    loadFaceSets(*gt, obj, t);
+	    loadFaceSets(*gt, obj, facesetAttrib, t);
 
 	return GT_PrimitiveHandle(gt);
     }
@@ -2805,6 +2811,7 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
         fpreal t,
         GEO_AnimationType &atype,
         const GEO_PackedNameMapPtr &namemap,
+        const UT_StringHolder &facesetAttrib,
         int load_style) const
 {
     GABC_AlembicLock	lock(archive());
@@ -2818,11 +2825,11 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 	{
 	    case GABC_POLYMESH:
 		prim = buildPolyMesh(CreateAttributeList(), gprim,
-			*this, t, namemap, load_style);
+			*this, t, namemap, facesetAttrib, load_style);
 		break;
 	    case GABC_SUBD:
 		prim = buildSubDMesh(CreateAttributeList(), gprim,
-			*this, t, namemap, load_style);
+			*this, t, namemap, facesetAttrib, load_style);
 		break;
 	    case GABC_POINTS:
 		prim = buildPointMesh(CreateAttributeList(), gprim,
@@ -2830,7 +2837,7 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 		break;
 	    case GABC_CURVES:
 		prim = buildCurveMesh(CreateAttributeList(), gprim,
-			*this, t, namemap, load_style);
+			*this, t, namemap, facesetAttrib, load_style);
 		break;
 	    case GABC_NUPATCH:
 		prim = buildNuPatch(CreateAttributeList(), gprim,
@@ -2859,6 +2866,7 @@ GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
 				const GEO_Primitive *gprim,
 				fpreal new_time,
 				const GEO_PackedNameMapPtr &namemap,
+                                const UT_StringHolder &facesetAttrib,
 				int load_style) const
 {
     UT_ASSERT(src);
@@ -2869,11 +2877,11 @@ GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
 	{
 	    case GABC_POLYMESH:
 		prim = buildPolyMesh(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap, load_style);
+			    *this, new_time, namemap, facesetAttrib, load_style);
 		break;
 	    case GABC_SUBD:
 		prim = buildSubDMesh(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap, load_style);
+			    *this, new_time, namemap, facesetAttrib, load_style);
 		break;
 	    case GABC_POINTS:
 		prim = buildPointMesh(UpdateAttributeList(src), gprim,
@@ -2881,7 +2889,7 @@ GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
 		break;
 	    case GABC_CURVES:
 		prim = buildCurveMesh(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap, load_style);
+			    *this, new_time, namemap, facesetAttrib, load_style);
 		break;
 	    case GABC_NUPATCH:
 		prim = buildNuPatch(UpdateAttributeList(src), gprim,

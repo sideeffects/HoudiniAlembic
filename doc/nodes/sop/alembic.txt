@@ -257,6 +257,10 @@ Detail Attributes:
         #id: detailAttributes
         Only detail attributes matching the given pattern will be loaded.
 
+Faceset Attributes:
+        #id: facesetAttributes
+        Only faceset attributes matching the given pattern will be loaded.
+
 NOTE:
         All intrinsic attributes on Alembic nodes will be created in all cases. For
         example, the `velocity` attribute on points will be created regardless of

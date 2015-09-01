@@ -189,6 +189,8 @@ public:
 				    { return myExcludeObjects; }
     const GEO_PackedNameMapPtr	&nameMapPtr() const
 				    { return myNameMapPtr; }
+    const UT_String             &facesetAttribute() const
+                                    { return myFacesetAttribute; }
 
     fpreal	time() const		{ return myTime; }
     bool	includeXform() const	{ return myIncludeXform; }
@@ -230,6 +232,8 @@ public:
     void	setExcludeObjects(const char *s);
     void	setObjectPattern(const char *s)
 		    { myObjectPattern.harden(s); }
+    void        setFacesetAttribute(const char *s)
+                    { myFacesetAttribute.harden(s); }
     void	setNameMapPtr(const GEO_PackedNameMapPtr &ptr)
 		    { myNameMapPtr = ptr; }
     void	setPathAttribute(const GA_RWAttributeRef &a);
@@ -349,6 +353,7 @@ private:
     M44d                    myMatrix;
     UT_BoundingBox          myCullBox;
     UT_Interrupt           *myBoss;
+    UT_String               myFacesetAttribute;
     UT_String               myObjectPattern;
     UT_StringArray	    myExcludeObjects;
     std::stack<GABC_VisibilityType> myVisibilityStack;

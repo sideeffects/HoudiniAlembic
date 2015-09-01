@@ -125,6 +125,7 @@ private:
 	UT_String				myExcludeObjectPath;
 	UT_String				myPathAttribute;
 	UT_String				mySubdGroupName;
+        UT_String                               myFacesetAttribute;
 	std::string				myFilename;
 	bool					myMissingFileError;
 	bool					myBuildAbcShape;
