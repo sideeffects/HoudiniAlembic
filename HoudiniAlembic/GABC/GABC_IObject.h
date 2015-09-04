@@ -152,6 +152,12 @@ public:
 	GABC_LOAD_FORCE_UNTRANSFORMED	= 0x1000,
     };
 
+    UT_StringHolder getAttributes(const GEO_PackedNameMapPtr &namemap,
+                                int load_style,
+                                GT_Owner owner) const;
+
+    UT_StringHolder getFaceSets(const UT_StringHolder &attrib, fpreal t, int load_style) const;
+
     /// Get a representation of the shape.  If the @c GEO_Primitive pointer is
     /// non-NULL, the primitive attributes will be added as GT arrays.
     GT_PrimitiveHandle	getPrimitive(const GEO_Primitive *prim,

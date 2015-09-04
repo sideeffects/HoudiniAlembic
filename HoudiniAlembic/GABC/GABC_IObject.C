@@ -121,8 +121,14 @@ namespace
     const GeometryScope	gabcUniformScope = Alembic::AbcGeom::kUniformScope;
     const GeometryScope	gabcConstantScope = Alembic::AbcGeom::kConstantScope;
     const GeometryScope	gabcUnknownScope = Alembic::AbcGeom::kUnknownScope;
-    GeometryScope	theConstantUnknownScope[2] =
+    const GeometryScope	theConstantUnknownScope[2] =
 					{ gabcConstantScope, gabcUnknownScope };
+    const GeometryScope point_scope[2] = 
+                                        { gabcVaryingScope, gabcVertexScope };
+    const GeometryScope vertex_scope[3] = 
+                                        { gabcVertexScope, gabcVaryingScope, gabcFacevaryingScope };
+    const GeometryScope detail_scope[3] = 
+                                        { gabcUniformScope, gabcConstantScope, gabcUnknownScope };
 
     static const fpreal	theDefaultWidth = 0.05;
 
@@ -1269,6 +1275,66 @@ namespace
 	return alist->removeAttributes(removals);
     }
 
+    static UT_StringHolder
+    getAttributeNames(const GEO_PackedNameMapPtr &namemap,
+                        const GeometryScope *scope,
+                        int scope_size,
+                        ICompoundProperty arb,
+                        const IP3fArrayProperty *P = NULL,
+                        const IV3fArrayProperty *v = NULL,
+                        const IN3fGeomParam *N = NULL,
+                        const IV2fGeomParam *uvs = NULL,
+                        const IUInt64ArrayProperty *ids = NULL,
+                        const IFloatGeomParam *widths = NULL,
+                        const IFloatArrayProperty *Pw = NULL)
+    {
+        UT_String names;
+
+        GT_AttributeMap map;
+
+        addPropertyToMap(map, "P", P, GEO_PackedNameMapPtr());
+        addPropertyToMap(map, "Pw", Pw, GEO_PackedNameMapPtr());
+        addPropertyToMap(map, "v", v, namemap);
+        addPropertyToMap(map, "id", ids, namemap);
+        addGeomParamToMap(map, "N", N, scope, scope_size, namemap);
+        addGeomParamToMap(map, "uv", uvs, scope, scope_size, namemap);
+        addGeomParamToMap(map, "width", widths, scope, scope_size, namemap);
+
+        if (arb)
+        {
+            for (exint i = 0; i < arb.getNumProperties(); ++i)
+            {
+                const PropertyHeader    &header = arb.getPropertyHeader(i);
+                GeometryScope            arbscope = getArbitraryPropertyScope(header);
+                if (!matchScope(arbscope, scope, scope_size))
+                {
+                    continue;
+                }
+
+                const char      *name = header.getName().c_str();
+                if (namemap)
+                {
+                    if (!namemap->matchPattern(scopeToOwner(arbscope), name))
+                        continue;
+
+                    name = namemap->getName(name);
+                    if (!name)
+                        continue;
+                }
+                GT_Storage      store = getGTStorage(arb, header);
+                if (store == GT_STORE_INVALID)
+                    continue;
+                map.add(name, false);
+            }
+        }
+
+        UT_StringArray array = map.getNames();
+        array.sort();
+        array.join(" ", names);
+
+        return names;
+    }
+
     static GT_AttributeListHandle
     updateAttributeList(const GT_AttributeListHandle &src,
 			const GEO_Primitive *prim,
@@ -1471,6 +1537,39 @@ namespace
 	}
     }
 
+    static UT_StringHolder
+    getFaceSetNames(const GABC_IObject &obj, const UT_StringHolder &attrib, fpreal t)
+    {
+        exint nkids = obj.getNumChildren();
+        ISampleSelector iss(t);
+
+        UT_StringArray array;
+        for (exint i = 0; i < nkids; ++i)
+        {
+            const GABC_IObject &kid = obj.getChild(i);
+            if (kid.valid() && kid.nodeType() == GABC_FACESET)
+            {
+                UT_String name(kid.getName());
+                if (name.multiMatch(attrib))
+                {
+                    IFaceSet                shape(kid.object(), gabcWrapExisting);
+                    const IFaceSetSchema   &ss = shape.getSchema();
+                    IFaceSetSchema::Sample  sample = ss.getValue(iss);
+                    Int32ArraySamplePtr     faces = sample.getFaces();
+
+                    if (faces && faces->valid())
+                        array.append(name);
+                }
+            }
+        }
+
+        UT_String names;
+        array.sort();
+        array.join(" ", names);
+
+        return names;
+    }
+
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
     buildPointMesh(const ATTRIB_CREATOR &acreate,
@@ -1492,8 +1591,7 @@ namespace
 	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
 	IUInt64ArrayProperty	 ids = ss.getIdsProperty();
 	IFloatGeomParam		 widths = ss.getWidthsParam();
-	GeometryScope	vertex_scope[3] = { gabcVertexScope, gabcVaryingScope, gabcFacevaryingScope };
-	GeometryScope	detail_scope[3] = { gabcUniformScope, gabcConstantScope, gabcUnknownScope };
+
 	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
 	    arb = ss.getArbGeomParams();
 
@@ -1505,6 +1603,54 @@ namespace
 
 	GT_Primitive	*gt = new GT_PrimPointMesh(vertex, detail);
 	return GT_PrimitiveHandle(gt);
+    }
+
+    static UT_StringHolder
+    getPointMeshAttribs(const GABC_IObject &obj,
+                        const GEO_PackedNameMapPtr &namemap,
+                        int load_style,
+                        GT_Owner owner)
+    {
+        UT_String emptyString;
+
+        IPoints                  shape(obj.object(), gabcWrapExisting);
+        IPointsSchema           &ss = shape.getSchema();
+        ICompoundProperty        arb;
+        if (load_style & GABC_IObject::GABC_LOAD_ARBS)
+            arb = ss.getArbGeomParams();
+
+        IP3fArrayProperty        P = ss.getPositionsProperty();
+        IV3fArrayProperty        v = ss.getVelocitiesProperty();
+        IUInt64ArrayProperty     ids = ss.getIdsProperty();
+        IFloatGeomParam          widths = ss.getWidthsParam();
+
+        switch (owner)
+        {
+            case GT_OWNER_POINT:
+                return emptyString;
+            case GT_OWNER_VERTEX:
+                return getAttributeNames(namemap,
+                                         vertex_scope, 3,
+                                         arb,
+                                         &P,
+                                         &v,
+                                         NULL,
+                                         NULL,
+                                         &ids,
+                                         &widths);
+            case GT_OWNER_PRIMITIVE:
+                return emptyString;
+            case GT_OWNER_DETAIL:
+                return getAttributeNames(namemap,
+                                         detail_scope, 3,
+                                         arb);
+            case GT_OWNER_MAX:
+            case GT_OWNER_INVALID:
+                UT_ASSERT(0 && "Unexpected attribute type");
+                break;
+        }
+
+        return emptyString;
     }
 
     static exint
@@ -1552,7 +1698,6 @@ namespace
 	IP3fArrayProperty	 P = ss.getPositionsProperty();
 	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
-	GeometryScope	point_scope[2] = { gabcVaryingScope, gabcVertexScope };
 
 	point = acreate.build(GT_OWNER_POINT, maxArrayValue(counts),
 				prim, obj, namemap,
@@ -1649,6 +1794,59 @@ namespace
 	return GT_PrimitiveHandle(gt);
     }
 
+    static UT_StringHolder
+    getSubDMeshAttribs(const GABC_IObject &obj,
+                        const GEO_PackedNameMapPtr &namemap,
+                        int load_style,
+                        GT_Owner owner)
+    {
+        UT_String emptyString;
+
+        ISubD                    shape(obj.object(), gabcWrapExisting);
+        ISubDSchema             &ss = shape.getSchema();
+        ICompoundProperty        arb;
+        if (load_style & GABC_IObject::GABC_LOAD_ARBS)
+            arb = ss.getArbGeomParams();
+
+        IP3fArrayProperty        P = ss.getPositionsProperty();
+        IV3fArrayProperty        v = ss.getVelocitiesProperty();
+        const IV2fGeomParam     &uvs = ss.getUVsParam();
+
+        switch (owner)
+        {
+            case GT_OWNER_POINT:
+                return getAttributeNames(namemap, 
+                                         point_scope, 2,
+                                         arb,
+                                         &P,
+                                         &v,
+                                         NULL,
+                                         &uvs);
+            case GT_OWNER_VERTEX:
+                return getAttributeNames(namemap,
+                                         &gabcFacevaryingScope, 1,
+                                         arb,
+                                         NULL,
+                                         NULL,
+                                         NULL,
+                                         &uvs);
+            case GT_OWNER_PRIMITIVE:
+                return getAttributeNames(namemap,
+                                         &gabcUniformScope, 1,
+                                         arb);
+            case GT_OWNER_DETAIL:
+                return getAttributeNames(namemap,
+                                         theConstantUnknownScope, 2,
+                                         arb);
+            case GT_OWNER_MAX:
+            case GT_OWNER_INVALID:
+                UT_ASSERT(0 && "Unexpected attribute type");
+                break;
+        }
+
+        return emptyString;
+    }
+
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
     buildPolyMesh(const ATTRIB_CREATOR &acreate,
@@ -1685,7 +1883,6 @@ namespace
 	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
 	const IN3fGeomParam	&N = ss.getNormalsParam();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
-	GeometryScope	point_scope[2] = { gabcVaryingScope, gabcVertexScope };
 
 	point = acreate.build(GT_OWNER_POINT, maxArrayValue(counts),
 				prim, obj, namemap,
@@ -1724,6 +1921,60 @@ namespace
 	    loadFaceSets(*gt, obj, facesetAttrib, t);
 
 	return GT_PrimitiveHandle(gt);
+    }
+
+    static UT_StringHolder
+    getPolyMeshAttribs(const GABC_IObject &obj,
+                        const GEO_PackedNameMapPtr &namemap,
+                        int load_style,
+                        GT_Owner owner)
+    {
+        UT_String emptyString;
+
+        IPolyMesh                shape(obj.object(), gabcWrapExisting);
+        IPolyMeshSchema         &ss = shape.getSchema();
+        ICompoundProperty        arb;
+        if (load_style & GABC_IObject::GABC_LOAD_ARBS)
+            arb = ss.getArbGeomParams();
+
+        IP3fArrayProperty        P = ss.getPositionsProperty();
+        IV3fArrayProperty        v = ss.getVelocitiesProperty();
+        const IN3fGeomParam     &N = ss.getNormalsParam();
+        const IV2fGeomParam     &uvs = ss.getUVsParam();
+
+        switch (owner)
+        {
+            case GT_OWNER_POINT:
+                return getAttributeNames(namemap, 
+                                         point_scope, 2,
+                                         arb,
+                                         &P,
+                                         &v,
+                                         &N,
+                                         &uvs);
+            case GT_OWNER_VERTEX:
+                return getAttributeNames(namemap,
+                                         &gabcFacevaryingScope, 1,
+                                         arb,
+                                         NULL,
+                                         NULL,
+                                         &N,
+                                         &uvs);
+            case GT_OWNER_PRIMITIVE:
+                return getAttributeNames(namemap,
+                                         &gabcUniformScope, 1,
+                                         arb);
+            case GT_OWNER_DETAIL:
+                return getAttributeNames(namemap,
+                                         theConstantUnknownScope, 2,
+                                         arb);
+            case GT_OWNER_MAX:
+            case GT_OWNER_INVALID:
+                UT_ASSERT(0 && "Unexpected attribute type");
+                break;
+        }
+
+        return emptyString;
     }
 
     static bool
@@ -1841,11 +2092,7 @@ namespace
 	const IN3fGeomParam	&N = ss.getNormalsParam();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 	IFloatGeomParam		 widths = ss.getWidthsParam();
-	GeometryScope		 vertex_scope[3] = {
-					gabcVaryingScope,
-					gabcVertexScope,
-					gabcFacevaryingScope
-				 };
+
 	vertex = acreate.build(GT_OWNER_VERTEX, -1, prim, obj, namemap,
 				load_style, t,
 				vertex_scope, 3,
@@ -1943,6 +2190,59 @@ namespace
 	    loadFaceSets(*gt, obj, facesetAttrib, t);
 
 	return GT_PrimitiveHandle(gt);
+    }
+
+    static UT_StringHolder
+    getCurveMeshAttribs(const GABC_IObject &obj,
+                        const GEO_PackedNameMapPtr &namemap,
+                        int load_style,
+                        GT_Owner owner)
+    {
+        UT_String emptyString;
+
+        ICurves                shape(obj.object(), gabcWrapExisting);
+        ICurvesSchema         &ss = shape.getSchema();
+        ICompoundProperty      arb;
+        if (load_style & GABC_IObject::GABC_LOAD_ARBS)
+            arb = ss.getArbGeomParams();
+
+        IP3fArrayProperty        P = ss.getPositionsProperty();
+        IFloatArrayProperty      Pw = ss.getPositionWeightsProperty();
+        IV3fArrayProperty        v = ss.getVelocitiesProperty();
+        const IN3fGeomParam     &N = ss.getNormalsParam();
+        const IV2fGeomParam     &uvs = ss.getUVsParam();
+        IFloatGeomParam          widths = ss.getWidthsParam();
+
+        switch (owner)
+        {
+            case GT_OWNER_POINT:
+                return emptyString;
+            case GT_OWNER_VERTEX:
+                return getAttributeNames(namemap,
+                                         vertex_scope, 3,
+                                         arb,
+                                         &P,
+                                         &v,
+                                         &N,
+                                         &uvs,
+                                         NULL,
+                                         &widths,
+                                         &Pw);
+            case GT_OWNER_PRIMITIVE:
+                return getAttributeNames(namemap,
+                                         &gabcUniformScope, 1,
+                                         arb);
+            case GT_OWNER_DETAIL:
+                return getAttributeNames(namemap,
+                                         theConstantUnknownScope, 2,
+                                         arb);
+            case GT_OWNER_MAX:
+            case GT_OWNER_INVALID:
+                UT_ASSERT(0 && "Unexpected attribute type");
+                break;
+        }
+
+        return emptyString;
     }
 
     static GT_DataArrayHandle
@@ -2092,16 +2392,6 @@ namespace
 	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
 	const IN3fGeomParam	&N = ss.getNormalsParam();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
-	GeometryScope		 vertex_scope[3] = {
-					gabcVaryingScope,
-					gabcVertexScope,
-					gabcFacevaryingScope
-				 };
-	GeometryScope		 detail_scope[3] = {
-					gabcUniformScope,
-					gabcConstantScope,
-					gabcUnknownScope
-				 };
 
 	vertex = acreate.build(GT_OWNER_VERTEX, -1, prim, obj, namemap,
 				load_style, t,
@@ -2164,6 +2454,56 @@ namespace
 	}
 
 	return GT_PrimitiveHandle(gt);
+    }
+
+    static UT_StringHolder
+    getNuPatchAttribs(const GABC_IObject &obj,
+                        const GEO_PackedNameMapPtr &namemap,
+                        int load_style,
+                        GT_Owner owner)
+    {
+        UT_String emptyString;
+
+        INuPatch                shape(obj.object(), gabcWrapExisting);
+        INuPatchSchema         &ss = shape.getSchema();
+        ICompoundProperty      arb;
+        if (load_style & GABC_IObject::GABC_LOAD_ARBS)
+            arb = ss.getArbGeomParams();
+
+        IP3fArrayProperty        P = ss.getPositionsProperty();
+        IFloatArrayProperty      Pw = ss.getPositionWeightsProperty();
+        IV3fArrayProperty        v = ss.getVelocitiesProperty();
+        const IN3fGeomParam     &N = ss.getNormalsParam();
+        const IV2fGeomParam     &uvs = ss.getUVsParam();
+
+        switch (owner)
+        {
+            case GT_OWNER_POINT:
+                return emptyString;
+            case GT_OWNER_VERTEX:
+                return getAttributeNames(namemap,
+                                         vertex_scope, 3,
+                                         arb,
+                                         &P,
+                                         &v,
+                                         &N,
+                                         &uvs,
+                                         NULL,
+                                         NULL,
+                                         &Pw);
+            case GT_OWNER_PRIMITIVE:
+                return emptyString;
+            case GT_OWNER_DETAIL:
+                return getAttributeNames(namemap,
+                                         detail_scope, 3,
+                                         arb);
+            case GT_OWNER_MAX:
+            case GT_OWNER_INVALID:
+                UT_ASSERT(0 && "Unexpected attribute type");
+                break;
+        }
+
+        return emptyString;
     }
 
     template <typename T>
@@ -2804,6 +3144,55 @@ GABC_IObject::clampTime(fpreal input_time) const
 	return 0;
     return SYSclamp(input_time, time->getSampleTime(0),
 			time->getSampleTime(nsamples-1));
+}
+
+UT_StringHolder
+GABC_IObject::getAttributes(const GEO_PackedNameMapPtr &namemap,
+                            int load_style,
+                            GT_Owner owner) const
+{
+    GABC_AlembicLock lock(archive());
+
+    switch (nodeType())
+    {
+        case GABC_POLYMESH:
+            return getPolyMeshAttribs(*this, namemap, load_style, owner);
+        case GABC_SUBD:
+            return getSubDMeshAttribs(*this, namemap, load_style, owner);
+        case GABC_POINTS:
+            return getPointMeshAttribs(*this, namemap, load_style, owner);
+        case GABC_CURVES:
+            return getCurveMeshAttribs(*this, namemap, load_style, owner);
+        case GABC_NUPATCH:
+            return getNuPatchAttribs(*this, namemap, load_style, owner);
+        default:
+            break;
+    }
+
+    UT_String emptyString;
+    return emptyString;
+}
+
+UT_StringHolder
+GABC_IObject::getFaceSets(const UT_StringHolder &attrib, fpreal t, int load_style) const
+{
+    UT_String emptyString;
+    if ( !(load_style & GABC_IObject::GABC_LOAD_FACESETS) )
+        return emptyString;
+
+    GABC_AlembicLock lock(archive());
+
+    switch(nodeType())
+    {
+        case GABC_POLYMESH:
+        case GABC_SUBD:
+        case GABC_CURVES:
+            return getFaceSetNames(*this, attrib, t);
+        default:
+            break;
+    }
+
+    return emptyString;
 }
 
 GT_PrimitiveHandle

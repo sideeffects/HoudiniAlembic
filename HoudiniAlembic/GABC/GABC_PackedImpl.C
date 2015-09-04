@@ -72,6 +72,16 @@ public:
 	registerIntrinsic("abcusetransform",
 	    BoolGetterCast(&GABC_PackedImpl::useTransform),
 	    BoolSetterCast(&GABC_PackedImpl::setUseTransform));
+        registerIntrinsic("abcpoint", 
+            StringHolderGetterCast(&GABC_PackedImpl::intrinsicPoint));
+        registerIntrinsic("abcvertex",
+            StringHolderGetterCast(&GABC_PackedImpl::intrinsicVertex));
+        registerIntrinsic("abcprimitive",
+            StringHolderGetterCast(&GABC_PackedImpl::intrinsicPrimitive));
+        registerIntrinsic("abcdetail",
+            StringHolderGetterCast(&GABC_PackedImpl::intrinsicDetail));
+        registerIntrinsic("abcfaceset",
+            StringHolderGetterCast(&GABC_PackedImpl::intrinsicFaceSet));
     }
     virtual ~AlembicFactory()
     {
@@ -1228,6 +1238,26 @@ GABC_PackedImpl::computeVisibility(bool check_parent) const
     }
 
     return o.visibility(animated, frame(), check_parent);
+}
+
+UT_StringHolder 
+GABC_PackedImpl::getAttributeNames(GT_Owner owner) const
+{
+    if (myObject.valid())
+        return myObject.getAttributes(getPrim()->attributeNameMap(), GABC_IObject::GABC_LOAD_FULL, owner);
+
+    UT_String emptyString;
+    return emptyString;
+}
+
+UT_StringHolder
+GABC_PackedImpl::getFaceSetNames() const
+{
+    if (myObject.valid())
+        return myObject.getFaceSets(getPrim()->facesetAttribute(), 0, GABC_IObject::GABC_LOAD_FULL);
+
+    UT_String emptyString;
+    return emptyString;
 }
 
 void

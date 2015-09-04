@@ -178,6 +178,17 @@ public:
 			    { return computeVisibility(false); }
     int64		 intrinsicFullVisibility() const
 			    { return computeVisibility(true); }
+    
+    UT_StringHolder      intrinsicPoint() const 
+                            { return getAttributeNames(GT_OWNER_POINT); }
+    UT_StringHolder      intrinsicVertex() const 
+                            { return getAttributeNames(GT_OWNER_VERTEX); }
+    UT_StringHolder      intrinsicPrimitive() const 
+                            { return getAttributeNames(GT_OWNER_PRIMITIVE); }
+    UT_StringHolder      intrinsicDetail() const 
+                            { return getAttributeNames(GT_OWNER_DETAIL); }
+    UT_StringHolder      intrinsicFaceSet() const
+                            { return getFaceSetNames(); }
 
     /// Returns a sys_wang64 hash of the sum of 64B values making up the Alembic
     /// property hash.
@@ -269,22 +280,26 @@ private:
     void	markDirty();
 
     GABC_VisibilityType computeVisibility(bool include_parent) const;
+
+    UT_StringHolder getAttributeNames(GT_Owner owner) const;
+    UT_StringHolder getFaceSetNames() const;
+
     void	clearGT();
     bool	unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const;
 
-    mutable GABC_IObject	 myObject;
-    mutable GTCache		 myCache;
-    mutable bool		 myCachedUniqueID;
-    mutable int64		 myUniqueID;
-    UT_StringHolder		 myFilename;
-    UT_StringHolder		 myObjectPath;
-    fpreal			 myFrame;
-    bool			 myUseTransform;
-    bool			 myUseVisibility;
+    mutable GABC_IObject	            myObject;
+    mutable GTCache		            myCache;
+    mutable bool		            myCachedUniqueID;
+    mutable int64		            myUniqueID;
+    UT_StringHolder		            myFilename;
+    UT_StringHolder		            myObjectPath;
+    fpreal			            myFrame;
+    bool			            myUseTransform;
+    bool			            myUseVisibility;
 
-    mutable GABC_VisibilityType	 myConstVisibility;
-    mutable bool		 myHasConstBounds;
-    mutable UT_BoundingBox	 myConstBounds;
+    mutable GABC_VisibilityType	            myConstVisibility;
+    mutable bool		            myHasConstBounds;
+    mutable UT_BoundingBox	            myConstBounds;
 
 #ifdef USE_FAST_CACHE
     gabc_ObjectCacheItem	 *getObjectCacheItem() const;
