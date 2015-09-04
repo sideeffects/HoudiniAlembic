@@ -21,7 +21,10 @@ Build Hierarchy With Channel References:
     With no channel references, you can propagate parameter changes on the Alembic archive to the child objects using __Push Parameters To Children__.
     
 Load Hierarchy As One Single Geometry:
-    Instead of creating Houdini objects for each Alembic transform and shape, just load the Alembic archive into a single geometry node. This will still create Houdini objects for Alembic cameras.
+    Instead of creating Houdini objects for each Alembic transform and shape, this will load the Alembic archive into a single geometry node. 
+    
+    NOTE:
+        This will still create Houdini objects for Alembic cameras.
     
 Flatten Visibility Evaluation:
     In Houdini, when a subnetwork's display is turned off, all its children will also not be displayed. Alembic allows children of a network to be displayed, even when the parent is not displayed.
@@ -32,7 +35,10 @@ Push Parameters to Children:
     Propagate changes to parameters to the child objects (see __Build Hierarchy With Channel References__).
 
 Reload Geometry:
-	Clear the Alembic cache and reload fresh geometry for all the shapes without rebuilding or updating the archive hierarchy. Comparing to __Build or Update Hierarchy__, this is the faster way to update an Alembic archive version when there is no hierarchy change. 
+	Clear the Alembic cache and reload fresh geometry for all the shapes without rebuilding or updating the archive hierarchy. 
+	
+	TIP:
+	    Compared to __Build or Update Hierarchy__, this is the faster way to update an Alembic archive version when there is no hierarchy change. 
 
 
 [Include:/nodes/sop/alembic#fileName]
