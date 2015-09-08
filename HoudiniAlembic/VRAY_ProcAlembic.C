@@ -123,14 +123,14 @@ namespace
 		const GABC_PackedImpl	*prim = implementation(myList(i));
 		GABC_IObject		 iobj = prim->object();
 		if (!iobj.valid())
-		    myList(i) = NULL;
+		    myList(i) = nullptr;
 		else
 		{
 		    bool	animated;
 		    if (iobj.visibility(animated,
 				    prim->frame(), true) == GABC_VISIBLE_HIDDEN)
 		    {
-			myList(i) = NULL;
+			myList(i) = nullptr;
 		    }
 		}
 	    }
@@ -265,7 +265,7 @@ namespace
 	    }
 
 	    // Build a new styler for this alembic prim.
-	    void *handle = queryObject(NULL);
+	    void *handle = queryObject(nullptr);
 	    STY_SubjectHandle subject(new GSTY_SubjectPrim(myList(0)));
 
 	    openProceduralObject();
@@ -504,10 +504,10 @@ VRAY_ProcAlembic::vray_MergePatterns::clear()
     delete myPoint;
     delete myUniform;
     delete myDetail;
-    myVertex = NULL;
-    myPoint = NULL;
-    myUniform = NULL;
-    myDetail = NULL;
+    myVertex = nullptr;
+    myPoint = nullptr;
+    myUniform = nullptr;
+    myDetail = nullptr;
 }
 
 void
@@ -634,7 +634,7 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
     }
     else
     {
-	void	*handle = queryObject(NULL); // Get handle to this object
+	void	*handle = queryObject(nullptr); // Get handle to this object
 	int	 nsamples = queryGeometrySamples(handle);
 	int	 velblur;
 	GA_Size	 nprims;
@@ -837,14 +837,14 @@ VRAY_ProcAlembic::render()
     bool			 addgeo = false;
     GA_Range			 baserange;
     UT_String			 groupname;
-    const GA_PrimitiveGroup	*rendergroup = NULL;
+    const GA_PrimitiveGroup	*rendergroup = nullptr;
 
     int nsegments = details.entries();
     UT_ASSERT(nsegments);
     gdp = details(0);
-    agdp = myAttribDetails.entries() ? myAttribDetails(0) : NULL;
+    agdp = myAttribDetails.entries() ? myAttribDetails(0) : nullptr;
     if (agdp && agdp->getNumPrimitives() != gdp->getNumPrimitives())
-	agdp = NULL;
+	agdp = nullptr;
 
     if (import("object:geometrygroup", groupname))
     {
@@ -864,10 +864,10 @@ VRAY_ProcAlembic::render()
 	for (GA_Iterator it(baserange); !it.atEnd(); ++it)
 	{
 	    const GEO_Primitive	*prim = gdp->getGEOPrimitive(*it);
-	    const GEO_Primitive	*aprim = agdp ? agdp->getGEOPrimitive(*it):NULL;
+	    const GEO_Primitive	*aprim = agdp ? agdp->getGEOPrimitive(*it):nullptr;
 	    if (prim->getTypeId() == abctype)
 	    {
-		const GU_PrimPacked		*abc_attrib = NULL;
+		const GU_PrimPacked		*abc_attrib = nullptr;
 		if (aprim && aprim->getTypeId() == abctype)
 		    abc_attrib = UTverify_cast<const GU_PrimPacked *>(aprim);
 		abclist(0) = UTverify_cast<const GU_PrimPacked *>(prim);
@@ -881,7 +881,7 @@ VRAY_ProcAlembic::render()
 		VRAY_Procedural *p = new vray_ProcAlembicPrim(abclist,
 					myPreBlur, myPostBlur, abc_attrib,
 					myMergeInfo, myUserProperties);
-		if (p->initialize(NULL))
+		if (p->initialize(nullptr))
 		{
 		    openProceduralObject();
 			addProcedural(p);
@@ -899,7 +899,7 @@ VRAY_ProcAlembic::render()
 		    addgeo = true;
 		else if (!warned)
 		{
-		    void		*handle = queryObject(NULL);
+		    void		*handle = queryObject(nullptr);
 		    const char	*name = queryObjectName(handle);
 		    VRAYwarning("Object %s has non-alembic primitives", name);
 		    warned = true;

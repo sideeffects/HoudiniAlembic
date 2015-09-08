@@ -49,10 +49,10 @@ public:
     {
     public:
 	vray_MergePatterns()
-	    : myVertex(NULL)
-	    , myPoint(NULL)
-	    , myUniform(NULL)
-	    , myDetail(NULL)
+	    : myVertex(nullptr)
+	    , myPoint(nullptr)
+	    , myUniform(nullptr)
+	    , myDetail(nullptr)
 	{
 	}
 	~vray_MergePatterns()
