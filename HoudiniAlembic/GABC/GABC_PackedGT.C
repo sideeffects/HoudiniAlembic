@@ -295,7 +295,7 @@ GABC_PackedGT::getInstanceKey(UT_Options &options) const
 
     options.setOptionS("f", impl->filename());
     options.setOptionS("o", impl->objectPath());
-    if (impl->isConstant())
+    if (SYSalmostEqual(impl->frame(), 0) || impl->isConstant())
 	options.setOptionF("t", 0.0);
     else
 	options.setOptionF("t", impl->frame());
