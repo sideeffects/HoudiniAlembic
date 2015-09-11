@@ -298,7 +298,7 @@ namespace
     };
 
     vray_PropertyMapPtr
-    parseUserProperties(UT_String &pattern)
+    parseUserProperties(UT_StringHolder &pattern)
     {
 	vray_PropertyMapPtr	pmap;
 	pattern.trimBoundingSpace();
@@ -348,7 +348,8 @@ namespace
 	    pmap.reset(new vray_PropertyMap());
 	    UT_WorkArgs	args;
 	    UT_WorkArgs	split;
-	    pattern.tokenize(args, ", \t\n");
+	    UT_String	tmp(pattern);
+	    tmp.tokenize(args, ", \t\n");
 	    for (int i = 0; i < args.getArgc(); ++i)
 	    {
 		UT_String	val(args.getArg(i));
@@ -449,7 +450,7 @@ loadDetail(UT_Array<GU_Detail *> &details,
 	fpreal frame,
 	fpreal fps,
 	const fpreal shutter[2],
-	UT_String &objectpath,
+	const UT_StringHolder &objectpath,
 	const UT_String &objectpattern)
 {
     GABC_IError         err(UTgetInterrupt());
@@ -473,7 +474,8 @@ loadDetail(UT_Array<GU_Detail *> &details,
     if (objectpath.isstring())
     {
 	UT_WorkArgs	args;
-	objectpath.parse(args);
+	UT_String	tmp(objectpath);
+	tmp.parse(args);
 	if (args.getArgc())
 	{
 	    UT_StringArray	olist;
@@ -549,11 +551,11 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
     }
     int		ival;
     bool	useobject;
-    UT_String	filename("");
-    UT_String	attribfile("");
-    UT_String	objectpath;
-    UT_String	objectpattern;
-    UT_String	userpropertymap;
+    UT_StringHolder	filename("");
+    UT_StringHolder	attribfile("");
+    UT_StringHolder	objectpath;
+    UT_StringHolder	objectpattern;
+    UT_StringHolder	userpropertymap;
 
     myNonAlembic = true;
     if (import("useobjectgeometry", &ival, 1))
@@ -584,10 +586,10 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 	attribfile = "";
     else
     {
-	UT_String	point("");
-	UT_String	vertex("");
-	UT_String	uniform("");
-	UT_String	detail("");
+	UT_StringHolder	point("");
+	UT_StringHolder	vertex("");
+	UT_StringHolder	uniform("");
+	UT_StringHolder	detail("");
 	if (!import("pointattribs", point))
 	    point= "";
 	if (!import("vertexattribs", vertex))
@@ -836,7 +838,7 @@ VRAY_ProcAlembic::render()
     bool			 warned = false;
     bool			 addgeo = false;
     GA_Range			 baserange;
-    UT_String			 groupname;
+    UT_StringHolder			 groupname;
     const GA_PrimitiveGroup	*rendergroup = nullptr;
 
     int nsegments = details.entries();
