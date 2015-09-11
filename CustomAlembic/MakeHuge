@@ -14,8 +14,9 @@
 # BUILD_DIR: The path to the "lib/Alembic" in the build directory
 BUILD_DIR	= PATH_TO_ALEMBIC_BUILD/alembic_build/lib/Alembic
 
-# If your version of Alembic has Ogawa, uncomment the following
-#OGAWA_SUPPORT	= 1
+# If your version of Alembic doesn't have support for Ogawa, comment
+# out the following
+OGAWA_SUPPORT	= 1
 
 # Convenience variables for the different components
 ABC		= Abc/CMakeFiles/AlembicAbc.dir
