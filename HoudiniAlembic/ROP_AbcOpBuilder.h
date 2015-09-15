@@ -70,7 +70,7 @@ public:
                 }
 	size_t	hash_value() const
                 {
-                    return boost::hash_value(myOpId);
+                    return SYShash(myOpId);
                 }
 	int     opid() const
 	        {
