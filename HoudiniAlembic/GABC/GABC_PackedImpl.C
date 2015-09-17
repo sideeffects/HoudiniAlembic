@@ -1190,12 +1190,11 @@ GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
 {
     if (myAnimationType == GEO_ANIMATION_INVALID && visible(abc))
     {
-        if (myFrame != abc->frame())
-        {
-            myFrame = abc->frame();
-            const GABC_IObject &o = abc->object();
-            myAnimationType = o.getAnimationType(false);
-        }
+	auto atype = abc->object().getAnimationType(true);
+	// The call to visible() might have set the animation type which we
+	// don't want to lose.
+	if (atype > myAnimationType)
+	    myAnimationType = atype;
     }
 
     return myAnimationType;
