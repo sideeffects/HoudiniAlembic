@@ -132,6 +132,7 @@ private:
 	bool					myBuildAbcXform;
 	bool					myIncludeXform;
 	bool					myUseVisibility;
+	bool					myStaticTimeZero;
 	bool					myBuildLocator;
     };
 

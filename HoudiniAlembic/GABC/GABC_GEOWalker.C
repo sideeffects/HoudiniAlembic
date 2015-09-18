@@ -1505,9 +1505,10 @@ namespace {
 				walk.time(),
 				walk.includeXform(),
 				walk.useVisibility());
-	GABC_PackedImpl	*abc;
+	GABC_PackedImpl		*abc;
+	GA_Offset		 pt = walk.getPointForAbcPrim();
+
 	abc = UTverify_cast<GABC_PackedImpl *>(packed->implementation());
-	GA_Offset	pt = walk.getPointForAbcPrim();
 	UT_ASSERT(GAisValid(pt));
 	packed->setVertexPoint(pt);
 	packed->setAttributeNameMap(walk.nameMapPtr());
@@ -1517,6 +1518,12 @@ namespace {
 	if (!abc->isConstant())
 	{
 	    walk.setNonConstant();
+	}
+	if (walk.staticTimeZero()
+		&& obj.getAnimationType(false) == GEO_ANIMATION_CONSTANT
+		&& walk.transformConstant())
+	{
+	    abc->setFrame(0);
 	}
 	walk.setPointLocation(packed, pt);
 
@@ -2396,6 +2403,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err)
     , myGeometryFilter(ABC_GFILTER_ALL)
     , myIncludeXform(true)
     , myUseVisibility(true)
+    , myStaticTimeZero(true)
     , myReusePrimitives(false)
     , myBuildLocator(true)
     , myLoadMode(LOAD_ABC_PRIMITIVES)
@@ -2492,9 +2500,13 @@ GABC_GEOWalker::updateAbcPrims()
 
 	if (!abc->isConstant())
 	{
+	    abc->setFrame(time());
 	    setNonConstant();
         }
-	abc->setFrame(time());
+	else
+	{
+	    abc->setFrame(staticTimeZero() ? 0 : time());
+	}
 	if (setPath)
 	{
 	    myPathAttribute.set(prim->getMapOffset(), abc->objectPath().c_str());

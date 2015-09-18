@@ -124,6 +124,14 @@ Use Visibility:
 	any visible geometry.  There may be additional cost to using visibility
 	with Alembic Delayed Load primitives.
 
+Set Zero Time for Static Geometry:
+        #id: statictimezero
+        
+	Set the time/frame for static geometry to 0 regardless of the frame
+	specified.  This is an optimization that lets mantra load static
+	geometry slightly faster when there are multiple instances of the same
+	shape node.
+
 Primitive Groups:
         #id: groupnames
         

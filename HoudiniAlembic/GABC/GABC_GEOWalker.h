@@ -195,6 +195,7 @@ public:
     fpreal	time() const		{ return myTime; }
     bool	includeXform() const	{ return myIncludeXform; }
     bool	useVisibility() const	{ return myUseVisibility; }
+    bool	staticTimeZero() const	{ return myStaticTimeZero; }
     bool	reusePrimitives() const	{ return myReusePrimitives; }
     bool	buildLocator() const	{ return myBuildLocator; }
     LoadUserPropsMode   loadUserProps() const   { return myLoadUserProps; }
@@ -241,6 +242,7 @@ public:
     void	setFrame(fpreal f, fpreal fps)	{ myTime = f/fps; }
     void	setIncludeXform(bool v)		{ myIncludeXform = v; }
     void	setUseVisibility(bool v)	{ myUseVisibility = v; }
+    void	setStaticTimeZero(bool v)	{ myStaticTimeZero = v; }
     void	setReusePrimitives(bool v);
     void	setBuildLocator(bool v)		{ myBuildLocator = v; }
     void	setLoadMode(LoadMode mode)	{ myLoadMode = mode; }
@@ -357,26 +359,28 @@ private:
     UT_String               myObjectPattern;
     UT_StringArray	    myExcludeObjects;
     std::stack<GABC_VisibilityType> myVisibilityStack;
-    fpreal                  myTime;                 // Alembic evaluation time
 
-    exint                   myPointCount;           // Points added
-    exint                   myPrimitiveCount;       // Primitive's added count
-    exint                   myVertexCount;          // Vertices added
-    int                     myBossId;
-    bool                    myBuildAbcXform;        // Build primitives for transforms
-    bool                    myBuildAbcShape;        // Build primitives for transforms
-    bool                    myBuildLocator;         // Whether to build Maya locators
-    bool                    myIncludeXform;         // Transform geometry
-    bool                    myPathAttributeChanged; // Whether path attrib name changed
-    bool                    myReusePrimitives;      // Reuse primitives in input geometry
-    bool                    myUseVisibility;        // Use visibility
+    fpreal	myTime; // Alembic evaluation time
+
+    exint	myPointCount;		// Points added
+    exint	myPrimitiveCount;	// Primitive's added count
+    exint	myVertexCount;		// Vertices added
+    int		myBossId;
+    bool	myBuildAbcXform;	// Build primitives for transforms
+    bool	myBuildAbcShape;	// Build primitives for transforms
+    bool	myBuildLocator;		// Whether to build Maya locators
+    bool	myIncludeXform;		// Transform geometry
+    bool	myPathAttributeChanged;	// Whether path attrib name changed
+    bool	myReusePrimitives;	// Reuse primitives in input geometry
+    bool	myUseVisibility;	// Use visibility
+    bool	myStaticTimeZero;	// All static objects have frame=0
 
     // Modified during traversal
-    bool                    myIsConstant;           // Whether all objects are constant
-    bool                    myTopologyConstant;     // Whether topology is constant
-    bool                    myTransformConstant;    // All xforms down the tree are const
-    bool                    myAllTransformConstant; // All transforms in scene are const
-    bool                    myRebuiltNURBS;         // Whether NURBS were rebuilt
+    bool	myIsConstant;		// Whether all objects are constant
+    bool	myTopologyConstant;	// Whether topology is constant
+    bool	myTransformConstant;	// All xforms down the tree are const
+    bool	myAllTransformConstant;	// All transforms in scene are const
+    bool	myRebuiltNURBS;		// Whether NURBS were rebuilt
 };
 }
 

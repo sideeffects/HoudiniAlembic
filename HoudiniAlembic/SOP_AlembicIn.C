@@ -176,6 +176,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myIncludeXform(true)
     , myMissingFileError(true)
     , myUseVisibility(true)
+    , myStaticTimeZero(true)
     , myBuildLocator(false)
     , myLoadUserProps(GABC_GEOWalker::UP_LOAD_NONE)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
@@ -205,6 +206,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
     , myIncludeXform(true)
     , myMissingFileError(true)
     , myUseVisibility(true)
+    , myStaticTimeZero(true)
     , myBuildLocator(false)
     , myLoadUserProps(GABC_GEOWalker::UP_LOAD_NONE)
     , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
@@ -234,6 +236,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myIncludeXform = src.myIncludeXform;
     myMissingFileError = src.myMissingFileError;
     myUseVisibility = src.myUseVisibility;
+    myStaticTimeZero = src.myStaticTimeZero;
     myBuildLocator = src.myBuildLocator;
     myLoadUserProps = src.myLoadUserProps;
     myGroupMode = src.myGroupMode;
@@ -306,6 +309,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	return true;
     if (myUseVisibility != src.myUseVisibility)
 	return true;
+    if (myStaticTimeZero != src.myStaticTimeZero)
+	return true;
     if (myBuildLocator != src.myBuildLocator)
 	return true;
     if (myLoadUserProps != src.myLoadUserProps)
@@ -355,6 +360,7 @@ static PRM_Name prm_objectExcludeName("objectExclude", "Object Exclude");
 static PRM_Name	prm_pickObjectExcludeName("pickobjectExclude", "Pick");
 static PRM_Name prm_includeXformName("includeXform", "Transform Geometry To World Space");
 static PRM_Name prm_useVisibilityName("usevisibility", "Use Visibility");
+static PRM_Name prm_statictimezero("statictimezero", "Set Zero Time for Static Geometry");
 static PRM_Name prm_userPropsName("loadUserProps", "User Properties");
 static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
 static PRM_Name prm_animationfilter("animationfilter", "Animating Objects");
@@ -509,7 +515,7 @@ static PRM_SpareData	theAbcPattern(
 
 static PRM_Default	mainSwitcher[] =
 {
-    PRM_Default(9, "Geometry"),
+    PRM_Default(10, "Geometry"),
     PRM_Default(16, "Selection"),
     PRM_Default(11, "Attributes"),
 };
@@ -556,8 +562,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_SWITCHER, 3, &PRMswitcherName, mainSwitcher),
 
     // Geometry tab 
-    // Currently there are 9 elements (9 PRM_Template() calls below) in this tab, 
-    // which matches PRM_Default(9, "Geometry") defined in mainSwitcher
+    // Currently there are 10 elements (10 PRM_Template() calls below) in this tab, 
+    // which matches PRM_Default(10, "Geometry") defined in mainSwitcher
     PRM_Template(PRM_ORD, 1, &prm_loadmodeName, &prm_loadmodeDefault,
 	    &menu_loadmode),
     PRM_Template(PRM_ORD, 1, &prm_viewportlod, &prm_viewportlodDefault,
@@ -572,6 +578,7 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 	    &prm_includeXformDefault),
     PRM_Template(PRM_TOGGLE, 1, &prm_useVisibilityName,
 	    &prm_useVisibilityDefault),
+    PRM_Template(PRM_TOGGLE, 1, &prm_statictimezero, PRMoneDefaults),
     PRM_Template(PRM_ORD, 1, &prm_groupnames, &prm_groupnamesDefault,
 	    &menu_groupnames),
     PRM_Template(PRM_STRING, 1, &prm_subdgroupName),
@@ -803,6 +810,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     parms.myIncludeXform = evalInt("includeXform", 0, now) != 0;
     parms.myMissingFileError = evalInt("missingfile", 0, now) == 0;
     parms.myUseVisibility = evalInt("usevisibility", 0, now) != 0;
+    parms.myStaticTimeZero = evalInt("statictimezero", 0, now) != 0;
     parms.myBuildLocator = evalInt("loadLocator", 0, now) != 0;
     if (evalInt("addpath", 0, now))
 	evalString(parms.myPathAttribute, "pathattrib", 0, now);
@@ -1019,6 +1027,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     }
     walk.setIncludeXform(parms.myIncludeXform);
     walk.setUseVisibility(parms.myUseVisibility);
+    walk.setStaticTimeZero(parms.myStaticTimeZero);
     walk.setBuildLocator(parms.myBuildLocator);
     walk.setLoadMode(parms.myLoadMode);
     walk.setBuildAbcShape(parms.myBuildAbcShape);
