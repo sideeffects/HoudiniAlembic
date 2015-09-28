@@ -32,7 +32,10 @@
 #include <UT/UT_StringStream.h>
 #include <UT/UT_WorkArgs.h>
 #include <UT/UT_WorkBuffer.h>
+#include <UT/UT_ScopedPtr.h>
 #include <GU/GU_Detail.h>
+#include <GU/GU_MergeUtils.h>
+#include <GU/GU_PrimPacked.h>
 #include <PRM/PRM_Shared.h>
 #include <SOP/SOP_Guide.h>
 #include <SOP/SOP_ObjectAppearance.h>
@@ -401,6 +404,7 @@ static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
 
 static PRM_Name	loadModeOptions[] = {
     PRM_Name("alembic",	"Alembic Delayed Load Primitives"),
+    PRM_Name("unpack",  "Unpack Alembic Delayed Load Primitives"),
     PRM_Name("houdini",	"Load Houdini Geometry (deprecated)"),
     PRM_Name("hpoints", "Houdini Point Cloud"),
     PRM_Name("hboxes",  "Bounding Boxes"),
@@ -751,24 +755,18 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     UT_String	sval;
 
     evalString(sval, "fileName", 0, now);
-    parms.myFilename = (const char *)sval;
+    parms.myFilename = sval.toStdString();
 
-    switch (evalInt("loadmode", 0, now))
-    {
-	case 0:
-	default:
-	    parms.myLoadMode = GABC_GEOWalker::LOAD_ABC_PRIMITIVES;
-	    break;
-	case 1:
-	    parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_PRIMITIVES;
-	    break;
-	case 2:
-	    parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_POINTS;
-	    break;
-	case 3:
-	    parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_BOXES;
-	    break;
-    }
+    parms.myLoadMode = GABC_GEOWalker::LOAD_ABC_PRIMITIVES;
+    evalString(sval, "loadmode", 0, now);
+    if (sval == "houdini")
+	parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_PRIMITIVES;
+    else if (sval == "hpoints")
+	parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_POINTS;
+    else if (sval == "hboxes")
+	parms.myLoadMode = GABC_GEOWalker::LOAD_HOUDINI_BOXES;
+    else if (sval == "unpack")
+	parms.myLoadMode = GABC_GEOWalker::LOAD_ABC_UNPACKED;
 
     switch (evalInt("abcxform", 0, now))
     {
@@ -936,16 +934,18 @@ SOP_AlembicIn2::archiveClearEvent()
 void
 SOP_AlembicIn2::setPathAttributes(GABC_GEOWalker &walk, const Parms &parms)
 {
+    auto &detail = walk.detail();
     if (parms.myPathAttribute.isstring())
     {
-	GA_RWAttributeRef	a = gdp->addStringTuple(GA_ATTRIB_PRIMITIVE,
+	GA_RWAttributeRef	a = detail.addStringTuple(
+					GA_ATTRIB_PRIMITIVE,
 					parms.myPathAttribute, 1);
 	if (a.isValid())
 	    walk.setPathAttribute(a);
     }
     if (parms.myFilenameAttribute.isstring())
     {
-	GA_RWAttributeRef	aref = gdp->addStringTuple(GA_ATTRIB_DETAIL,
+	GA_RWAttributeRef	aref = detail.addStringTuple(GA_ATTRIB_DETAIL,
 				    parms.myFilenameAttribute, 1);
 	GA_RWHandleS	h(aref.getAttribute());
 	if (h.isValid())
@@ -1002,9 +1002,16 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	myComputedFrameRange = false;
 	return error();
     }
+    GU_Detail			*walkgdp = gdp;
+    UT_ScopedPtr<GU_Detail>	 unpack_gdp;
+    if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_UNPACKED)
+    {
+	unpack_gdp.reset(new GU_Detail);
+	walkgdp = unpack_gdp.get();
+    }
 
     SOP_AlembicInErr    error_handler(*this, UTgetInterrupt());
-    GABC_GEOWalker	walk(*gdp, error_handler);
+    GABC_GEOWalker	walk(*walkgdp, error_handler);
 
     walk.setObjectPattern(parms.myObjectPattern);
     walk.setExcludeObjects(parms.myExcludeObjectPath);
@@ -1038,7 +1045,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     {
 	if (myLastParms.myPathAttribute.isstring())
 	{
-	    gdp->destroyAttribute(GA_ATTRIB_PRIMITIVE,
+	    walkgdp->destroyAttribute(GA_ATTRIB_PRIMITIVE,
 		    myLastParms.myPathAttribute);
 	}
 	walk.setPathAttributeChanged(true);
@@ -1047,7 +1054,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     {
 	if (myLastParms.myFilenameAttribute.isstring())
 	{
-	    gdp->destroyAttribute(GA_ATTRIB_DETAIL,
+	    walkgdp->destroyAttribute(GA_ATTRIB_DETAIL,
 		    myLastParms.myFilenameAttribute);
 	}
     }
@@ -1063,12 +1070,12 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     walk.setReusePrimitives(myTopologyConstant);
     if (!walk.reusePrimitives())
     {
-	gdp->clearAndDestroy();
+	walkgdp->clearAndDestroy();
 	setPathAttributes(walk, parms);
     }
     else
     {
-	gdp->destroyInternalNormalAttribute();
+	walkgdp->destroyInternalNormalAttribute();
 	setPathAttributes(walk, parms);
 	if (walk.buildAbcPrim())
 	{
@@ -1078,27 +1085,28 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     }
     // Delete previous subdivision group
     if (myLastParms.mySubdGroupName != parms.mySubdGroupName)
-	gdp->destroyPrimitiveGroup(myLastParms.mySubdGroupName);
+	walkgdp->destroyPrimitiveGroup(myLastParms.mySubdGroupName);
     // Create new subd primtiive group
     if (parms.mySubdGroupName.isstring())
     {
 	GA_PrimitiveGroup	*g;
 
-	g = gdp->findPrimitiveGroup(parms.mySubdGroupName);
+	g = walkgdp->findPrimitiveGroup(parms.mySubdGroupName);
 	if (!g)
-	    g = gdp->newPrimitiveGroup(parms.mySubdGroupName);
+	    g = walkgdp->newPrimitiveGroup(parms.mySubdGroupName);
 	walk.setSubdGroup(g);
     }
-    if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
+    if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_PRIMITIVES
+	    || parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_UNPACKED)
     {
 	GA_Offset	shared = GA_INVALID_OFFSET;
 	if (parms.myPointMode == GABC_GEOWalker::ABCPRIM_SHARED_POINT)
 	{
-	    UT_ASSERT(gdp->getNumPoints() == 0 || gdp->getNumPoints() == 1);
-	    if (gdp->getNumPoints() == 0)
-		shared = gdp->appendPointOffset();
+	    UT_ASSERT(walkgdp->getNumPoints() == 0 || walkgdp->getNumPoints() == 1);
+	    if (walkgdp->getNumPoints() == 0)
+		shared = walkgdp->appendPointOffset();
 	    else
-		shared = gdp->pointOffset(GA_Index(0));
+		shared = walkgdp->pointOffset(GA_Index(0));
 	}
 	walk.setPointMode(parms.myPointMode, shared);
     }
@@ -1166,6 +1174,9 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     {
 	myComputedFrameRange = false;
     }
+
+    if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_UNPACKED)
+	unpack(*gdp, *unpack_gdp);
 
     myLastParms = parms;
 
@@ -1256,6 +1267,54 @@ SOP_AlembicIn2::syncNodeVersion(const char *old_version,
 	setInt("polysoup", 0, 0, 0);
     }
     SOP_Node::syncNodeVersion(old_version, current_version, node_deleted);
+}
+
+namespace
+{
+    class unpackTask
+    {
+    public:
+	unpackTask(UT_ValArray<GU_Detail *> &unpacked, const GU_Detail &src)
+	    : myUnpacked(unpacked)
+	    , mySrc(src)
+	{
+	}
+
+	void	operator()(const UT_BlockedRange<GA_Size> &range) const
+	{
+	    for (auto i = range.begin(), end = range.end(); i < end; ++i)
+	    {
+		UT_ASSERT(i >= 0 && i < myUnpacked.entries() && myUnpacked(i));
+		auto	off = mySrc.primitiveOffset(i);
+		auto	prim = mySrc.getGEOPrimitive(off);
+		auto	pack = UTverify_cast<const GU_PrimPacked *>(prim);
+		if (!pack->unpack(*myUnpacked(i)))
+		    myUnpacked(i)->clear();
+	    }
+	}
+
+	UT_ValArray<GU_Detail *>	 myUnpacked;
+	const GU_Detail			&mySrc;
+    };
+}
+
+void
+SOP_AlembicIn2::unpack(GU_Detail &dest, const GU_Detail &src)
+{
+    dest.stashAll();
+    UT_ASSERT(dest.getNumPoints() == 0);
+    UT_ValArray<GU_Detail *>	unpacked;
+    for (auto it = GA_Iterator(src.getPrimitiveRange()); !it.atEnd(); ++it)
+    {
+	UT_ASSERT(GU_PrimPacked::isPackedPrimitive(*src.getGEOPrimitive(*it)));
+	unpacked.append(new GU_Detail);
+    }
+    // Currently, parallel unpacking is slower than serial unpacking
+    UTserialFor(UT_BlockedRange<GA_Size>(0, unpacked.entries()),
+		    unpackTask(unpacked, src));
+    GUmatchAttributesAndMerge(dest, unpacked);
+    for (auto g : unpacked)
+	delete g;
 }
 
 //-*****************************************************************************

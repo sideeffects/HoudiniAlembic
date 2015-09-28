@@ -2641,6 +2641,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	switch (myLoadMode)
 	{
 	    case LOAD_ABC_PRIMITIVES:
+	    case LOAD_ABC_UNPACKED:
 		makeAbcPrim(*this, obj, ohead);
 		break;
 	    case LOAD_HOUDINI_PRIMITIVES:

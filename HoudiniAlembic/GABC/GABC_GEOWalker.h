@@ -87,9 +87,10 @@ public:
     enum LoadMode
     {
 	LOAD_ABC_PRIMITIVES,		// Load Alembic primitives
+	LOAD_ABC_UNPACKED,		// Load ABC then unpack
 	LOAD_HOUDINI_PRIMITIVES,	// Load houdini primitives
 	LOAD_HOUDINI_POINTS,		// Load point cloud for objects
-	LOAD_HOUDINI_BOXES		// Load Bounds as Houdini geometry
+	LOAD_HOUDINI_BOXES,		// Load Bounds as Houdini geometry
     };
 
     /// Animating object filter
