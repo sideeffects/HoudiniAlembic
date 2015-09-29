@@ -11,29 +11,29 @@
 @parameters
 
 Reload Geometry:
-        #id: reload
+    #id: reload
 
-        Clears the Alembic cache and reloads fresh geometry.
+    Clears the Alembic cache and reloads fresh geometry.
 
 File name:
         #id: fileName
         
-        Path to the Alembic archive (`.abc`) file.
+    Path to the Alembic archive (`.abc`) file.
 
 Frame:
-        #id: frame
-        
-        The _Alembic_ frame at which to sample the geometry. The default value is
-        `$F` (Houdini's current frame). If you need to offset the start time of the
-        animation in the archive, you can add or subtract frames (e.g. `$F + 48`).
+    #id: frame
+    
+    The _Alembic_ frame at which to sample the geometry. The default value is
+    `$F` (Houdini's current frame). If you need to offset the start time of the
+    animation in the archive, you can add or subtract frames (e.g. `$F + 48`).
 
 Frames per second:
-        #id: fps
-        
-        Combined with the __Frame__ parameter, this is used to convert Alembic's
-        time-based animation to Houdini frames. The default is `$FPS` (Houdini's
-        current frames-per-second setting). If the archive file was created with a
-        different FPS, you will need to enter it here.
+    #id: fps
+    
+    Combined with the __Frame__ parameter, this is used to convert Alembic's
+    time-based animation to Houdini frames. The default is `$FPS` (Houdini's
+    current frames-per-second setting). If the archive file was created with a
+    different FPS, you will need to enter it here.
 
 Missing File:
 	What should be done if the specified file does not exist on disk.
@@ -43,37 +43,37 @@ Missing File:
 	Geometry so only a warning is posted.
 
 == Geometry ==
+
 Load As:
-        #id: loadmode
-        
-        How the Alembic geometry should be loaded into Houdini.
-        
-        Alembic Delayed Load Primitives:
-                These custom primitives are very light-weight and will display
-                faster in the viewport.  They are not as full featured as other
-                Houdini primitive types (i.e. ray-tracing is not very accurate),
-                but can be converted to other primitive types if need be.
-	Unpack Alembic Delayed Load Primitives:
-		This option loads the geometry as Alembic packed primitives and
-		then automatically unpacks the geometry to create native
-		Houdini geometry.
-        Load Houdini Geometry:
-                Convert the Alembic primitives to use native Houdini geometry.
-        Houdini Point Cloud:
-                Load the `P` attribute from the Alembic primitives as a Houdini
-                point cloud.  Currently, this doesn't load any attributes other
-                than `P`.
-        Bounding Boxes:
-                Load only the bounding boxes of the Alembic primitives.
+    #id: loadmode
+    
+    How to load the Alembic geometry into Houdini:
+    
+    Alembic Delayed Load Primitives:
+        These custom primitives are very light-weight and will display
+        faster in the viewport.  They are not as full featured as other
+        Houdini primitive types (i.e. ray-tracing is not very accurate),
+        but can be converted to other primitive types if need be.
+            
+    Load Houdini Geometry:
+        Convert the Alembic primitives to use native Houdini geometry.
+            
+    Houdini Point Cloud:
+        Load the `P` attribute from the Alembic primitives as a Houdini
+        point cloud.  Currently, this doesn't load any attributes other
+        than `P`.
+            
+    Bounding Boxes:
+        Load only the bounding boxes of the Alembic primitives.
 
 Display As:
-        #id: viewportlod
-        
-        How the Alembic geometry is displayed in the viewport.
-        
-        Full Geometry:
-		    The Alembic geometry is fully displayed.
-		
+    #id: viewportlod
+    
+    How the Alembic geometry is displayed in the viewport.
+    
+    Full Geometry:
+	    The Alembic geometry is fully displayed.
+	
 	Point Cloud:
 	    Only the points are displayed.
 	
@@ -87,17 +87,21 @@ Display As:
 	    No geometry is displayed.
 
 Points:
-        #id: pointmode
-        When loading Alembic Delayed Load primitives, you can create an unique point for each primitive, or all the Alembic primitives can share a single point.  The unique points can all be at the origin, or alternatively, located at the primitive's centroid.
+    #id: pointmode
+    
+    When loading Alembic Delayed Load primitives, you can create an unique point for each primitive, or all the Alembic primitives can share a single point.  The unique points can all be at the origin, or alternatively, located at the primitive's centroid.
 
 Create Primitives For:
-        #id: abcxform
-        When loading Alembic primitives, create separate primitives for:
+    #id: abcxform
+    
+    When loading Alembic primitives, create separate primitives for:
 
 	Shape Nodes Only:
 		Geometry in the Alembic scene only.
+        
 	Shapes and Transforms:
 		Geometry and transforms in the Alembic scene.
+        
 	Transform Nodes Only:
 		Transforms in the Alembic scene only.
 
@@ -108,19 +112,21 @@ Poly Soup Primitives:
 
 	No Poly Soup Primitives:
 		No polygon soup primitives will be created.  Each face in a mesh will have a unique Houdini polygon primitive.
+        
 	Use Poly Soups For Polygon Meshes:
 		Create polygon soup primitives for Alembic Polygon Meshes where possible.  This will currently not be done if there are uniform attributes on the mesh or if there are face sets.
+        
 	Use Poly Soups Wherever Possible:
 		Create Poly Soup primitives for both Alembic Polygon Meshes and Alembic Subdivision Surface primitives.  If there are uniform attributes (per-face attributes) these will be lost.
 
 Transform Geometry To World Space:
-        #id: includeXform
-        
-        Bake each object's world space transformation (relative to the root of the
-        archive) into the primitives of the object.
+    #id: includeXform
+    
+    Bake each object's world space transformation (relative to the root of the
+    archive) into the primitives of the object.
 
 Use Visibility:
-        #id: usevisibility
+    #id: usevisibility
         
 	Use the visibility settings defined in the Alembic file to determine
 	whether to load geometry.  When loading Alembic Delayed Load
@@ -129,7 +135,7 @@ Use Visibility:
 	with Alembic Delayed Load primitives.
 
 Set Zero Time for Static Geometry:
-        #id: statictimezero
+    #id: statictimezero
         
 	Set the time/frame for static geometry to 0 regardless of the frame
 	specified.  This is an optimization that lets mantra load static
@@ -137,28 +143,28 @@ Set Zero Time for Static Geometry:
 	shape node.
 
 Primitive Groups:
-        #id: groupnames
-        
-        Whether to create group names on the Alembic shape nodes, or whether to use
-        the transform (object) name. If a transform object has multiple shape
-        nodes, it's sometimes useful to put the geometry into the same group.
+    #id: groupnames
+    
+    Whether to create group names on the Alembic shape nodes, or whether to use
+    the transform (object) name. If a transform object has multiple shape
+    nodes, it's sometimes useful to put the geometry into the same group.
 
 Subdivision Group:
-        #id: subdgroup
-        
-        When loading Houdini geometry, all subdivision shape nodes in the Alembic file will be added to this group.
+    #id: subdgroup
+    
+    When loading Houdini geometry, all subdivision shape nodes in the Alembic file will be added to this group.
 
 == Selection ==
 
 Object Path:
-        #id: objectPath
+    #id: objectPath
 
 	A path to one or more objects inside the archive. If specified, the
 	node will load only these object and their children. The default is
 	blank, which means load all the geometry in the archive.
 
 Object Exclude:
-        #id: objectExclude
+    #id: objectExclude
 
 	A path to one or more objects inside the archive. If specified, the
 	node will skip loading these objects and their children. These
@@ -166,125 +172,139 @@ Object Exclude:
 	default is blank, which means don't exclude any objects.
 
 Object Pattern:
-        #id: objectPattern
-        
-        Only objects matching this pattern will be loaded. This is a more generic
-        and likely simpler way of specifying objects to be loaded than the __Object
-        Path__.
+    #id: objectPattern
+    
+    Only objects matching this pattern will be loaded. This is a more generic
+    and likely simpler way of specifying objects to be loaded than the __Object
+    Path__.
 
 Animating Objects:
-        #id: animationfilter
+    #id: animationfilter
+    
+    This allows you to filter objects based on whether they are animated or not.
+    
+    Include All Primitives (default):
+        Load primitives whether they are animating or static.
         
-        This allows you to filter objects based on whether they are animated or not.
+    Only Static Primitives:
+        Only load primitives which are *not* animated.
         
-        Include All Primitives (default):
-                Load primitives whether they are animating or static.
-        Only Static Primitives:
-                Only load primitives which are *not* animated.
-        Only Deforming Primitives:
-                Only load primitives with point positions that change over time.
-        Only Transforming Primitives:
-                Only load primitives with parent transformation nodes that change over time.
-        Only Deforming or Transforming Primitives:
-                Only load primitives which are animated.
+    Only Deforming Primitives:
+        Only load primitives with point positions that change over time.
+        
+    Only Transforming Primitives:
+        Only load primitives with parent transformation nodes that change over time.
+        
+    Only Deforming or Transforming Primitives:
+        Only load primitives which are animated.
 
 Load Polygons:
-        #id : polygonFilter
+    #id: polygonFilter
 
-        This allows loading of polygons.
+    This allows loading of polygons.
 
 Load Curves:
-        #id : curveFilter
+    #id: curveFilter
 
-        This allows loading of curves.
+    This allows loading of curves.
 
 Load NURBS:
-        #id : NURBSFilter
+    #id: NURBSFilter
 
-        This allows loading of NURBS.
+    This allows loading of NURBS.
 
 Load Points:
-        #id : pointsFilter
+    #id: pointsFilter
 
-        This allows loading of points.
+    This allows loading of points.
 
 Load Subdivision Surfaces:
-        #id : subdFilter
+    #id: subdFilter
 
-        This allows loading of subdivision surfaces.
+    This allows loading of subdivision surfaces.
 
 Load Maya Locater:
-        #id: loadLocator
-        
-        Test for transform nodes which match how Maya saves out locater nodes and
-        load these into Houdini.
+    #id: loadLocator
+    
+    Test for transform nodes which match how Maya saves out locater nodes and
+    load these into Houdini.
 
 Box Culling:
-        #id: boxcull
+    #id: boxcull
+    
+    This allows you to only load primitives based on their bounding box in space.
+    
+    No spatial filtering (default):
+        Loads all primitives.
         
-        This allows you to only load primitives based on their bounding box in space.
+    Load Objects Entirely Inside Box:
+        Loads only objects which are entirely contained inside the specified bounding box.
         
-        No spatial filtering (default):
-                Loads all primitives.
-        Load Objects Entirely Inside Box:
-                Loads only objects which are entirely contained inside the specified bounding box.
-        Load Objects Partially Inside Box:
-                Loads only objects whose bounding box intersects the specified bounding
+    Load Objects Partially Inside Box:
+        Loads only objects whose bounding box intersects the specified bounding
         box.
-        Load Objects Entirely Outside Box:
-                Loads only objects which are entirely outside the specified bounding box.
-        Load Objects Partially Outside Box:
-                Loads only objects whose bounding box is not entirely contained in the specified bounding box.
+        
+    Load Objects Entirely Outside Box:
+        Loads only objects which are entirely outside the specified bounding box.
+        
+    Load Objects Partially Outside Box:
+        Loads only objects whose bounding box is not entirely contained in the specified bounding box.
 
 Use First Input To Specify Box:
-        #id: boxsource
-        
-        Use the input to the Alembic SOP to specify the bounding box used for Box
-        Culling.
+    #id: boxsource
+    
+    Use the input to the Alembic SOP to specify the bounding box used for Box
+    Culling.
 
 Box Size:
-        #id: boxsize
-        Manually specify the size of the culling bounding box.
+    #id: boxsize
+    
+    Manually specify the size of the culling bounding box.
 
 Box Center:
-        #id: boxcenter
-        Manually specify the center of the culling bounding box
-
+    #id: boxcenter
+    
+    Manually specify the center of the culling bounding box
 
 == Attributes ==
 
 Point Attributes:
-        #id: pointAttributes
-        Only point attributes matching the given pattern will be loaded.
+    #id: pointAttributes
+    
+    Only point attributes matching the given pattern will be loaded.
 
 Vertex Attributes:
-        #id: vertexAttributes
-        Only vertex attributes matching the given pattern will be loaded.
+    #id: vertexAttributes
+    
+    Only vertex attributes matching the given pattern will be loaded.
 
 Primitive Attributes:
-        #id: primitiveAttributes
-        Only primitive attributes matching the given pattern will be loaded.
+    #id: primitiveAttributes
+    
+    Only primitive attributes matching the given pattern will be loaded.
 
 Detail Attributes:
-        #id: detailAttributes
-        Only detail attributes matching the given pattern will be loaded.
+    #id: detailAttributes
+    
+    Only detail attributes matching the given pattern will be loaded.
 
 Faceset Attributes:
-        #id: facesetAttributes
-        Only faceset attributes matching the given pattern will be loaded.
+    #id: facesetAttributes
+    
+    Only faceset attributes matching the given pattern will be loaded.
 
 NOTE:
-        All intrinsic attributes on Alembic nodes will be created in all cases. For
-        example, the `velocity` attribute on points will be created regardless of
-        whether it matches the __Point Attribute__ pattern.
+    All intrinsic attributes on Alembic nodes will be created in all cases. For
+    example, the `velocity` attribute on points will be created regardless of
+    whether it matches the __Point Attribute__ pattern.
 
 User Properties:
-            #id: loadUserProps
+    #id: loadUserProps
     	
-        How Alembic user properties should be handled.
+    How Alembic user properties should be handled.
         
-        Do Not Load:
-    		User properties are not loaded.
+    Do Not Load:
+		User properties are not loaded.
     	
 	Load Values Only:
 		User property values are loaded as a JSON dictionary into a
@@ -297,30 +317,30 @@ User Properties:
 		dictionary into a separate primitive string attribute.
 
 Add Path Attribute:
-        #id: addpath
-        
-        This option allows you to put the full path of the shape node into the
-        named string attribute, since Houdini can mangle the group names (no
-        special characters are allowed in group names).
+    #id: addpath
+    
+    This option allows you to put the full path of the shape node into the
+    named string attribute, since Houdini can mangle the group names (no
+    special characters are allowed in group names).
 
 Path Attribute:
-        #id: pathattrib
-        
-        The name of the Path Attribute.
+    #id: pathattrib
+    
+    The name of the Path Attribute.
 
 Add Filename Attribute:
-        #id: addfile
-        
-        Add a detail attribute containing the filename.
+    #id: addfile
+    
+    Add a detail attribute containing the filename.
 
 Filename Attribute:
-        #id: fileattrib
-        
-        The name of the Filename Attribute.
+    #id: fileattrib
+    
+    The name of the Filename Attribute.
 
 Remap attributes:
-        #id: remapAttributes
-        
-        Use this multiparm to rename Alembic point, vertex, and/or primitive
-        attributes to their Houdini equivalents. For example, remapping `MyColor`
-        to `Cd` (diffuse color). Click the + button to add a new mapping.
+    #id: remapAttributes
+    
+    Use this multiparm to rename Alembic point, vertex, and/or primitive
+    attributes to their Houdini equivalents. For example, remapping `MyColor`
+    to `Cd` (diffuse color). Click the + button to add a new mapping.
