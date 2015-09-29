@@ -664,6 +664,7 @@ GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const
 	GT_Util::makeGEO(details, prim, &rparms);
 	for (exint i = 0; i < details.entries(); ++i)
 	{
+	    copyPrimitiveGroups(*details(i), false);
 	    // Don't transform since GT conversion has already done that for us
 	    unpackToDetail(destgdp, details(i), false);
 	    delete details(i);
