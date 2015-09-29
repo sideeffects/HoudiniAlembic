@@ -54,7 +54,12 @@ Load As:
         faster in the viewport.  They are not as full featured as other
         Houdini primitive types (i.e. ray-tracing is not very accurate),
         but can be converted to other primitive types if need be.
-            
+    
+    Unpack Alembic Delayed Load Primitives:
+        Load the geometry as Alembic packed primitives and
+        then automatically unpack the geometry to create native
+        Houdini geometry.
+    
     Load Houdini Geometry:
         Convert the Alembic primitives to use native Houdini geometry.
             
