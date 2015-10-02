@@ -379,23 +379,19 @@ namespace
 };
 
 VRAY_ProcAlembic::VRAY_ProcAlembic()
-    : myLoadDetails()
-    , myConstDetails()
+    : myLoadDetail()
+    , myConstDetail()
+    , myAttribDetail()
     , myMergeInfo()
     , myPreBlur(0)
     , myPostBlur(0)
     , myNonAlembic(true)
+    , myVelocityBlur(false)
 {
 }
 
 VRAY_ProcAlembic::~VRAY_ProcAlembic()
 {
-    for (int i = 0; i < myLoadDetails.entries(); ++i)
-	freeGeometry(myLoadDetails(i));
-    for (int i = 0; i < myConstDetails.entries(); ++i)
-	freeGeometry(myConstDetails(i));
-    for (int i = 0; i < myAttribDetails.entries(); ++i)
-	freeGeometry(myAttribDetails(i));
 }
 
 VRAY_ProceduralArg	 VRAY_ProcAlembic::theArgs[] = {
@@ -445,21 +441,22 @@ moveAlembicTime(GU_Detail &gdp, fpreal finc)
 }
 
 static bool
-loadDetail(UT_Array<GU_Detail *> &details,
+loadDetail(VRAY_ProceduralGeo &detail,
 	const char *filename,
 	fpreal frame,
 	fpreal fps,
+	int nsegments,
 	const fpreal shutter[2],
 	const UT_StringHolder &objectpath,
 	const UT_String &objectpattern)
 {
     GABC_IError         err(UTgetInterrupt());
-    GABC_GEOWalker	walk(*details(0), err);
+    GABC_GEOWalker	walk(*detail, err);
     bool		success = false;
     fpreal		fstart = frame, finc = 1;
-    if (details.entries() > 1)
+    if (nsegments > 1)
     {
-	finc = (shutter[1] - shutter[0]) / (fps * (details.entries()-1));
+	finc = (shutter[1] - shutter[0]) / (fps * (nsegments-1));
 	fstart = frame + shutter[0];
     }
 
@@ -488,12 +485,14 @@ loadDetail(UT_Array<GU_Detail *> &details,
     {
 	success = GABC_Util::walk(filename, walk);
     }
-    if (success && details.entries() > 1)
+    if (success && nsegments > 1)
     {
-	for (int i = 1; i < details.entries(); ++i)
+	for (int i = 1; i < nsegments; ++i)
 	{
-	    details(i)->merge(*details(0));
-	    moveAlembicTime(*details(i), i*finc);
+	    fpreal	shut = fpreal(i)/fpreal(nsegments-1);
+	    VRAY_ProceduralGeo	mbdetail = detail.appendSegmentGeometry(shut);
+	    mbdetail->merge(*detail);
+	    moveAlembicTime(*mbdetail, i*finc);
 	}
     }
     return success;
@@ -620,26 +619,21 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 	}
 	if (!import("object:geosamples", &nsegs, 1))
 	    nsegs = 1;
-	for (int i = 0; i < nsegs; ++i)
-	    myLoadDetails.append(allocateGeometry());
+	myLoadDetail = createGeometry();
 	import("frame", &frame, 1);
 	import("fps", &fps, 1);
 	import("objectpath", objectpath);
 	import("objectpattern", objectpattern);
-	if (!loadDetail(myLoadDetails, filename, frame, fps, shutter,
+	if (!loadDetail(myLoadDetail, filename, frame, fps, nsegs, shutter,
 		    objectpath, objectpattern))
 	{
-	    for (int i = 0; i < myLoadDetails.entries(); ++i)
-		freeGeometry(myLoadDetails(i));
-	    myLoadDetails.setCapacity(0);
+	    myLoadDetail.clear();
 	}
     }
     else
     {
 	void	*handle = queryObject(nullptr); // Get handle to this object
-	int	 nsamples = queryGeometrySamples(handle);
 	int	 velblur;
-	GA_Size	 nprims;
 
 	if (import("object:velocityblur", &velblur, 1))
 	{
@@ -659,50 +653,30 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 		}
 		myPreBlur = -shutter[0]/fps;
 		myPostBlur = shutter[1]/fps;
-		nsamples = 1;
+		myVelocityBlur = true;
 	    }
 	}
 
 	import("nonalembic", &ival, 1);
 	myNonAlembic = (ival != 0);
 
-	myConstDetails.append(const_cast<GU_Detail *>(queryGeometry(handle,0)));
-	referenceGeometry(myConstDetails(0));
-	nprims = myConstDetails(0)->getNumPrimitives();
-
-	for (int i = 1; i < nsamples; ++i)
-	{
-	    const GU_Detail *g = queryGeometry(handle, i);
-	    if (!g || g->getNumPrimitives() != nprims)
-	    {
-		VRAYerror("Mis-matched Alembic primitive counts "
-			"(%" SYS_PRId64 " vs %" SYS_PRId64 ")",
-			g->getNumPrimitives(), nprims);
-	    }
-	    else
-	    {
-		myConstDetails.append(const_cast<GU_Detail *>(g));
-		referenceGeometry(myConstDetails(i));
-	    }
-	}
+	myConstDetail = queryGeometry(handle);
     }
     if (attribfile.isstring())
     {
 	fpreal	shutter[2];
 	shutter[0] = 0;
 	shutter[1] = 1;
-	myAttribDetails.append(allocateGeometry());
+	myAttribDetail = createGeometry();
 	// Re-use the object path/pattern from the file load
-	if (!loadDetail(myAttribDetails, attribfile, 0, 24, shutter,
+	if (!loadDetail(myAttribDetail, attribfile, 0, 24, 1, shutter,
 		    objectpath, objectpattern))
 	{
-	    for (int i = 0; i < myAttribDetails.entries(); ++i)
-		freeGeometry(myAttribDetails(i));
-	    myAttribDetails.setCapacity(0);
+	    myAttribDetail.clear();
 	    myMergeInfo.clear();
 	}
     }
-    return myLoadDetails.entries() || myConstDetails.entries();
+    return myLoadDetail.isValid() || myConstDetail.isValid();
 }
 
 static fpreal
@@ -818,12 +792,12 @@ getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic,
 void
 VRAY_ProcAlembic::getBoundingBox(UT_BoundingBox &box)
 {
-    const UT_Array<GU_Detail *>	&details = getDetailList();
+    auto	detail = getDetail();
     box.initBounds();
-    for (int i = 0; i < details.entries(); ++i)
+    for (int i = 0; i < detail.motionSegments(); ++i)
     {
 	UT_BoundingBox	tbox;
-	getBoxForRendering(*details(i), tbox,
+	getBoxForRendering(*detail.get(i), tbox,
 		myNonAlembic, myPreBlur, myPostBlur);
 	box.enlargeBounds(tbox);
     }
@@ -832,19 +806,19 @@ VRAY_ProcAlembic::getBoundingBox(UT_BoundingBox &box)
 void
 VRAY_ProcAlembic::render()
 {
-    const UT_Array<GU_Detail *>	&details = getDetailList();
+    auto			 detail = getDetail();
     const GU_Detail		*gdp, *agdp;
-    const GA_PrimitiveTypeId	&abctype = alembicTypeId();
+    auto			 abctype = alembicTypeId();
     bool			 warned = false;
     bool			 addgeo = false;
     GA_Range			 baserange;
-    UT_StringHolder			 groupname;
+    UT_StringHolder		 groupname;
     const GA_PrimitiveGroup	*rendergroup = nullptr;
 
-    int nsegments = details.entries();
+    int nsegments = myVelocityBlur ? 1 : detail.motionSegments();
     UT_ASSERT(nsegments);
-    gdp = details(0);
-    agdp = myAttribDetails.entries() ? myAttribDetails(0) : nullptr;
+    gdp = detail.get(0);
+    agdp = myAttribDetail.isValid() ? myAttribDetail.get(0) : nullptr;
     if (agdp && agdp->getNumPrimitives() != gdp->getNumPrimitives())
 	agdp = nullptr;
 
@@ -866,10 +840,11 @@ VRAY_ProcAlembic::render()
 	for (GA_Iterator it(baserange); !it.atEnd(); ++it)
 	{
 	    const GEO_Primitive	*prim = gdp->getGEOPrimitive(*it);
-	    const GEO_Primitive	*aprim = agdp ? agdp->getGEOPrimitive(*it):nullptr;
+	    const GEO_Primitive	*aprim = agdp ? agdp->getGEOPrimitive(*it)
+						: nullptr;
 	    if (prim->getTypeId() == abctype)
 	    {
-		const GU_PrimPacked		*abc_attrib = nullptr;
+		const GU_PrimPacked	*abc_attrib = nullptr;
 		if (aprim && aprim->getTypeId() == abctype)
 		    abc_attrib = UTverify_cast<const GU_PrimPacked *>(aprim);
 		abclist(0) = UTverify_cast<const GU_PrimPacked *>(prim);
@@ -877,7 +852,7 @@ VRAY_ProcAlembic::render()
 		for (int i = 1; i < nsegments; ++i)
 		{
 		    const GEO_Primitive*seg
-                        = details(i)->getGEOPrimitiveByIndex(primind);
+                        = detail.get(i)->getGEOPrimitiveByIndex(primind);
 		    abclist(i) = UTverify_cast<const GU_PrimPacked *>(seg);
 		}
 		VRAY_Procedural *p = new vray_ProcAlembicPrim(abclist,
@@ -885,9 +860,8 @@ VRAY_ProcAlembic::render()
 					myMergeInfo, myUserProperties);
 		if (p->initialize(nullptr))
 		{
-		    openProceduralObject();
-			addProcedural(p);
-		    closeObject();
+		    auto obj = createChild();
+		    obj->addProcedural(p);
 		    UT_INC_COUNTER(thePrimCount);
 		}
 		else
@@ -911,18 +885,7 @@ VRAY_ProcAlembic::render()
     }
     if (addgeo)
     {
-	fpreal	tstep;
-	int	ngeo = details.entries();
-	if (ngeo > 0)
-	{
-	    tstep = ngeo > 1 ? 1.0/(ngeo-1) : 1;
-	    openGeometryObject();
-		for (int i = 0; i < ngeo; ++i)
-		{
-		    referenceGeometry(details(i));
-		    addGeometry(const_cast<GU_Detail *>(details(i)), tstep * i);
-		}
-	    closeObject();
-	}
+	auto	obj = createChild();
+	obj->addGeometry(detail);
     }
 }

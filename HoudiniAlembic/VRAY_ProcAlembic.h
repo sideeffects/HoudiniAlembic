@@ -94,18 +94,22 @@ public:
     virtual void	render();
 
 private:
-    const UT_Array<GU_Detail *>	&getDetailList() const
+    VRAY_ROProceduralGeo	getDetail()
     {
-	return myLoadDetails.entries() ? myLoadDetails : myConstDetails;
+	UT_ASSERT(myLoadDetail.isValid() || myConstDetail.isValid());
+	if (myLoadDetail.isValid())
+	    return myLoadDetail;
+	return myConstDetail;
     }
 
-    UT_Array<GU_Detail *>	myLoadDetails;
-    UT_Array<GU_Detail *>	myConstDetails;
-    UT_Array<GU_Detail *>	myAttribDetails;
+    VRAY_ROProceduralGeo	myConstDetail;
+    VRAY_ProceduralGeo		myLoadDetail;
+    VRAY_ProceduralGeo		myAttribDetail;
     vray_MergePatternPtr	myMergeInfo;
     vray_PropertyMapPtr		myUserProperties;
     fpreal			myPreBlur, myPostBlur;
     bool			myNonAlembic;
+    bool			myVelocityBlur;
 };
 
 #endif
