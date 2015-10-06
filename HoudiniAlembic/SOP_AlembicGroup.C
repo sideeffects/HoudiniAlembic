@@ -76,14 +76,14 @@ getAllPathComponents(const char *rawpath, PathList &names, StringSet &branches)
 static bool
 primIsInAnyGroup(const GU_Detail *gdp, const GEO_Primitive *prim)
 {
-    GA_Offset			 off = prim->getMapOffset();
-    const GA_PrimitiveGroup	*grp;
+    GA_Offset off = prim->getMapOffset();
+    const GA_PrimitiveGroup *grp;
     GA_FOR_ALL_PRIMGROUPS(gdp, grp)
     {
 	// If the group isn't an internal group, and the group doesn't contain
 	// all primitives, but it does contain the given primitive, then the
 	// primitive is considered to be in a group.
-	if (!grp->getInternal() 
+	if (!grp->isInternal()
 		&& grp->entries() != gdp->getNumPrimitives()
 		&& grp->containsOffset(off))
 	{
