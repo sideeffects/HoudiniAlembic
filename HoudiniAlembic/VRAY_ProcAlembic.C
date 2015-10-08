@@ -490,9 +490,10 @@ loadDetail(VRAY_ProceduralGeo &detail,
 	for (int i = 1; i < nsegments; ++i)
 	{
 	    fpreal	shut = fpreal(i)/fpreal(nsegments-1);
-	    VRAY_ProceduralGeo	mbdetail = detail.appendSegmentGeometry(shut);
-	    mbdetail->merge(*detail);
-	    moveAlembicTime(*mbdetail, i*finc);
+	    GU_DetailHandle	mbdetail = detail.appendSegmentGeometry(shut);
+	    GU_DetailHandleAutoWriteLock	wlock(mbdetail);
+	    wlock.getGdp()->merge(*detail);
+	    moveAlembicTime(*wlock.getGdp(), i*finc);
 	}
     }
     return success;
@@ -803,6 +804,20 @@ VRAY_ProcAlembic::getBoundingBox(UT_BoundingBox &box)
     }
 }
 
+#if 0
+#include <GA/GA_SaveMap.h>
+static void
+dumpPrim(const GU_PrimPacked *pack)
+{
+    GA_SaveMap	smap(*pack->getParent(), nullptr);
+    UT_Options	options;
+    if (!pack->saveOptions(options, smap))
+	fprintf(stderr, "Bad save\n");
+    else
+	options.dump();
+}
+#endif
+
 void
 VRAY_ProcAlembic::render()
 {
@@ -851,8 +866,7 @@ VRAY_ProcAlembic::render()
                 GA_Index primind = prim->getMapIndex();
 		for (int i = 1; i < nsegments; ++i)
 		{
-		    const GEO_Primitive*seg
-                        = detail.get(i)->getGEOPrimitiveByIndex(primind);
+		    auto seg = detail.get(i)->getGEOPrimitiveByIndex(primind);
 		    abclist(i) = UTverify_cast<const GU_PrimPacked *>(seg);
 		}
 		VRAY_Procedural *p = new vray_ProcAlembicPrim(abclist,
