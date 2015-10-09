@@ -30,8 +30,9 @@
 #include <GABC/GABC_Util.h>
 #include <GABC/GABC_OError.h>
 #include <OP/OP_Director.h>
-#include <UT/UT_Date.h>
 #include <SYS/SYS_Version.h>
+#include <UT/UT_Date.h>
+#include <FS/FS_Writer.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 #if defined(GABC_OGAWA)
     #include <Alembic/AbcCoreOgawa/All.h>
@@ -41,39 +42,85 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef Alembic::Abc::OArchive	OArchive;
-    typedef Alembic::Abc::Box3d		Box3d;
+typedef Alembic::Abc::OArchive	OArchive;
+typedef Alembic::Abc::Box3d		Box3d;
+typedef Alembic::Abc::MetaData	MetaData;
 
-    OArchive
-    openHDF5(const char *filename, const char *version, const char *userinfo)
-    {
-	return Alembic::Abc::CreateArchiveWithInfo(
-			Alembic::AbcCoreHDF5::WriteArchive(),
-			filename,
-			version,
-			userinfo,
-			Alembic::Abc::ErrorHandler::kThrowPolicy);
-    }
+OArchive
+createOgawaWithInfo(std::ostream *is,
+	const char *filename,
+	const char *application_writer,
+	const char *user_description,
+	const Alembic::Abc::Argument &iArg0=Alembic::Abc::Argument(),
+	const Alembic::Abc::Argument &iArg1=Alembic::Abc::Argument())
+{
+    UT_ASSERT(UTisstring(application_writer));
+    UT_ASSERT(UTisstring(user_description));
 
-    OArchive
-    openOgawa(const char *filename, const char *version, const char *userinfo)
-    {
-#if defined(GABC_OGAWA)
-	return Alembic::Abc::CreateArchiveWithInfo(
-			Alembic::AbcCoreOgawa::WriteArchive(),
-			filename,
-			version,
-			userinfo,
-			Alembic::Abc::ErrorHandler::kThrowPolicy);
+    auto	policy = GetErrorHandlerPolicyFromArgs(iArg0, iArg1);
+    auto	md = GetMetaData(iArg0, iArg1);
+    auto	now = time(0);
+    char	datebuf[128];
+
+    md.set(Alembic::Abc::kApplicationNameKey, application_writer);
+#if defined(WIN32)
+    ctime_s(datebuf, 128, &now);
 #else
-	// No Ogawa support
-	return openHDF5(filename, version, userinfo);
+    ctime_r(&now, datebuf);
 #endif
+    if (auto nl = strchr(datebuf, '\n'))
+	*nl = 0;
+    md.set(Alembic::Abc::kDateWrittenKey, datebuf);
+    md.set(Alembic::Abc::kUserDescriptionKey, user_description);
+
+    auto factory = Alembic::AbcCoreOgawa::WriteArchive();
+    return OArchive(factory(is, md), Alembic::Abc::kWrapExisting, policy);
+}
+
+OArchive
+openHDF5(const char *filename, const char *version, const char *userinfo)
+{
+    return Alembic::Abc::CreateArchiveWithInfo(
+		    Alembic::AbcCoreHDF5::WriteArchive(),
+		    filename,
+		    version,
+		    userinfo,
+		    Alembic::Abc::ErrorHandler::kThrowPolicy);
+}
+
+OArchive
+openOgawa(const char *filename, const char *version, const char *userinfo,
+	FS_Writer *&writer)
+{
+#if defined(GABC_OGAWA)
+    writer = new FS_Writer(filename);
+    if (!writer || !writer->getStream())
+    {
+	delete writer;
+	writer = nullptr;
+	return Alembic::Abc::CreateArchiveWithInfo(
+		    Alembic::AbcCoreOgawa::WriteArchive(),
+		    filename,
+		    version,
+		    userinfo,
+		    Alembic::Abc::ErrorHandler::kThrowPolicy);
     }
+    return createOgawaWithInfo(
+		    writer->getStream(),
+		    filename,
+		    version,
+		    userinfo,
+		    Alembic::Abc::ErrorHandler::kThrowPolicy);
+#else
+    // No Ogawa support
+    return openHDF5(filename, version, userinfo);
+#endif
+}
 }
 
 ROP_AbcArchive::ROP_AbcArchive()
     : myArchive()
+    , myWriter(nullptr)
     , myTSIndex(-1)
     , myTimeDependent(false)
 {
@@ -84,8 +131,6 @@ ROP_AbcArchive::~ROP_AbcArchive()
 {
     close();
 }
-
-
 
 bool
 ROP_AbcArchive::open(GABC_OError &err, const char *file, const char *format)
@@ -122,7 +167,8 @@ ROP_AbcArchive::open(GABC_OError &err, const char *file, const char *format)
 	    }
 #endif
 	    // Default format
-	    myArchive = openOgawa(file, version.buffer(), userinfo.buffer());
+	    myArchive = openOgawa(file, version.buffer(), userinfo.buffer(),
+		    myWriter);
 	}
     }
     catch (const std::exception &e)
@@ -154,6 +200,9 @@ ROP_AbcArchive::close()
     myBox.makeInvalid();
     myTimeDependent = false;
     deleteChildren();
+
+    delete myWriter;
+    myWriter = nullptr;
 }
 
 bool

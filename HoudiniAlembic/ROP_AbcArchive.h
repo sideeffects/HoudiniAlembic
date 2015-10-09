@@ -33,6 +33,7 @@
 #include <GABC/GABC_OError.h>
 
 class OBJ_Node;
+class FS_Writer;
 
 /// The Houdini representation of the output Alembic archive.
 class ROP_AbcArchive : public ROP_AbcObject
@@ -72,6 +73,7 @@ protected:
 
 private:
     OArchive		 myArchive;
+    FS_Writer		*myWriter;
     OBox3dProperty	 myBoxProp;
     UT_BoundingBox	 myBox;
     int			 myTSIndex;
