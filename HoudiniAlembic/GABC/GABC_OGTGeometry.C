@@ -160,18 +160,22 @@ namespace
 	    Alembic::AbcGeom::GeometryScope	myScope;
 	};
 	typedef UT_Map<Key, Item, UT_HashFunctor<Key> >	MapType;
-	RiXlate(const GT_Primitive &prim)
+
+	RiXlate(const GT_Primitive &prim, int type)
 	{
+	    myParametric = (type == GT_PRIM_CURVE_MESH ||
+			    type == GT_PRIM_NUPATCH);
+
 	    GT_Owner		owner;
-	    GT_DataArrayHandle	rixlate = prim.findAttribute("rixlate", owner, 0);
-	    if (!rixlate || rixlate->entries() != 1 || !rixlate->getTupleSize())
-		return;
-	    int		nstrings = rixlate->getTupleSize();
-	    for (exint i = 0; i < nstrings; ++i)
+	    auto	rixlate = prim.findAttribute("rixlate", owner, 0);
+	    if (rixlate && rixlate->entries() == 1 && rixlate->getTupleSize())
 	    {
-		addXlate(rixlate->getS(0, i));
+		int		nstrings = rixlate->getTupleSize();
+		for (exint i = 0; i < nstrings; ++i)
+		    addXlate(rixlate->getS(0, i));
 	    }
 	}
+
 	void	addXlate(const char *src)
 	{
 	    UT_String				 str(src);
@@ -219,7 +223,9 @@ namespace
 		case GT_OWNER_POINT:
 		    return Alembic::AbcGeom::kVaryingScope;
 		case GT_OWNER_VERTEX:
-		    return Alembic::AbcGeom::kFacevaryingScope;
+		    return myParametric
+				? Alembic::AbcGeom::kVertexScope
+				: Alembic::AbcGeom::kFacevaryingScope;
 		case GT_OWNER_UNIFORM:
 		    return Alembic::AbcGeom::kUniformScope;
 		default:
@@ -228,6 +234,7 @@ namespace
 	}
     private:
 	MapType	myMap;
+	bool	myParametric;
     };
 
     UInt8ArraySample
@@ -301,7 +308,7 @@ namespace
             const GT_AttributeListHandle &attribs,
             OCompoundProperty &cp,
             GT_Owner owner,
-	    const RiXlate &xlate,
+	    const RiXlate &rixlate,
             GABC_OError &err,
             const GABC_OOptions &ctx,
             const IgnoreList &skips)
@@ -316,12 +323,10 @@ namespace
 
         for (exint i = 0; i < attribs->entries(); ++i)
         {
-            const char                 *name = attribs->getName(i);
-            const char                 *exp_name = attribs->getExportName(i);
-            const GT_DataArrayHandle   &data = attribs->get(i);
-	    Alembic::AbcGeom::GeometryScope	scope;
-
-	    scope = xlate.getScope(UT_StringRef(name), owner);
+	    auto	 name = attribs->getName(i);
+	    auto	 exp_name = attribs->getExportName(i);
+	    auto	&data = attribs->get(i);
+	    auto	 scope = rixlate.getScope(name, owner);
 
             if (!data
                     || skips.contains(exp_name)
@@ -734,7 +739,7 @@ namespace
 	const GT_AttributeListHandle   &pt = pointAttributes(src);
 	const GT_AttributeListHandle   &vtx = vertexAttributes(src);
 	const GT_AttributeListHandle   &uniform = uniformAttributes(src);
-	RiXlate				rixlate(src);
+	RiXlate				rixlate(src, GT_PRIM_POLYGON_MESH);
 
 	counts = src.getFaceCountArray().extractCounts();
 	if (cache.needVertex(ctx, src.getVertexList()))
@@ -788,7 +793,7 @@ namespace
 	const GT_AttributeListHandle   &pt = pointAttributes(src);
 	const GT_AttributeListHandle   &vtx = vertexAttributes(src);
 	const GT_AttributeListHandle   &uniform = uniformAttributes(src);
-	RiXlate				rixlate(src);
+	RiXlate				rixlate(src, GT_PRIM_SUBDIVISION_MESH);
 
 	counts = src.getFaceCountArray().extractCounts();
 	if (cache.needVertex(ctx, src.getVertexList()))
@@ -902,7 +907,7 @@ namespace
 	IntrinsicCache                  storage;
 	const GT_AttributeListHandle   &pt = pointAttributes(src);
 	const GT_AttributeListHandle   &detail = detailAttributes(src);
-	RiXlate				rixlate(src);
+	RiXlate				rixlate(src, GT_PRIM_POINT_MESH);
 
 	ids = pt->get("id");
 	if (!ids)
@@ -981,7 +986,7 @@ namespace
 	const GT_AttributeListHandle		&uniform=uniformAttributes(src);
 	const GT_AttributeListHandle		&detail=detailAttributes(src);
 	const GT_DataArrayHandle		&Pw = vtx->get("Pw");
-	RiXlate					 rixlate(src);
+	RiXlate					 rixlate(src, GT_PRIM_CURVE_MESH);
 
 	switch (src.getBasis())
 	{
@@ -1146,7 +1151,7 @@ namespace
 	const GT_AttributeListHandle   &vtx = vertexAttributes(src);
 	const GT_AttributeListHandle   &detail = detailAttributes(src);
 	const GT_DataArrayHandle       &Pw = vtx->get("Pw");
-	RiXlate				rixlate(src);
+	RiXlate				rixlate(src, GT_PRIM_NUPATCH);
 
 	// We pass in "vtx" for the point attributes since we can't
 	// differentiate between them at this point.
@@ -1612,8 +1617,7 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
     const IgnoreList	*skip = &theEmptySkip;
     OCompoundProperty	 cp;
     bool		 result = true;
-
-    RiXlate		 rixlate(*prim);
+    RiXlate		 rixlate(*prim, myType);
 
     switch (myType)
     {
