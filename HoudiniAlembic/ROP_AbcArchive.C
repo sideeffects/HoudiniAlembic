@@ -190,6 +190,7 @@ ROP_AbcArchive::close()
 {
     try
     {
+	myBoxProp = OBox3dProperty();
 	myArchive = OArchive();
     }
     catch (const std::exception &e)
