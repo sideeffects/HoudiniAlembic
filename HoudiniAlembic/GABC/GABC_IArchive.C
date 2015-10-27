@@ -30,6 +30,7 @@
 #include <UT/UT_Map.h>
 #include <UT/UT_SysClone.h>
 #include <UT/UT_String.h>
+#include <UT/UT_Access.h>
 #include <UT/UT_WorkArgs.h>
 
 #if defined(GABC_OGAWA)
@@ -109,15 +110,30 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
     if (UTisstring(path.c_str()))
     {
 #if defined(GABC_OGAWA)
-	if (openStream(path, NULL))
+	IFactory	factory;
+	// Try to open using standard Ogawa file access
+	if (UTaccess(path.c_str(), R_OK) >= 0)
 	{
-	    IFactory	factory;
+	    try
+	    {
+		myArchive = factory.getArchive(path);
+	    }
+	    catch (const std::exception &e)
+	    {
+		myError = e.what();
+		myArchive = IArchive();
+	    }
+	}
+
+	if (!myArchive.valid() && openStream(path, NULL))
+	{
 	    std::vector<std::istream *> stream_list;
 	    stream_list.push_back(myStream);
 	    IFactory::CoreType	archive_type;
 	    try
 	    {
 		myArchive = factory.getArchive(stream_list, archive_type);
+		myError.clear();
 	    }
 	    catch (const std::exception &)
 	    {
@@ -126,7 +142,7 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
 		myArchive = IArchive();
 	    }
 	}
-#endif
+#else
 	// Try HDF5 -- the stream interface only works with Ogawa
 	if (!myArchive.valid() && UTaccess(path.c_str(), R_OK) == 0)
 	{
@@ -140,6 +156,7 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
 		myArchive = IArchive();
 	    }
 	}
+#endif
     }
 }
 
