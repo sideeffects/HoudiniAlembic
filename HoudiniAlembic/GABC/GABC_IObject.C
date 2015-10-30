@@ -2265,10 +2265,13 @@ namespace
 	return GT_DataArrayHandle(xyz);
     }
 
+    template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
-    buildLocator(const GABC_IObject &obj, fpreal t)
+    buildLocator(const ATTRIB_CREATOR &acreate, const GABC_IObject &obj,
+		 fpreal t, const GEO_PackedNameMapPtr &namemap, int load_style)
     {
 	IXform		xform(obj.object(), gabcWrapExisting);
+	IXformSchema	&ss = xform.getSchema();
 	IScalarProperty	loc(xform.getProperties(), "locator");
 	GABC_IObject	parent = obj.getParent();
 	UT_Matrix4D	utmat;
@@ -2291,28 +2294,31 @@ namespace
 	    pxval = V3d(0,0,0);
 	}
 
-	GT_AttributeMapHandle	pmap(new GT_AttributeMap());
-	GT_AttributeMapHandle	umap(new GT_AttributeMap());
-	GT_AttributeListHandle	point;
-	GT_AttributeListHandle	detail;
+	GT_AttributeMapHandle pmap(new GT_AttributeMap());
+	int Pidx = pmap->add("P", true);
+	int lSidx = pmap->add("localScale", true);
+	int pXidx = pmap->add("parentTrans", true);
+	int pRidx = pmap->add("parentRot", true);
+	int pSidx = pmap->add("parentScale", true);
+	int pHidx = pmap->add("parentShear", true);
 
-	int	Pidx = pmap->add("P", true);
-	int	lPidx = umap->add("localPosition", true);
-	int	lSidx = umap->add("localScale", true);
-	int	pXidx = umap->add("parentTrans", true);
-	int	pRidx = umap->add("parentRot", true);
-	int	pSidx = umap->add("parentScale", true);
-	int	pHidx = umap->add("parentShear", true);
-
-	point = GT_AttributeListHandle(new GT_AttributeList(pmap));
-	detail = GT_AttributeListHandle(new GT_AttributeList(umap));
+	GT_AttributeListHandle point(new GT_AttributeList(pmap));
 	point->set( Pidx, new GT_RealConstant(1, ldata, 3), 0);
-	detail->set(lPidx, new GT_RealConstant(1, ldata, 3), 0);
-	detail->set(lSidx, new GT_RealConstant(1, ldata+3, 3), 0);
-	detail->set(pXidx, new GT_RealConstant(1, &pxval.x, 3), 0);
-	detail->set(pRidx, new GT_RealConstant(1, &prval.x, 3), 0);
-	detail->set(pSidx, new GT_RealConstant(1, &psval.x, 3), 0);
-	detail->set(pHidx, new GT_RealConstant(1, &phval.x, 3), 0);
+	point->set(lSidx, new GT_RealConstant(1, ldata+3, 3), 0);
+	point->set(pXidx, new GT_RealConstant(1, &pxval.x, 3), 0);
+	point->set(pRidx, new GT_RealConstant(1, &prval.x, 3), 0);
+	point->set(pSidx, new GT_RealConstant(1, &psval.x, 3), 0);
+	point->set(pHidx, new GT_RealConstant(1, &phval.x, 3), 0);
+
+	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
+	{
+	    point = point->mergeNewAttributes(
+			acreate.build(GT_OWNER_POINT, 1, NULL, obj, namemap,
+				      load_style, t, theConstantUnknownScope,
+				      2, ss.getArbGeomParams()));
+	}
+
+	GT_AttributeListHandle detail;
 
 	return new GT_PrimPointMesh(point, detail);
     }
@@ -2643,7 +2649,7 @@ namespace
 	IPointsSchema	&schema = prim.getSchema();
 	if (!schema.isConstant())
 	    return GEO_ANIMATION_TOPOLOGY;
-	if (!GABC_Util::isABCPropertyAnimated(schema.getArbGeomParams()))
+	if (GABC_Util::isABCPropertyAnimated(schema.getArbGeomParams()))
 	    return GEO_ANIMATION_ATTRIBUTE;
 	return GEO_ANIMATION_CONSTANT;
     }
@@ -2651,7 +2657,10 @@ namespace
     static GEO_AnimationType
     getLocatorAnimation(const GABC_IObject &obj)
     {
-	IXform				prim(obj.object(), gabcWrapExisting);
+	IXform		prim(obj.object(), gabcWrapExisting);
+	IXformSchema	&schema = prim.getSchema();
+	if (GABC_Util::isABCPropertyAnimated(schema.getArbGeomParams()))
+	    return GEO_ANIMATION_ATTRIBUTE;
 	Alembic::Abc::IScalarProperty	loc(prim.getProperties(), "locator");
 	return loc.isConstant() ? GEO_ANIMATION_CONSTANT
 				: GEO_ANIMATION_ATTRIBUTE;
@@ -3234,7 +3243,10 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 		break;
 	    case GABC_XFORM:
 		if (isMayaLocator())
-		    prim = buildLocator(*this, t);
+		{
+		    prim = buildLocator(CreateAttributeList(),
+					*this, t, namemap, load_style);
+		}
 		else
 		    prim = buildTransform(*this);
 	    default:
