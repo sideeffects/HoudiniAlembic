@@ -40,7 +40,7 @@ namespace
     typedef ROP_AbcOpBuilder::InternalNode	InternalNode;
 
     static bool
-    validObjectType(fpreal t, OBJ_Node *obj)
+    validObjectType(OBJ_Node *obj)
     {
 	if (!obj)
 	    return false;
@@ -62,7 +62,7 @@ namespace
 	{
 	    const InternalNode	&ikid = it->second;
 	    OBJ_Node		*obj = CAST_OBJNODE(ikid.node());
-	    if (validObjectType(ctx.cookTime(), obj))
+	    if (validObjectType(obj))
 	    {
 		ROP_AbcObject		*kid = new ROP_AbcOpXform(obj, ctx);
 		node->addChild(obj->getName(), kid);
@@ -107,7 +107,8 @@ ROP_AbcOpBuilder::addChild(GABC_OError &err, OP_Node *child)
     UT_Array<int>	path;
     while (child != myRootNode)
     {
-	path.append(child->getUniqueId());
+	if(validObjectType(CAST_OBJNODE(child)))
+	    path.append(child->getUniqueId());
 	if (child->getInput(0)
 		&& child->getInput(0)->getParent() == child->getParent())
 	{
