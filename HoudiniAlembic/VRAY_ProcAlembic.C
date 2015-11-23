@@ -286,8 +286,7 @@ namespace
 	    closeObject();
 
 	    for (exint i = 0; i < nsegs; ++i)
-		const_cast<GU_PrimPacked *>
-		    (myList(i))->implementation()->clearData();
+		SYSconst_cast(myList(i))->implementation()->clearData();
 	}
     private:
 	UT_Array<const GU_PrimPacked *>	 myList;
