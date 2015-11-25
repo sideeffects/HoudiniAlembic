@@ -18,11 +18,11 @@ else:
     xform, isConstant, inherit = _ahe.getLocalXform(abcPath, objPath, sampleTime)
     m = hou.Matrix4(xform)
     if not inherit:
-	parentPath = os.path.split(objPath)[0]
-	parent = _ahe.getWorldXform(abcPath, parentPath, sampleTime)
-	if parent:
-	    p = hou.Matrix4(parent[0])
-	    m *= p.inverted()
+        parentPath = os.path.split(objPath)[0]
+        parent = _ahe.getWorldXform(abcPath, parentPath, sampleTime)
+        if parent:
+            p = hou.Matrix4(parent[0])
+            m *= p.inverted()
     hou.pwd().setCookTransform(m)
     
     if isConstant:
