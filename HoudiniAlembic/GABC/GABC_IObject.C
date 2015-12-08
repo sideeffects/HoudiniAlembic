@@ -203,7 +203,7 @@ namespace
 	    bool *filled)
     {
 	int idx = alist.getIndex(name);
-	if (idx >= 0 && data && !filled[idx])
+	if (idx >= 0 && data && data->entries() && !filled[idx])
 	{
 	    alist.set(idx, data, 0);
 	    filled[idx] = true;
