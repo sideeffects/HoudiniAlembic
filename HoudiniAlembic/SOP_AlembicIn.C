@@ -32,7 +32,7 @@
 #include <UT/UT_StringStream.h>
 #include <UT/UT_WorkArgs.h>
 #include <UT/UT_WorkBuffer.h>
-#include <UT/UT_ScopedPtr.h>
+#include <UT/UT_UniquePtr.h>
 #include <GU/GU_Detail.h>
 #include <GU/GU_MergeUtils.h>
 #include <GU/GU_PrimPacked.h>
@@ -1003,7 +1003,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	return error();
     }
     GU_Detail			*walkgdp = gdp;
-    UT_ScopedPtr<GU_Detail>	 unpack_gdp;
+    UT_UniquePtr<GU_Detail>	 unpack_gdp;
     if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_UNPACKED)
     {
 	unpack_gdp.reset(new GU_Detail);
