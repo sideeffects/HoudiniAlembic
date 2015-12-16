@@ -204,9 +204,8 @@ ROP_AbcOpCamera::fillSample(CameraSample &sample, OBJ_Camera *cam, const ROP_Abc
 
     ScalarPropertyWriterPtr resXWrtPtr;
     BasePropertyWriterPtr resXProp = userPropWrtPtr->getProperty("resx");
-    size_t timesample = myOCamera.getSchema().getNumSamples();
     if (!resXProp)
-    	resXWrtPtr = userPropWrtPtr->createScalarProperty("resx", Alembic::Abc::MetaData(), dtype, timesample);
+    	resXWrtPtr = userPropWrtPtr->createScalarProperty("resx", Alembic::Abc::MetaData(), dtype, 0);
     else
     	resXWrtPtr = resXProp->asScalarPtr();
 
@@ -223,7 +222,7 @@ ROP_AbcOpCamera::fillSample(CameraSample &sample, OBJ_Camera *cam, const ROP_Abc
     ScalarPropertyWriterPtr resYWrtPtr;
     BasePropertyWriterPtr resYProp = userPropWrtPtr->getProperty("resy");
     if (!resYProp)
-        resYWrtPtr = userPropWrtPtr->createScalarProperty("resy", Alembic::Abc::MetaData(), dtype, timesample);
+        resYWrtPtr = userPropWrtPtr->createScalarProperty("resy", Alembic::Abc::MetaData(), dtype, 0);
     else
     	resYWrtPtr = resYProp->asScalarPtr();
 
