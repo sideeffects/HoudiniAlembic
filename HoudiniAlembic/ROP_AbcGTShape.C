@@ -92,12 +92,14 @@ ROP_AbcGTShape::ROP_AbcGTShape(const std::string &name,
         InverseMap *const inv_map,
         GeoSet *const shape_set,
         XformMap *const xform_map,
+	XformUserPropsMap *const user_prop_map,
         const ShapeType type,
         bool geo_lock)
     : myInverseMap(inv_map)
     , myGeoSet(shape_set)
     , myType(type)
     , myXformMap(xform_map)
+    , myXformUserPropsMap(user_prop_map)
     , myName(name)
     , myElapsedFrames(0)
     , myPrimType(GT_PRIM_UNDEFINED)
@@ -140,14 +142,6 @@ ROP_AbcGTShape::clear()
     }
 
     myObj.myVoidPtr = NULL;
-
-    for (auto it = myXformUserPropsMap.begin(); 
-    	      it != myXformUserPropsMap.end(); 
-    	      ++it)
-    {
-        delete it->second;
-    }
-    myXformUserPropsMap.clear();
 }
 
 bool
@@ -521,16 +515,19 @@ ROP_AbcGTShape::firstFrame(const GT_PrimitiveHandle &prim,
 			    obj_partial_path.append("/");
 			    obj_partial_path.append(objpathTokens.getArg(i+1));
 
-			    auto x_it = myXformMap->find(userprops_partial_path);
-			    UT_ASSERT_P(x_it != myXformMap->end());
+			    if(myXformUserPropsMap->find(userprops_partial_path) == myXformUserPropsMap->end())
+			    {
+				auto x_it = myXformMap->find(userprops_partial_path);
+				UT_ASSERT_P(x_it != myXformMap->end());
 
-			    xformUserProps = new GABC_OGTAbc(userprops_current_token);
-			    xformUserProps->fillXformUserProperties(obj.archive(),
-								    obj_partial_path,
-								    x_it->second,
-								    time,
-								    ctx);
-			    myXformUserPropsMap.insert(XformUserPropsMapInsert(userprops_partial_path, xformUserProps));
+				xformUserProps = new GABC_OGTAbc(userprops_current_token);
+				xformUserProps->fillXformUserProperties(obj.archive(),
+									obj_partial_path,
+									x_it->second,
+									time,
+									ctx);
+				myXformUserPropsMap->insert(XformUserPropsMapInsert(userprops_partial_path, xformUserProps));
+			    }
 			}
 		    }
                 }
@@ -709,7 +706,7 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
             time = ctx.cookTime() + ctx.timeSampling()->getTimeSamplingType().getTimePerCycle();
 
             // Update user properties on transform nodes that are implicitly copied
-            if (myXformUserPropsMap.size() > 0)
+            if (myXformUserPropsMap->size() > 0)
             {
                 const GABC_IObject& obj= getPackedImpl(prim)->object();
 
@@ -739,8 +736,8 @@ ROP_AbcGTShape::nextFrame(const GT_PrimitiveHandle &prim,
                         auto x_it = myXformMap->find(userprops_partial_path);
                         UT_ASSERT_P(x_it != myXformMap->end());
 
-                        auto x_userprops_it = myXformUserPropsMap.find(userprops_partial_path);
-                        if (x_userprops_it != myXformUserPropsMap.end())
+                        auto x_userprops_it = myXformUserPropsMap->find(userprops_partial_path);
+                        if (x_userprops_it != myXformUserPropsMap->end())
                         {
                             xformUserProps = x_userprops_it->second;
                             xformUserProps->fillXformUserProperties(obj.archive(),

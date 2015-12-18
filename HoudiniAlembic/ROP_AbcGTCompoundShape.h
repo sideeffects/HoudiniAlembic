@@ -62,6 +62,8 @@ public:
     typedef ROP_AbcGTShape::GeoSet                      GeoSet;
     typedef ROP_AbcGTShape::XformMap                    XformMap;
     typedef ROP_AbcGTShape::XformMapInsert              XformMapInsert;
+    typedef ROP_AbcGTShape::XformUserPropsMap		XformUserPropsMap;
+    typedef ROP_AbcGTShape::XformUserPropsMapInsert	XformUserPropsMapInsert;
 
     typedef UT_Map<std::string, ROP_AbcGTShape *>       PackedMap;
     typedef std::pair<std::string, ROP_AbcGTShape *>    PackedMapInsert;
@@ -221,6 +223,7 @@ public:
             InverseMap * const inv_map,
             GeoSet * const shape_set,
             XformMap * const xform_map,
+	    XformUserPropsMap *const user_prop_map,
 	    bool is_partition,
 	    bool polygons_as_subd,
 	    bool show_unused_points,
@@ -260,6 +263,7 @@ private:
     GTShapeMap<int64>   myPacked;
     UT_DeepString       myPath;
     XformMap           * const myXformMap;
+    XformUserPropsMap   *const myXformUserPropsMap;
     exint               myElapsedFrames;
     exint               myNumShapes;
     std::string         myName;

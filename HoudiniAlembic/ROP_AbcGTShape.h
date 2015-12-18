@@ -84,6 +84,7 @@ public:
             InverseMap * const inv_map,
             GeoSet * const shape_set,
             XformMap * const xform_map,
+	    XformUserPropsMap *const user_prop_map,
             const ShapeType type,
             bool geo_lock);
     virtual ~ROP_AbcGTShape();
@@ -148,7 +149,7 @@ private:
     InverseMap		*const myInverseMap;
     GeoSet		*const myGeoSet;
     XformMap		*const myXformMap;
-    XformUserPropsMap   myXformUserPropsMap;
+    XformUserPropsMap   *const myXformUserPropsMap;
 
     const ShapeType	 myType;
     UT_String		 myPath;

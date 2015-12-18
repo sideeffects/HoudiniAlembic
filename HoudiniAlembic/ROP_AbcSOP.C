@@ -273,6 +273,13 @@ ROP_AbcSOP::clear()
     for (auto it = myXformMap.begin(); it != myXformMap.end(); ++it)
         delete it->second;
     myXformMap.clear();
+    for (auto it = myXformUserPropsMap.begin(); 
+    	      it != myXformUserPropsMap.end(); 
+    	      ++it)
+    {
+        delete it->second;
+    }
+    myXformUserPropsMap.clear();
 
     myInverseMap.clear();
     myGeoSet.clear();
@@ -558,6 +565,7 @@ ROP_AbcSOP::newShape(const abc_PrimContainer &prim,
 	    &myInverseMap,
 	    &myGeoSet,
 	    &myXformMap,
+	    &myXformUserPropsMap,
 	    prim.myIsPartition,
 	    prim.mySubdMode,
 	    prim.myShowPts,

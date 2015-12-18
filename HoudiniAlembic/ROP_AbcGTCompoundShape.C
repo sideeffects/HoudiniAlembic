@@ -160,6 +160,7 @@ ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &identifier,
                 InverseMap * const inv_map,
                 GeoSet * const shape_set,
                 XformMap * const xform_map,
+		XformUserPropsMap *const user_prop_map,
 		bool is_partition,
 		bool polys_as_subd,
 		bool show_unused_pts,
@@ -170,6 +171,7 @@ ROP_AbcGTCompoundShape::ROP_AbcGTCompoundShape(const std::string &identifier,
     , myShapeParent(NULL)
     , myContainer(NULL)
     , myXformMap(xform_map)
+    , myXformUserPropsMap(user_prop_map)
     , myElapsedFrames(0)
     , myNumShapes(0)
     , myGeoLock(geo_lock)
@@ -318,6 +320,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
                 myInverseMap,
                 myGeoSet,
                 myXformMap,
+		myXformUserPropsMap,
                 ROP_AbcGTShape::ALEMBIC,
                 myGeoLock);
         if (!shape->firstFrame(packed(0),
@@ -345,6 +348,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
                     myInverseMap,
                     myGeoSet,
                     myXformMap,
+		    myXformUserPropsMap,
                     ROP_AbcGTShape::ALEMBIC,
                     myGeoLock);
             if (!shape->firstFrame(packed(i),
@@ -374,6 +378,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
                 myInverseMap,
                 myGeoSet,
                 myXformMap,
+		myXformUserPropsMap,
                 isPacked(deforming(0)) ? ROP_AbcGTShape::INSTANCE
                         : ROP_AbcGTShape::GEOMETRY,
                 myGeoLock);
@@ -403,6 +408,7 @@ ROP_AbcGTCompoundShape::first(const GT_PrimitiveHandle &prim,
                 myInverseMap,
                 myGeoSet,
                 myXformMap,
+		myXformUserPropsMap,
                 isPacked(deforming(i)) ? ROP_AbcGTShape::INSTANCE
                         : ROP_AbcGTShape::GEOMETRY,
                 myGeoLock);
@@ -505,6 +511,7 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
                     myInverseMap,
                     myGeoSet,
                     myXformMap,
+		    myXformUserPropsMap,
                     ROP_AbcGTShape::ALEMBIC,
                     myGeoLock);
 
@@ -559,6 +566,7 @@ ROP_AbcGTCompoundShape::update(const GT_PrimitiveHandle &prim,
                     myInverseMap,
                     myGeoSet,
                     myXformMap,
+		    myXformUserPropsMap,
                     isPacked(deforming(i)) ? ROP_AbcGTShape::INSTANCE
                             : ROP_AbcGTShape::GEOMETRY,
                     myGeoLock);

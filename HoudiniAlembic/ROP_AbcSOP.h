@@ -33,6 +33,7 @@
 #include "ROP_AbcObject.h"
 #include <GA/GA_Range.h>
 #include <GA/GA_OffsetList.h>
+#include <GABC/GABC_OGTAbc.h>
 #include <GT/GT_Handles.h>
 #include <UT/UT_Array.h>
 #include <UT/UT_StringHolder.h>
@@ -57,6 +58,8 @@ public:
     typedef ROP_AbcGTCompoundShape::GeoSet              GeoSet;
     typedef ROP_AbcGTCompoundShape::XformMap            XformMap;
     typedef ROP_AbcGTCompoundShape::XformMapInsert      XformMapInsert;
+    typedef ROP_AbcGTCompoundShape::XformUserPropsMap	XformUserPropsMap;
+    typedef ROP_AbcGTCompoundShape::XformUserPropsMapInsert	XformUserPropsMapInsert;
 
     typedef std::vector<std::string>                    NameList;
     typedef UT_Map<std::string, int>                    NameMap;
@@ -149,6 +152,7 @@ private:
     UT_Array<ROP_AbcGTCompoundShape *>	myShapes;
     UT_BoundingBox			myBox;
     XformMap                            myXformMap;
+    XformUserPropsMap			myXformUserPropsMap;
     exint                               myElapsedFrames;
     int					myGeoLock;
     int					mySopId;
