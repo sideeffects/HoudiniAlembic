@@ -154,31 +154,32 @@ namespace
 				 box.enlargeBounds(tbox);
 			     }
 			 }
-	void	setIntegerProperty(const char *name,
-			const GT_DataArrayHandle &data)
+	void	setIntegerProperty(const VRAY_ProceduralChildPtr &p,
+			const char *name, const GT_DataArrayHandle &data)
 	{
 	    GT_DataArrayHandle	storage;
-	    changeSetting(name, data->entries(), data->getI32Array(storage));
+	    p->changeSetting(name, data->entries(), data->getI32Array(storage));
 	}
-	void	setRealProperty(const char *name,
-			const GT_DataArrayHandle &data)
+	void	setRealProperty(const VRAY_ProceduralChildPtr &p,
+			const char *name, const GT_DataArrayHandle &data)
 	{
 	    GT_DataArrayHandle	storage;
 
 #if SIZEOF_FPREAL_IS_4
-	    changeSetting(name, data->entries(), data->getF32Array(storage));
+	    p->changeSetting(name, data->entries(), data->getF32Array(storage));
 #else
-	    changeSetting(name, data->entries(), data->getF64Array(storage));
+	    p->changeSetting(name, data->entries(), data->getF64Array(storage));
 #endif
 	}
-	void	changeShader(const char *name, const char *shader)
+	void	changeShader(const VRAY_ProceduralChildPtr &p,
+			    const char *name, const char *shader)
 	{
 	    // Mantra expects arguments for a shader, not a single string
 	    UT_String	str(shader);
 	    UT_WorkArgs	args;
 	    str.parse(args);
 	    if (args.getArgc())
-		changeSetting(name, args.getArgc(), args.getArgv());
+		p->changeSetting(name, args.getArgc(), args.getArgv());
 	}
 	static bool	isShader(const char *name)
 	{
@@ -187,8 +188,8 @@ namespace
 		    !strcmp(name, "matteshader");
 
 	}
-	void	setStringProperty(const char *name,
-			const GT_DataArrayHandle &data)
+	void	setStringProperty(const VRAY_ProceduralChildPtr &p,
+			const char *name, const GT_DataArrayHandle &data)
 	{
 	    exint		size = data->entries();
 	    int			tsize = data->getTupleSize();
@@ -197,11 +198,12 @@ namespace
 		for (int j = 0; j < tsize; ++j)
 		    values[i*tsize+j] = (char *)data->getS(i, j);
 	    if (size == 1 && tsize == 1 && isShader(name))
-		changeShader(name, values[0]);
+		changeShader(p, name, values[0]);
 	    else
-		changeSetting(name, size*tsize, values);
+		p->changeSetting(name, size*tsize, values);
 	}
-	void	setObjectName(const GU_PrimPacked *pack)
+	void	setObjectName(const VRAY_ProceduralChildPtr &p,
+			    const GU_PrimPacked *pack)
 	{
 	    const GABC_PackedImpl	*prim = implementation(pack);
 	    GABC_IObject	iobj = prim->object();
@@ -210,9 +212,10 @@ namespace
 	    UT_WorkBuffer	fullpath;
 	    fullpath.strcpy(queryRootName());
 	    fullpath.strcat(iobj.getFullName().c_str());
-	    changeSetting("name", fullpath.buffer());
+	    p->changeSetting("name", fullpath.buffer());
 	}
-	void	applyProperties(const GU_PrimPacked *pack)
+	void	applyProperties(const VRAY_ProceduralChildPtr &p,
+			const GU_PrimPacked *pack)
 	{
 	    const GABC_PackedImpl	*prim = implementation(pack);
 	    GABC_IObject	iobj = prim->object();
@@ -230,11 +233,11 @@ namespace
 		if (!data)
 		    continue;
 		if (GTisInteger(data->getStorage()))
-		    setIntegerProperty(it.thing().c_str(), data);
+		    setIntegerProperty(p, it.thing().c_str(), data);
 		else if (GTisFloat(data->getStorage()))
-		    setRealProperty(it.thing().c_str(), data);
+		    setRealProperty(p, it.thing().c_str(), data);
 		else if (GTisString(data->getStorage()))
-		    setStringProperty(it.thing().c_str(), data);
+		    setStringProperty(p, it.thing().c_str(), data);
 		else
 		    VRAYwarning("Alembic Procedural: Bad GT storage %s",
 			    GTstorage(data->getStorage()));
@@ -268,22 +271,24 @@ namespace
 	    void *handle = queryObject(nullptr);
 	    STY_SubjectHandle subject(new GSTY_SubjectPrim(myList(0)));
 
-	    openProceduralObject();
-		setObjectName(myList(0));
-		processPrimitiveMaterial(myList(0));
-		setStylerInfo(VRAY_StylerInfo(queryStyler(handle), subject));
+	    {
+		auto	kid = createChild();
+		setObjectName(kid, myList(0));
+		kid->processPrimitiveMaterial(myList(0));
+		kid->setStylerInfo(
+			VRAY_StylerInfo(queryStyler(handle), subject));
 		if (myPropertyMap)
 		{
-		    applyProperties(myList(0));
+		    applyProperties(kid, myList(0));
 		    if (myMergePrim)
-			applyProperties(myMergePrim);
+			applyProperties(kid, myMergePrim);
 		}
 		// We set the shutter close to be 1 since the deformation
 		// geometry already has the shutter built-in (i.e. the frame
 		// associated with the Alembic shape primitive has the sample
 		// time baked in).
-		addProcedural(new VRAY_ProcGT(gtlist, 1.0));
-	    closeObject();
+		kid->addProcedural(new VRAY_ProcGT(gtlist, 1.0));
+	    }
 
 	    for (exint i = 0; i < nsegs; ++i)
 		SYSconst_cast(myList(i))->implementation()->clearData();
