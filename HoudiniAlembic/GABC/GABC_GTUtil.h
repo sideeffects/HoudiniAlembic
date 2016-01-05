@@ -80,7 +80,11 @@ namespace GABC_GTUtil
     {
 	if (!strcmp(interp, "point"))
 	    return GT_TYPE_POINT;
-	if (!strcmp(interp, "vector"))
+	// Maya can generate UV attributes with 2 components and tag them as
+	// vectors.  Houdini does not understand vectors with two components
+	// so we drop the vector type info to prevent Houdini from applying
+	// undesired transformation to the values.
+	if (tsize == 3 && !strcmp(interp, "vector"))
 	    return GT_TYPE_VECTOR;
 	if (!strcmp(interp, "matrix"))
 	    return tsize == 9 ? GT_TYPE_MATRIX3 : GT_TYPE_MATRIX;
