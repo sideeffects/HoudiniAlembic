@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015
+ * Copyright (c) 2016
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -78,10 +78,11 @@ ROP_AbcContext::setTimeSampling(int nframes,
     }
     else if (shutter_open < shutter_close)
     {
-	fpreal	shutter_step = (shutter_close - shutter_open) / mb_samples;
+	fpreal	shutter_step = shutter_close - shutter_open;
 	fpreal	blur_offset = shutter_open;
-	if (SYSequalZero(shutter_open) && SYSequalZero(shutter_close-1))
+	if (SYSequalZero(shutter_step - 1))
 	{
+	    shutter_step /= mb_samples;
 	    // Uniform time sampling
 	    myTimeSampling.reset(new TimeSampling(tstep/mb_samples, tstart));
 	    for (exint i = 0; i < mb_samples; ++i, blur_offset += shutter_step)
@@ -89,6 +90,7 @@ ROP_AbcContext::setTimeSampling(int nframes,
 	}
 	else
 	{
+	    shutter_step /= mb_samples - 1;
 	    std::vector<chrono_t>	abcTimes;
 	    for (int i = 0; i < mb_samples; ++i, blur_offset += shutter_step)
 	    {

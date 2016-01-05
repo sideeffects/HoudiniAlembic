@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015
+ * Copyright (c) 2016
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -47,7 +47,7 @@ public:
     typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
 
     ROP_AbcContext();
-    virtual ~ROP_AbcContext() {};
+    virtual ~ROP_AbcContext() {}
 
     /// @{
     /// Time sampling
