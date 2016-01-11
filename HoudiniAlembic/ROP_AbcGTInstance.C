@@ -100,6 +100,7 @@ ROP_AbcGTInstance::Instance::updateFromPrevious(ObjectVisibility vis)
 
 ROP_AbcGTInstance::ROP_AbcGTInstance(const std::string &name, bool geo_lock)
     : myName(name)
+    , myElapsedFrames(0)
     , myGeometry(NULL)
     , myGeoLock(geo_lock)
 {
@@ -122,6 +123,7 @@ ROP_AbcGTInstance::first(const OObject &parent,
     UT_Matrix4D     instance_mat;
     UT_Matrix4D     prim_mat;
 
+    myParent = parent;
     prim->getPrimitiveTransform()->getMatrix(prim_mat);
 
     switch (prim->getPrimitiveType())
@@ -211,7 +213,7 @@ ROP_AbcGTInstance::update(const GT_PrimitiveHandle &prim,
     UT_Matrix4D     prim_mat;
 
     prim->getPrimitiveTransform()->getMatrix(prim_mat);
-
+    ++myElapsedFrames;
     switch (prim->getPrimitiveType())
     {
 	case GT_PRIM_INSTANCE:
@@ -225,15 +227,29 @@ ROP_AbcGTInstance::update(const GT_PrimitiveHandle &prim,
 
 	    // Now, update the transforms
 	    const GT_TransformArrayHandle  &xforms = iprim->transforms();
-	    exint                           icount = SYSmin(xforms->entries(),
-	                                            myInstances.entries());
-
-	    for (exint i = 0; i < icount; ++i)
+	    UT_WorkBuffer nbuf;
+	    exint xformcount = xforms->entries();
+	    for (exint i = 0; i < xformcount; ++i)
 	    {
 		xforms->get(i)->getMatrix(instance_mat);
 		instance_mat = prim_mat * instance_mat;
-		myInstances(i).update(instance_mat, vis);
+		if(i < myInstances.entries())
+		    myInstances(i).update(instance_mat, vis);
+		else
+		{
+		    myInstances.append(Instance(myGeoLock));
+		    Instance    &inst = myInstances.last();
+
+		    nbuf.sprintf("%s_instance_%d", myName.c_str(), (int)i);
+		    inst.first(myParent, err, ctx, instance_mat, nbuf.buffer(), Alembic::AbcGeom::kVisibilityHidden);
+		    inst.setGeometry(myGeometry->getShape(), myName);
+		    for (exint j = 1; j < myElapsedFrames; ++j)
+			myInstances(i).updateFromPrevious(Alembic::AbcGeom::kVisibilityHidden);
+		    myInstances(i).updateFromPrevious(vis);
+		}
 	    }
+	    for(exint i = xformcount; i < myInstances.entries(); ++i)
+		myInstances(i).updateFromPrevious(Alembic::AbcGeom::kVisibilityHidden);
 	}
 	break;
 
