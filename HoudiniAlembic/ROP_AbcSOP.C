@@ -250,8 +250,7 @@ namespace
 }
 
 ROP_AbcSOP::ROP_AbcSOP(SOP_Node *node)
-    : myElapsedFrames(0)
-    , myGeoLock(0)
+    : myGeoLock(0)
     , mySopId(node ? node->getUniqueId() : -1)
     , myPathAttribName()
     , myTimeDependent(false)
@@ -363,8 +362,6 @@ ROP_AbcSOP::start(const OObject &parent,
             myNameMap.insert(NameMapInsert(prims(i).myIdentifier, i));
     }
 
-    ++myElapsedFrames;
-
     // Update any OXform objects that were created and set for this
     // frame but not written out.
     if (part_by_path)
@@ -373,7 +370,7 @@ ROP_AbcSOP::start(const OObject &parent,
         {
             GABC_OXformSchema  &schema = it->second->getSchema();
 
-            if (schema.getNumSamples() < myElapsedFrames)
+            if (schema.getNumSamples() < ctx.elapsedFrames() + 1)
                 schema.finalize();
         }
         myInverseMap.clear();
@@ -442,7 +439,7 @@ ROP_AbcSOP::update(GABC_OError &err,
                 // Copy the data up to the current frame, still hidden
                 shape->updateFromPrevious(err,
                         Alembic::AbcGeom::kVisibilityHidden,
-                        myElapsedFrames - 1);
+                        ctx.elapsedFrames() - 1);
                 // Copy the data for the current frame, this time visible
                 shape->updateFromPrevious(err,
                         Alembic::AbcGeom::kVisibilityDeferred);
@@ -485,7 +482,7 @@ ROP_AbcSOP::update(GABC_OError &err,
 		// Update the shape as hidden (up to our current frame)
 		shape->updateFromPrevious(err,
 			Alembic::AbcGeom::kVisibilityHidden,
-			myElapsedFrames - 1);
+			ctx.elapsedFrames() - 1);
 		// Mark the shape as visible this frame
 		shape->updateFromPrevious(err,
 			Alembic::AbcGeom::kVisibilityDeferred);
@@ -518,11 +515,9 @@ ROP_AbcSOP::update(GABC_OError &err,
     // Update all hidden shapes
     for (int i = 0; i < myShapes.entries(); ++i)
     {
-        if (myShapes(i)->getElapsedFrames() == myElapsedFrames)
+        if (myShapes(i)->getElapsedFrames() == ctx.elapsedFrames())
             myShapes(i)->updateFromPrevious(err);
     }
-
-    ++myElapsedFrames;
 
     // Update any OXform objects that were created and set for this
     // frame but not written out.
@@ -532,7 +527,7 @@ ROP_AbcSOP::update(GABC_OError &err,
         {
             GABC_OXformSchema  &schema = it->second->getSchema();
 
-            if (schema.getNumSamples() < myElapsedFrames)
+            if (schema.getNumSamples() < ctx.elapsedFrames() + 1)
                 schema.finalize();
         }
         myInverseMap.clear();

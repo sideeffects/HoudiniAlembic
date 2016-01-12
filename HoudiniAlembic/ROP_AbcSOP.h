@@ -153,7 +153,6 @@ private:
     UT_BoundingBox			myBox;
     XformMap                            myXformMap;
     XformUserPropsMap			myXformUserPropsMap;
-    exint                               myElapsedFrames;
     int					myGeoLock;
     int					mySopId;
     UT_StringHolder                     myPathAttribName;
