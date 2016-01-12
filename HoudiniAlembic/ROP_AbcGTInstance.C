@@ -100,7 +100,6 @@ ROP_AbcGTInstance::Instance::updateFromPrevious(ObjectVisibility vis)
 
 ROP_AbcGTInstance::ROP_AbcGTInstance(const std::string &name, bool geo_lock)
     : myName(name)
-    , myElapsedFrames(0)
     , myGeometry(NULL)
     , myGeoLock(geo_lock)
 {
@@ -213,7 +212,6 @@ ROP_AbcGTInstance::update(const GT_PrimitiveHandle &prim,
     UT_Matrix4D     prim_mat;
 
     prim->getPrimitiveTransform()->getMatrix(prim_mat);
-    ++myElapsedFrames;
     switch (prim->getPrimitiveType())
     {
 	case GT_PRIM_INSTANCE:
@@ -243,7 +241,7 @@ ROP_AbcGTInstance::update(const GT_PrimitiveHandle &prim,
 		    nbuf.sprintf("%s_instance_%d", myName.c_str(), (int)i);
 		    inst.first(myParent, err, ctx, instance_mat, nbuf.buffer(), Alembic::AbcGeom::kVisibilityHidden);
 		    inst.setGeometry(myGeometry->getShape(), myName);
-		    for (exint j = 1; j < myElapsedFrames; ++j)
+		    for (exint j = 1; j < ctx.elapsedFrames(); ++j)
 			myInstances(i).updateFromPrevious(Alembic::AbcGeom::kVisibilityHidden);
 		    myInstances(i).updateFromPrevious(vis);
 		}

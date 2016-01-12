@@ -112,7 +112,6 @@ public:
 private:
     std::string             myName;
     OObject		    myParent;
-    exint		    myElapsedFrames;
     ROP_AbcGTCompoundShape *myGeometry;
     UT_Array<Instance>      myInstances;
     const bool              myGeoLock;

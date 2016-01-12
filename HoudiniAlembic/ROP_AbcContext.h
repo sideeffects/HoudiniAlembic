@@ -80,6 +80,7 @@ public:
 			    return myBlurTimes.entries();
 			}
     void		setTime(fpreal base_time, exint samp);
+    exint		elapsedFrames() const { return myElapsedFrames; }
     /// @}
 
     /// @{
@@ -204,6 +205,7 @@ private:
     UT_StringHolder     myPartitionAttribute;
     UT_StringHolder     myPathAttribute;
     exint		myFrameCount;
+    exint		myElapsedFrames;
     int                 myCollapseIdentity;
     int                 myPackedAbcPriority;
     int                 myPartitionMode;

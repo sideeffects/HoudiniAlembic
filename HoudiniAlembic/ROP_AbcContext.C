@@ -48,6 +48,7 @@ ROP_AbcContext::ROP_AbcContext()
     , myPartitionAttribute()
     , myPathAttribute()
     , myFrameCount(0)
+    , myElapsedFrames(-1)
     , myCollapseIdentity(false)
     , myPackedAbcPriority(0)
     , myPartitionMode(ROP_AbcContext::PATHMODE_FULLPATH)
@@ -109,6 +110,7 @@ ROP_AbcContext::setTime(fpreal base_time, exint samp)
 {
     UT_ASSERT(samp < myBlurTimes.entries());
     myCookContext.setTime(base_time+myBlurTimes(samp));
+    ++myElapsedFrames;
 }
 
 const char *
