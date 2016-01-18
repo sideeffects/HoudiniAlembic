@@ -452,7 +452,7 @@ loadDetail(VRAY_ProceduralGeo &detail,
 	int nsegments,
 	const fpreal shutter[2],
 	const UT_StringHolder &objectpath,
-	const UT_String &objectpattern)
+	const UT_StringHolder &objectpattern)
 {
     GABC_IError         err(UTgetInterrupt());
     GABC_GEOWalker	walk(*detail, err);
