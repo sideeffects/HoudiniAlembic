@@ -240,7 +240,10 @@ namespace
 	std::string                    *data = strings.array();
 
 	// Get strings from GT
-	if (src->getStringIndexCount())
+	exint maxidx = src->getStringIndexCount();
+	// avoid reading the full string table if we know we are only going to
+	// extract a subset
+	if (maxidx && maxidx < nstrings)
 	{
             UT_StringArray  strs;
             int             idx;
