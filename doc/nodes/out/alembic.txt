@@ -225,6 +225,12 @@ Primitive Attributes:
 Detail Attributes:
 	Detail attributes whose name matches this pattern will be saved in the Alembic file.
 
+Primitive To Detail:
+	Promote primitive attributes matching this pattern to detail attributes before exporting to Alembic.  Sometimes when importing Alembic, Houdini must convert constant Alembic data to uniform data.  This option lets you manually re-adjust certain attributes on export.
+
+Force Conversion of Matching Primitive Attributes to Detail:
+	The normal behaviour when promoting primitive attributes to detail attributes is to validate that the values are the same for all primitives.  Enabling this option will bypass this check forcing all matching primitive attributes to be converted to detail attributes regardless.  The attribute value of the first primitive will be used as the single detail value for the exported primitive.
+
 Additional UV Attributes:
         Additional UV attributes whose name matches this pattern will be saved in the Alembic file.
 

@@ -177,6 +177,10 @@ namespace
 				"Use Display SOP");
     static PRM_Name	theSaveAttributesName("save_attributes",
 				"Save Attributes");
+    static PRM_Name	thePromoteUniformPatternName("prim_to_detail_pattern",
+			    "Primitive To Detail");
+    static PRM_Name	theForcePromoteUniformName("force_prim_to_detail",
+			    "Force Conversion of Matching Primitive Attributes to Detail");
     static PRM_Name     theBuildHierarchyFromPathName("build_from_path",
                                 "Build Hierarchy From Attribute");
     static PRM_Name     thePathAttribName("path_attrib", "Path Attribute");
@@ -207,6 +211,7 @@ namespace
     static PRM_Default	theStarDefault(0, "*");
     static PRM_Default	theCollapseDefault(0, "off");
     static PRM_Default	theSaveAttributesDefault(1, "yes");
+    static PRM_Default	thePromoteUniformPatternDefault(1, "");
     static PRM_Default  thePathAttribDefault(0, "path");
     static PRM_Default  thePackedAbcPriorityDefault(0, "hier");
     static PRM_Default	theFaceSetModeDefault(1, "nonempty");
@@ -392,7 +397,6 @@ namespace
 	PRM_Template(PRM_TOGGLE, 1, &theDisplaySOPName),
 	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
 				    &theSaveAttributesDefault),
-
         PRM_Template(PRM_SEPARATOR, 1, &separator3Name),
 
 	PRM_Template(PRM_STRING, 1,
@@ -407,6 +411,10 @@ namespace
 	PRM_Template(PRM_STRING, 1,
 		&theAttributePatternNames[GA_ATTRIB_DETAIL],
 		&theStarDefault),
+	PRM_Template(PRM_STRING, 1, &thePromoteUniformPatternName,
+				    &thePromoteUniformPatternDefault),
+	PRM_Template(PRM_TOGGLE, 1, &theForcePromoteUniformName),
+
         PRM_Template(PRM_STRING, 1, &theUVAttribPatternName),
 	PRM_Template(PRM_ORD, 1, &theFaceSetModeName,
 				    &theFaceSetModeDefault,
@@ -600,6 +608,11 @@ ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
     myContext->setUseInstancing(USE_INSTANCING(start));
     myContext->setSaveHidden(SAVE_HIDDEN(start));
     myContext->setFirstFrame(start / tstep);
+
+    UT_String			p2d_pattern;
+    PRIM_TO_DETAIL_PATTERN(p2d_pattern, start);
+    myContext->setPrimToDetailPattern(p2d_pattern);
+    myContext->setForcePrimToDetail(FORCE_PRIM_TO_DETAIL(start));
 
     // Can only place objects directly into hierarchy from a SOP network.
     // Direct hierarchy placement and partitioning use the same code,
@@ -873,8 +886,10 @@ ROP_AlembicOut::updateParmsFlags()
     bool        use_sop_path = USE_SOP_PATH(0);
     bool        sop_mode = issop || use_sop_path;
     UT_String	mode;
+    UT_String	p2d_pattern;
 
     PARTITION_MODE(mode, 0);
+    PRIM_TO_DETAIL_PATTERN(p2d_pattern, 0);
 
     changed |= enableParm("use_sop_path", !issop);
     changed |= enableParm("sop_path", !issop && use_sop_path);
@@ -886,6 +901,7 @@ ROP_AlembicOut::updateParmsFlags()
     changed |= enableParm("partition_mode", !build_hier || !sop_mode);
     changed |= enableParm("partition_attribute",
                 ((!build_hier || !sop_mode ) && (mode != "no")));
+    changed |= enableParm("force_prim_to_detail", p2d_pattern.isstring());
     changed |= enableParm("shutter", MOTIONBLUR(0));
     changed |= enableParm("samples", MOTIONBLUR(0));
 

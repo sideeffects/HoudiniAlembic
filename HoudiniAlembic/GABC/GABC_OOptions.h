@@ -31,6 +31,7 @@
 #include "GABC_API.h"
 #include "GABC_Include.h"
 #include <UT/UT_String.h>
+#include <UT/UT_StringHolder.h>
 #include <GA/GA_Types.h>
 #include <Alembic/AbcCoreAbstract/TimeSampling.h>
 #include <Alembic/AbcGeom/GeometryScope.h>
@@ -118,6 +119,22 @@ public:
     void        setUVAttribPattern(const char *pattern) { myUVAttribPattern.harden(pattern); }
     /// @}
 
+    /// @{
+    /// Pattern of uniform attributes to convert into detail/constant attributes
+    const UT_StringHolder &uniformToDetailPattern() const
+				{ return myPrimToDetailPattern; }
+    void		setPrimToDetailPattern(const UT_StringHolder &p)
+				{ myPrimToDetailPattern = p; }
+    /// @}
+
+    /// @{
+    /// Check whether uniform attributes are constant value before coalescing
+    bool	forcePrimToDetail() const
+		    { return myForcePrimToDetail; }
+    void	setForcePrimToDetail(bool v)
+		    { myForcePrimToDetail = v; }
+    /// @}
+
 private:
     void		checkAttributeStars();
 
@@ -125,11 +142,13 @@ private:
     UT_String		mySubdGroup;
     UT_String		myAttributePatterns[GA_ATTRIB_OWNER_N];
     UT_String           myUVAttribPattern;
+    UT_StringHolder	myPrimToDetailPattern;
     exint               myFirstFrame;
     bool		myAttributeStars;
     bool		mySaveAttributes;
     bool		myUseDisplaySOP;
     bool		myFullBounds;
+    bool		myForcePrimToDetail;
 };
 
 }   // end GABC_NAMESPACE

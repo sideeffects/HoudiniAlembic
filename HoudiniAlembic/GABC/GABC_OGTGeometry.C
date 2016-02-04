@@ -32,6 +32,7 @@
 #include "GABC_OProperty.h"
 #include "GABC_Util.h"
 #include <stdarg.h>
+#include <GT/GT_DAConstant.h>
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_DANumeric.h>
 #include <GT/GT_DARange.h>
@@ -723,11 +724,135 @@ namespace
 	}
     }
 
+    template <typename T>
+    bool
+    isConstantArray(const T *array, const GT_DataArrayHandle &data)
+    {
+	auto	 tsize = data->getTupleSize();
+	const T	*end = (array + tsize);
+	const T *item = end;
+	for (exint i = 1, n = data->entries(); i < n; ++i)
+	{
+	    if (!std::equal(array, end, item))
+		return false;
+	    item += tsize;
+	}
+	return true;
+    }
+
+    static bool
+    isConstant(const GT_DataArrayHandle &data)
+    {
+	if (data->entries() == 1)
+	    return true;
+	GT_DataArrayHandle	buffer;	// This shouldn't actually be used
+	switch (data->getStorage())
+	{
+	    case GT_STORE_UINT8:
+		return isConstantArray(data->getU8Array(buffer), data);
+	    case GT_STORE_INT32:
+		return isConstantArray(data->getI32Array(buffer), data);
+	    case GT_STORE_INT64:
+		return isConstantArray(data->getI64Array(buffer), data);
+	    case GT_STORE_REAL16:
+		return isConstantArray(data->getF16Array(buffer), data);
+	    case GT_STORE_REAL32:
+		return isConstantArray(data->getF32Array(buffer), data);
+	    case GT_STORE_REAL64:
+		return isConstantArray(data->getF64Array(buffer), data);
+	    case GT_STORE_STRING:
+	    {
+		auto &&s0 = data->getS(0);
+		for (exint i = 1, n = data->entries(); i < n; ++i)
+		{
+		    if (strcmp(s0, data->getS(i)) != 0)
+			return false;
+		}
+	    }
+	    case GT_STORE_INVALID:
+	    case GT_NUM_STORAGE_TYPES:
+		UT_ASSERT(0);
+		break;
+	}
+	return false;
+    }
+
+    template <typename T>
+    const T &
+    promotePrimToDetail(const T &mesh,
+	    const GABC_OOptions &ctx,
+	    GT_PrimitiveHandle &storage)
+    {
+	auto	 pattern = ctx.uniformToDetailPattern();
+	auto	 force_constant = ctx.forcePrimToDetail();
+	auto	&uniform = mesh.getUniformAttributes();
+	if (!uniform)
+	    return mesh;
+	UT_StackBuffer<int>	convert(uniform->entries());
+	int			nconvert = 0;
+	for (int i = 0; i < uniform->entries(); ++i)
+	{
+	    UT_String	name(uniform->getName(i));
+	    if (name.multiMatch(pattern)
+		    && (force_constant || isConstant(uniform->get(i))))
+	    {
+		convert[nconvert] = i;
+		nconvert++;
+	    }
+	}
+	if (!nconvert)
+	    return mesh;
+
+	GT_AttributeListHandle	clist;
+	GT_AttributeListHandle	ulist;
+	if (mesh.getDetailAttributes())
+	    clist.reset(new GT_AttributeList(*mesh.getDetailAttributes()));
+	else
+	    clist.reset(new GT_AttributeList(new GT_AttributeMap, 1));
+	int cidx = 0;
+	for (int i = 0; i < uniform->entries(); ++i)
+	{
+	    auto	  name = uniform->getName(i);
+	    auto	&&data = uniform->get(i);
+	    if (convert[cidx] == i)
+	    {
+		// Here, we want to convert the uniform attributes to constant
+		GT_DataArrayHandle	cval(new GT_DAConstant(data, 0, 1));
+		UT_ASSERT(cidx < nconvert);
+		clist = clist->addAttribute(name, cval, true);
+		cidx++;
+	    }
+	    else
+	    {
+		if (!ulist)
+		{
+		    ulist = GT_AttributeList::createAttributeList(
+					name, data.get(), nullptr);
+		}
+		else
+		{
+		    ulist = ulist->addAttribute(name, data, true);
+		}
+	    }
+	}
+	// Now, we have new uniform and constant attribute lists.
+	T	*newmesh = new T(mesh, mesh.getPointAttributes(),
+				mesh.getVertexAttributes(),
+				ulist,
+				clist);
+	storage.reset(newmesh);	// Keep a reference to the new mesh
+	return *newmesh;
+    }
+
     static void
     fillPolyMesh(OPolyMesh &dest,
-	    const GT_PrimPolygonMesh &src,
-	    IntrinsicCache &cache, const GABC_OOptions &ctx)
+	    const GT_PrimPolygonMesh &src_mesh,
+	    IntrinsicCache &cache,
+	    const GABC_OOptions &ctx)
     {
+	GT_PrimitiveHandle		tmpprim;
+	auto &&src = promotePrimToDetail(src_mesh, ctx, tmpprim);
+
 	Int32ArraySample                iInd;
 	Int32ArraySample                iCnt;
 	OP3fGeomParam::Sample           iPos;
@@ -773,9 +898,13 @@ namespace
 
     static void
     fillSubD(GABC_OGTGeometry &geo, OSubD &dest,
-	    const GT_PrimSubdivisionMesh &src,
-	    IntrinsicCache &cache, const GABC_OOptions &ctx)
+	    const GT_PrimSubdivisionMesh &src_mesh,
+	    IntrinsicCache &cache,
+	    const GABC_OOptions &ctx)
     {
+	GT_PrimitiveHandle	tmpprim;
+	auto &&src = promotePrimToDetail(src_mesh, ctx, tmpprim);
+
 	Int32ArraySample                iInd;
 	Int32ArraySample                iCnt;
 	Int32ArraySample                iCreaseIndices;
@@ -2030,6 +2159,10 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
     {
 	// Direct mapping to Alembic primitives
 	case GT_PRIM_POLYGON_MESH:
+	    // Promoting uniform to detail may change the prim.
+	    promotePrimToDetail(
+		    *UTverify_cast<const GT_PrimPolygonMesh *>(prim.get()),
+		    ctx, prim);
             myShape.myPolyMesh = new OPolyMesh(parent,
                     myName,
                     ctx.timeSampling());
@@ -2041,6 +2174,10 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
             break;
 
 	case GT_PRIM_SUBDIVISION_MESH:
+	    // Promoting uniform to detail may change the prim.
+	    promotePrimToDetail(
+		    *UTverify_cast<const GT_PrimSubdivisionMesh *>(prim.get()),
+		    ctx, prim);
             myShape.mySubD = new OSubD(parent,
                     myName,
                     ctx.timeSampling());

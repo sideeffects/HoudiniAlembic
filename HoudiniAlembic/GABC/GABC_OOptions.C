@@ -36,6 +36,8 @@ GABC_OOptions::GABC_OOptions()
     , myUseDisplaySOP(false)
     , myFullBounds(false)
     , myAttributeStars(true)
+    , myPrimToDetailPattern()
+    , myForcePrimToDetail(false)
 {
     for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
 	myAttributePatterns[i] = "*";

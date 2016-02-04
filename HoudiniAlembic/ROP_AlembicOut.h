@@ -143,6 +143,10 @@ protected:
 		    { return evalInt("initsim", 0, time) != 0; }
     bool	RENDER_FULL_RANGE()
 		    { return evalInt("render_full_range", 0, 0.0) != 0; }
+    void	PRIM_TO_DETAIL_PATTERN(UT_String &str, fpreal time)
+		    { evalString(str, "prim_to_detail_pattern", 0, time); }
+    bool	FORCE_PRIM_TO_DETAIL(fpreal time)
+		    { return evalInt("force_prim_to_detail", 0, time); }
 
     ROP_AbcArchive	*myArchive;
     ROP_AbcContext	*myContext;
