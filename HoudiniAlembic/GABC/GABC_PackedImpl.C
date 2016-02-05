@@ -1339,11 +1339,11 @@ GABC_PackedImpl::getPropertiesHash() const
 #endif
 	    if(!myObject.getPropertiesHash(myUniqueID))
 	    {
-		// HDF, likely. Hash the object path & filename to get an id.
+		// HDF, likely. Hash the object path, filename, and frame to get an id.
 		const int64 pathhash = UT_String::hash(objectPath().c_str());
 		const int64 filehash = UT_String::hash(filename().c_str());
-		
-		myUniqueID = pathhash + SYSwang_inthash64(filehash);
+		uint framehash = SYSreal_hash(frame());
+		myUniqueID = framehash + SYSwang_inthash64(pathhash + SYSwang_inthash64(filehash));
 	    }
 	    
 #ifdef USE_FAST_CACHE
