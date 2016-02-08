@@ -25,6 +25,7 @@
 #include <GT/GT_RefineParms.h>
 #include <GT/GT_TransformArray.h>
 #include <GT/GT_PrimInstance.h>
+#include <SYS/SYS_Hash.h>
 
 using namespace GABC_NAMESPACE;
 
@@ -44,7 +45,11 @@ public:
 	    const GABC_PackedImpl *impl =
 	       UTverify_cast<const GABC_PackedImpl *>(prim->implementation());
 	    if(impl)
-		myID = impl->getPropertiesHash();
+	    {
+		SYS_HashType hash = impl->getPropertiesHash();
+		SYShashCombine(hash, SYSreal_hash(impl->frame()));
+		myID = hash;
+	    }
 	}
     }
     
