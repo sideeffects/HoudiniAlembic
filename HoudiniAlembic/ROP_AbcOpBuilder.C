@@ -40,16 +40,23 @@ namespace
     typedef ROP_AbcOpBuilder::InternalNode	InternalNode;
 
     static bool
+    isIPRCamera(OBJ_Node *obj)
+    {
+	return obj->getObjectType() == OBJ_CAMERA
+	    && obj->getName() == "ipr_camera";
+    }
+
+    static bool
     validObjectType(OBJ_Node *obj)
     {
 	if (!obj)
 	    return false;
 
-	if (obj->getObjectType() == OBJ_CAMERA
-		|| obj->getObjectType() == OBJ_SUBNET
-		|| obj->castToOBJGeometry())
-	    return true;
-	return false;
+	if (obj->getObjectType() == OBJ_CAMERA)
+	    return !isIPRCamera(obj);
+
+	return obj->getObjectType() == OBJ_SUBNET
+		|| obj->castToOBJGeometry();
     }
 
     static void
