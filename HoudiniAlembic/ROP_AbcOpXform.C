@@ -294,7 +294,7 @@ ROP_AbcOpXform::start(const OObject &parent,
 {
     OBJ_Node   *node = getXformNode(myNodeId);
 
-    if(ctx.singletonSOP() && ctx.buildFromPath())
+    if (ctx.singletonSOP() && ctx.buildFromPath())
     {
 	if(node)
 	    myTimeDependent = node->isTimeDependent(ctx.cookContext());
@@ -303,6 +303,9 @@ ROP_AbcOpXform::start(const OObject &parent,
 	    return false;
 
 	updateTimeDependentKids();
+
+	// Now, set the bounding box for my parent
+	box = myBox;
 	return true;
     }
 
@@ -374,6 +377,7 @@ ROP_AbcOpXform::start(const OObject &parent,
 	    Box3d	b3 = GABC_Util::getBox(myBox);
 	    myOXform.getSchema().getChildBoundsProperty().set(b3);
 	}
+
 	// If the ROP is saving a SOP, ignore visibility
 	if (!ctx.singletonSOP())
 	{
@@ -401,7 +405,6 @@ ROP_AbcOpXform::start(const OObject &parent,
     if (ctx.fullBounds())
     {
 	box = myBox;
-
 	if (!myIdentity)
 	    box.transform(myMatrix);
     }
@@ -433,10 +436,12 @@ ROP_AbcOpXform::update(GABC_OError &err,
     {
 	UT_BoundingBox kidbox;
 	kidbox.initBounds();
-	if(!updateChildren(err, ctx, kidbox))
+	if (!updateChildren(err, ctx, kidbox))
 	    return false;
 
 	updateTimeDependentKids();
+
+	box = myBox;	// TODO: Should this be kidbox?
 	return true;
     }
 
@@ -488,7 +493,7 @@ ROP_AbcOpXform::update(GABC_OError &err,
 	if (ctx.fullBounds())
 	{
 	    // Set up bounding box for my parent
-	    box = myBox;
+	    box = myBox;	// TODO: Should this be kidbox?
 
 	    Box3d   b3 = GABC_Util::getBox(myBox);
 	    myOXform.getSchema().getChildBoundsProperty().set(b3);
