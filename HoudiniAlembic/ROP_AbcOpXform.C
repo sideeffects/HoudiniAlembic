@@ -434,14 +434,13 @@ ROP_AbcOpXform::update(GABC_OError &err,
 {
     if(ctx.singletonSOP() && ctx.buildFromPath())
     {
-	UT_BoundingBox kidbox;
-	kidbox.initBounds();
-	if (!updateChildren(err, ctx, kidbox))
+	myBox.initBounds();
+	if (!updateChildren(err, ctx, myBox))
 	    return false;
 
 	updateTimeDependentKids();
 
-	box = myBox;	// TODO: Should this be kidbox?
+	box = myBox;
 	return true;
     }
 
@@ -476,9 +475,8 @@ ROP_AbcOpXform::update(GABC_OError &err,
     }
 
     // Process children, computing their bounding box
-    UT_BoundingBox	kidbox;
-    kidbox.initBounds();
-    if (!updateChildren(err, ctx, kidbox))
+    myBox.initBounds();
+    if (!updateChildren(err, ctx, myBox))
 	return false;
 
     if (!myIdentity)
@@ -493,7 +491,7 @@ ROP_AbcOpXform::update(GABC_OError &err,
 	if (ctx.fullBounds())
 	{
 	    // Set up bounding box for my parent
-	    box = myBox;	// TODO: Should this be kidbox?
+	    box = myBox;
 
 	    Box3d   b3 = GABC_Util::getBox(myBox);
 	    myOXform.getSchema().getChildBoundsProperty().set(b3);
