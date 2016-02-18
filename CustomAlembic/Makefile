@@ -92,7 +92,7 @@ OFILES	= $(GABCOFILES) $(PLUGINS:.C=.o)
 TARGETS	= $(GABCLIB) $(PLUGINS:.C=.so)
 
 %.o:	%.C
-	g++ -std=c++0x -DCXX11_ENABLED=1 $(ABCFLAGS) $(OBJFLAGS) -c -o $@ $<
+	g++ -DCXX11_ENABLED=1 $(ABCFLAGS) $(OBJFLAGS) -c -o $@ $<
 
 all:	$(GABCLIB) $(PLUGINS:.C=.so)
 
