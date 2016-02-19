@@ -27,6 +27,10 @@ LABEL_PREFIX = "Custom "
 OPTIMIZER = -g
 include $(HFS)/toolkit/makefiles/Makefile.linux
 
+ifndef CXX
+    CXX := g++
+endif
+
 ABCINC = /usr/local/alembic-1.1.5/include
 ABCINC = $(HFS)/toolkit/include
 ABCDEF = \
@@ -92,26 +96,26 @@ OFILES	= $(GABCOFILES) $(PLUGINS:.C=.o)
 TARGETS	= $(GABCLIB) $(PLUGINS:.C=.so)
 
 %.o:	%.C
-	g++ -DCXX11_ENABLED=1 $(ABCFLAGS) $(OBJFLAGS) -c -o $@ $<
+	$(CXX) -DCXX11_ENABLED=1 $(ABCFLAGS) $(OBJFLAGS) -c -o $@ $<
 
 all:	$(GABCLIB) $(PLUGINS:.C=.so)
 
 install:	all
 
 $(GABCLIB):	$(GABCOFILES)
-	g++ -shared \
+	$(CXX) -shared \
 	    -Wl,-soname,$(GABCLIB) \
 	    -Wl,--exclude-libs,ALL  \
 	    -o $@ $(GABCOFILES) $(SAFLAGS) $(EXTRALIBS)
 
 $(ALEMBIC_IN_SO):	$(ALEMBIC_IN_O) $(GABCLIB)
-	g++ -shared -o $@ $< $(SAFLAGS) $(GABCLIB) $(ABCHUGE)
+	$(CXX) -shared -o $@ $< $(SAFLAGS) $(GABCLIB) $(ABCHUGE)
 
 $(ALEMBIC_GROUP_SO):	$(ALEMBIC_GROUP_O) $(GABCLIB)
-	g++ -shared -o $@ $< $(SAFLAGS) $(GABCLIB) $(ABCHUGE)
+	$(CXX) -shared -o $@ $< $(SAFLAGS) $(GABCLIB) $(ABCHUGE)
 
 $(GU_ALEMBIC_SO):	$(GU_ALEMBIC_O) $(GABCLIB)
-	g++ -shared -o $@ $< $(SAFLAGS) $(GABCLIB) $(ABCHUGE)
+	$(CXX) -shared -o $@ $< $(SAFLAGS) $(GABCLIB) $(ABCHUGE)
 
 clean:
 	rm -f $(OFILES)
