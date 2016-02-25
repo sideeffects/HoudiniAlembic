@@ -918,7 +918,7 @@ newDriverOperator(OP_OperatorTable *table)
 	getTemplatePair(),
 	0, 9999,
 	getVariablePair(),
-	OP_FLAG_GENERATOR);
+	OP_FLAG_UNORDERED | OP_FLAG_GENERATOR);
     alembic_op->setIconName("ROP_alembic");
     table->addOperator(alembic_op);
 
@@ -929,7 +929,7 @@ newDriverOperator(OP_OperatorTable *table)
 	getTemplatePair(),
 	0, 1,
 	getVariablePair(),
-	OP_FLAG_GENERATOR|OP_FLAG_MANAGER);
+	OP_FLAG_GENERATOR | OP_FLAG_MANAGER);
     alembic_sop->setIconName("ROP_alembic");
 
     // Note:  This is reliant on the order of operator table construction and
