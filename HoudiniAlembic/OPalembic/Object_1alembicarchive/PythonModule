@@ -427,22 +427,12 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
                     'far',
                     'focus',
                     'fstop',
+                    'shutter',
                     'winx',
                     'winy',
                     'winsizex',
                     'winsizey'):
-                currentNode.parm(parmName).set(cameraDict[parmName])
-
-            shutter = cameraDict['shutter']
-            if shutter < 0 or shutter > 1:
-                if ui:
-                    ui.displayMessage(title='Fail to import camera shutter time',
-                    text='Alembic camera shutter time is < 0 or > 1',
-                    severity=hou.severityType.Warning)
-                else:
-                    print 'Fail to import Alembic camera shutter time that is < 0 or > 1'
-            else:
-                currentNode.parm('shutter').set(shutter)
+                currentNode.parm(parmName).setExpression('%s.alembicGetCameraDict(ch("fileName"), "%s", ch("frame")/ch("fps")).get("%s")' % (_AbcModule, currentPath, parmName), hou.exprLanguage.Python)
 
             resTuple = _abc.alembicGetCameraResolution(fileName, currentPath, sampleTime)
 
@@ -452,12 +442,9 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
 
             # Some imported camera (ex. Maya Camera) does not have a resolution. 
             # In this case, set the Houdini Camera resolution according to the film aspect ratio.
-            else: 
+            else:
                 resy = currentNode.parm('resx').eval() / cameraDict['filmaspectratio']
                 currentNode.parm('resy').set(int(resy))
-
-    else:
-        return
 
 def PushParametersToChildren(rootNode):
     now = time.time()

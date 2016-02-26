@@ -37,8 +37,6 @@ using namespace GABC_NAMESPACE;
 namespace
 {
     typedef Alembic::Abc::DataType		     DataType;
-
-    typedef Alembic::Abc::BasePropertyWriterPtr      BasePropertyWriterPtr;
     typedef Alembic::Abc::CompoundPropertyWriterPtr  CompoundPropertyWriterPtr;
     typedef Alembic::Abc::ScalarPropertyWriterPtr    ScalarPropertyWriterPtr; 
 
@@ -123,6 +121,33 @@ ROP_AbcOpCamera::start(const OObject &parent,
 
     myTimeDependent = checkTimeDependent(cam);
 
+    // Write out Houdini camera resolution as the camera's user properties
+    fpreal now = ctx.cookTime();
+    DataType dtype = DataType(Alembic::Abc::kFloat32POD);
+    CompoundPropertyWriterPtr userPropWrtPtr = GetCompoundPropertyWriterPtr(myOCamera.getSchema().getUserProperties());
+
+    ScalarPropertyWriterPtr resXWrtPtr = userPropWrtPtr->createScalarProperty("resx", Alembic::Abc::MetaData(), dtype, 0);
+    if (resXWrtPtr)
+    {
+    	Alembic::Util::float32_t sampleResX = cam->RESX(now);
+    	resXWrtPtr->setSample(&sampleResX);
+    }
+    else
+    {
+    	err.warning("Failed to export camera resolution x");
+    }
+
+    ScalarPropertyWriterPtr resYWrtPtr = userPropWrtPtr->createScalarProperty("resy", Alembic::Abc::MetaData(), dtype, 0);
+    if (resYWrtPtr)
+    {
+    	Alembic::Util::float32_t sampleResY = cam->RESY(now);
+    	resYWrtPtr->setSample(&sampleResY);
+    }
+    else
+    {
+    	err.warning("Failed to export camera resolution y");
+    }
+
     // Now, just do an update
     return update(err, ctx, box);
 }
@@ -197,45 +222,6 @@ ROP_AbcOpCamera::fillSample(CameraSample &sample, OBJ_Camera *cam, const ROP_Abc
     sample.setHorizontalFilmOffset(winx * aperture / aspect);
     sample.setVerticalFilmOffset(winy * aperture * raspect / aspect);
     sample.setLensSqueezeRatio(aspect);
-
-    // Write out Houdini camera resolution as the camera's user properties
-    DataType dtype = DataType(Alembic::Abc::kFloat32POD);
-    CompoundPropertyWriterPtr userPropWrtPtr = GetCompoundPropertyWriterPtr(myOCamera.getSchema().getUserProperties());
-
-    ScalarPropertyWriterPtr resXWrtPtr;
-    BasePropertyWriterPtr resXProp = userPropWrtPtr->getProperty("resx");
-    if (!resXProp)
-    	resXWrtPtr = userPropWrtPtr->createScalarProperty("resx", Alembic::Abc::MetaData(), dtype, 0);
-    else
-    	resXWrtPtr = resXProp->asScalarPtr();
-
-    if (resXWrtPtr)
-    {
-    	Alembic::Util::float32_t sampleResX = resx;
-    	resXWrtPtr->setSample(&sampleResX);
-    }
-    else
-    {
-    	err.warning("Failed to export camera resolution x");
-    }
-
-    ScalarPropertyWriterPtr resYWrtPtr;
-    BasePropertyWriterPtr resYProp = userPropWrtPtr->getProperty("resy");
-    if (!resYProp)
-        resYWrtPtr = userPropWrtPtr->createScalarProperty("resy", Alembic::Abc::MetaData(), dtype, 0);
-    else
-    	resYWrtPtr = resYProp->asScalarPtr();
-
-    if (resYWrtPtr)
-    {
-    	Alembic::Util::float32_t sampleResY = resy;
-    	resYWrtPtr->setSample(&sampleResY);
-    }
-    else
-    {
-    	err.warning("Failed to export camera resolution y");
-    }
-
     return true;
 }
 
