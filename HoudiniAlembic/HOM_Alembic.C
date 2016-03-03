@@ -1157,8 +1157,6 @@ namespace
     PY_PyObject *
     Py_AlembicGetCameraResolution(PY_PyObject *self, PY_PyObject *args)
     {
-        ICompoundProperty  uprops;
-        GABC_IObject       obj;
         const char        *filename;
         const char        *objectPath;
         double             sampleTime;
@@ -1172,23 +1170,20 @@ namespace
             return NULL;
         }
 
-        obj = GABC_Util::findObject(filename, objectPath);
+	GABC_IObject obj = GABC_Util::findObject(filename, objectPath);
         if (!obj.valid())
         {
             PY_Py_RETURN_NONE;
         }
 
-        switch(obj.nodeType())
-        {
-            case GABC_CAMERA:
-                uprops = ICamera(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-                break;
+        if(obj.nodeType() != GABC_CAMERA)
+	{
+            PY_Py_RETURN_NONE;
+	}
 
-            default:
-                uprops = ICompoundProperty();
-        }
+	ICamera camera(obj.object(), gabcWrapExisting);
+	ICameraSchema schema = camera.getSchema();
+        ICompoundProperty uprops = schema.getUserProperties();
 
         if (!uprops || uprops.getNumProperties() == 0)
         {
@@ -1204,10 +1199,13 @@ namespace
             PY_Py_RETURN_NONE;
         }
 
+	const TimeSamplingPtr &itime = schema.getTimeSampling();
+	index_t idx = itime->getNearIndex(sampleTime, schema.getNumSamples()).first;
+
         Alembic::Util::float32_t resx = 0;
         Alembic::Util::float32_t resy = 0;
-        resxPtr->getSample(sampleTime, &resx);
-        resyPtr->getSample(sampleTime, &resy);
+        resxPtr->getSample(idx, &resx);
+        resyPtr->getSample(idx, &resy);
 
         PY_PyObject    *result = PY_PyTuple_New(2);
         PY_PyTuple_SetItem(result, 0, PY_PyFloat_FromDouble(resx));
