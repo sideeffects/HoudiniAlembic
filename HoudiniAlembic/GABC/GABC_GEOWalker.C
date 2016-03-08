@@ -2482,7 +2482,7 @@ GABC_GEOWalker::setExcludeObjects(const char *s)
     paths.parse(args);
     for (int i = 0; i < args.getArgc(); i++)
 	myExcludeObjects.append(args(i));
-    myExcludeObjects.sort();
+    myExcludeObjects.sort(true, false);
 }
 
 void
