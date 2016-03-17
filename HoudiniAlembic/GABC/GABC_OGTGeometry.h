@@ -368,7 +368,7 @@ private:
     PropertyMap             myArbProperties[MAX_PROPERTIES];
     PropertyMap             myUserProperties;
     SecondaryCache         *mySecondaryCache;
-    UT_Array<std::string>   myFaceSetNames;
+    UT_StringArray          myFaceSetNames;
     UserPropertiesState     myUserPropState;
     std::string             myName;
     exint                   myElapsedFrames;

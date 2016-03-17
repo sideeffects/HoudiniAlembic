@@ -678,7 +678,7 @@ namespace
 
     template <typename ABC_TYPE>
     static void
-    fillFaceSets(const UT_Array<std::string> &names,
+    fillFaceSets(const UT_StringArray &names,
 	    ABC_TYPE &dest, const GT_FaceSetMapPtr &src)
     {
 	for (exint i = 0; i < names.entries(); ++i)
@@ -686,9 +686,9 @@ namespace
 	    GT_FaceSetPtr	set;
 	    
 	    if (src)
-		set = src->find(names(i).c_str());
-	    UT_ASSERT(dest.hasFaceSet(names(i)));
-	    OFaceSet			 fset = dest.getFaceSet(names(i));
+		set = src->find(names(i));
+	    UT_ASSERT(dest.hasFaceSet(names(i).buffer()));
+	    OFaceSet			 fset = dest.getFaceSet(names(i).buffer());
 	    OFaceSetSchema		&ss = fset.getSchema();
 	    OFaceSetSchema::Sample	 sample;
 	    GT_DataArrayHandle		 items;
@@ -708,14 +708,14 @@ namespace
 
     template <typename ABC_TYPE>
     static void
-    fillFaceSetsFromPrevious(const UT_Array<std::string> &names,
+    fillFaceSetsFromPrevious(const UT_StringArray &names,
             ABC_TYPE &dest)
     {
 	for (exint i = 0; i < names.entries(); ++i)
 	{
-	    UT_ASSERT(dest.hasFaceSet(names(i)));
+	    UT_ASSERT(dest.hasFaceSet(names(i).buffer()));
 
-	    OFaceSet			 fset = dest.getFaceSet(names(i));
+	    OFaceSet			 fset = dest.getFaceSet(names(i).buffer());
 	    OFaceSetSchema		&ss = fset.getSchema();
 	    OFaceSetSchema::Sample	 sample;
 
