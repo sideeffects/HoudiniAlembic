@@ -1084,7 +1084,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	}
     }
     // Delete previous subdivision group
-    if (myLastParms.mySubdGroupName != parms.mySubdGroupName)
+    if (myLastParms.mySubdGroupName != parms.mySubdGroupName && UTisstring(myLastParms.mySubdGroupName))
 	walkgdp->destroyPrimitiveGroup(myLastParms.mySubdGroupName);
     // Create new subd primtiive group
     if (parms.mySubdGroupName.isstring())
