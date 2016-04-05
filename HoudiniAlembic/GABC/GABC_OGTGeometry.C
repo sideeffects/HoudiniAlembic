@@ -779,10 +779,12 @@ namespace
 
     template <typename T>
     const T &
-    promotePrimToDetail(const T &mesh,
+    promotePrimToDetail(const GT_PrimitiveHandle &prim,
 	    const GABC_OOptions &ctx,
 	    GT_PrimitiveHandle &storage)
     {
+	storage = prim;
+	const T	&mesh = *(const T *)(prim.get());
 	auto	 pattern = ctx.uniformToDetailPattern();
 	auto	 force_constant = ctx.forcePrimToDetail();
 	auto	&uniform = mesh.getUniformAttributes();
@@ -844,14 +846,15 @@ namespace
 	return *newmesh;
     }
 
-    static void
+    static GT_PrimitiveHandle
     fillPolyMesh(OPolyMesh &dest,
-	    const GT_PrimPolygonMesh &src_mesh,
+	    const GT_PrimitiveHandle &src_prim,
 	    IntrinsicCache &cache,
 	    const GABC_OOptions &ctx)
     {
 	GT_PrimitiveHandle		tmpprim;
-	auto &&src = promotePrimToDetail(src_mesh, ctx, tmpprim);
+	auto &&src = promotePrimToDetail<GT_PrimPolygonMesh>(src_prim,
+				ctx, tmpprim);
 
 	Int32ArraySample                iInd;
 	Int32ArraySample                iCnt;
@@ -894,16 +897,18 @@ namespace
 	if (iVel.valid())
 	    sample.setVelocities(iVel.getVals());
 	dest.getSchema().set(sample);
+	return tmpprim;
     }
 
-    static void
+    static GT_PrimitiveHandle
     fillSubD(GABC_OGTGeometry &geo, OSubD &dest,
-	    const GT_PrimSubdivisionMesh &src_mesh,
+	    const GT_PrimitiveHandle &src_prim,
 	    IntrinsicCache &cache,
 	    const GABC_OOptions &ctx)
     {
 	GT_PrimitiveHandle	tmpprim;
-	auto &&src = promotePrimToDetail(src_mesh, ctx, tmpprim);
+	auto &&src = promotePrimToDetail<GT_PrimSubdivisionMesh>(src_prim,
+			    ctx, tmpprim);
 
 	Int32ArraySample                iInd;
 	Int32ArraySample                iCnt;
@@ -1022,6 +1027,7 @@ namespace
 	if (iVel.valid())
 	    sample.setVelocities(iVel.getVals());
 	dest.getSchema().set(sample);
+	return tmpprim;
     }
 
     static void
@@ -2160,9 +2166,7 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 	// Direct mapping to Alembic primitives
 	case GT_PRIM_POLYGON_MESH:
 	    // Promoting uniform to detail may change the prim.
-	    promotePrimToDetail(
-		    *UTverify_cast<const GT_PrimPolygonMesh *>(prim.get()),
-		    ctx, prim);
+	    promotePrimToDetail<GT_PrimPolygonMesh>(prim, ctx, prim);
             myShape.myPolyMesh = new OPolyMesh(parent,
                     myName,
                     ctx.timeSampling());
@@ -2175,9 +2179,7 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 
 	case GT_PRIM_SUBDIVISION_MESH:
 	    // Promoting uniform to detail may change the prim.
-	    promotePrimToDetail(
-		    *UTverify_cast<const GT_PrimSubdivisionMesh *>(prim.get()),
-		    ctx, prim);
+	    promotePrimToDetail<GT_PrimSubdivisionMesh>(prim, ctx, prim);
             myShape.mySubD = new OSubD(parent,
                     myName,
                     ctx.timeSampling());
@@ -2259,18 +2261,14 @@ GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
     switch (myType)
     {
 	case GT_PRIM_POLYGON_MESH:
-	    fillPolyMesh(*myShape.myPolyMesh,
-			*(GT_PrimPolygonMesh *)(prim.get()),
-			myCache, ctx);
+	    prim = fillPolyMesh(*myShape.myPolyMesh, prim, myCache, ctx);
 	    fillFaceSets(myFaceSetNames,
 			myShape.myPolyMesh->getSchema(),
 			((GT_PrimPolygonMesh *)(prim.get()))->faceSetMap());
 	    break;
 
 	case GT_PRIM_SUBDIVISION_MESH:
-	    fillSubD(*this, *myShape.mySubD,
-			*(GT_PrimSubdivisionMesh *)(prim.get()),
-			myCache, ctx);
+	    prim = fillSubD(*this, *myShape.mySubD, prim, myCache, ctx);
 	    fillFaceSets(myFaceSetNames,
 			myShape.mySubD->getSchema(),
 			((GT_PrimSubdivisionMesh *)(prim.get()))->faceSetMap());
