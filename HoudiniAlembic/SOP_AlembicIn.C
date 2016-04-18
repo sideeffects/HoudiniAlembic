@@ -588,11 +588,11 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_STRING, 1, &prm_subdgroupName),
 
     // Selection tab
-    // Currently there are 16 elements (16 PRM_Template() calls below) in this tab, 
-    // which matches PRM_Default(16, "Selection") defined in mainSwitcher
+    // Currently there are 16 elements (16 PRM_Template() calls below) in this
+    // tab, which matches PRM_Default(16, "Selection") defined in mainSwitcher
     PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectPathName,
 	    &prm_objectPathDefault, &prm_objectPathMenu, NULL, PRM_Callback(),
-	    sopCreateObjectPathSpareData(true, true)),
+	    sopCreateObjectPathSpareData(true, false)),
     PRM_Template(PRM_CALLBACK, PRM_TYPE_NO_LABEL, 1, &prm_pickObjectPathName,
 	    0, 0, 0, selectAlembicNodes, &theTreeButtonSpareData),
     PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectExcludeName,
