@@ -2399,6 +2399,9 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err)
     , myPrimitiveCount(0)
     , myGroupMode(ABC_GROUP_SHAPE_NODE)
     , myBoxCullMode(BOX_CULL_IGNORE)
+    , mySizeCullMode(SIZE_CULL_IGNORE)
+    , mySizeCompare(SIZE_COMPARE_LESSTHAN)
+    , mySize(0)
     , myAnimationFilter(ABC_AFILTER_ALL)
     , myGeometryFilter(ABC_GFILTER_ALL)
     , myIncludeXform(true)
@@ -2754,7 +2757,8 @@ GABC_GEOWalker::filterObject(const GABC_IObject &obj) const
     return matchObjectName(obj) &&
 	    matchAnimationFilter(obj) &&
             matchGeometryFilter(obj) &&
-	    matchBounds(obj);
+	    matchBounds(obj) &&
+	    matchSize(obj);
 }
 
 bool
@@ -2877,6 +2881,34 @@ GABC_GEOWalker::matchBounds(const GABC_IObject &obj) const
     }
     UT_ASSERT_P(0 && "Unexpected case");
     return true;
+}
+
+bool
+GABC_GEOWalker::matchSize(const GABC_IObject &obj) const
+{
+    if(mySizeCullMode == SIZE_CULL_IGNORE)
+	return true;
+
+    UT_BoundingBox box;
+    bool isconst;
+    obj.getBoundingBox(box, time(), isconst);
+    fpreal x = box.xsize();
+    fpreal y = box.ysize();
+    fpreal z = box.zsize();
+
+    fpreal val;
+    if(mySizeCullMode == SIZE_CULL_AREA)
+	val = 2 * (x * y + x * z + y * z);
+    else if(mySizeCullMode == SIZE_CULL_RADIUS)
+	val = 0.5 * SYSsqrt(x * x + y * y + z * z);
+    else // if(mySizeCullMode == SIZE_CULL_VOLUME)
+	val = x * y * z;
+
+    if(mySizeCompare == SIZE_COMPARE_LESSTHAN)
+	return val < mySize;
+
+    // mySizeCompare == SIZE_COMPARE_GREATERTHAN
+    return val > mySize;
 }
 
 bool

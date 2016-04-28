@@ -84,6 +84,20 @@ public:
 	BOX_CULL_OUTSIDE,	// Add if object is entirely outside bounds
     };
 
+    enum SizeCullMode
+    {
+	SIZE_CULL_IGNORE,	// Ignore size constraint
+	SIZE_CULL_AREA,		// Add if bounding box area passes size test
+	SIZE_CULL_RADIUS,	// Add if bounding box radius passes size test
+	SIZE_CULL_VOLUME,	// Add if bounding box volume passes size test
+    };
+
+    enum SizeCompare
+    {
+	SIZE_COMPARE_LESSTHAN,		// Add if bounding box is smaller than the reference size
+	SIZE_COMPARE_GREATERTHAN,	// Add if bounding box is larger than the reference size
+    };
+
     enum LoadMode
     {
 	LOAD_ABC_PRIMITIVES,		// Load Alembic primitives
@@ -259,6 +273,8 @@ public:
 			GA_Offset shared_point = GA_INVALID_OFFSET);
     void	setPolySoup(AbcPolySoup soup)	{ myPolySoup = soup; }
     void	setViewportLOD(GEO_ViewportLOD v)	{ myViewportLOD = v; }
+    void	setSizeCullMode(SizeCullMode mode, SizeCompare cmp, fpreal size)
+		    { mySizeCullMode = mode; mySizeCompare = cmp; mySize = size; }
     /// @}
 
     /// @{
@@ -329,6 +345,7 @@ private:
     bool		 matchAnimationFilter(const GABC_IObject &obj) const;
     bool                 matchGeometryFilter(const GABC_IObject &obj) const;
     bool		 matchBounds(const GABC_IObject &obj) const;
+    bool		 matchSize(const GABC_IObject &obj) const;
     bool		 abcPrimPointMode() const
 				{ return myAbcPrimPointMode; }
     GA_Offset		 abcSharedPoint() const
@@ -340,6 +357,8 @@ private:
     AFilter                 myAnimationFilter;      // Animating object filter
     int                     myGeometryFilter;       // Geometry type filter
     BoxCullMode             myBoxCullMode;
+    SizeCullMode	    mySizeCullMode;
+    SizeCompare		    mySizeCompare;
     GroupMode               myGroupMode;            // How to construct group names
     LoadMode                myLoadMode;             // Build Alembic primitives
     LoadUserPropsMode       myLoadUserProps;        // How to load user properties
@@ -362,6 +381,7 @@ private:
     std::stack<GABC_VisibilityType> myVisibilityStack;
 
     fpreal	myTime; // Alembic evaluation time
+    fpreal	mySize;
 
     exint	myPointCount;		// Points added
     exint	myPrimitiveCount;	// Primitive's added count

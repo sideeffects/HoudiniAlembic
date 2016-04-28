@@ -95,6 +95,8 @@ private:
 
     GABC_GEOWalker::BoxCullMode	getCullingBox(UT_BoundingBox &box,
 						OP_Context &context);
+    GABC_GEOWalker::SizeCullMode	getSizeCullMode(GABC_GEOWalker::SizeCompare &cmp,
+						fpreal &size, fpreal t);
 
     class Parms
     {
@@ -114,6 +116,8 @@ private:
 	GABC_GEOWalker::AFilter			myAnimationFilter;
         int                                     myGeometryFilter;
 	GABC_GEOWalker::BoxCullMode		myBoundMode;
+	GABC_GEOWalker::SizeCullMode		mySizeCullMode;
+	GABC_GEOWalker::SizeCompare		mySizeCompare;
 	GABC_GEOWalker::GroupMode		myGroupMode;
 	GABC_GEOWalker::LoadMode		myLoadMode;
 	GABC_GEOWalker::LoadUserPropsMode	myLoadUserProps;
@@ -128,6 +132,7 @@ private:
 	UT_String				mySubdGroupName;
         UT_String                               myFacesetAttribute;
 	std::string				myFilename;
+	fpreal					mySize;
 	bool					myMissingFileError;
 	bool					myBuildAbcShape;
 	bool					myBuildAbcXform;

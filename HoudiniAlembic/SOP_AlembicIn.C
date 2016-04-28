@@ -168,6 +168,9 @@ namespace
 SOP_AlembicIn2::Parms::Parms()
     : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
     , myBoundMode(GABC_GEOWalker::BOX_CULL_IGNORE)
+    , mySizeCullMode(GABC_GEOWalker::SIZE_CULL_IGNORE)
+    , mySizeCompare(GABC_GEOWalker::SIZE_COMPARE_LESSTHAN)
+    , mySize(0)
     , myPointMode(GABC_GEOWalker::ABCPRIM_CENTROID_POINT)
     , myBuildAbcShape(true)
     , myBuildAbcXform(false)
@@ -196,31 +199,6 @@ SOP_AlembicIn2::Parms::Parms()
 }
 
 SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
-    : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
-    , myBoundMode(GABC_GEOWalker::BOX_CULL_IGNORE)
-    , myPointMode(GABC_GEOWalker::ABCPRIM_CENTROID_POINT)
-    , myBuildAbcShape(true)
-    , myBuildAbcXform(false)
-    , myFilename()
-    , myObjectPath()
-    , myObjectPattern()
-    , myExcludeObjectPath()
-    , mySubdGroupName()
-    , myIncludeXform(true)
-    , myMissingFileError(true)
-    , myUseVisibility(true)
-    , myStaticTimeZero(true)
-    , myBuildLocator(false)
-    , myLoadUserProps(GABC_GEOWalker::UP_LOAD_NONE)
-    , myGroupMode(GABC_GEOWalker::ABC_GROUP_SHAPE_NODE)
-    , myAnimationFilter(GABC_GEOWalker::ABC_AFILTER_ALL)
-    , myGeometryFilter(GABC_GEOWalker::ABC_GFILTER_ALL)
-    , myPolySoup(GABC_GEOWalker::ABC_POLYSOUP_POLYMESH)
-    , myViewportLOD(GEO_VIEWPORT_FULL)
-    , myPathAttribute("")
-    , myFilenameAttribute("")
-    , myNameMapPtr()
-    , myFacesetAttribute("*")
 {
     *this = src;
 }
@@ -232,6 +210,9 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myFilename = src.myFilename;
     myLoadMode = src.myLoadMode;
     myBoundMode = src.myBoundMode;
+    mySizeCullMode = src.mySizeCullMode;
+    mySizeCompare = src.mySizeCompare;
+    mySize = src.mySize;
     myPointMode = src.myPointMode;
     myBoundBox = src.myBoundBox;
     myBuildAbcShape = src.myBuildAbcShape;
@@ -331,6 +312,13 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
     }
     if (myFacesetAttribute != src.myFacesetAttribute)
         return true;
+    if(mySizeCullMode != src.mySizeCullMode)
+	return true;
+    if(mySizeCullMode != GABC_GEOWalker::SIZE_CULL_IGNORE)
+    {
+	if(mySizeCompare != src.mySizeCompare || mySize != src.mySize)
+	    return true;
+    }
     return false;
 }
 
@@ -452,8 +440,28 @@ static PRM_ChoiceList	menu_boxcull(PRM_CHOICELIST_SINGLE, boxCullOptions);
 
 static PRM_Name	boxcullSource("boxsource", "Use First Input To Specify Box");
 static PRM_Name	boxcullSize("boxsize", "Box Size");
-static PRM_Range boxcullSizeRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 10);
 static PRM_Name	boxcullCenter("boxcenter", "Box Center");
+
+static PRM_Name sizeCullOptions[] = {
+    PRM_Name("none",	"No Size Filtering"),
+    PRM_Name("area",	"Filter Objects By Bounding Area"),
+    PRM_Name("radius",	"Filter Objects By Bounding Radius"),
+    PRM_Name("volume",	"Filter Objects By Bounding Volume"),
+    PRM_Name()
+};
+static PRM_Default	prm_sizecullModeDefault(0, "none");
+static PRM_ChoiceList	menu_sizecullMode(PRM_CHOICELIST_SINGLE, sizeCullOptions);
+static PRM_Name	sizecullMode("sizecull", "Size Culling");
+
+static PRM_Name sizeCompareOptions[] = {
+    PRM_Name("lessthan",	"Less Than"),
+    PRM_Name("greaterthan",	"Greater Than"),
+    PRM_Name()
+};
+static PRM_Default	prm_sizeCompareDefault(0, "lessthan");
+static PRM_ChoiceList	menu_sizeCompare(PRM_CHOICELIST_SINGLE, sizeCompareOptions);
+static PRM_Name	sizeCompare("sizecompare", "Size Compare");
+static PRM_Name	sizecullSize("size", "Size");
 
 static PRM_Name userPropsOptions[] = {
     PRM_Name("none",	"Do Not Load"),
@@ -520,7 +528,7 @@ static PRM_SpareData	theAbcPattern(
 static PRM_Default	mainSwitcher[] =
 {
     PRM_Default(10, "Geometry"),
-    PRM_Default(16, "Selection"),
+    PRM_Default(19, "Selection"),
     PRM_Default(11, "Attributes"),
 };
 
@@ -588,8 +596,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_STRING, 1, &prm_subdgroupName),
 
     // Selection tab
-    // Currently there are 16 elements (16 PRM_Template() calls below) in this
-    // tab, which matches PRM_Default(16, "Selection") defined in mainSwitcher
+    // Currently there are 19 elements (19 PRM_Template() calls below) in this
+    // tab, which matches PRM_Default(19, "Selection") defined in mainSwitcher
     PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectPathName,
 	    &prm_objectPathDefault, &prm_objectPathMenu, NULL, PRM_Callback(),
 	    sopCreateObjectPathSpareData(true, false)),
@@ -613,8 +621,14 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 	    &menu_boxcull),
     PRM_Template(PRM_TOGGLE, 1, &boxcullSource, PRMzeroDefaults),
     PRM_Template(PRM_XYZ_J,  3, &boxcullSize, PRMoneDefaults,
-	    NULL, &boxcullSizeRange),
+	    NULL, &PRMrulerRange),
     PRM_Template(PRM_XYZ_J,  3, &boxcullCenter, PRMzeroDefaults),
+    PRM_Template(PRM_ORD, 1, &sizecullMode, &prm_sizecullModeDefault,
+	    &menu_sizecullMode),
+    PRM_Template(PRM_ORD, 1, &sizeCompare, &prm_sizeCompareDefault,
+	    &menu_sizeCompare),
+    PRM_Template(PRM_FLT_J, 1, &sizecullSize, PRMoneDefaults,
+	    NULL, &PRMrulerRange),
 
     // Attribute tab
     // Currently there are 11 elements (11 PRM_Template() calls below) in this tab, 
@@ -719,18 +733,49 @@ SOP_AlembicIn2::getCullingBox(UT_BoundingBox &box, OP_Context &ctx)
 
 //-*****************************************************************************
 
+GABC_GEOWalker::SizeCullMode
+SOP_AlembicIn2::getSizeCullMode(GABC_GEOWalker::SizeCompare &cmp, fpreal &size, fpreal t)
+{
+    UT_String sizecull;
+    GABC_GEOWalker::SizeCullMode	mode = GABC_GEOWalker::SIZE_CULL_IGNORE;
+    cmp = GABC_GEOWalker::SIZE_COMPARE_LESSTHAN;
+    size = 0;
+
+    evalString(sizecull, "sizecull", 0, t);
+    if (sizecull == "area")
+	mode = GABC_GEOWalker::SIZE_CULL_AREA;
+    else if (sizecull == "radius")
+	mode = GABC_GEOWalker::SIZE_CULL_RADIUS;
+    else if (sizecull == "volume")
+	mode = GABC_GEOWalker::SIZE_CULL_VOLUME;
+    if (mode != GABC_GEOWalker::SIZE_CULL_IGNORE)
+    {
+	evalString(sizecull, "sizecompare", 0, t);
+	if (sizecull == "greaterthan")
+	    cmp = GABC_GEOWalker::SIZE_COMPARE_GREATERTHAN;
+
+	size = evalFloat("size", 0, t);
+    }
+    return mode;
+}
+
+//-*****************************************************************************
+
 bool
 SOP_AlembicIn2::updateParmsFlags()
 {
     bool	changed = false;
     bool	hasbox = (nInputs() > 0);
     bool	enablebox = !hasbox || (evalInt("boxsource", 0, 0) == 0);
-    UT_String	boxcull;
+    UT_String	boxcull, sizecull;
     int		loadmode;
 
     evalString(boxcull, "boxcull", 0, 0);
     if (boxcull == "none")
 	enablebox = false;
+    evalString(sizecull, "sizecull", 0, 0);
+    bool enablesize = (sizecull != "none");
+
     loadmode = evalInt("loadmode", 0, 0);
 
     changed |= enableParm("pathattrib", evalInt("addpath", 0, 0));
@@ -740,9 +785,11 @@ SOP_AlembicIn2::updateParmsFlags()
     changed |= enableParm("subdgroup", loadmode == 1);
     changed |= enableParm("viewportlod", loadmode == 0);
     changed |= enableParm("polysoup", loadmode == 1);
-    changed |= setVisibleState("boxsource", hasbox && boxcull != "none");
-    changed |= setVisibleState("boxsize", enablebox);
-    changed |= setVisibleState("boxcenter", enablebox);
+    changed |= enableParm("boxsource", hasbox && boxcull != "none");
+    changed |= enableParm("boxsize", enablebox);
+    changed |= enableParm("boxcenter", enablebox);
+    changed |= enableParm("sizecompare", enablesize);
+    changed |= enableParm("size", enablesize);
 
     return changed;
 }
@@ -786,6 +833,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     }
 
     parms.myBoundMode = getCullingBox(parms.myBoundBox, context);
+    parms.mySizeCullMode = getSizeCullMode(parms.mySizeCompare, parms.mySize, now);
     switch (evalInt("pointmode", 0, now))
     {
 	case 0:
@@ -1041,6 +1089,8 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     walk.setBuildAbcXform(parms.myBuildAbcXform);
     walk.setNameMapPtr(parms.myNameMapPtr);
     walk.setFacesetAttribute(parms.myFacesetAttribute);
+    walk.setSizeCullMode(parms.mySizeCullMode,
+			 parms.mySizeCompare, parms.mySize);
     if (myLastParms.myPathAttribute != parms.myPathAttribute)
     {
 	if (myLastParms.myPathAttribute.isstring())

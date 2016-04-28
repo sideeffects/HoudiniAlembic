@@ -271,6 +271,39 @@ Box Center:
     
     Manually specify the center of the culling bounding box
 
+Size Culling:
+    #id: sizecull
+
+    This allows you to only load primitives based on the size of their bounding box.
+
+    No size filtering (default):
+        Loads all primitives.
+
+    Filter Objects By Bounding Area:
+        Loads only objects which are bounded by a box that matches the radius constraint.
+
+    Filter Objects By Bounding Radius:
+        Loads only objects which are bounded by a sphere that matches the radius constraint.
+
+    Filter Objects By Bounding Volume:
+        Loads only objects which are bounded by a box that matches the volume constraint.
+
+Size Compare:
+    #id: sizecompare
+
+    This allows you to specify the test used when comparing each bounding box.
+
+    Less Than:
+        Loads only objects which are bounded by box smaller than the specified size.
+
+    Greater Than:
+        Loads only objects which are bounded by box larger than the specified size.
+
+Size:
+    #id: size
+
+    Specifies the size each bounding box is compared against.
+
 == Attributes ==
 
 Point Attributes:
