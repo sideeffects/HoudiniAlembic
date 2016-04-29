@@ -458,7 +458,7 @@ static PRM_Name sizeCompareOptions[] = {
     PRM_Name("greaterthan",	"Greater Than"),
     PRM_Name()
 };
-static PRM_Default	prm_sizeCompareDefault(0, "lessthan");
+static PRM_Default	prm_sizeCompareDefault(0, "greaterthan");
 static PRM_ChoiceList	menu_sizeCompare(PRM_CHOICELIST_SINGLE, sizeCompareOptions);
 static PRM_Name	sizeCompare("sizecompare", "Size Compare");
 static PRM_Name	sizecullSize("size", "Size");
