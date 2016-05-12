@@ -259,6 +259,7 @@ namespace
     {
 	return FloatArraySample(data->getF32Array(storage), data->entries());
     }
+#if 0
     Int32ArraySample
     int32Array(const GT_PrimSubdivisionMesh::Tag &tag,
 	    GT_DataArrayHandle &storage, int index=0)
@@ -271,6 +272,7 @@ namespace
     {
 	return floatArray(tag.intArray(index), storage);
     }
+#endif
 
     static void
     splitVector3(const GT_DataArrayHandle &xyz,
@@ -422,18 +424,7 @@ namespace
 	UT_ASSERT(0 && "Not specialized");
 	return NULL;
     }
-    #define EXTRACT_ARRAY(POD_T, METHOD)	\
-    template <> const POD_T * \
-    extractArray<POD_T>(const GT_DataArrayHandle &a, GT_DataArrayHandle &store) \
-		    { return a->METHOD(store); } \
-	
-    EXTRACT_ARRAY(uint8, getU8Array);
-    EXTRACT_ARRAY(int32, getI32Array);
-    EXTRACT_ARRAY(int64, getI64Array);
-    EXTRACT_ARRAY(fpreal16, getF16Array);
-    EXTRACT_ARRAY(fpreal32, getF32Array);
-    EXTRACT_ARRAY(fpreal64, getF64Array);
-    
+
     template <typename POD_T, GT_Storage T_STORAGE>
     static const POD_T *
     fillArray(const GT_DataArrayHandle &gt, GT_DataArrayHandle &store, int tsize)

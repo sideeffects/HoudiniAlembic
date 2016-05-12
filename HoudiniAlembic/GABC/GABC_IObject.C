@@ -978,17 +978,6 @@ namespace
 	return -1;
     }
 
-    static GT_AttributeListHandle
-    clearBadAttributes(GT_AttributeList *alist, UT_StringArray &bad)
-    {
-	GT_AttributeListHandle	a(alist);
-	for (exint i = 0; a && i < bad.entries(); ++i)
-	{
-	    a = a->removeAttribute(bad(i));
-	}
-	return a;
-    }
-
     template <bool ONLY_ANIMATING>
     static void
     fillAttributeList(GT_AttributeList &alist,
