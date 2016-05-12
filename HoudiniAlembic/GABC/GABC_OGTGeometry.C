@@ -424,6 +424,19 @@ namespace
 	UT_ASSERT(0 && "Not specialized");
 	return NULL;
     }
+    SYS_PRAGMA_PUSH_WARN()
+    SYS_PRAGMA_DISABLE_UNUSED_FUNCTION()	// Clang gives false warnings
+    #define EXTRACT_ARRAY(POD_T, METHOD) template <> const POD_T * \
+		extractArray<POD_T>(const GT_DataArrayHandle &a, \
+			GT_DataArrayHandle &store) { return a->METHOD(store); }
+
+    EXTRACT_ARRAY(uint8, getU8Array);
+    EXTRACT_ARRAY(int32, getI32Array);
+    EXTRACT_ARRAY(int64, getI64Array);
+    EXTRACT_ARRAY(fpreal16, getF16Array);
+    EXTRACT_ARRAY(fpreal32, getF32Array);
+    EXTRACT_ARRAY(fpreal64, getF64Array);
+    SYS_PRAGMA_POP_WARN()
 
     template <typename POD_T, GT_Storage T_STORAGE>
     static const POD_T *
