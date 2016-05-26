@@ -1703,19 +1703,23 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
 	const GABC_OOptions &ctx)
 {
     if (ctx.faceSetMode() == GABC_OOptions::FACESET_NONE)
-    {
 	return;
-    }
+
     GT_DataArrayHandle	ids;
     GT_FaceSetMapPtr	facesets = getFaceSetMap(prim);
     if (!facesets)
 	return;
+
+    const char *subd = ctx.subdGroup();
+    bool all_groups = (ctx.faceSetMode() == GABC_OOptions::FACESET_ALL_GROUPS);
     for (GT_FaceSetMap::iterator it = facesets->begin(); !it.atEnd(); ++it)
     {
 	std::string		 name = it.name();
-	const GT_FaceSetPtr	&set = it.faceSet();
-	if (ctx.faceSetMode() == GABC_OOptions::FACESET_ALL_GROUPS ||
-		set->entries() != 0)
+	// skip the group used to specific subdivision surfaces
+	if (subd && strcmp(subd, name.c_str()) == 0)
+	    continue;
+
+	if (all_groups || it.faceSet()->entries() != 0)
 	{
 	    myFaceSetNames.append(name);
 	    switch (myType)
