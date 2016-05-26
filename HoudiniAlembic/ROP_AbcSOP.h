@@ -61,12 +61,12 @@ public:
     typedef ROP_AbcGTCompoundShape::XformUserPropsMap	XformUserPropsMap;
     typedef ROP_AbcGTCompoundShape::XformUserPropsMapInsert	XformUserPropsMapInsert;
 
-    typedef std::vector<std::string>                    NameList;
-    typedef UT_Map<std::string, int>                    NameMap;
-    typedef std::pair<std::string, int>                 NameMapInsert;
-    typedef UT_Map<std::string, int>                    PartitionMap;
-    typedef std::pair<std::string, int>                 PartitionMapInsert;
-    typedef UT_Array<abc_PrimContainer>                 PrimitiveList;
+    typedef std::vector<std::string>		NameList;
+    typedef UT_Map<std::string, int>		NameMap;
+    typedef std::pair<std::string, int>		NameMapInsert;
+    typedef UT_Map<std::string, int>		PartitionMap;
+    typedef std::pair<std::string, int>		PartitionMapInsert;
+    typedef std::vector<abc_PrimContainer>	PrimitiveList;
 
     /// Helper class stores a GT_PrimitiveHandle to a GT_GEODetail containing
     /// all geometry in a single partition, as well as additional information
