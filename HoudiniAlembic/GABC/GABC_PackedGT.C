@@ -46,8 +46,11 @@ public:
 	       UTverify_cast<const GABC_PackedImpl *>(prim->implementation());
 	    if(impl)
 	    {
+		fpreal frame = 0.0;
+		if(impl->animationType() > GEO_ANIMATION_TRANSFORM)
+		    frame = impl->frame();
 		SYS_HashType hash = impl->getPropertiesHash();
-		SYShashCombine(hash, SYSreal_hash(impl->frame()));
+		SYShashCombine(hash, SYSreal_hash(frame));
 		myID = hash;
 	    }
 	}
