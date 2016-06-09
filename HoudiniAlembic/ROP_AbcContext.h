@@ -197,6 +197,12 @@ public:
     void		 setSingletonSOP(SOP_Node *s)	{ mySingletonSOP = s; }
     /// @}
 
+    /// @{
+    /// Whether to use the display or render SOP.  Default is to choose render.
+    bool	 useDisplaySOP() const		{ return myUseDisplaySOP; }
+    void	 setUseDisplaySOP(bool f)	{ myUseDisplaySOP = f; }
+    /// @}
+
 private:
     TimeSamplingPtr     myTimeSampling;
     UT_Array<fpreal>    myBlurTimes; // Sub-frame offsets for motion blur
@@ -213,6 +219,7 @@ private:
     bool                myPartition;
     bool                mySaveHidden;
     bool                myUseInstancing;
+    bool	        myUseDisplaySOP;
 };
 
 #endif

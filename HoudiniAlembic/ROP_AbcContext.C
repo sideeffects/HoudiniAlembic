@@ -56,6 +56,7 @@ ROP_AbcContext::ROP_AbcContext()
     , myPartition(false)
     , mySaveHidden(true)
     , myUseInstancing(true)
+    , myUseDisplaySOP(false)
 {
 }
 

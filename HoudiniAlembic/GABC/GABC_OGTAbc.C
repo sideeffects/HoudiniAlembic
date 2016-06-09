@@ -76,13 +76,11 @@ namespace
     typedef Alembic::Abc::OCompoundProperty	OCompoundProperty;
 
     // General
-    typedef Alembic::AbcGeom::IObject		IObject;
     typedef Alembic::AbcGeom::OObject		OObject;
     // Xform
     typedef Alembic::AbcGeom::IXform		IXform;
     typedef Alembic::AbcGeom::OXform		OXform;
     typedef Alembic::AbcGeom::IXformSchema	IXformSchema;
-    typedef Alembic::AbcGeom::OXformSchema	OXformSchema;
     typedef Alembic::AbcGeom::XformSample	XformSample;
     // PolyMesh
     typedef Alembic::AbcGeom::IPolyMesh		IPolyMesh;
@@ -130,7 +128,6 @@ namespace
 
     // Visibility
     typedef Alembic::AbcGeom::ObjectVisibility		ObjectVisibility;
-    typedef Alembic::AbcGeom::OVisibilityProperty	OVisibilityProperty;
 
     typedef GABC_OGTAbc::GABCPropertyMap	GABCPropertyMap;
     typedef GABC_OGTAbc::PropertyMap		PropertyMap;

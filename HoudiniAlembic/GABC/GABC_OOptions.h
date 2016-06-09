@@ -82,12 +82,6 @@ public:
     /// @}
 
     /// @{
-    /// Whether to use the display or render SOP.  Default is to choose render.
-    bool	useDisplaySOP() const		{ return myUseDisplaySOP; }
-    void	setUseDisplaySOP(bool f)	{ myUseDisplaySOP = f; }
-    /// @}
-
-    /// @{
     /// Whether to cook full bounding boxes for all nodes
     bool	fullBounds() const	{ return myFullBounds; }
     void	setFullBounds(bool f)	{ myFullBounds = f; }
@@ -146,7 +140,6 @@ private:
     exint               myFirstFrame;
     bool		myAttributeStars;
     bool		mySaveAttributes;
-    bool		myUseDisplaySOP;
     bool		myFullBounds;
     bool		myForcePrimToDetail;
 };
