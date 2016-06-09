@@ -290,12 +290,13 @@ namespace
 	    return;		// Same time index
 
 	fpreal best = ((t-t0.second) > (t1.second-t)) ? t1.second : t0.second;
-	if (SYSisEqual(best, t, timeBias))
-	    return;	// Same time (essentially)
-	UT_ErrorLog::mantraErrorOnce(
-	    "Alembic sub-frame interpolation error for dynamic topology %s (%s)",
-	    obj.archive()->filename().c_str(),
-	    obj.getFullName().c_str());
+	if (!SYSisEqual(best, t, timeBias))
+	{
+	    UT_ErrorLog::mantraErrorOnce(
+		"Alembic sub-frame interpolation error for dynamic topology %s (%s)",
+		obj.archive()->filename().c_str(),
+		obj.getFullName().c_str());
+	}
 	t = best;
     }
 
