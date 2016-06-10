@@ -104,12 +104,14 @@ namespace
     typedef Alembic::Abc::TimeSamplingPtr	    TimeSamplingPtr;
 
     // Geometry
+    typedef Alembic::AbcGeom::ICurves		    ICurves;
+    typedef Alembic::AbcGeom::IFaceSet		    IFaceSet;
+    typedef Alembic::AbcGeom::ILight		    ILight;
+    typedef Alembic::AbcGeom::INuPatch		    INuPatch;
+    typedef Alembic::AbcGeom::IPoints		    IPoints;
+    typedef Alembic::AbcGeom::IPolyMesh		    IPolyMesh;
+    typedef Alembic::AbcGeom::ISubD		    ISubD;
     typedef Alembic::AbcGeom::IXform		    IXform;
-    typedef Alembic::AbcGeom::IXform		    IPolyMesh;
-    typedef Alembic::AbcGeom::IXform		    ISubD;
-    typedef Alembic::AbcGeom::IXform		    IPoints;
-    typedef Alembic::AbcGeom::IXform		    ICurves;
-    typedef Alembic::AbcGeom::IXform		    INuPatch;
 
     // Camera
     typedef Alembic::AbcGeom::ICamera		    ICamera;
@@ -428,6 +430,52 @@ namespace
 	return rcode;
     }
 
+    static ICompoundProperty
+    homGetUserProperties(const GABC_IObject &obj)
+    {
+        switch (obj.nodeType())
+        {
+            case GABC_XFORM:
+                return IXform(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+            case GABC_POLYMESH:
+                return IPolyMesh(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+            case GABC_SUBD:
+                return ISubD(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+            case GABC_CAMERA:
+                return ICamera(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+            case GABC_FACESET:
+                return IFaceSet(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+            case GABC_CURVES:
+                return ICurves(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+            case GABC_POINTS:
+                return IPoints(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+            case GABC_NUPATCH:
+                return INuPatch(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+            case GABC_LIGHT:
+                return ILight(obj.object(), gabcWrapExisting)
+                        .getSchema()
+                        .getUserProperties();
+            default:
+                return ICompoundProperty();
+        }
+    }
+
     static const char   *Doc_AlembicHasUserProperties =
         "alembicHasUserProperties(abcPath, objectPath)\n"
         "\n"
@@ -437,9 +485,6 @@ namespace
     PY_PyObject *
     Py_AlembicHasUserProperties(PY_PyObject *self, PY_PyObject *args)
     {
-        ICompoundProperty   icp;
-        GABC_IObject	    obj;
-        GT_DataArrayHandle  data;
         const char         *filename;
         const char         *objectPath;
 
@@ -448,57 +493,14 @@ namespace
             return NULL;
         }
 
-        obj = GABC_Util::findObject(filename, objectPath);
-        switch (obj.nodeType())
-        {
-            case GABC_XFORM:
-                icp = IXform(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-                break;
-
-            // Only called for transforms currently
-            //
-//            case GABC_POLYMESH:
-//                icp = IPolyMesh(obj.object(), gabcWrapExisting)
-//                        .getSchema()
-//                        .getUserProperties();
-//                break;
-//
-//            case GABC_SUBD:
-//                icp = ISubD(obj.object(), gabcWrapExisting)
-//                        .getSchema()
-//                        .getUserProperties();
-//                break;
-//
-//            case GABC_CURVES:
-//                icp = ICurves(obj.object(), gabcWrapExisting)
-//                        .getSchema()
-//                        .getUserProperties();
-//                break;
-//
-//            case GABC_POINTS:
-//                icp = IPoints(obj.object(), gabcWrapExisting)
-//                        .getSchema()
-//                        .getUserProperties();
-//                break;
-//
-//            case GABC_NUPATCH:
-//                icp = INuPatch(obj.object(), gabcWrapExisting)
-//                        .getSchema()
-//                        .getUserProperties();
-//                break;
-
-            default:
-                icp = ICompoundProperty();
-        }
-
-        if (!icp || icp.getNumProperties() == 0)
+        GABC_IObject obj = GABC_Util::findObject(filename, objectPath);
+	ICompoundProperty uprops = homGetUserProperties(obj);
+        if (!uprops || uprops.getNumProperties() == 0)
         {
             PY_Py_RETURN_NONE;
         }
 
-        return GABC_Util::isABCPropertyConstant(icp) ? PY_Py_True()
+        return GABC_Util::isABCPropertyConstant(uprops) ? PY_Py_True()
                 : PY_Py_False();
     }
 
@@ -547,8 +549,6 @@ namespace
     PY_PyObject *
     Py_AlembicUserPropertyValues(PY_PyObject *self, PY_PyObject *args)
     {
-        ICompoundProperty   uprops;
-        GABC_IObject	    obj;
         UT_JSONWriter      *data_writer;
         UT_WorkBuffer       data_dictionary;
         const char         *filename;
@@ -564,23 +564,13 @@ namespace
             return NULL;
         }
 
-        obj = GABC_Util::findObject(filename, objectPath);
+        GABC_IObject obj = GABC_Util::findObject(filename, objectPath);
         if (!obj.valid())
         {
             PY_Py_RETURN_NONE;
         }
 
-        switch (obj.nodeType())
-        {
-            case GABC_XFORM:
-                uprops = IXform(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-                break;
-            default:
-                uprops = ICompoundProperty();
-        }
-
+        ICompoundProperty uprops = homGetUserProperties(obj);
         if (!uprops || uprops.getNumProperties() == 0)
         {
             PY_Py_RETURN_NONE;
@@ -613,8 +603,6 @@ namespace
     PY_PyObject *
     Py_AlembicUserPropertyMetadata(PY_PyObject *self, PY_PyObject *args)
     {
-        ICompoundProperty   uprops;
-        GABC_IObject	    obj;
         UT_JSONWriter      *meta_writer;
         UT_WorkBuffer       meta_dictionary;
         const char         *filename;
@@ -630,24 +618,13 @@ namespace
             return NULL;
         }
 
-        obj = GABC_Util::findObject(filename, objectPath);
+        GABC_IObject obj = GABC_Util::findObject(filename, objectPath);
         if (!obj.valid())
         {
             PY_Py_RETURN_NONE;
         }
 
-        switch (obj.nodeType())
-        {
-            case GABC_XFORM:
-                uprops = IXform(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-                break;
-
-            default:
-                uprops = ICompoundProperty();
-        }
-
+	ICompoundProperty uprops = homGetUserProperties(obj);
         if (!uprops || uprops.getNumProperties() == 0)
         {
             PY_Py_RETURN_NONE;
@@ -682,8 +659,6 @@ namespace
     PY_PyObject *
     Py_AlembicUserPropertyValuesAndMetadata(PY_PyObject *self, PY_PyObject *args)
     {
-        ICompoundProperty   uprops;
-        GABC_IObject	    obj;
         UT_JSONWriter      *data_writer;
         UT_JSONWriter      *meta_writer;
         UT_WorkBuffer       data_dictionary;
@@ -701,24 +676,13 @@ namespace
             return NULL;
         }
 
-        obj = GABC_Util::findObject(filename, objectPath);
+        GABC_IObject obj = GABC_Util::findObject(filename, objectPath);
         if (!obj.valid())
         {
             PY_Py_RETURN_NONE;
         }
 
-        switch (obj.nodeType())
-        {
-            case GABC_XFORM:
-                uprops = IXform(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-                break;
-
-            default:
-                uprops = ICompoundProperty();
-        }
-
+	ICompoundProperty uprops = homGetUserProperties(obj);
         if (!uprops || uprops.getNumProperties() == 0)
         {
             PY_Py_RETURN_NONE;
