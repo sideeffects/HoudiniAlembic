@@ -88,6 +88,9 @@ protected:
     virtual void        getNodeSpecificInfoText(OP_Context &context,
 				OP_NodeInfoParms &iparms);
 
+    virtual void	fillInfoTreeNodeSpecific(UT_InfoTree &tree, 
+				const OP_NodeInfoTreeParms &parms);
+
 private:
     void	setupEventHandler(const std::string &filename);
     void	clearEventHandler();

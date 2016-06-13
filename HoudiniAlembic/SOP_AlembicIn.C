@@ -33,6 +33,7 @@
 #include <UT/UT_WorkArgs.h>
 #include <UT/UT_WorkBuffer.h>
 #include <UT/UT_UniquePtr.h>
+#include <UT/UT_InfoTree.h>
 #include <GU/GU_Detail.h>
 #include <GU/GU_MergeUtils.h>
 #include <GU/GU_PrimPacked.h>
@@ -1022,6 +1023,30 @@ SOP_AlembicIn2::getNodeSpecificInfoText(OP_Context &context,
         iparms.appendSprintf("Frame range: %g to %g (%g fps)\n", myStartFrame, myEndFrame, fps);
 	iparms.appendSprintf("Time range: %.2fs to %.2fs", myStartFrame/fps, myEndFrame/fps);
     }
+}
+
+void
+SOP_AlembicIn2::fillInfoTreeNodeSpecific(UT_InfoTree &tree, 
+	const OP_NodeInfoTreeParms &parms)
+{
+    SOP_Node::fillInfoTreeNodeSpecific(tree, parms);
+
+    // If the scene is animated and we have computed valid start and end frames,
+    // display this information.
+    if (!myEntireSceneIsConstant &&
+	myStartFrame != myEndFrame &&
+	myComputedFrameRange)
+    {
+	UT_InfoTree	*branch = tree.addChildMap("Alembic SOP Info");
+	fpreal		 fps = evalFloat("fps", 0, parms.getTime());
+
+        branch->addProperties("Start Frame", myStartFrame);
+        branch->addProperties("End Frame", myEndFrame);
+        branch->addProperties("Frames/Second", fps);
+	branch->addProperties("Start Time", myStartFrame/fps);
+	branch->addProperties("End Time", myEndFrame/fps);
+    }
+
 }
 
 OP_ERROR
