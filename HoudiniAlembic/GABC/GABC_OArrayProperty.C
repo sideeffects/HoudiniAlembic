@@ -274,7 +274,10 @@ namespace
             {
                 for (int j = 0; j < tuple_size; ++j)
                 {
-                    data[j] = src->getS(i, j);
+		    GT_String s = src->getS(i, j);
+		    if(!s)
+			s = "";
+                    data[j] = s;
                 }
 
                 data += tuple_size;
