@@ -454,7 +454,7 @@ def ReloadGeometry(rootNode):
     for child in rootNode.children():
         if child.parm('reload') != None:
             child.parm('reload').pressButton()
-        if not child.isLocked():
+        if not child.isLockedHDA():
             ReloadGeometry(child)
 
 def _pushStringParm(name, fnode, tnode):
