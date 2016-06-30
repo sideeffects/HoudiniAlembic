@@ -628,6 +628,10 @@ ROP_AbcGTCompoundShape::getShape()
     if (myContainer)
 	return *myContainer;
 
+    // We have had empty geoemtry so return a default OObject.
+    if (myNumShapes == 0)
+	return Alembic::Abc::OObject();
+
     UT_ASSERT(myNumShapes == 1);
     return myDeforming.getFirst()->getOObject();
 }
