@@ -2813,49 +2813,35 @@ GABC_VisibilityType
 GABC_IObject::visibility(bool &animated, fpreal t, bool check_parent) const
 {
     animated = false;
-    if (!myObject.valid())
-	return GABC_VISIBLE_DEFER;
-
-    GABC_AlembicLock	lock(archive());
-    ISampleSelector     iss(t);
-    IVisibilityProperty	vprop = Alembic::AbcGeom::GetVisibilityProperty(
-				    const_cast<IObject &>(myObject));
-    if (vprop.valid())
+    GABC_AlembicLock lock(archive());
+    ISampleSelector iss(t);
+    for (IObject obj = myObject; obj.valid(); obj = obj.getParent())
     {
-	animated = !vprop.isConstant();
-
-        switch (vprop.getValue(iss))
-        {
-            case -1:
-                if (check_parent)
-                {
-                    break;
-                }
-
-                return GABC_VISIBLE_DEFER;
-
-            case 0:
-                return GABC_VISIBLE_HIDDEN;
-
-            case 1:
-                return GABC_VISIBLE_VISIBLE;
-
-            default:
-                UT_ASSERT(0 && "Strange visibility value");
-        }
-    }
-    if (check_parent)
-    {
-	GABC_IObject	parent(getParent());
-	if (!parent.valid())
+	IVisibilityProperty vprop = Alembic::AbcGeom::GetVisibilityProperty(obj);
+	if (vprop.valid())
 	{
-	    return GABC_VISIBLE_VISIBLE;
-        }
+	    animated |= !vprop.isConstant();
 
-	return parent.visibility(animated, t, true);
+	    switch (vprop.getValue(iss))
+	    {
+		default:
+		    UT_ASSERT(0 && "Strange visibility value");
+		    // fall through...
+
+		case -1:
+		    if (check_parent)
+			break;
+		    return GABC_VISIBLE_DEFER;
+
+		case 0:
+		    return GABC_VISIBLE_HIDDEN;
+
+		case 1:
+		    return GABC_VISIBLE_VISIBLE;
+	    }
+	}
     }
-
-    return GABC_VISIBLE_DEFER;
+    return GABC_VISIBLE_VISIBLE;
 }
 
 GABC_VisibilityCache *

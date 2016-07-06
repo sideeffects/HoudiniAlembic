@@ -123,25 +123,16 @@ def _checkAnimatedVisibility(filename, objectpath):
     vis = _abc.alembicVisibility(filename, objectpath, 0, 1)
     return not vis[1] and vis[0] != -1
 
-def _loadUserPropsValsAndMeta(fileName, name, time):
-    return _abc.alembicUserPropertyValuesAndMetadata(fileName, name, time)
-
-def _loadUserPropsVals(fileName, name, time):
-    return _abc.alembicUserPropertyValues(fileName, name, time)
-
-def _loadUserPropsMeta(fileName, name, time):
-    return _abc.alembicUserPropertyMetadata(fileName, name, time)
-
 def _setUserProperties(currentNode, name, fileName, userPropsLoadMode):
     # Exit quick if user properties shouldn't be loaded
     if userPropsLoadMode == 0:
-        return
+        return False
 
     # Check for user properties on node. Returns None if no user properties,
     # true if properties are static, and false if properties are animated.
     props = _abc.alembicHasUserProperties(fileName, name)
 
-    if props != None:
+    if props is not None:
         # Add spare parameter(s) for user properties
         currentNode.addSpareParmTuple(hou.StringParmTemplate('userProps', 'User Properties', 1, ['']))
         if userPropsLoadMode == 2:
@@ -160,6 +151,8 @@ def _setUserProperties(currentNode, name, fileName, userPropsLoadMode):
 
             expr = '%s.alembicUserPropertyValues("%s", "%s", ch("frame")/ch("fps"))' % (_AbcModule, fileName, name)
             currentNode.parm('userProps').setExpression(expr, hou.exprLanguage.Python)
+            return True
+    return False
 
 def _setVisibility(node, filename, objectpath, chprefix):
     vis = _abc.alembicVisibility(filename, objectpath, 0)
@@ -366,9 +359,11 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
             currentNode = _newAlembicNode(rootNode, parentNode, 'alembicxform', buildSubnet)
 
             _setNodeName(currentNode, name)
-            _setUserProperties(currentNode, name, fileName, userPropsLoadMode)
 
             animated = typeName != 'cxform'
+            if _setUserProperties(currentNode, name, fileName, userPropsLoadMode):
+                animated = True
+
             if flatVisibility:
                 if _checkAnimatedVisibility(fileName, currentPath):
                     animated = True
@@ -505,6 +500,3 @@ def WalkAndPush(rootNode, parentNode):
             _pushScalarParm('loadUserProps', rootNode, kid)
             _pushRemapAttributesParm(rootNode, kid)
         WalkAndPush(rootNode, kid)
-
-def GetObjectMenu():
-   return ['b', 'b', 'c', 'c']
