@@ -1006,7 +1006,7 @@ namespace {
                 : NULL;
 
         // Create the dictionaries.
-        if (!GABC_Util::writeUserPropertyDictionary(data_writer,
+        if (!GABC_Util::importUserPropertyDictionary(data_writer,
                 meta_writer,
                 obj,
                 uprops,

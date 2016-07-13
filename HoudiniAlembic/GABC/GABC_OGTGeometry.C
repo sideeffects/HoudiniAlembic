@@ -1534,7 +1534,7 @@ GABC_OGTGeometry::IgnoreList::IgnoreList(const char *arg0, ...)
 //  GABC_OGTGeometry
 //-----------------------------------------------
 
-GABC_OGTGeometry::IgnoreList &
+const GABC_OGTGeometry::IgnoreList &
 GABC_OGTGeometry::getDefaultSkip()
 {
     // Construct on first use to avoid the static initialization order fiasco
@@ -1562,7 +1562,6 @@ GABC_OGTGeometry::GABC_OGTGeometry(const std::string &name)
     : myName(name)
     , myType(GT_PRIM_UNDEFINED)
     , mySecondaryCache(NULL)
-    , myUserPropState(UNSET)
     , myElapsedFrames(0)
 {
     myShape.myVoidPtr = NULL;
@@ -1579,7 +1578,6 @@ void
 GABC_OGTGeometry::clearProperties()
 {
     clearArbProperties();
-    clearUserProperties();
 }
 
 void
@@ -1595,19 +1593,6 @@ GABC_OGTGeometry::clearArbProperties()
 	}
 	myArbProperties[i].clear();
     }
-}
-
-void
-GABC_OGTGeometry::clearUserProperties()
-{
-    for (PropertyMap::const_iterator it = myUserProperties.begin();
-            it != myUserProperties.end();
-            ++it)
-    {
-        delete it->second;
-    }
-    myUserProperties.clear();
-    myUserPropState = UNSET;
 }
 
 void
@@ -1752,11 +1737,6 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 {
     clearArbProperties();
 
-    if (!ctx.saveAttributes())
-    {
-        return true;
-    }
-
     const IgnoreList	*skip = &theEmptySkip;
     OCompoundProperty	 cp;
     bool		 result = true;
@@ -1867,265 +1847,6 @@ GABC_OGTGeometry::writeArbPropertiesFromPrevious()
 }
 
 bool
-GABC_OGTGeometry::makeUserProperties(const GT_PrimitiveHandle &prim,
-        OCompoundProperty *parent,
-        GABC_OError &err,
-        const GABC_OOptions &ctx)
-{
-    GT_AttributeListHandle  attribs_handle;
-    GT_DataArrayHandle      meta_attrib;
-    GT_DataArrayHandle      vals_attrib;
-    const char             *meta_buffer;
-    const char             *vals_buffer;
-
-    clearUserProperties();
-
-    attribs_handle = prim->getUniformAttributes();
-    if (!attribs_handle)
-    {
-        // Primitive level attributes are sometimes merged with detail level
-        // attributes.
-        attribs_handle = prim->getDetailAttributes();
-    }
-    if(!attribs_handle)
-    {
-        myUserPropState = NO_USER_PROPERTIES;
-        return true;
-    }
-
-    meta_attrib = attribs_handle->get(GABC_Util::theUserPropsMetaAttrib, 0);
-    vals_attrib = attribs_handle->get(GABC_Util::theUserPropsValsAttrib, 0);
-
-    if (!meta_attrib && !vals_attrib)
-    {
-        myUserPropState = NO_USER_PROPERTIES;
-    }
-    else if (!vals_attrib)
-    {
-        meta_buffer = meta_attrib->getS(0,0);
-
-        if (!meta_buffer || !(*meta_buffer))
-        {
-            myUserPropState = NO_USER_PROPERTIES;
-        }
-        else
-        {
-            myUserPropState = ERROR_READING_PROPERTIES;
-            err.warning("Found user properties metadata attribute, but not "
-                    "data attribute. Ignoring user properties.");
-        }
-    }
-    else if (!meta_attrib)
-    {
-        vals_buffer = vals_attrib->getS(0,0);
-
-        if (!vals_buffer || !(*vals_buffer))
-        {
-            myUserPropState = NO_USER_PROPERTIES;
-        }
-        else
-        {
-            myUserPropState = ERROR_READING_PROPERTIES;
-            err.warning("Found user properties data attribute, but not "
-                    "metadata attribute. Ignoring user properties.");
-        }
-    }
-    else
-    {
-        meta_buffer = meta_attrib->getS(0,0);
-        vals_buffer = vals_attrib->getS(0,0);
-
-        if ((!meta_buffer || !(*meta_buffer))
-                && (!vals_buffer || !(*vals_buffer)))
-        {
-            myUserPropState = NO_USER_PROPERTIES;
-        }
-        else if (!meta_buffer || !(*meta_buffer))
-        {
-            myUserPropState = ERROR_READING_PROPERTIES;
-            err.warning("User properties metadata attribute empty. Ignoring "
-                    "user properties.");
-        }
-        else if (!vals_buffer || !(*vals_buffer))
-        {
-            myUserPropState = ERROR_READING_PROPERTIES;
-            err.warning("User properties data attribute empty. Ignoring "
-                    "user properties.");
-        }
-        else
-        {
-            UT_AutoJSONParser   meta_data(meta_buffer, strlen(meta_buffer));
-            UT_AutoJSONParser   vals_data(vals_buffer, strlen(vals_buffer));
-            UT_WorkBuffer       err_msg;
-
-            meta_data->setBinary(false);
-            vals_data->setBinary(false);
-            if (!GABC_Util::readUserPropertyDictionary(meta_data,
-                    vals_data,
-                    myUserProperties,
-                    parent,
-                    err,
-                    ctx))
-            {
-                err.warning("Ignoring user properties (%s).",
-                        myName.c_str());
-                myUserPropState = ERROR_READING_PROPERTIES;
-            }
-            else
-            {
-                myUserPropState = WRITE_USER_PROPERTIES;
-            }
-        }
-    }
-
-    return true;
-}
-
-bool
-GABC_OGTGeometry::writeUserProperties(const GT_PrimitiveHandle &prim,
-        GABC_OError &err,
-        const GABC_OOptions &ctx)
-{
-    if (myUserPropState == UNSET)
-    {
-        UT_ASSERT(0 && "writeUserProperties called before makeUserProperties");
-        return false;
-    }
-
-    if (myUserPropState != ERROR_READING_PROPERTIES)
-    {
-        GT_AttributeListHandle  attribs_handle;
-        GT_DataArrayHandle      meta_attrib;
-        GT_DataArrayHandle      vals_attrib;
-
-        attribs_handle = prim->getUniformAttributes();
-        if (!attribs_handle)
-        {
-            // Primitive level attributes are sometimes merged with detail level
-            // attributes.
-            attribs_handle = prim->getDetailAttributes();
-        }
-        if (!attribs_handle)
-        {
-            if (myUserPropState == WRITE_USER_PROPERTIES)
-            {
-                err.warning("Missing user property information for %s on frame "
-                        "%" SYS_PRId64 ". Reusing previous samples.",
-                        myName.c_str(),
-                        (ctx.firstFrame() + myElapsedFrames + 1));
-                writePropertiesFromPrevious(myUserProperties);
-            }
-
-            return true;
-        }
-
-        meta_attrib = attribs_handle->get(GABC_Util::theUserPropsMetaAttrib, 0);
-        vals_attrib = attribs_handle->get(GABC_Util::theUserPropsValsAttrib, 0);
-
-        if (!meta_attrib && !vals_attrib)
-        {
-            if (myUserPropState == WRITE_USER_PROPERTIES)
-            {
-                err.warning("Missing user property information for %s on frame "
-                        "%" SYS_PRId64 ". Reusing previous samples.",
-                        myName.c_str(),
-                        (ctx.firstFrame() + myElapsedFrames + 1));
-                writePropertiesFromPrevious(myUserProperties);
-            }
-        }
-        else if (!meta_attrib || !vals_attrib)
-        {
-            if (myUserPropState == WRITE_USER_PROPERTIES)
-            {
-                err.warning("Missing user property information for %s on frame "
-                        "%" SYS_PRId64 ". Reusing previous samples.",
-                        myName.c_str(),
-                        (ctx.firstFrame() + myElapsedFrames + 1));
-                writePropertiesFromPrevious(myUserProperties);
-            }
-            else
-            {
-                UT_ASSERT(myUserPropState == NO_USER_PROPERTIES);
-
-                if (myElapsedFrames)
-                {
-                    err.warning("Partial user property information detected for %s "
-                            "on frame %" SYS_PRId64 ", but none detected "
-                            "for previous frames. Ignoring it.",
-                            myName.c_str(),
-                            (ctx.firstFrame() + myElapsedFrames + 1));
-                    myUserPropState = ERROR_READING_PROPERTIES;
-                }
-            }
-        }
-        else
-        {
-            const char *meta_buffer = meta_attrib->getS(0,0);
-            const char *vals_buffer = vals_attrib->getS(0,0);
-
-            if (myUserPropState == WRITE_USER_PROPERTIES)
-            {
-                if (!meta_buffer
-                        || !(*meta_buffer)
-                        || !vals_buffer
-                        || !(*vals_buffer))
-                {
-                    err.warning("Missing user property information for %s on "
-                            "frame %" SYS_PRId64 ". Reusing previous samples.",
-                            myName.c_str(),
-                            (ctx.firstFrame() + myElapsedFrames + 1));
-                    writePropertiesFromPrevious(myUserProperties);
-                }
-                else
-                {
-                    UT_AutoJSONParser   meta_data(meta_buffer, strlen(meta_buffer));
-                    UT_AutoJSONParser   vals_data(vals_buffer, strlen(vals_buffer));
-                    UT_WorkBuffer       err_msg;
-
-                    meta_data->setBinary(false);
-                    vals_data->setBinary(false);
-                    if (!GABC_Util::readUserPropertyDictionary(meta_data,
-                            vals_data,
-                            myUserProperties,
-                            NULL,
-                            err,
-                            ctx))
-                    {
-                        err.warning("Reusing previous user property samples "
-                                "(%s, frame %" SYS_PRId64 ")",
-                                myName.c_str(),
-                                (ctx.firstFrame() + myElapsedFrames + 1));
-                        writePropertiesFromPrevious(myUserProperties);
-                    }
-                }
-            }
-            else
-            {
-                UT_ASSERT(myUserPropState == NO_USER_PROPERTIES);
-
-                if ((meta_buffer && *meta_buffer) || (vals_buffer && *vals_buffer))
-                {
-                    err.warning("User property information detected for %s on "
-                            "frame %" SYS_PRId64 ", but none detected "
-                            "for previous frames. Ignoring it.",
-                            myName.c_str(),
-                            (ctx.firstFrame() + myElapsedFrames + 1));
-                    myUserPropState = ERROR_READING_PROPERTIES;
-                }
-            }
-        }
-    }
-
-    return true;
-}
-
-void
-GABC_OGTGeometry::writeUserPropertiesFromPrevious()
-{
-    writePropertiesFromPrevious(myUserProperties);
-}
-
-bool
 GABC_OGTGeometry::isPrimitiveSupported(const GT_PrimitiveHandle &prim)
 {
     if (!prim)
@@ -2155,8 +1876,6 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 	ObjectVisibility vis)
 {
     GT_PrimitiveHandle	prim;
-    OCompoundProperty   user_props;
-
     UT_ASSERT(src);
     myCache.clear();
     myType = GT_PRIM_UNDEFINED;
@@ -2178,7 +1897,6 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
             myShape.myPolyMesh = new OPolyMesh(parent,
                     myName,
                     ctx.timeSampling());
-            user_props = myShape.myPolyMesh->getSchema().getUserProperties();
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myPolyMesh),
                     ctx.timeSampling());
@@ -2191,7 +1909,6 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
             myShape.mySubD = new OSubD(parent,
                     myName,
                     ctx.timeSampling());
-            user_props = myShape.mySubD->getSchema().getUserProperties();
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.mySubD),
                     ctx.timeSampling());
@@ -2202,7 +1919,6 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
             myShape.myPoints = new OPoints(parent,
                     myName,
                     ctx.timeSampling());
-            user_props = myShape.myPoints->getSchema().getUserProperties();
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myPoints),
                     ctx.timeSampling());
@@ -2212,7 +1928,6 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
             myShape.myCurves = new OCurves(parent,
                     myName,
                     ctx.timeSampling());
-            user_props = myShape.myCurves->getSchema().getUserProperties();
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myCurves),
                     ctx.timeSampling());
@@ -2222,7 +1937,6 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
             myShape.myNuPatch = new ONuPatch(parent,
                     myName,
                     ctx.timeSampling());
-            user_props = myShape.myNuPatch->getSchema().getUserProperties();
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myNuPatch),
                     ctx.timeSampling());
@@ -2236,11 +1950,6 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
     if (!makeArbProperties(prim, err, ctx))
     {
         err.error("Error saving attributes: ");
-        return false;
-    }
-    if (!makeUserProperties(src, &user_props, err, ctx))
-    {
-        err.error("Error saving user properties: ");
         return false;
     }
 
@@ -2310,12 +2019,6 @@ GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
         err.error("Error saving attributes: ");
         return false;
     }
-    if (!writeUserProperties(prim, err, ctx))
-    {
-        err.error("Error saving user properties: ");
-        return false;
-    }
-
     ++myElapsedFrames;
     return true;
 }
@@ -2344,7 +2047,6 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
                 myVisibility.set(vis);
                 myShape.myPolyMesh->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
-                writeUserPropertiesFromPrevious();
                 fillFaceSetsFromPrevious(myFaceSetNames,
                         myShape.myPolyMesh->getSchema());
             }
@@ -2355,7 +2057,6 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
                 myVisibility.set(vis);
                 myShape.mySubD->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
-                writeUserPropertiesFromPrevious();
                 fillFaceSetsFromPrevious(myFaceSetNames,
                         myShape.mySubD->getSchema());
             }
@@ -2366,7 +2067,6 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
                 myVisibility.set(vis);
 	        myShape.myPoints->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
-                writeUserPropertiesFromPrevious();
             }
 	    break;
 
@@ -2375,7 +2075,6 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
                 myVisibility.set(vis);
 	        myShape.myCurves->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
-                writeUserPropertiesFromPrevious();
             }
 	    break;
 
@@ -2384,7 +2083,6 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
                 myVisibility.set(vis);
 	        myShape.myNuPatch->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
-                writeUserPropertiesFromPrevious();
             }
 	    break;
 
@@ -2417,6 +2115,32 @@ GABC_OGTGeometry::getOObject() const
 	    break;
     }
     return OObject();
+}
+
+OCompoundProperty
+GABC_OGTGeometry::getUserProperties() const
+{
+    switch (myType)
+    {
+	case GT_PRIM_POLYGON_MESH:
+            return myShape.myPolyMesh->getSchema().getUserProperties();
+
+	case GT_PRIM_SUBDIVISION_MESH:
+            return myShape.mySubD->getSchema().getUserProperties();
+
+	case GT_PRIM_POINT_MESH:
+            return myShape.myPoints->getSchema().getUserProperties();
+
+	case GT_PRIM_CURVE_MESH:
+            return myShape.myCurves->getSchema().getUserProperties();
+
+	case GT_PRIM_NUPATCH:
+            return myShape.myNuPatch->getSchema().getUserProperties();
+
+	default:
+	    UT_ASSERT(0);
+	    return OCompoundProperty();
+    }
 }
 
 SecondaryCache &

@@ -25,48 +25,38 @@
  *----------------------------------------------------------------------------
  */
 
-#include "GABC_OOptions.h"
+#include "ROP_AbcNodeInstance.h"
 
-using namespace GABC_NAMESPACE;
-
-GABC_OOptions::GABC_OOptions()
-    : myFaceSetMode(FACESET_DEFAULT)
-    , mySubdGroup()
-    , myPrimToDetailPattern()
-    , myFullBounds(false)
-    , myForcePrimToDetail(false)
+OObject
+ROP_AbcNodeInstance::getOObject()
 {
+    // XXX: this should never be called
+    UT_ASSERT(0);
+    return OObject();
 }
 
-// Check if the given attribute matches the mask for it's level.
-bool
-GABC_OOptions::matchAttribute(GA_AttributeOwner own, const char *name) const
+void
+ROP_AbcNodeInstance::setArchive(const ROP_AbcArchivePtr &archive)
 {
-    if(myPathAttribute == name)
-	return false;
-
-    UT_String	str(name);
-    return str.multiMatch(myAttributePatterns[own]) != 0;
+    ROP_AbcNode::setArchive(archive);
+    myIsValid = false;
 }
 
-// Determine the attribute owner from the Alembic scope and compare the
-// attribute against the mask for that owner.
-bool
-GABC_OOptions::matchAttribute(Alembic::AbcGeom::GeometryScope scope,
-			const char *name) const
+void
+ROP_AbcNodeInstance::update()
 {
-    switch (scope)
-    {
-	case Alembic::AbcGeom::kConstantScope:
-	    return matchAttribute(GA_ATTRIB_DETAIL, name);
-	case Alembic::AbcGeom::kUniformScope:
-	case Alembic::AbcGeom::kUnknownScope:
-	    return matchAttribute(GA_ATTRIB_PRIMITIVE, name);
-	case Alembic::AbcGeom::kVaryingScope:
-	    return matchAttribute(GA_ATTRIB_POINT, name);
-	case Alembic::AbcGeom::kVertexScope:
-	case Alembic::AbcGeom::kFacevaryingScope:
-	    return matchAttribute(GA_ATTRIB_VERTEX, name);
-    }
-    return true;
+    makeValid();
+
+    myBox = mySource->getBBox();
+}
+
+void
+ROP_AbcNodeInstance::makeValid()
+{
+    if(myIsValid)
+	return;
+
+    mySource->update();
+    myParent->getOObject().addChildInstance(mySource->getOObject(), myName);
+    myIsValid = true;
 }

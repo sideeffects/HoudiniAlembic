@@ -22,38 +22,38 @@ Valid Frame Range:
         __Render Frame Range (strict)__ will render frames START to END when it is rendered, but will not allow frames outside this range to be rendered at all. __Render Frame Range__ will allow outside frames to be rendered. This is used in conjunction with render dependencies. It also affects the behavior of the 'Override Frame Range' in the Render Control dialog.
 
         Two possible cases where you'd want the strict behavior:
-        
+
         - A 60 frame walk cycle written out to a geo, but part of a larger ROP net to render out a larger frame range.
-        
+
         - A texture loop from 1-20.
-        
+
         Otherwise, you will usually set this to non-strict.
 
-        Render Current Frame: 
+        Render Current Frame:
                 Renders a single frame, based on the value in the playbar or the frame that is requested by a connected output render node.
 
         Render Frame Range:
                 Renders a sequence of frames. If an output render node is connected, this range is generally ignored in favor of frames requested by the output render node.
-    
+
         Render Frame Range (Strict):
                 Renders a sequence of frames. If an output render node is connected, this range restricts its requested frames to this frame range.
 
 Start/End/Inc:
-        Specifies the range of frames to render (start frame, end frame, and increment). All values may be floating point values. The range is inclusive. 
+        Specifies the range of frames to render (start frame, end frame, and increment). All values may be floating point values. The range is inclusive.
 
         These parameters determine the values of the local variables for the output driver.
                 `$NRENDER`:
                         The number of frames to be rendered by the output driver.
                 `$N`:
                         The current frame being rendered (starting at 1 and going to `$NRENDER`).
-        
+
         For example, if the parameters are set to:
         table>>
                 tr>>
                         th>> Start
                         th>> End
                         th>> Inc
-                tr>> 
+                tr>>
                         td>> 10.5
                         td>> 12
                         td>> 0.5
@@ -66,7 +66,7 @@ Start/End/Inc:
                             th>> 11
                             th>> 11.5
                             th>> 12
-                tr>> 
+                tr>>
                             td>> $N
                             td>> 1
                             td>> 2
@@ -97,31 +97,39 @@ Format:
 Create Intermediate Directories:
 	Create the directories in the Alembic archive output path if they do not exist.
 
+Render Full Range (Override Frame-By-Frame):
+	Normally, it's best to render all frames into a single Alembic
+	archive.  This allows Alembic to optimize storage of data and to be
+	more efficient.  This is the default behavior of the output driver,
+	even when frame-by-frame rendering is requested.
+
+	In some work-flows, you may want to have the Alembic ROP operate on a
+	frame-by-frame basis (see the `-I` option on the hscript render
+	command).  Turning this toggle off will let the ROP evaluate
+	frame-by-frame.
+
+Initialize Simulation OPs:
+	Reset simulations before writing Alembic archive.
+
+== Hierarchy ==
+
 Use SOP Path:
 	Instead of exporting objects contained under a root object, the Alembic ROP can export a single geometry detail specified by a SOP path. The SOP path export method is enabled by this parameter.
 
 SOP Path:
 	The path to the geometry detail to include in the alembic archive.
 
-Root Object:
-        The root object of the scene. All displayed objects contained under this node will be included in the Alembic archive.
+Subdivision Group:
+	If a group name is specified here, any polygons in any objects will be
+	saved as subdivision primitives in the Alembic file.  Other polygons
+	will be saved as polygon mesh nodes.
 
-Objects:
-        A pattern/bundle of objects to include in the alembic archive.
-
-Initialize Simulation OPs:
-	Reset simulations before writing Alembic archive.
-
-Render Full Range (Override Frame-By-Frame):
-	Normally, it's best to render all frames into a single Alembic
-	archive.  This allows Alembic to optimize storage of data and to be
-	more efficient.  This is the default behavior of the output driver,
-	even when frame-by-frame rendering is requested.
-	
-	In some work-flows, you may want to have the Alembic ROP operate on a
-	frame-by-frame basis (see the `-I` option on the hscript render
-	command).  Turning this toggle off will let the ROP evaluate
-	frame-by-frame.
+	If no group is specified on the output driver, object level parameters
+	will be used to control whether polygons are output as subdivision or
+	polygon mesh primitives.  Enabling the `vm_rendersubd` or
+	`ri_rendersubd` will cause polygons to be saved as subdivision
+	primitives.  If specified, the `vm_subdgroup` will be used to select
+	which polygons will be rendered as subdivision surfaces.
 
 Build Hierarchy From Attribute:
 	Use a primitive string attribute to directly specify the path of a primitive in the output archive.
@@ -129,14 +137,41 @@ Build Hierarchy From Attribute:
 Path Attribute:
 	The name of the attribute containing the path.
 
-Packed Alembic Priority:
-	The transformation of the first packed Alembic primitive under any [Alembic Xform|Node:sop/alembicxform] object is merged with that of its parent. Subsequent packed Alembics need an additional "buffer" Alembic Xform object between them and their parent to make sure their transformation is preserved.
+Root Object:
+        The root object of the scene. All displayed objects contained under this node will be included in the Alembic archive.
 
-	Hierarchy:
-		Ignore the transformations of subsequent packed Alembics. Output them at the specified path without a "buffer" Alembic Xform object to preserve the hierarchy as specified by the path attribute.
+Objects:
+        A pattern/bundle of objects to include in the alembic archive.
 
-	Transformation:
-		Create the "buffer" Alembic Xform object between subsequent Alembic nodes and their parent. Modify the hierarchy to preserve their unique transformation.
+Collapse Objects:
+        This option can be used to skip writing transform nodes which have no transform
+        (an identity transform) for the entire animation.
+
+        When importing an Alembic scene, there are often empty geometry nodes
+        created to contain [Alembic SOPs|Node:sop/alembic]. These objects are simply
+        placeholders to contain the geometry. However, when exporting the
+        scene, they will be added as dummy transform nodes (roughly doubling
+        the size of the Alembic archive node count).
+
+	Do Not Collapse Identity Objects:
+		All geometry containers (geometry objects containing SOPs) will be saved as Alembic transform nodes.
+	Collapse Non-Animating Identity Objects:
+		All geometry containers which are not animated and have an identity transform will be skipped when writing the Alembic file.
+	Collapse All Geometry Container Objects:
+		All geometry containers will not be written to the Alembic file.  In some cases for subnet hierarchies, having a subnet parent animated will propagate the time dependence to the contained nodes.  This option allows you to forcibly skip the geometry nodes.
+
+		NOTE:
+		        Any transformations on these nodes will be lost during the save.
+
+	NOTE:
+	        If an object has a parameter named `abc_collapse` that evaluates to a non-zero value, the object will be skipped from the save.  This allows fine-grained per-object control regardless of the setting of this parameter.
+
+Save All Non-Displayed (Hidden) Objects:
+	If this checkbox is turned on, hidden objects matching the __Objects__ pattern/bundle will also written to the Alembic archive.
+
+Use Display SOP:
+	If this checkbox is turned on, the geometry in the Display SOP will be
+	saved instead of the geometry from the Render SOP.
 
 Partition Mode:
         When saving a complex piece of geometry, it is possible to partition the
@@ -166,48 +201,28 @@ Partition Attribute:
         the `abcPath` attribute to split a single piece of Houdini geometry into
         different Alembic shape nodes based on the string value.
 
-Collapse Objects:
-        This option can be used to skip writing transform nodes which have no transform
-        (an identity transform) for the entire animation.
-        
-        When importing an Alembic scene, there are often empty geometry nodes
-        created to contain [Alembic SOPs|Node:sop/alembic]. These objects are simply
-        placeholders to contain the geometry. However, when exporting the
-        scene, they will be added as dummy transform nodes (roughly doubling
-        the size of the Alembic archive node count).
-
-	Do Not Collapse Identity Objects:
-		All geometry containers (geometry objects containing SOPs) will be saved as Alembic transform nodes.
-	Collapse Non-Animating Identity Objects:
-		All geometry containers which are not animated and have an identity transform will be skipped when writing the Alembic file.
-	Collapse All Geometry Container Objects:
-		All geometry containers will not be written to the Alembic file.  In some cases for subnet hierarchies, having a subnet parent animated will propagate the time dependence to the contained nodes.  This option allows you to forcibly skip the geometry nodes.  
-		
-		NOTE:
-		        Any transformations on these nodes will be lost during the save.
-	
-	Collapse All Objects (Direct Hierarchy Placement):
-		All geometry containers and subnets will not be written to the Alembic file. This option is useful for directly placing each primitive into the archive.
-
-		NOTE:
-			Any transformations on these nodes will be lost during the save.
-
-	NOTE:
-	        If an object has a parameter named `abc_collapse` that evaluates to a non-zero value, the object will be skipped from the save.  This allows fine-grained per-object control regardless of the setting of this parameter.
-
-Save All Non-Displayed (Hidden) Objects:
-	If this checkbox is turned on, hidden objects matching the __Objects__ pattern/bundle will also written to the Alembic archive.
-
-Use Alembic Instancing Where Possible:
-	This will cause packed objects (excluding packed Alembics) to be instanced within the Alembic archive during write, reusing geometry and potentially decreasing the size of the file.
 
 Full Bounding Box Tree:
         This will cause all Alembic nodes to have proper bounding boxes written.
         Computing bounds for only the shape nodes is more efficient.
 
-Use Display SOP:
-	If this checkbox is turned on, the geometry in the Display SOP will be
-	saved instead of the geometry from the Render SOP.
+== Geometry ==
+
+Packed Mode:
+        When saving a complex piece of geometry, it is possible to partition the
+        geometry into multiple shape nodes using packed primitives.  There are several different ways to handle packed primitives.
+
+	Transformed Shape:
+		The packed primitive's transform will be baked in to the resulting shape node's geometry.
+	Transform And Shape:
+		A transform node will be created above the packed geometry.
+	Transformed Parent:
+		The packed primitive's transform will be baked in to the parent transform node.  No shape node will be generated.
+	Transformed Parent And Shape:
+		The packed geometry will be insert into the hierarchy and the packed primitive's transform will be baked in to the parent transform node.
+
+Use Instancing Where Possible:
+	This will cause packed objects to be instanced within the Alembic archive during write, reusing geometry and potentially decreasing the size of the file.
 
 Save Attributes:
         If this checkbox is turned on, geometry attributes will be saved to the
@@ -248,20 +263,7 @@ Face Sets:
         	Face sets will be created for all groups, regardless of whether
         	the group contains any polygons.
 
-Subdivision Group:
-	If a group name is specified here, any polygons in any objects will be
-	saved as subdivision primitives in the Alembic file.  Other polygons
-	will be saved as polygon mesh nodes.
-
-	If no group is specified on the output driver, object level parameters
-	will be used to control whether polygons are output as subdivision or
-	polygon mesh primitives.  Enabling the `vm_rendersubd` or
-	`ri_rendersubd` will cause polygons to be saved as subdivision
-	primitives.  If specified, the `vm_subdgroup` will be used to select
-	which polygons will be rendered as subdivision surfaces.
-
-Verbosity:
-        Add information to the Alembic ROP based on objects written to the archive.
+== Motion Blur ==
 
 Use Motion Blur:
         Enabling this will cause sub-frame geometry to be saved to the Alembic file.

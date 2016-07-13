@@ -2061,7 +2061,7 @@ GABC_Util::isABCPropertyConstant(ICompoundProperty arb)
 }
 
 bool
-GABC_Util::writeUserPropertyDictionary(UT_JSONWriter *data_writer,
+GABC_Util::importUserPropertyDictionary(UT_JSONWriter *data_writer,
         UT_JSONWriter *meta_writer,
         const GABC_IObject &obj,
         ICompoundProperty &uprops,
@@ -2118,7 +2118,7 @@ do { \
 } while(false)
 
 bool
-GABC_Util::readUserPropertyDictionary(UT_AutoJSONParser &meta_data,
+GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
         UT_AutoJSONParser &vals_data,
         PropertyMap &up_map,
         OCompoundProperty *ancestor,

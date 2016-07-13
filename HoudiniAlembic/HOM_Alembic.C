@@ -577,7 +577,7 @@ namespace
         }
 
         data_writer = UT_JSONWriter::allocWriter(data_dictionary);
-        if (!GABC_Util::writeUserPropertyDictionary(data_writer,
+        if (!GABC_Util::importUserPropertyDictionary(data_writer,
                 NULL,
                 obj,
                 uprops,
@@ -631,7 +631,7 @@ namespace
         }
 
         meta_writer = UT_JSONWriter::allocWriter(meta_dictionary);
-        if (!GABC_Util::writeUserPropertyDictionary(NULL,
+        if (!GABC_Util::importUserPropertyDictionary(NULL,
                 meta_writer,
                 obj,
                 uprops,
@@ -690,7 +690,7 @@ namespace
 
         data_writer = UT_JSONWriter::allocWriter(data_dictionary);
         meta_writer = UT_JSONWriter::allocWriter(meta_dictionary);
-        if (!GABC_Util::writeUserPropertyDictionary(data_writer,
+        if (!GABC_Util::importUserPropertyDictionary(data_writer,
                 meta_writer,
                 obj,
                 uprops,

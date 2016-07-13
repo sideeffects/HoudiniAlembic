@@ -26,442 +26,758 @@
  */
 
 #include "ROP_AlembicOut.h"
-#include "ROP_AbcOpBuilder.h"
-#include "ROP_AbcArchive.h"
-#include <ROP/ROP_Shared.h>
 
+#include "ROP_AbcNodeInstance.h"
+
+#include <GABC/GABC_IObject.h>
+#include <GABC/GABC_PackedImpl.h>
+#include <GABC/GABC_Util.h>
+#include <GT/GT_Refine.h>
+#include <GT/GT_RefineParms.h>
+#include <GT/GT_GEODetail.h>
+#include <GT/GT_GEOPrimPacked.h>
+#include <GT/GT_PrimCollect.h>
+#include <GT/GT_PrimInstance.h>
+#include <OBJ/OBJ_Camera.h>
+#include <OBJ/OBJ_Geometry.h>
 #include <OBJ/OBJ_Node.h>
-#include <OBJ/OBJ_SharedNames.h>
-#include <SOP/SOP_Node.h>
+#include <OBJ/OBJ_SubNet.h>
 #include <OP/OP_Bundle.h>
 #include <OP/OP_BundleList.h>
 #include <OP/OP_Director.h>
-#include <MGR/MGR_Node.h>
 #include <PRM/PRM_Include.h>
 #include <PRM/PRM_SpareData.h>
-#include <GABC/GABC_OError.h>
-
-#include <UT/UT_Interrupt.h>
+#include <ROP/ROP_Error.h>
+#include <ROP/ROP_Shared.h>
+#include <SOP/SOP_Node.h>
 #include <UT/UT_DSOVersion.h>
 
 #if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
-    #define CUSTOM_ALEMBIC_TOKEN_PREFIX	""
-    #define CUSTOM_ALEMBIC_LABEL_PREFIX	""
+    #define CUSTOM_ALEMBIC_TOKEN_PREFIX ""
+    #define CUSTOM_ALEMBIC_LABEL_PREFIX ""
 #endif
 
-using namespace GABC_NAMESPACE;
+using namespace UT::Literal;
 
-namespace
+typedef GABC_NAMESPACE::GABC_IObject GABC_IObject;
+typedef GABC_NAMESPACE::GABC_PackedImpl GABC_PackedImpl;
+typedef GABC_NAMESPACE::GABC_NodeType GABC_NodeType;
+typedef GABC_NAMESPACE::GABC_Util GABC_Util;
+
+void
+ROP_AlembicOut::rop_RefinedGeoAssignments::setMatrix(const UT_Matrix4D &m)
 {
-    class rop_AlembicOutError : public GABC_NAMESPACE::GABC_OError
+    if(!myMatrix.isEqual(m))
+	myMatrix = m;
+}
+
+ROP_AbcNodeXform *
+ROP_AlembicOut::rop_RefinedGeoAssignments::newXformNode(
+    const std::string &name, const ROP_AbcArchivePtr &abc)
+{
+    std::string temp_name = name;
+    myParent->makeCollisionFreeName(temp_name);
+    ROP_AbcNodeXform *child = new ROP_AbcNodeXform(temp_name);
+    child->setArchive(abc);
+    myParent->addChild(child);
+    return child;
+}
+
+ROP_AbcNodeShape *
+ROP_AlembicOut::rop_RefinedGeoAssignments::newShapeNode(
+    const std::string &name, const ROP_AbcArchivePtr &abc)
+{
+    std::string temp_name = name;
+    myParent->makeCollisionFreeName(temp_name);
+    ROP_AbcNodeShape *child = new ROP_AbcNodeShape(temp_name);
+    child->setArchive(abc);
+    myParent->addChild(child);
+    return child;
+}
+
+void
+ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
+    const GT_PrimitiveHandle &prim,
+    PackedMode packedmode,
+    exint facesetmode,
+    bool subd,
+    bool use_instancing,
+    const std::string &name,
+    const ROP_AbcArchivePtr &abc)
+{
+    UT_ASSERT(!myLocked);
+
+    GT_RefineParms rparms;
+    rparms.setCoalesceFragments(false);
+    rparms.setFastPolyCompacting(false);
+    rparms.setShowUnusedPoints(true);
+    rparms.setFaceSetMode(facesetmode);
+    rparms.setPolysAsSubdivision(subd);
+    rparms.setAlembicHoudiniAttribs(false);
+
+    class rop_AbcRefiner2 : public GT_Refine
     {
     public:
-	rop_AlembicOutError(ROP_AlembicOut &node, UT_Interrupt *interrupt)
-	    : GABC_OError(interrupt)
-	    , myNode(node)
+	rop_AbcRefiner2(ROP_AlembicOut::rop_RefinedGeoAssignments &assignments,
+			const GT_RefineParms &rparms,
+			PackedMode packedmode,
+			exint facesetmode,
+			bool subd,
+			bool use_instancing,
+			const std::string &name,
+			const ROP_AbcArchivePtr &abc)
+	    : myAssignments(assignments)
+	    , myParms(rparms)
+	    , myName(name)
+	    , myArchive(abc)
+	    , myPackedCount(0)
+	    , myPackedMode(packedmode)
+	    , myFacesetMode(facesetmode)
+	    , mySubd(subd)
+	    , myUseInstancing(use_instancing)
 	{
 	}
-	virtual void	handleError(const char *msg)
-				{ myNode.abcError(msg); }
-	virtual void	handleWarning(const char *msg)
-				{ myNode.abcWarning(msg); }
-	virtual void	handleInfo(const char *msg)
-				{ myNode.abcInfo(0, msg); }
+
+	// We need the primitives generated in a consistent order
+	virtual bool allowThreading() const { return false; }
+
+	bool processInstance(const GT_PrimitiveHandle &prim)
+	{
+	    if(prim->getPrimitiveType() != GT_PRIM_INSTANCE)
+		return false;
+
+	    const GT_PrimInstance *inst = static_cast<const GT_PrimInstance *>(prim.get());
+	    GT_PrimitiveHandle geo = inst->geometry();
+	    if(geo->getPrimitiveType() == GT_GEO_PACKED)
+	    {
+		if(!myUseInstancing)
+		{
+		    inst->flattenInstances(*this, &myParms);
+		    return true;
+		}
+
+		// transform before refining further
+		const GT_GEOPrimPacked *packed =
+			    static_cast<const GT_GEOPrimPacked *>(geo.get());
+
+		UT_Vector3 pivot;
+		packed->getPrim()->getPivot(pivot);
+		UT_Matrix4D m(1);
+		m.setTranslates(pivot);
+
+		GT_TransformArrayHandle xforms_copy =
+			inst->transforms()->preMultiply(new GT_Transform(&m, 1));
+
+		m.setTranslates(-pivot);
+		GT_PrimitiveHandle geo_copy = geo->copyTransformed(new GT_Transform(&m, 1));
+
+		GT_PrimInstance instance(geo_copy, xforms_copy,
+					 inst->packedPrimOffsets(),
+					 inst->uniform(),
+					 inst->detail(),
+					 inst->sourceGeometry());
+		instance.refineCopyTransformFrom(*prim);
+
+		instance.refine(*this, &myParms);
+		return true;
+	    }
+
+	    if(!myUseInstancing || !GABC_OGTGeometry::isPrimitiveSupported(geo))
+		return false;
+
+	    // create an xform node for each instance
+	    int type = geo->getPrimitiveType();
+	    exint idx;
+
+	    auto it = myInstanceCount.find(type);
+	    if(it == myInstanceCount.end())
+	    {
+		idx = 0;
+		myInstanceCount.emplace(type, 1);
+	    }
+	    else
+		idx = it->second++;
+
+	    auto &rop_i = myAssignments.myInstances[std::make_tuple(myName, type, mySubd)];
+	    while(idx >= rop_i.entries())
+		rop_i.append(rop_Instance());
+	    auto &rop_inst = rop_i(idx);
+	    auto &rop_xforms = rop_inst.myXforms;
+	    GT_TransformArrayHandle xforms = inst->transforms();
+
+	    UT_Matrix4D prim_xform;
+	    prim->getPrimitiveTransform()->getMatrix(prim_xform, 0);
+	    exint n = xforms->entries();
+	    for(exint i = 0; i < n; ++i)
+	    {
+		GT_TransformHandle xform = xforms->get(i);
+		UT_ASSERT(xform->getSegments() == 1);
+		UT_Matrix4D m;
+		xform->getMatrix(m, 0);
+		m *= prim_xform;
+
+		if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT ||
+		   myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT_AND_SHAPE)
+		{
+		    ROP_AbcNode *parent = myAssignments.myParent;
+		    if(!parent->getParent())
+			myAssignments.warnRoot(myArchive);
+		    else if(!static_cast<ROP_AbcNodeXform *>(parent)->setPreMatrix(m))
+		    {
+			myAssignments.warnChildren(myArchive);
+		    }
+
+		    if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT)
+			continue;
+
+		    m.identity();
+		}
+
+		if(i >= rop_xforms.entries())
+		{
+		    UT_WorkBuffer buf;
+		    buf.append(myName.c_str());
+		    buf.appendSprintf("_instance%ld", i + 1);
+		    std::string name = buf.buffer();
+		    rop_xforms.append(
+			myAssignments.newXformNode(name, myArchive));
+		}
+
+		ROP_AbcNodeXform *node = rop_xforms(i);
+		node->setData(m, true);
+
+		if(i)
+		{
+		    if(rop_inst.myInstances.entries() < i)
+		    {
+			std::string temp_name = myName;
+			node->makeCollisionFreeName(temp_name);
+			ROP_AbcNodeInstance *child = new ROP_AbcNodeInstance(temp_name, rop_inst.myShape);
+			child->setArchive(myArchive);
+			node->addChild(child);
+
+			rop_inst.myInstances.append(child);
+		    }
+		}
+		else
+		{
+		    if(!rop_inst.myShape)
+		    {
+			std::string temp_name = myName;
+			node->makeCollisionFreeName(temp_name);
+			ROP_AbcNodeShape *child = new ROP_AbcNodeShape(temp_name);
+			child->setArchive(myArchive);
+			node->addChild(child);
+
+			rop_inst.myShape = child;
+		    }	
+
+		    rop_inst.myShape->setData(geo);
+		}
+	    }
+
+	    return true;
+	}
+
+	bool processPacked(const GT_PrimitiveHandle &prim)
+	{
+	    if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_SHAPE ||
+	       prim->getPrimitiveType() != GT_GEO_PACKED)
+	    {
+		return false;
+	    }
+
+	    UT_Matrix4D prim_xform;
+	    prim->getPrimitiveTransform()->getMatrix(prim_xform, 0);
+
+	    const GT_GEOPrimPacked *packed =
+			static_cast<const GT_GEOPrimPacked *>(prim.get());
+
+	    UT_Vector3 pivot;
+	    packed->getPrim()->getPivot(pivot);
+	    UT_Matrix4D m(1);
+	    m.setTranslates(pivot);
+
+	    prim_xform = m * prim_xform;
+
+	    if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT)
+	    {
+		ROP_AbcNode *parent = myAssignments.myParent;
+		if(!parent->getParent())
+		    myAssignments.warnRoot(myArchive);
+		else if(!static_cast<ROP_AbcNodeXform *>(parent)->setPreMatrix(prim_xform))
+		{
+		    myAssignments.warnChildren(myArchive);
+		}
+		return true;
+	    }
+
+	    m.setTranslates(-pivot);
+	    GT_PrimitiveHandle copy = prim->doSoftCopy();
+	    copy->setPrimitiveTransform(new GT_Transform(&m, 1));
+	    if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORM_AND_SHAPE)
+	    {
+		// create transform node
+		exint idx = myPackedCount++;
+		auto &children = myAssignments.myChildren;
+		while(idx >= children.entries())
+		{
+		    UT_WorkBuffer buf;
+		    buf.append(myName.c_str());
+		    buf.appendSprintf("_packed%ld", children.entries() + 1);
+		    children.append(
+			rop_RefinedGeoAssignments(
+			    myAssignments.newXformNode(buf.buffer(),
+						       myArchive)));
+		}
+
+		auto &assignment = children[idx];
+		ROP_AbcNode *parent = assignment.myParent;
+		static_cast<ROP_AbcNodeXform *>(parent)->setData(prim_xform, true);
+		assignment.refine(copy, myPackedMode, myFacesetMode, mySubd,
+				  myUseInstancing, myName, myArchive);
+	    }
+	    else // if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT_AND_SHAPE)
+	    {
+		ROP_AbcNode *parent = myAssignments.myParent;
+		if(!parent->getParent())
+		    myAssignments.warnRoot(myArchive);
+		else if(!static_cast<ROP_AbcNodeXform *>(parent)->setPreMatrix(prim_xform))
+		{
+		    myAssignments.warnChildren(myArchive);
+		}
+		copy->refine(*this, &myParms);
+	    }
+	    return true;
+	}
+
+	virtual void addPrimitive(const GT_PrimitiveHandle &prim)
+	{
+	    if(GABC_OGTGeometry::isPrimitiveSupported(prim))
+	    {
+		// get the shape node
+		int type = prim->getPrimitiveType();
+		exint idx;
+
+		auto it = myShapeCount.find(type);
+		if(it == myShapeCount.end())
+		{
+		    idx = 0;
+		    myShapeCount.emplace(type, 1);
+		}
+		else
+		    idx = it->second++;
+
+		auto &shapes = myAssignments.myShapes[std::make_tuple(myName, type, mySubd)];
+		while(idx >= shapes.entries())
+		{
+		    shapes.append(
+			myAssignments.newShapeNode(myName, myArchive));
+		}
+
+		shapes[idx]->setData(prim);
+	    }
+	    else if(!processInstance(prim) && !processPacked(prim))
+		prim->refine(*this, &myParms);
+	}
+
     private:
-	ROP_AlembicOut	&myNode;
-    };
+	ROP_AlembicOut::rop_RefinedGeoAssignments &myAssignments;
+	const GT_RefineParms &myParms;
+	const std::string &myName;
+	const ROP_AbcArchivePtr &myArchive;
+	UT_Map<int, exint> myShapeCount;
+	UT_Map<int, exint> myInstanceCount;
+	exint myPackedCount;
+	PackedMode myPackedMode;
+	exint myFacesetMode;
+	bool mySubd;
+	bool myUseInstancing;
+    } refiner(*this, rparms, packedmode, facesetmode, subd, use_instancing, name, abc);
 
-    static void
-    buildBundleMenu(void *, PRM_Name *menu, int max,
-		    const PRM_SpareData *spare, const PRM_Parm *)
+    prim->refine(refiner, &rparms);
+}
+
+void
+ROP_AlembicOut::rop_RefinedGeoAssignments::setUserProperties(
+    const UT_String &vals,
+    const UT_String &meta,
+    bool subd,
+    const std::string &name)
+{
+    UT_ASSERT(!myLocked);
+    for(auto &it : myShapes)
     {
-	OPgetDirector()->getBundles()->buildBundleMenu(
-		    menu, max, spare ? spare->getValue("opfilter") : 0);
+	if(std::get<0>(it.first) == name && std::get<2>(it.first) == subd)
+	{
+	    auto &shapes = it.second;
+	    for(exint i = 0; i < shapes.entries(); ++i)
+		shapes(i)->setUserProperties(vals, meta);
+	}
     }
-
-    // Get the list of single primitive string attributes from a SOP.
-    static void
-    getAttribs(SOP_Node *node, OP_Context &context, UT_StringArray &vals)
+    for(auto &it : myInstances)
     {
-        const GU_Detail *ref = node->getCookedGeo(context);
-        if(ref)
-        {
-            for(auto it = ref->getAttributeDict(GA_ATTRIB_PRIMITIVE).begin();
-                    !it.atEnd();
-                    ++it)
-            {
-                const GA_Attribute *atr = it.attrib();
-
-                if(atr->getStorageClass() != GA_STORECLASS_STRING
-                    || atr->getTupleSize() > 1
-                    || atr->getScope() != GA_SCOPE_PUBLIC)
-                {
-                    continue;
-                }
-
-                const char *name = atr->getName();
-                vals.append(name);
-            }
-
-            vals.sort();
-        }
+	if(std::get<0>(it.first) == name && std::get<2>(it.first) == subd)
+	{
+	    auto &insts = it.second;
+	    for(exint i = 0; i < insts.entries(); ++i)
+		insts(i).myShape->setUserProperties(vals, meta);
+	}
     }
+    for(exint i = 0; i < myChildren.entries(); ++i)
+	myChildren(i).setUserProperties(vals, meta, subd, name);
+}
 
-    // Build the menu of likely choices for use with the "Build Hierarchy From
-    // Attribute" option.
-    static void
-    buildAttribMenu(void *data,
-            PRM_Name *menu_entries,
-            int menu_size,
-            const PRM_SpareData *,
-            const PRM_Parm *)
+void
+ROP_AlembicOut::rop_RefinedGeoAssignments::setLocked(bool locked)
+{
+    myLocked = locked;
+
+    for(auto &it : myShapes)
     {
-        ROP_AlembicOut *me = (ROP_AlembicOut *)data;
-
-        me->clearErrors();
-
-        OP_Context      context(CHgetEvalTime());
-        UT_StringArray  vals;
-
-        if(me->nInputs() > 0 && me->lockInput(0, context) < UT_ERROR_ABORT)
-        {
-            SOP_Node   *node = CAST_SOPNODE(me->getInput(0));
-            if (node)
-            {
-                getAttribs(node, context, vals);
-            }
-
-    	    me->unlockInput(0);
-        }
-        else
-        {
-            SOP_Node   *node = me->getSOPInput(0);
-
-            if (node)
-            {
-                getAttribs(node, context, vals);
-            }
-        }
-
-        int i = 0;
-        while(i < vals.entries() && i + 1 < menu_size)
-        {
-            menu_entries[i].setToken(vals(i));
-            menu_entries[i].setLabel(vals(i));
-            ++i;
-        }
-        menu_entries[i].setToken(0);
-        menu_entries[i].setLabel(0);
+	auto &shapes = it.second;
+	for(exint i = 0; i < shapes.entries(); ++i)
+	    shapes(i)->setLocked(locked);
     }
-
-    static PRM_Name     separator1Name("_sep1", "");
-    static PRM_Name     separator2Name("_sep2", "");
-    static PRM_Name     separator3Name("_sep3", "");
-    static PRM_Name	theFilenameName("filename", "Alembic File");
-    static PRM_Name	theFormatName("format", "Format");
-    static PRM_Name	theSingleSopModeName("use_sop_path", "Use SOP Path");
-    static PRM_Name     theSOPPathName("sop_path", "SOP Path");
-    static PRM_Name	theRootName("root", "Root Object");
-    static PRM_Name	theObjectsName("objects", "Objects");
-    static PRM_Name	theInitSim("initsim", "Initialize Simulation OPs");
-    static PRM_Name	theRenderFullRange("render_full_range",
-			    "Render Full Range (Override Frame-By-Frame)");
-    static PRM_Name	theCollapseName("collapse", "Collapse Objects");
-    static PRM_Name	theSaveHiddenName("save_hidden",
-				"Save All Non-Displayed (Hidden) Objects");
-    static PRM_Name	theUseInstancingName("use_instancing",
-				"Use Alembic Instancing Where Possible");
-    static PRM_Name	theFullBoundsName("full_bounds",
-				"Full Bounding Box Tree");
-    static PRM_Name	theDisplaySOPName("displaysop",
-				"Use Display SOP");
-    static PRM_Name	theSaveAttributesName("save_attributes",
-				"Save Attributes");
-    static PRM_Name	thePromoteUniformPatternName("prim_to_detail_pattern",
-			    "Primitive To Detail");
-    static PRM_Name	theForcePromoteUniformName("force_prim_to_detail",
-			    "Force Conversion of Matching Primitive Attributes to Detail");
-    static PRM_Name     theBuildHierarchyFromPathName("build_from_path",
-                                "Build Hierarchy From Attribute");
-    static PRM_Name     thePathAttribName("path_attrib", "Path Attribute");
-    static PRM_Name     thePackedAbcPriorityName("packed_priority",
-                                "Packed Alembic Priority");
-    static PRM_Name	thePartitionModeName("partition_mode",
-				"Partition Mode");
-    static PRM_Name	thePartitionAttributeName("partition_attribute",
-				"Partition Attribute");
-    static PRM_Name	theAttributePatternNames[GA_ATTRIB_OWNER_N] = {
-	PRM_Name("vertexAttributes",	"Vertex Attributes"),
-	PRM_Name("pointAttributes",	"Point Attributes"),
-	PRM_Name("primitiveAttributes",	"Primitive Attributes"),
-	PRM_Name("detailAttributes",	"Detail Attributes"),
-    };
-    static PRM_Name     theUVAttribPatternName("uvAttributes", "Additional UV Attributes");
-    static PRM_Name	theFaceSetModeName("facesets", "Face Sets");
-    static PRM_Name	theSubdGroupName("subdgroup",
-				"Subdivision Group");
-    static PRM_Name	theVerboseName("verbose", "Verbosity");
-    static PRM_Name	theMotionBlurName("motionBlur", "Use Motion Blur");
-    static PRM_Name	theSampleName("samples", "Samples");
-    static PRM_Name	theShutterName("shutter", "Shutter");
-
-    static PRM_Default	theFilenameDefault(0, "$HIP/output.abc");
-    static PRM_Default	theFormatDefault(0, "default");
-    static PRM_Default	theRootDefault(0, "/obj");
-    static PRM_Default	theStarDefault(0, "*");
-    static PRM_Default	theCollapseDefault(0, "off");
-    static PRM_Default	theSaveAttributesDefault(1, "yes");
-    static PRM_Default	thePromoteUniformPatternDefault(1, "");
-    static PRM_Default  thePathAttribDefault(0, "path");
-    static PRM_Default  thePackedAbcPriorityDefault(0, "hier");
-    static PRM_Default	theFaceSetModeDefault(1, "nonempty");
-    static PRM_Default	theSampleDefault(2);
-    static PRM_Default	theShutterDefault[] = {0, 1};
-    //static PRM_Default	theFaceSetDefault(0);
-
-    static PRM_Name	theFormatChoices[] =
+    for(auto &it : myInstances)
     {
-	PRM_Name("default",	"Default Format"),
-	PRM_Name("hdf5",	"HDF5"),
-	PRM_Name("ogawa",	"Ogawa"),
-	PRM_Name()
-    };
-
-    static PRM_Name	thePackedAbcPriorityChoices[] =
-    {
-        PRM_Name("hier",        "Hierarchy"),
-        PRM_Name("xform",       "Transformation"),
-        PRM_Name()
-    };
-    static bool
-    mapPackedAbcPriority(const char *mode, int &value)
-    {
-        if (!strcmp(mode, "hier"))
-        {
-            value = ROP_AbcContext::PRIORITY_HIERARCHY;
-        }
-        else
-        {
-            UT_ASSERT(!strcmp(mode, "xform"));
-
-            value = ROP_AbcContext::PRIORITY_TRANSFORM;
-        }
-
-        return true;
-   }
-
-    static PRM_Name	thePartitionModeChoices[] =
-    {
-	PRM_Name("no",		"No Geometry Partitioning"),
-	PRM_Name("full",	"Use Attribute Value"),
-	PRM_Name("shape",	"Use Shape Node Component Of Path Attribute Value"),
-	PRM_Name("xform",	"Use Transform Node Component Of Path Attribute value"),
-	PRM_Name("xformshape",	"Use Combination Of Transform/Shape Node"),
-	PRM_Name(),	// Sentinal
-    };
-    static bool
-    mapPartitionMode(const char *mode, int &value)
-    {
-	value = ROP_AbcContext::PATHMODE_FULLPATH;
-	if (!strcmp(mode, "full"))
-	    return true;
-	if (!strcmp(mode, "shape"))
+	auto &insts = it.second;
+	for(exint i = 0; i < insts.entries(); ++i)
 	{
-	    value = ROP_AbcContext::PATHMODE_SHAPE;
-	    return true;
+	    auto &inst = insts(i);
+	    inst.myShape->setLocked(locked);
+	    auto &xforms = inst.myXforms;
+	    for(exint j = 0; j < xforms.entries(); ++j)
+		xforms(j)->setLocked(locked);
 	}
-	if (!strcmp(mode, "xform"))
-	{
-	    value = ROP_AbcContext::PATHMODE_XFORM;
-	    return true;
-	}
-	if (!strcmp(mode, "xformshape"))
-	{
-	    value = ROP_AbcContext::PATHMODE_XFORM_SHAPE;
-	    return true;
-	}
-	return false;
     }
-
-    static PRM_Name	thePartitionAttributeChoices[] =
+    for(exint i = 0; i < myChildren.entries(); ++i)
     {
-	PRM_Name("",		"No Geometry Partitions"),
-	PRM_Name("name",	"Partition Based On 'name' Attribute"),
-	PRM_Name("abcPath",	"Partition Based On 'abcPath' Attribute"),
-	PRM_Name()	// Sentinal
-    };
-
-    static PRM_Name	theFaceSetModeChoices[] =
-    {
-	PRM_Name("no",		"No Face Sets"),
-	PRM_Name("nonempty",	"Save Non-Empty Groups As Face Sets"),
-	PRM_Name("all",		"Save All Groups As Face Sets"),
-	PRM_Name()
-    };
-    static bool
-    mapFaceSetMode(const char *mode, GABC_OOptions::FaceSetMode &value)
-    {
-	value = ROP_AbcContext::FACESET_DEFAULT;
-	if (!strcmp(mode, "no"))
-	{
-	    value = ROP_AbcContext::FACESET_NONE;
-	    return true;
-	}
-	if (!strcmp(mode, "nonempty"))
-	{
-	    value = ROP_AbcContext::FACESET_NON_EMPTY;
-	    return true;
-	}
-	if (!strcmp(mode, "all"))
-	{
-	    value = ROP_AbcContext::FACESET_ALL_GROUPS;
-	    return true;
-	}
-	return false;
-    }
-
-    static PRM_Name	theCollapseChoices[] =
-    {
-	PRM_Name("off",	"Do Not Collapse Identity Objects"),
-	PRM_Name("on",  "Collapse Non-Animating Identity Objects"),
-	PRM_Name("geo", "Collapse All Geometry Container Objects"),
-	PRM_Name("all", "Collapse All Objects (Direct Hierarchy Placement)"),
-	PRM_Name()
-    };
-
-    static PRM_ChoiceList	theObjectsMenu(PRM_CHOICELIST_REPLACE,
-					buildBundleMenu);
-    static PRM_ChoiceList       thePathAttribMenu(PRM_CHOICELIST_REPLACE,
-                                        buildAttribMenu);
-    static PRM_ChoiceList	theFormatMenu(PRM_CHOICELIST_SINGLE,
-					theFormatChoices);
-    static PRM_ChoiceList	thePackedAbcPriorityMenu(PRM_CHOICELIST_SINGLE,
-					thePackedAbcPriorityChoices);
-    static PRM_ChoiceList	thePartitionModeMenu(PRM_CHOICELIST_SINGLE,
-					thePartitionModeChoices);
-    static PRM_ChoiceList	thePartitionAttributeMenu(PRM_CHOICELIST_REPLACE,
-					thePartitionAttributeChoices);
-    static PRM_ChoiceList	theFaceSetModeMenu(PRM_CHOICELIST_SINGLE,
-					theFaceSetModeChoices);
-    static PRM_ChoiceList	theCollapseMenu(PRM_CHOICELIST_SINGLE,
-					theCollapseChoices);
-
-    static PRM_Range            theVerboseRange(PRM_RANGE_RESTRICTED, 0,
-				        PRM_RANGE_UI, 3);
-
-    // Make paths relative to /obj (for the bundle code)
-    static PRM_SpareData	theObjectList(PRM_SpareArgs()
-				    << PRM_SpareToken("opfilter", "!!OBJ!!")
-				    << PRM_SpareToken("oprelative", "/obj")
-				);
-
-    static PRM_Template	theParameters[] = {
-	PRM_Template(PRM_FILE, 1, &theFilenameName, &theFilenameDefault),
-	PRM_Template(PRM_ORD, 1, &theFormatName, &theFormatDefault,
-				    &theFormatMenu),
-	PRM_Template(PRM_TOGGLE, 1, &ROPmkpath, PRMoneDefaults),
-	PRM_Template(PRM_JOINED_TOGGLE, 1, &theSingleSopModeName),
-	PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH, 1, &theSOPPathName,
-                                    0, 0, 0, 0, &PRM_SpareData::sopPath),
-	// Root object should be relative to ROP
-	PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH,
-				    1, &theRootName, &theRootDefault,
-				    0, 0, 0, &PRM_SpareData::objPath),
-	PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST,
-				    1, &theObjectsName, &theStarDefault,
-				    &theObjectsMenu, 0, 0,
-				    &theObjectList),
-	PRM_Template(PRM_TOGGLE, 1, &theInitSim),
-	PRM_Template(PRM_TOGGLE, 1, &theRenderFullRange, PRMoneDefaults),
-
-        PRM_Template(PRM_SEPARATOR, 1, &separator1Name),
-
-	PRM_Template(PRM_TOGGLE, 1, &theBuildHierarchyFromPathName),
-        PRM_Template(PRM_STRING, 1, &thePathAttribName, &thePathAttribDefault,
-				    &thePathAttribMenu),
-        PRM_Template(PRM_ORD, 1, &thePackedAbcPriorityName,
-                                    &thePackedAbcPriorityDefault,
-                                    &thePackedAbcPriorityMenu),
-	PRM_Template(PRM_ORD, 1, &thePartitionModeName, 0,
-				    &thePartitionModeMenu),
-	PRM_Template(PRM_STRING, 1, &thePartitionAttributeName, 0,
-				    &thePartitionAttributeMenu),
-
-        PRM_Template(PRM_SEPARATOR, 1, &separator2Name),
-
-	PRM_Template(PRM_ORD, 1, &theCollapseName, &theCollapseDefault,
-				    &theCollapseMenu),
-	PRM_Template(PRM_TOGGLE, 1, &theSaveHiddenName, PRMoneDefaults),
-	PRM_Template(PRM_TOGGLE, 1, &theUseInstancingName, PRMoneDefaults),
-	PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName),
-	PRM_Template(PRM_TOGGLE, 1, &theDisplaySOPName),
-	PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName,
-				    &theSaveAttributesDefault),
-        PRM_Template(PRM_SEPARATOR, 1, &separator3Name),
-
-	PRM_Template(PRM_STRING, 1,
-		&theAttributePatternNames[GA_ATTRIB_POINT],
-		&theStarDefault),
-	PRM_Template(PRM_STRING, 1,
-		&theAttributePatternNames[GA_ATTRIB_VERTEX],
-		&theStarDefault),
-	PRM_Template(PRM_STRING, 1,
-		&theAttributePatternNames[GA_ATTRIB_PRIMITIVE],
-		&theStarDefault),
-	PRM_Template(PRM_STRING, 1,
-		&theAttributePatternNames[GA_ATTRIB_DETAIL],
-		&theStarDefault),
-	PRM_Template(PRM_STRING, 1, &thePromoteUniformPatternName,
-				    &thePromoteUniformPatternDefault),
-	PRM_Template(PRM_TOGGLE, 1, &theForcePromoteUniformName),
-
-        PRM_Template(PRM_STRING, 1, &theUVAttribPatternName),
-	PRM_Template(PRM_ORD, 1, &theFaceSetModeName,
-				    &theFaceSetModeDefault,
-				    &theFaceSetModeMenu),
-	PRM_Template(PRM_STRING, 1, &theSubdGroupName),
-	PRM_Template(PRM_INT,	1, &theVerboseName, 0, 0, &theVerboseRange),
-        PRM_Template(PRM_TOGGLE, 1, &theMotionBlurName),
-        PRM_Template(PRM_INT,	 1, &theSampleName, &theSampleDefault),
-        PRM_Template(PRM_FLT,	 2, &theShutterName, theShutterDefault),
-	PRM_Template()
-    };
-
-    static OP_TemplatePair *
-    getTemplatePair()
-    {
-	static OP_TemplatePair	*pair = 0;
-	if (!pair)
-	{
-	    OP_TemplatePair	*abc = new OP_TemplatePair(theParameters);
-	    pair = new OP_TemplatePair(ROP_Node::getROPbaseTemplate(), abc);
-	}
-	return pair;
-    }
-    static OP_VariablePair *
-    getVariablePair()
-    {
-	static OP_VariablePair	*pair = 0;
-	if (!pair)
-	{
-	    pair = new OP_VariablePair(ROP_Node::myVariableList);
-	}
-	return pair;
-    }
-
-    OP_Node *
-    createAlembicOut(OP_Network *net, const char *name, OP_Operator *op)
-    {
-	return new ROP_AlembicOut(net, name, op);
+	auto &child = myChildren(i);
+	static_cast<ROP_AbcNodeXform *>(child.getParent())->setLocked(locked);
+	child.setLocked(locked);
     }
 }
 
-ROP_AlembicOut::ROP_AlembicOut(OP_Network *net, const char *name, OP_Operator *op)
-    : ROP_Node(net, name, op)
-    , myArchive(NULL)
-    , myContext(NULL)
-    , myError(NULL)
-    , myVerbose(0)
+void
+ROP_AlembicOut::rop_RefinedGeoAssignments::warnRoot(
+    const ROP_AbcArchivePtr &abc)
+{
+    if(myWarnedRoot)
+	return;
+
+    abc->getOError().warning("Cannot push packed primitive transform to root node.");
+    myWarnedRoot = true;
+}
+
+void
+ROP_AlembicOut::rop_RefinedGeoAssignments::warnChildren(
+    const ROP_AbcArchivePtr &abc)
+{
+    if(myWarnedChildren)
+	return;
+
+    UT_Array<const ROP_AbcNode *> ancestors;
+    for(const ROP_AbcNode *node = myParent; node; node = node->getParent())
+	ancestors.append(node);
+
+    UT_WorkBuffer buf;
+    for(exint i = ancestors.entries() - 2; i >= 0; --i)
+    {
+	buf.append('/');
+	buf.append(ancestors(i)->getName());
+    }
+
+    abc->getOError().warning("Cannot push multiple packed primitive transforms to %s.", buf.buffer());
+    myWarnedChildren = true;
+}
+
+static PRM_Name theFilenameName("filename", "Alembic File");
+static PRM_Name theFormatName("format", "Format");
+static PRM_Name theRenderFullRange("render_full_range", "Render Full Range (Override Frame-By-Frame)");
+static PRM_Name theInitSim("initsim", "Initialize Simulation OPs");
+static PRM_Name theSingleSopModeName("use_sop_path", "Use SOP Path");
+static PRM_Name theSOPPathName("sop_path", "SOP Path");
+static PRM_Name theSubdGroupName("subdgroup", "Subdivision Group");
+static PRM_Name theBuildHierarchyFromPathName("build_from_path", "Build Hierarchy From Attribute");
+static PRM_Name thePathAttribName("path_attrib", "Path Attribute");
+static PRM_Name theRootName("root", "Root Object"); 
+static PRM_Name theObjectsName("objects", "Objects");
+static PRM_Name theCollapseName("collapse", "Collapse Objects");
+static PRM_Name theSaveHiddenName("save_hidden", "Save All Non-Displayed (Hidden) Objects");
+static PRM_Name theDisplaySOPName("displaysop", "Use Display SOP");
+static PRM_Name thePartitionModeName("partition_mode", "Partition Mode");
+static PRM_Name thePartitionAttributeName("partition_attribute", "Partition Attribute");
+static PRM_Name theFullBoundsName("full_bounds", "Full Bounding Box Tree");
+static PRM_Name thePackedModeName("packed_mode", "Packed Mode");
+static PRM_Name theUseInstancingName("use_instancing", "Use Instancing Where Possible");
+static PRM_Name theSaveAttributesName("save_attributes", "Save Attributes");
+static PRM_Name thePointAttributesName("pointAttributes", "Point Attributes");
+static PRM_Name theVertexAttributesName("vertexAttributes", "Vertex Attributes");
+static PRM_Name thePrimitiveAttributesName("primitiveAttributes", "Primitive Attributes");
+static PRM_Name theDetailAttributesName("detailAttributes", "Detail Attributes");
+static PRM_Name thePromoteUniformPatternName("prim_to_detail_pattern", "Primitive To Detail");
+static PRM_Name theForcePromoteUniformName("force_prim_to_detail", "Force Conversion of Matching Primitive Attributes to Detail");
+static PRM_Name theUVAttribPatternName("uvAttributes", "Additional UV Attributes");
+static PRM_Name theFaceSetModeName("facesets", "Face Sets");
+static PRM_Name theMotionBlurName("motionBlur", "Use Motion Blur");
+static PRM_Name theSampleName("samples", "Samples");
+static PRM_Name theShutterName("shutter", "Shutter");
+
+static PRM_Default theFilenameDefault(0, "$HIP/output.abc");
+static PRM_Default theFormatDefault(0, "default");
+static PRM_Default theRootDefault(0, "/obj");
+static PRM_Default theStarDefault(0, "*");
+static PRM_Default thePathAttribDefault(0, "path");
+static PRM_Default theCollapseDefault(0, "off");
+static PRM_Default thePackedModeDefault(0, "transformedshape");
+static PRM_Default theFaceSetModeDefault(1, "nonempty");
+static PRM_Default theSampleDefault(2);
+static PRM_Default theShutterDefault[] = {0, 1};
+
+static PRM_Default mainSwitcher[] =
+{
+    PRM_Default(13, "Hierarchy"),
+    PRM_Default(11, "Geometry"),
+    PRM_Default(3, "Motion Blur"),
+};
+
+static PRM_Name theFormatChoices[] =
+{
+    PRM_Name("default",	"Default Format"),
+    PRM_Name("hdf5",	"HDF5"),
+    PRM_Name("ogawa",	"Ogawa"),
+    PRM_Name()
+};
+
+static PRM_Name theCollapseChoices[] =
+{
+    PRM_Name("off", "Do Not Collapse Identity Objects"),
+    PRM_Name("geo", "Collapse Non-Animating Identity Geometry Objects"),
+    PRM_Name("on",  "Collapse Non-Animating Identity Objects"),
+    PRM_Name()
+};
+
+static PRM_Name thePartitionModeChoices[] =
+{
+    PRM_Name("no",         "No Geometry Partitioning"),
+    PRM_Name("full",       "Use Attribute Value"),
+    PRM_Name("shape",      "Use Shape Node Component Of Path Attribute Value"),
+    PRM_Name("xform",      "Use Transform Node Component Of Path Attribute value"),
+    PRM_Name("xformshape", "Use Combination Of Transform/Shape Node"),
+    PRM_Name(), // Sentinal
+};
+
+static PRM_Name thePartitionAttributeChoices[] =
+{
+    PRM_Name("",        "No Geometry Partitions"),
+    PRM_Name("name",    "Partition Based On 'name' Attribute"),
+    PRM_Name("abcPath", "Partition Based On 'abcPath' Attribute"),
+    PRM_Name() // Sentinal
+};
+
+static PRM_Name thePackedModeChoices[] =
+{
+    PRM_Name("transformedshape",		"Transformed Shape"),
+    PRM_Name("transformandshape",		"Transform And Shape"),
+    PRM_Name("transformedparent",		"Transformed Parent"),
+    PRM_Name("transformedparentandshape",	"Transformed Parent And Shape"),
+    PRM_Name()
+};
+
+static PRM_Name theFaceSetModeChoices[] =
+{
+    PRM_Name("no",	    "No Face Sets"),
+    PRM_Name("nonempty",    "Save Non-Empty Groups As Face Sets"),
+    PRM_Name("all",	    "Save All Groups As Face Sets"),
+    PRM_Name()
+};
+
+static void
+buildBundleMenu(void *, PRM_Name *menu, int max,
+		const PRM_SpareData *spare, const PRM_Parm *)
+{
+    OPgetDirector()->getBundles()->buildBundleMenu(menu, max,
+				spare ? spare->getValue("opfilter") : 0);
+}
+
+static const GU_Detail *
+getSopGeo(ROP_AlembicOut *me)
+{
+    fpreal time = CHgetEvalTime();
+    SOP_Node *sop = me->getSopNode(time);
+
+    if(!sop)
+	return nullptr;
+
+    OP_Context context(time);
+    GU_DetailHandle *gdh = (GU_DetailHandle *)sop->getCookedData(context);
+    if(!gdh)
+	return nullptr;
+
+    return sop->getLastGeo();
+}
+
+static void
+buildGroupMenu(void *data, PRM_Name *menu_entries, int menu_size,
+		const PRM_SpareData *, const PRM_Parm *)
+{
+    int i = 0;
+    const GU_Detail *gdp = getSopGeo(static_cast<ROP_AlembicOut *>(data));
+    if(gdp)
+    {
+	UT_StringArray vals;
+	auto &table = gdp->getElementGroupTable(GA_ATTRIB_PRIMITIVE);
+	for(auto it = table.beginTraverse(); !it.atEnd(); ++it)
+	{
+	    auto grp = it.group();
+
+	    if(!grp->isInternal())
+		vals.append(grp->getName());
+	}
+
+	vals.sort();
+	while(i < vals.entries() && i + 1 < menu_size)
+	{
+	    menu_entries[i].setToken(vals(i));
+	    menu_entries[i].setLabel(vals(i));
+	    ++i;
+	}
+    }
+
+    menu_entries[i].setToken(0);
+    menu_entries[i].setLabel(0);
+}
+
+static void
+buildAttribMenu(void *data, PRM_Name *menu_entries, int menu_size,
+		const PRM_SpareData *, const PRM_Parm *)
+{
+    int i = 0;
+    const GU_Detail *gdp = getSopGeo(static_cast<ROP_AlembicOut *>(data));
+    if(gdp)
+    {
+	UT_StringArray vals;
+	auto &dict = gdp->getAttributeDict(GA_ATTRIB_PRIMITIVE);
+	for(auto it = dict.begin(); !it.atEnd(); ++it)
+	{
+	    const GA_Attribute *atr = it.attrib();
+
+	    if(atr->getStorageClass() == GA_STORECLASS_STRING &&
+	       atr->getTupleSize() == 1 &&
+	       atr->getScope() == GA_SCOPE_PUBLIC)
+	    {
+		vals.append(atr->getName());
+	    }
+	}
+
+	vals.sort();
+	while(i < vals.entries() && i + 1 < menu_size)
+	{
+	    menu_entries[i].setToken(vals(i));
+	    menu_entries[i].setLabel(vals(i));
+	    ++i;
+	}
+    }
+
+    menu_entries[i].setToken(0);
+    menu_entries[i].setLabel(0);
+}
+
+static PRM_ChoiceList theFormatMenu(PRM_CHOICELIST_SINGLE, theFormatChoices);
+static PRM_ChoiceList theSubdGroupMenu(PRM_CHOICELIST_REPLACE, buildGroupMenu);
+static PRM_ChoiceList thePathAttribMenu(PRM_CHOICELIST_REPLACE, buildAttribMenu);
+static PRM_ChoiceList theObjectsMenu(PRM_CHOICELIST_REPLACE, buildBundleMenu);
+static PRM_ChoiceList theCollapseMenu(PRM_CHOICELIST_SINGLE, theCollapseChoices);
+static PRM_ChoiceList thePartitionModeMenu(PRM_CHOICELIST_SINGLE, thePartitionModeChoices);
+static PRM_ChoiceList thePartitionAttributeMenu(PRM_CHOICELIST_REPLACE, thePartitionAttributeChoices);
+static PRM_ChoiceList thePackedModeMenu(PRM_CHOICELIST_SINGLE, thePackedModeChoices);
+static PRM_ChoiceList theFaceSetModeMenu(PRM_CHOICELIST_SINGLE, theFaceSetModeChoices);
+
+// Make paths relative to /obj (for the bundle code)
+static PRM_SpareData theObjectList(PRM_SpareArgs()
+		<< PRM_SpareToken("opfilter", "!!OBJ!!")
+		<< PRM_SpareToken("oprelative", "/obj"));
+
+static PRM_Template theParameters[] =
+{
+    PRM_Template(PRM_FILE, 1, &theFilenameName, &theFilenameDefault),
+    PRM_Template(PRM_ORD, 1, &theFormatName, &theFormatDefault, &theFormatMenu),
+    PRM_Template(PRM_TOGGLE, 1, &ROPmkpath, PRMoneDefaults),
+    PRM_Template(PRM_TOGGLE, 1, &theRenderFullRange, PRMoneDefaults),
+    PRM_Template(PRM_TOGGLE, 1, &theInitSim),
+    PRM_Template(PRM_SWITCHER, 3, &PRMswitcherName, mainSwitcher),
+    PRM_Template(PRM_TOGGLE, 1, &theSingleSopModeName),
+    PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH, 1, &theSOPPathName,
+		    0, 0, 0, 0, &PRM_SpareData::sopPath),
+    PRM_Template(PRM_STRING, 1, &theSubdGroupName, 0, &theSubdGroupMenu),
+    PRM_Template(PRM_TOGGLE, 1, &theBuildHierarchyFromPathName),
+    PRM_Template(PRM_STRING, 1, &thePathAttribName, &thePathAttribDefault,
+		    &thePathAttribMenu),
+    PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH,
+		    1, &theRootName, &theRootDefault, 0, 0, 0,
+		    &PRM_SpareData::objPath),
+    PRM_Template(PRM_STRING_OPLIST, PRM_TYPE_DYNAMIC_PATH_LIST,
+		    1, &theObjectsName, &theStarDefault, &theObjectsMenu, 0, 0,
+		    &theObjectList),
+    PRM_Template(PRM_ORD, 1, &theCollapseName, &theCollapseDefault,
+		    &theCollapseMenu),
+    PRM_Template(PRM_TOGGLE, 1, &theSaveHiddenName, PRMoneDefaults),
+    PRM_Template(PRM_TOGGLE, 1, &theDisplaySOPName),
+    PRM_Template(PRM_ORD, 1, &thePartitionModeName, 0, &thePartitionModeMenu),
+    PRM_Template(PRM_STRING, 1, &thePartitionAttributeName, 0,
+		    &thePartitionAttributeMenu),
+    PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName),
+    PRM_Template(PRM_ORD, 1, &thePackedModeName, &thePackedModeDefault,
+		    &thePackedModeMenu),
+    PRM_Template(PRM_TOGGLE, 1, &theUseInstancingName, PRMoneDefaults),
+    PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName, PRMoneDefaults),
+    PRM_Template(PRM_STRING, 1, &thePointAttributesName, &theStarDefault),
+    PRM_Template(PRM_STRING, 1, &theVertexAttributesName, &theStarDefault),
+    PRM_Template(PRM_STRING, 1, &thePrimitiveAttributesName, &theStarDefault),
+    PRM_Template(PRM_STRING, 1, &theDetailAttributesName, &theStarDefault),
+    PRM_Template(PRM_STRING, 1, &thePromoteUniformPatternName),
+    PRM_Template(PRM_TOGGLE, 1, &theForcePromoteUniformName),
+    PRM_Template(PRM_STRING, 1, &theUVAttribPatternName),
+    PRM_Template(PRM_ORD, 1, &theFaceSetModeName, &theFaceSetModeDefault,
+		    &theFaceSetModeMenu),
+    PRM_Template(PRM_TOGGLE, 1, &theMotionBlurName),
+    PRM_Template(PRM_INT, 1, &theSampleName, &theSampleDefault),
+    PRM_Template(PRM_FLT, 2, &theShutterName, theShutterDefault),
+    PRM_Template(),
+};
+
+static PRM_Name separator1Name("_sep1", "");
+static PRM_Name thePackedAbcPriorityName("packed_priority", "Packed Alembic Priority");
+static PRM_Name separator2Name("_sep2", "");
+static PRM_Name separator3Name("_sep3", "");
+static PRM_Name theVerboseName("verbose", "Verbosity");
+
+static PRM_Default thePackedAbcPriorityDefault(0, "hier");
+
+static PRM_Name thePackedAbcPriorityChoices[] =
+{
+    PRM_Name("hier", "Hierarchy"),
+    PRM_Name("xform", "Transformation"),
+    PRM_Name()
+};
+
+static PRM_ChoiceList thePackedAbcPriorityMenu(PRM_CHOICELIST_SINGLE, thePackedAbcPriorityChoices);
+
+static PRM_Range theVerboseRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 3);
+
+static PRM_Template theObsoleteParameters[] =
+{
+    PRM_Template(PRM_SEPARATOR, 1, &separator1Name),
+    PRM_Template(PRM_ORD, 1, &thePackedAbcPriorityName,
+		    &thePackedAbcPriorityDefault, &thePackedAbcPriorityMenu),
+    PRM_Template(PRM_SEPARATOR, 1, &separator2Name),
+    PRM_Template(PRM_SEPARATOR, 1, &separator3Name),
+    PRM_Template(PRM_INT,   1, &theVerboseName, 0, 0, &theVerboseRange),
+};
+
+ROP_AlembicOut::ROP_AlembicOut(OP_Network *net, const char *name, OP_Operator *entry)
+    : ROP_Node(net, name, entry)
 {
 }
 
@@ -469,398 +785,231 @@ ROP_AlembicOut::~ROP_AlembicOut()
 {
 }
 
-void
-ROP_AlembicOut::close()
+OP_Node *
+ROP_AlembicOut::myConstructor(OP_Network *net, const char *name, OP_Operator *op)
 {
-    delete myContext;	myContext = NULL;
-    delete myError;	myError = NULL;
-    delete myArchive;	myArchive = NULL;
+    return new ROP_AlembicOut(net, name, op);
 }
 
-int
-ROP_AlembicOut::COLLAPSE(fpreal time)
+bool
+ROP_AlembicOut::updateParmsFlags()
 {
-    UT_String	str;
-    evalString(str, "collapse", 0, time);
-    if (str == "off")
-	return ROP_AbcContext::COLLAPSE_NONE;
-    if (str == "geo")
-	return ROP_AbcContext::COLLAPSE_GEOMETRY;
-    if (str == "all")
-	return ROP_AbcContext::COLLAPSE_ALL;
-    UT_ASSERT(str == "on");
-    return ROP_AbcContext::COLLAPSE_IDENTITY;
+    bool issop = CAST_SOPNODE(getInput(0)) != NULL;
+    bool use_path = (!issop && USE_SOP_PATH(0));
+    bool sop_mode = (issop || use_path);
+    bool build_from_path = (sop_mode && BUILD_FROM_PATH(0));
+    bool partition_mode = (!sop_mode || !build_from_path);
+    bool partition_attrib = partition_mode;
+    if(partition_attrib)
+    {
+	UT_String str;
+	PARTITION_MODE(str, 0);
+	partition_attrib = (str != "no");
+    }
+    bool save_attributes = SAVE_ATTRIBUTES(0);
+    bool enable_prim_to_detail = save_attributes;
+    if(enable_prim_to_detail)
+    {
+	UT_String p2d_pattern;
+	PRIM_TO_DETAIL_PATTERN(p2d_pattern, 0);
+	enable_prim_to_detail = p2d_pattern.isstring();
+    }
+    bool motionblur = MOTIONBLUR(0);
+
+    bool changed = ROP_Node::updateParmsFlags();
+
+    changed |= enableParm("use_sop_path", !issop);
+    changed |= enableParm("sop_path", use_path);
+    changed |= enableParm("subdgroup", sop_mode);
+    changed |= enableParm("build_from_path", sop_mode);
+    changed |= enableParm("path_attrib", build_from_path);
+    changed |= enableParm("root", !sop_mode);
+    changed |= enableParm("objects", !sop_mode);
+    changed |= enableParm("collapse", !sop_mode);
+    changed |= enableParm("save_hidden", !sop_mode);
+    changed |= enableParm("displaysop", !sop_mode);
+    changed |= enableParm("partition_mode", partition_mode);
+    changed |= enableParm("partition_attribute", partition_attrib);
+    changed |= enableParm("vertexAttributes", save_attributes);
+    changed |= enableParm("pointAttributes", save_attributes);
+    changed |= enableParm("primitiveAttributes", save_attributes);
+    changed |= enableParm("detailAttributes", save_attributes);
+    changed |= enableParm("prim_to_detail_pattern", save_attributes);
+    changed |= enableParm("force_prim_to_detail", enable_prim_to_detail);
+    changed |= enableParm("uvAttributes", save_attributes);
+    changed |= enableParm("shutter", motionblur);
+    changed |= enableParm("samples", motionblur);
+    return changed;
 }
 
 void
 ROP_AlembicOut::buildRenderDependencies(const ROP_RenderDepParms &p)
 {
-    if (RENDER_FULL_RANGE())
+    if(RENDER_FULL_RANGE())
     {
-	ROP_RenderDepParms	parms = p;
+	ROP_RenderDepParms parms = p;
 	parms.setFullAscendingFrameRange(*this);
 	ROP_Node::buildRenderDependencies(parms);
     }
     else
-    {
 	ROP_Node::buildRenderDependencies(p);
+}
+
+SOP_Node *
+ROP_AlembicOut::getSopNode(fpreal time) const
+{
+    SOP_Node *sop = CAST_SOPNODE(getInput(0));
+    if(!sop && USE_SOP_PATH(time))
+    {
+	UT_String sop_path;
+	SOP_PATH(sop_path, time);
+	sop_path.trimBoundingSpace();
+	if(sop_path.isstring())
+	    sop = CAST_SOPNODE(findNode(sop_path));
     }
+    return sop;
 }
 
 int
-ROP_AlembicOut::startRender(int nframes, fpreal start, fpreal end)
+ROP_AlembicOut::startRender(int nframes, fpreal tstart, fpreal tend)
 {
-    close();
-
-    /// Trap errors
-    myError = new rop_AlembicOutError(*this, UTgetInterrupt());
-    myContext = new ROP_AbcContext();
-
-    if (!executePreRenderScript(start))
+    if (!executePreRenderScript(tstart))
 	return 0;
 
-    /// Evaluate parameters
-    OP_Node    *input = getInput(0);
-    OP_Node    *rootnode = NULL;
-    OP_Node    *sop_parent = NULL;
-    SOP_Node   *sop = NULL;
-    UT_String   filename;
-    UT_String   format;
-    UT_String   objects;
-    UT_String   root;
-    UT_String   sop_path;
-    fpreal      tdelta = (end - start);
-    fpreal      tstep;
-    fpreal      shutter_open = 0;
-    fpreal      shutter_close = 0;
-    int         mb_samples = 1;
-
-    if (input)
-        sop = CAST_SOPNODE(input);
-    if (!sop && USE_SOP_PATH(start))
+    if (INITSIM(tstart))
     {
-        SOP_PATH(sop_path, start);
-        sop_path.trimBoundingSpace();
-        if (sop_path.isstring())
-        {
-            sop = CAST_SOPNODE(findNode(sop_path));
-            if (!sop)
-            {
-                abcError("Invalid SOP path: node either not found or not SOP");
-            }
-        }
+	initSimulationOPs();
+	OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
     }
 
-    FILENAME(filename, start);
-    FORMAT(format, start);
-    if (sop)
-    {
-	sop_parent = sop->getCreator();
-	rootnode = sop_parent ? sop_parent->getParent() : NULL;
-	if (!rootnode)
-	{
-	    abcError("Invalid SOP configuration");
-	    sop = NULL;
-	}
-	myContext->setSingletonSOP(sop);
-    }
-    ROOT(root, start);
-    OBJECTS(objects, start);
-    myVerbose = VERBOSE(start);
-    myEndTime = end;
-    myFirstFrame = true;
+    UT_ASSERT(!myArchive);
+    myErrors.reset(new rop_OError());
+    myRoot.reset(new ROP_AbcNodeRoot());
 
-    filename.trimBoundingSpace();
-    root.trimBoundingSpace();
+    myRenderFullRange = RENDER_FULL_RANGE();
+    myNFrames = nframes;
+    myEndTime = tend;
 
-    if (!filename.isstring())
-	abcError("Require Alembic filename");
-
-    if (!rootnode)
-    {
-	if (!root.isstring())
-	    abcError("Require root for all objects");
-	else if (!(rootnode = findNode(root)))
-	    abcError("Can't find root node");
-    }
-
-    // Check for evaluation errors
-    if (error() >= UT_ERROR_ABORT)
-	return 0;
-
-    if (nframes < 2 || SYSequalZero(tdelta))
-	tstep = 1.0/(CHgetManager()->getSamplesPerSec());
-    else
-	tstep = tdelta / (nframes-1);
-
-    UT_String			faceset_str;
-    GABC_OOptions::FaceSetMode	faceset_mode;
-    FACESET_MODE(faceset_str, start);
-    if (mapFaceSetMode(faceset_str, faceset_mode))
-	myContext->setFaceSetMode(faceset_mode);
-    else
-	abcWarning("Invalid value for faceset mode");
-
-    myContext->setCollapseIdentity(COLLAPSE(start));
-    myContext->setSaveAttributes(SAVE_ATTRIBUTES(start));
-    myContext->setUseDisplaySOP(DISPLAYSOP(start));
-    myContext->setFullBounds(FULL_BOUNDS(start));
-    myContext->setUseInstancing(USE_INSTANCING(start));
-    myContext->setSaveHidden(SAVE_HIDDEN(start));
-    myContext->setFirstFrame(start / tstep);
-
-    UT_String			p2d_pattern;
-    PRIM_TO_DETAIL_PATTERN(p2d_pattern, start);
-    myContext->setPrimToDetailPattern(p2d_pattern);
-    myContext->setForcePrimToDetail(FORCE_PRIM_TO_DETAIL(start));
-
-    // Can only place objects directly into hierarchy from a SOP network.
-    // Direct hierarchy placement and partitioning use the same code,
-    // can only do one or the other. Now that direct hierarchy placement
-    // is available, I don't see much use for partitioning at all, but
-    // it remains for backwards compatability.
-    if (sop)
-    {
-        myContext->setBuildFromPath(BUILD_HIERARCHY_FROM_PATH(start));
-    }
-    if (myContext->buildFromPath())
-    {
-    	UT_String path_attrib;
-        PATH_ATTRIBUTE(path_attrib, start);
-
-        OP_Context          context(CHgetEvalTime());
-        const GU_Detail    *ref = sop->getCookedGeo(context);
-        const GA_Attribute *attrib = 0;
-	if(ref)
-	    attrib = ref->getAttributeDict(GA_ATTRIB_PRIMITIVE).find(GA_SCOPE_PUBLIC, path_attrib);
-        if (!attrib)
-        {
-            abcError("Cannot find path attribute in primitive attributes.");
-        }
-        else if (attrib->getTupleSize() > 1
-                || attrib->getStorageClass() != GA_STORECLASS_STRING)
-        {
-            abcError("Path attribute is not a string tuple size 1.");
-        }
-
-        UT_String packed_priority;
-    	PACKED_ABC_PRIORITY(packed_priority, start);
-
-        int packed_priority_val;
-        mapPackedAbcPriority(packed_priority, packed_priority_val);
-
-    	myContext->setPathAttribute(path_attrib);
-        myContext->setPackedAlembicPriority(packed_priority_val);
-    }
-    else
-    {
-        UT_String	partition_mode;
-        UT_String	partition_attrib;
-        int		partition_mode_val;
-
-        PARTITION_MODE(partition_mode, start);
-        myContext->clearPartitionAttribute();
-        if (mapPartitionMode(partition_mode, partition_mode_val))
-        {
-            PARTITION_ATTRIBUTE(partition_attrib, start);
-            myContext->setPartitionMode(partition_mode_val);
-            myContext->setPartitionAttribute(partition_attrib);
-        }
-    }
-
-    for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
-    {
-	UT_String	pattern;
-	evalString(pattern, theAttributePatternNames[i].getToken(), 0, start);
-	myContext->setAttributePattern((GA_AttributeOwner)i, pattern);
-    }
-
-    try
-    {
-        UT_String       uv_pattern;
-        UV_ATTRIBUTE(uv_pattern, start);
-        myContext->setUVAttribPattern(uv_pattern);
-
-	UT_String	subdgroup;
-	SUBDGROUP(subdgroup, start);
-	myContext->setSubdGroup(subdgroup);
-
-	if (MOTIONBLUR(start))
-	{
-	    mb_samples = SYSmax(SAMPLES(start), 1);
-	    shutter_open = SHUTTEROPEN(start);
-	    shutter_close = SHUTTERCLOSE(start);
-	}
-	myContext->setTimeSampling(nframes,
-		start,
-	        tstep,
-	        mb_samples,
-	        shutter_open,
-	        shutter_close);
-
-	myArchive = new ROP_AbcArchive();
-	if (!myArchive->open(*myError, filename, format))
-	{
-	    close();
-	    return 0;
-	}
-
-	if (INITSIM(start))
-	{
-	    initSimulationOPs();
-	    OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
-	}
-
-	if (sop)
-	{
-	    UT_ASSERT(rootnode && sop_parent);
-	    ROP_AbcOpBuilder	builder(rootnode);
-	    builder.addChild(*myError, sop_parent);
-	    builder.buildTree(*myArchive, *myContext);
-	}
-	else
-	{
-	    // Now, build the tree
-	    OP_Bundle	*bundle = getParmBundle("objects", 0, objects,
-				OPgetDirector()->getManager("obj"), "!!OBJ!!");
-	    if (bundle)
-	    {
-		UT_WorkBuffer	message;
-		message.sprintf("Alembic file %s created with %d objects",
-			(const char *)filename, bundle->entries());
-		abcInfo(-1, message.buffer());
-		ROP_AbcOpBuilder	builder(rootnode);
-		for (exint i = 0; i < bundle->entries(); ++i)
-		{
-		    OP_Node	*node = bundle->getNode(i);
-		    if (filterNode(node, rootnode, start))
-			builder.addChild(*myError, node);
-		}
-		//builder.dump();
-		builder.buildTree(*myArchive, *myContext);
-	    }
-	}
-	if (!myArchive->childCount())
-	    abcWarning("No objects selected for writing");
-    }
-    catch (const std::exception &err)
-    {
-	UT_WorkBuffer	msg;
-	msg.sprintf("Alembic exception: %s", err.what());
-	abcError(msg.buffer());
-    }
-
-    if (error() >= UT_ERROR_ABORT)
-    {
-	close();
-	return 0;
-    }
     return 1;
 }
-
-bool
-ROP_AlembicOut::filterNode(OP_Node *node, OP_Node *root, fpreal now)
-{
-    if (!node)
-	return false;
-
-    // If the node is not a descendent of the root, do not attempt to
-    // add it as a child of a ROP_AbcOpBuilder.
-    if (!root || (!node->isInputAncestor(root) && !node->isParentAncestor(root)))
-        return false;
-
-    OBJ_Node	*obj = node->castToOBJNode();
-    if (!obj)
-    {
-	UT_WorkBuffer	path;
-	node->getFullPath(path);
-	myError->error("%s is not an object", path.buffer());
-	return false;
-    }
-    // We need to evaluate the display before isDisplayTimeDependent() will
-    // give us valid results.  We need to do this here since we check time
-    // dependency in ROP_AbcOpXform.C.  If this isn't done, hbatch may end up
-    // with incorrect time dependency information.
-    bool	disp = obj->getObjectDisplay(now);
-    if (!myContext->saveHidden())
-    {
-	// If we're hidden and we aren't time dependent, then we can skip the
-	// object
-	if (!disp && !obj->isDisplayTimeDependent())
-	    return false;
-    }
-    return true;
-}
-
-#if  0
-static void
-countObjects(const ROP_AbcObject *root, int &total, int &tdep, int &stdep)
-{
-    typedef ROP_AbcObject::ChildContainer	Container;
-    total++;
-    if (root->timeDependent()) tdep++;
-    if (root->selfTimeDependent()) stdep++;
-    const Container	&kids = root->getChildren();
-    for (Container::const_iterator it = kids.begin(); it != kids.end(); ++it)
-    {
-	countObjects(it->second, total, tdep, stdep);
-    }
-}
-#endif
 
 ROP_RENDER_CODE
 ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 {
-    if (!executePreFrameScript(time))
+    if(!myRenderFullRange)
     {
-	close();
-	return ROP_ABORT_RENDER;
+	// close the previous archive
+	const ROP_AbcArchivePtr dummy;
+	myRoot->setArchive(dummy);
+	myArchive.clear();
+	myNFrames = 1;
+	myEndTime = time;
     }
 
-    if (myArchive)
+    if (!executePreFrameScript(time))
+	return ROP_ABORT_RENDER;
+
+    if(!myArchive)
     {
-	try
+	UT_String filename;
+	FILENAME(filename, time);
+	filename.trimBoundingSpace();
+
+	UT_String format;
+	FORMAT(format, time);
+
+	myArchive = new ROP_AbcArchive(filename, format != "hdf5", *myErrors.get());
+	if(!myArchive || !myArchive->isValid())
 	{
-	    int		start = 0;
-	    //UT_StopWatch	timer; timer.start();
-	    if (myFirstFrame)
-	    {
-		myFirstFrame = false;
-		myContext->setTime(time, 0);
-		if (!myArchive->firstFrame(*myError, *myContext))
-		    return ROP_ABORT_RENDER;
-		start = 1;
-#if 0
-		fprintf(stderr, "First frame: %g\n", timer.lap());
-		int stdep = 0;
-		int tdep = 0;
-		int total = 0;
-		countObjects(myArchive, total, tdep, stdep);
-		fprintf(stderr, "Nodes: %d %d/%d\n", total, stdep, tdep);
-		// myArchive->dump();
-#endif
-	    }
-	    for (int i = start; i < myContext->samplesPerFrame(); ++i)
-	    {
-		myContext->setTime(time, i);
-		if (!myArchive->nextFrame(*myError, *myContext))
-		    return ROP_ABORT_RENDER;
-		//fprintf(stderr, "Next frame: %g\n", timer.lap());
-	    }
+	    myArchive.clear();
+	    return ROP_ABORT_RENDER;
 	}
-	catch (std::exception &err)
+
+	int mb_samples = 1;
+	fpreal shutter_open = 0;
+	fpreal shutter_close = 0;
+	if(MOTIONBLUR(time))
 	{
-	    UT_WorkBuffer	msg;
-	    msg.sprintf("Alembic exception: %s", err.what());
-	    abcError(msg.buffer());
+	    mb_samples = SYSmax(SAMPLES(time), 1);
+	    shutter_open = SHUTTEROPEN(time);
+	    shutter_close = SHUTTERCLOSE(time);
 	}
+
+	auto &options = myArchive->getOOptions();
+	options.setFullBounds(FULL_BOUNDS(time));
+	myArchive->setTimeSampling(myNFrames, time, myEndTime, mb_samples,
+				   shutter_open, shutter_close);
+	if(SAVE_ATTRIBUTES(time))
+	{
+	    UT_String pattern;
+	    evalString(pattern, thePointAttributesName.getToken(), 0, time);
+	    options.setAttributePattern(GA_ATTRIB_POINT, pattern);
+	    evalString(pattern, theVertexAttributesName.getToken(), 0, time);
+	    options.setAttributePattern(GA_ATTRIB_VERTEX, pattern);
+	    evalString(pattern, thePrimitiveAttributesName.getToken(), 0, time);
+	    options.setAttributePattern(GA_ATTRIB_PRIMITIVE, pattern);
+	    evalString(pattern, theDetailAttributesName.getToken(), 0, time);
+	    options.setAttributePattern(GA_ATTRIB_DETAIL, pattern);
+
+	    UT_String p2d_pattern;
+	    PRIM_TO_DETAIL_PATTERN(p2d_pattern, time);
+	    options.setPrimToDetailPattern(p2d_pattern);
+	    options.setForcePrimToDetail(FORCE_PRIM_TO_DETAIL(time));
+
+	    UT_String uv_pattern;
+	    UV_ATTRIBUTE(uv_pattern, time);
+	    options.setUVAttribPattern(uv_pattern);
+	}
+
+	myRoot->setArchive(myArchive);
+    }
+
+    SOP_Node *sop = getSopNode(time);
+
+    UT_String packed;
+    PACKED_MODE(packed, time);
+    PackedMode packedmode;
+    if(packed == "transformedshape")
+	packedmode = ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_SHAPE;
+    else if(packed == "transformedparent")
+	packedmode = ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT;
+    else if(packed == "transformedparentandshape")
+	packedmode = ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT_AND_SHAPE;
+    else // if(packed == "transformandshape")
+	packedmode = ROP_ALEMBIC_PACKEDMODE_TRANSFORM_AND_SHAPE;
+
+    UT_String faceset;
+    FACESET_MODE(faceset, time);
+    exint facesetmode;
+    if(faceset == "all")
+	facesetmode = GT_RefineParms::FACESET_ALL_GROUPS;
+    else if(faceset == "nonempty")
+	facesetmode = GT_RefineParms::FACESET_NON_EMPTY;
+    else // if(faceset == "no")
+	facesetmode = GT_RefineParms::FACESET_NONE;
+
+    bool use_instancing = USE_INSTANCING(time);
+
+    exint n = myArchive->getSamplesPerFrame();
+    for(exint i = 0; i < n; ++i)
+    {
+	myRoot->clearData();
+	myArchive->setCookTime(time, i);
+
+	// update tree
+	if(sop)
+	{
+	    if(!updateFromSop(sop, packedmode, facesetmode, use_instancing))
+		return ROP_ABORT_RENDER;
+	}
+	else if(!updateFromHierarchy(packedmode, facesetmode, use_instancing))
+	    return ROP_ABORT_RENDER;
+
+	myRoot->update();
     }
 
     if (!executePostFrameScript(time))
-    {
-	close();
 	return ROP_ABORT_RENDER;
-    }
 
     return ROP_CONTINUE_RENDER;
 }
@@ -868,68 +1017,1026 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 ROP_RENDER_CODE
 ROP_AlembicOut::endRender()
 {
-    close();
+    // report errors
+    rop_OError *err = myErrors.get();
+    for(exint i = 0; i < err->myErrors.entries(); ++i)
+	addError(ROP_MESSAGE, err->myErrors(i));
+
+    for(exint i = 0; i < err->myWarnings.entries(); ++i)
+	addWarning(ROP_MESSAGE, err->myWarnings(i));
+
+    myArchive.clear();
+    myRoot.reset(nullptr);
+    myErrors.reset(nullptr);
+
+    myObjAssignments.clear();
+    myCamAssignments.clear();
+    myGeoAssignments.clear();
+    myGeos.clear();
+    mySopAssignments.reset(nullptr);
 
     if (!executePostRenderScript(myEndTime))
 	return ROP_ABORT_RENDER;
+
     if (INITSIM(myEndTime))
 	OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
+
     return ROP_CONTINUE_RENDER;
 }
 
-bool
-ROP_AlembicOut::updateParmsFlags()
+static bool
+rop_abcfilter(OBJ_Node *obj, bool save_hidden, fpreal time)
 {
-    bool        build_hier = BUILD_HIERARCHY_FROM_PATH(0);
-    bool	changed = ROP_Node::updateParmsFlags();
-    bool	issop = CAST_SOPNODE(getInput(0)) != NULL;
-    bool        use_sop_path = USE_SOP_PATH(0);
-    bool        sop_mode = issop || use_sop_path;
-    UT_String	mode;
-    UT_String	p2d_pattern;
+    // ignore hidden objects
+    if(!save_hidden &&
+       !obj->isDisplayTimeDependent() && !obj->getObjectDisplay(time))
+    {
+	return false;
+    }
 
-    PARTITION_MODE(mode, 0);
-    PRIM_TO_DETAIL_PATTERN(p2d_pattern, 0);
+    if(obj->getObjectType() == OBJ_CAMERA)
+	return obj->getName() != "ipr_camera";
 
-    changed |= enableParm("use_sop_path", !issop);
-    changed |= enableParm("sop_path", !issop && use_sop_path);
-    changed |= enableParm("root", !sop_mode);
-    changed |= enableParm("objects", !sop_mode);
-    changed |= enableParm("build_from_path", sop_mode);
-    changed |= enableParm("path_attrib", build_hier && sop_mode);
-    changed |= enableParm("packed_priority", build_hier && sop_mode);
-    changed |= enableParm("partition_mode", !build_hier || !sop_mode);
-    changed |= enableParm("partition_attribute",
-                ((!build_hier || !sop_mode ) && (mode != "no")));
-    changed |= enableParm("force_prim_to_detail", p2d_pattern.isstring());
-    changed |= enableParm("shutter", MOTIONBLUR(0));
-    changed |= enableParm("samples", MOTIONBLUR(0));
+    return obj->getObjectType() == OBJ_SUBNET || obj->castToOBJGeometry();
+}
 
-    return changed;
+static bool
+rop_isStaticIdentity(OBJ_Node *obj, fpreal time)
+{
+    // check if it is static
+    if(obj->isDisplayTimeDependent())
+	return false;
+
+    OP_Context context(time);
+    UT_Matrix4D m;
+    obj->getLocalTransform(context, m);
+    return m.isIdentity();
+}
+
+static bool
+ropIsToggleEnabled(OP_Node *node, const char *name, fpreal time)
+{
+    int value;
+    if(node->evalParameterOrProperty(name, 0, time, value))
+	return value != 0;
+    return false;
+}
+
+void
+ROP_AlembicOut::exportUserProperties(
+    rop_RefinedGeoAssignments &r,
+    bool subd,
+    const GU_Detail &gdp,
+    const GA_Range &range,
+    const std::string &name,
+    const GA_ROHandleS &vals,
+    const GA_ROHandleS &meta)
+{
+    GA_Iterator it(range);
+    if(it.atEnd())
+	return;
+
+    GA_Offset offset = *it;
+
+    UT_String v;
+    UT_String m;
+    if(vals.isValid() && meta.isValid())
+    {
+	v = vals.get(offset);
+	m = meta.get(offset);
+    }
+
+    if(!v.isstring() && !m.isstring())
+    {
+	const GA_Primitive *prim = gdp.getPrimitive(offset);
+	if(GU_PrimPacked::isPackedPrimitive(*prim))
+	{
+	    const GU_PrimPacked *packed = static_cast<const GU_PrimPacked *>(prim);
+
+	    auto &&alembic_def = GUgetFactory().lookupDefinition("AlembicRef"_sh);
+	    if(alembic_def && packed->getTypeId() == alembic_def->getId())
+	    {
+		const GABC_PackedImpl *impl = static_cast<const GABC_PackedImpl *>(packed->implementation());
+		const GABC_IObject &obj = impl->object();
+
+		UT_WorkBuffer data_dictionary;
+		UT_WorkBuffer meta_dictionary;
+
+		UT_JSONWriter *data_writer = UT_JSONWriter::allocWriter(data_dictionary);
+		UT_JSONWriter *meta_writer = UT_JSONWriter::allocWriter(meta_dictionary);
+		auto props = obj.getUserProperties();
+		GABC_Util::importUserPropertyDictionary(data_writer, meta_writer, obj, props, impl->frame());
+
+		v.harden(data_dictionary.buffer());
+		m.harden(meta_dictionary.buffer());
+
+		delete meta_writer;
+		delete data_writer;
+	    }
+	}
+    }
+
+    if(v.isstring() && m.isstring())
+	r.setUserProperties(v, m, subd, name);
+}
+
+typedef const char *rop_PartitionFunc(char *);
+
+static const char *
+ropPartitionFull(char *s)
+{
+    const char *start = s;
+    while(*s)
+    {
+	if(*s == '/')
+	    *s = '_';
+	++s;
+    }
+    return start;
+}
+
+static const char *
+ropPartitionShape(char *s)
+{
+    const char *start = s;
+    while(*s)
+    {
+	if(*s == '/')
+	    start = &s[1];
+	++s;
+    }
+    return start;
+}
+
+static const char *
+ropPartitionXform(char *s)
+{
+    const char *start = s;
+    char *end = nullptr;
+    while(*s)
+    {
+	if(*s == '/')
+	{
+	    if(end)
+		start = &end[1];
+	    end = s;
+	}
+	++s;
+    }
+    if(end)
+	*end = 0;
+    return start;
+}
+
+static const char *
+ropPartitionXformShape(char *s)
+{
+    const char *start = s;
+    const char *end = nullptr;
+    while(*s)
+    {
+	if(*s == '/')
+	{
+	    *s = '_';
+	    if(end)
+		start = &end[1];
+	    end = s;
+	}
+	++s;
+    }
+    return start;
+}
+
+void
+ROP_AlembicOut::refineSop(
+    rop_RefinedGeoAssignments &assignments,
+    PackedMode packedmode,
+    exint facesetmode,
+    bool use_instancing,
+    OBJ_Geometry *geo,
+    SOP_Node *sop,
+    fpreal time)
+{
+    int locked = 0;
+    OP_Node *creator = sop->getCreator();
+    if(creator)
+    {
+	creator->evalParameterOrProperty(
+			GABC_Util::theLockGeometryParameter, 0, 0, locked);
+    }
+
+    if(assignments.isLocked())
+    {
+	if(locked)
+	    return;
+
+	assignments.setLocked(false);
+    }
+
+    OP_Context context(time);
+    GU_ConstDetailHandle gdh(sop->getCookedGeoHandle(context));
+    GU_DetailHandleAutoReadLock rlock(gdh);
+    const GU_Detail *gdp = rlock.getGdp();
+    if(!gdp)
+	return;
+
+    GA_ROHandleS up_vals(gdp, GA_ATTRIB_PRIMITIVE,
+			 GABC_Util::theUserPropsValsAttrib);
+    GA_ROHandleS up_meta(gdp, GA_ATTRIB_PRIMITIVE,
+			 GABC_Util::theUserPropsMetaAttrib);
+
+    // identify subd
+    const GA_PrimitiveGroup *grp = nullptr;
+    bool subd_all = false;
+    if(geo)
+    {
+	if(ropIsToggleEnabled(geo, "vm_rendersubd", time) ||
+	   ropIsToggleEnabled(geo, "ri_rendersubd", time))
+	{
+	    UT_String group;
+	    if(geo->evalParameterOrProperty("vm_subdgroup", 0, time, group) && group.isstring())
+		grp = gdp->findPrimitiveGroup(group);
+	    else
+		subd_all = true;
+	}
+    }
+    else
+    {
+	UT_String subdgroup;
+	SUBDGROUP(subdgroup, time);
+	if(subdgroup.isstring())
+	    grp = gdp->findPrimitiveGroup(subdgroup);
+    }
+
+    UT_String partition_mode;
+    PARTITION_MODE(partition_mode, time);
+
+    rop_PartitionFunc *func = nullptr;
+    if(partition_mode == "full")
+	func = ropPartitionFull;
+    else if(partition_mode == "shape")
+	func = ropPartitionShape;
+    else if(partition_mode == "xform")
+	func = ropPartitionXform;
+    else if(partition_mode == "xformshape")
+	func = ropPartitionXformShape;
+
+    GA_ROHandleS partition_attrib;
+    if(func)
+    {
+	UT_String attrib_name;
+	PARTITION_ATTRIBUTE(attrib_name, time);
+	partition_attrib.bind(gdp, GA_ATTRIB_PRIMITIVE, attrib_name);
+    }
+
+    UT_SortedMap<std::string, GA_OffsetList> partitions[2];
+
+    std::string name = sop->getName().c_str();
+    UT_WorkBuffer buf;
+    UT_WorkBuffer part_name;
+    for(GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
+    {
+	GA_Offset offset = *it;
+
+	std::string p;
+	if(partition_attrib.isValid())
+	{
+	    // map primitive to named partition
+	    part_name.clear();
+	    if(func && partition_attrib.isValid())
+	    {
+		buf.strcpy(partition_attrib.get(offset));
+
+		UT_WorkBuffer::AutoLock lock(buf);
+		part_name.append(func(lock.string()));
+	    }
+
+	    if(!part_name.length())
+		part_name.append(name);
+
+	    p = part_name.buffer();
+	}
+	else
+	    p = name;
+
+	int idx = grp && grp->contains(offset) ? 1 : 0;
+	partitions[idx][p].append(offset);
+    }
+
+    if(!func)
+    {
+	// ensured an entry for name exists so we can add the unshared points
+	// in the following loop
+	partitions[0][name];
+    }
+
+    bool exported = false;
+    for(int idx = 0; idx < 2; ++idx)
+    {
+	for(auto &it : partitions[idx])
+	{
+	    GT_PrimitiveHandle prim;
+	    GA_Range range(gdp->getPrimitiveMap(), it.second);
+	    if(it.second.size())
+		prim = GT_GEODetail::makeDetail(gdh, &range);
+	    if(!func && !idx)
+	    {
+		GA_OffsetList offsets;
+		if(gdp->findUnusedPoints(&offsets))
+		{
+		    GT_PrimCollect *collect = new GT_PrimCollect();
+		    if(prim)
+			collect->appendPrimitive(prim);
+
+		    GA_Range ptrange(gdp->getPointMap(), offsets);
+		    collect->appendPrimitive(GT_GEODetail::makePointMesh(gdh, &ptrange));
+		    prim = collect;
+		}
+	    }
+	    if(prim)
+	    {
+		exported = true;
+
+		std::string tmp_name = it.first;
+		if(idx)
+		    tmp_name += "_subd";
+
+		bool subd = (idx || subd_all);
+		assignments.refine(prim, packedmode, facesetmode, subd,
+				   use_instancing, tmp_name, myArchive);
+		exportUserProperties(assignments, subd, *gdp, range, tmp_name,
+				     up_vals, up_meta);
+	    }
+	}
+    }
+
+    if(locked && exported)
+	assignments.setLocked(true);
+}
+
+static bool
+ropIsShape(GABC_NodeType type)
+{
+    switch(type)
+    {
+	case GABC_NodeType::GABC_POLYMESH:
+	case GABC_NodeType::GABC_SUBD:
+	case GABC_NodeType::GABC_CURVES:
+	case GABC_NodeType::GABC_POINTS:
+	case GABC_NodeType::GABC_NUPATCH:
+	    return true;
+
+	default:
+	    return false;
+    }
+}
+
+bool
+ROP_AlembicOut::updateFromSop(
+    SOP_Node *sop,
+    PackedMode packedmode,
+    exint facesetmode,
+    bool use_instancing)
+{
+    fpreal time = myArchive->getCookTime();
+    OP_Context context(time);
+
+    if(!BUILD_FROM_PATH(time))
+    {
+	if(!mySopAssignments)
+	{
+	    // FIXME: use myObjAssignments and all build all items up to the
+	    // root?
+
+	    // insert a transform node
+	    ROP_AbcNode *root = myRoot.get();
+	    OBJ_Node *obj = CAST_OBJNODE(sop->getCreator());
+	    if(obj)
+	    {
+		const UT_String &name = obj->getName();
+		std::string s = name.c_str();
+		ROP_AbcNodeXform *child = new ROP_AbcNodeXform(s);
+		child->setArchive(myArchive);
+		root->addChild(child);
+		root = child;
+	    }
+
+	    mySopAssignments.reset(new rop_SopAssignments(root));
+	}
+
+	ROP_AbcNode *node = mySopAssignments->getParent();
+	if(node != myRoot.get())
+	{
+	    UT_Matrix4D m(1);
+	    OBJ_Node *obj = CAST_OBJNODE(sop->getCreator());
+	    if(obj)
+	    {
+		if(obj->isSubNetwork(false))
+		    static_cast<OBJ_SubNet *>(obj)->getSubnetTransform(context, m);
+		else
+		    obj->getLocalTransform(context, m); 
+	    }
+
+	    // make transform visible
+	    static_cast<ROP_AbcNodeXform *>(node)->setData(m, true);
+	}
+	refineSop(*mySopAssignments, packedmode, facesetmode, use_instancing,
+		  nullptr, sop, time);
+	return true;
+    }
+
+    if(!mySopAssignments)
+	mySopAssignments.reset(new rop_SopAssignments(myRoot.get()));
+
+    GU_ConstDetailHandle gdh(sop->getCookedGeoHandle(context));
+    GU_DetailHandleAutoReadLock rlock(gdh);
+    const GU_Detail *gdp = rlock.getGdp();
+    if(!gdp)
+    {
+	UT_WorkBuffer buf;
+	sop->getFullPath(buf);
+	myArchive->getOError().error("Error cooking %s at time %g.",
+				     buf.buffer(), time);
+	return false;
+    }
+
+    UT_String path_attrib;
+    PATH_ATTRIBUTE(path_attrib, time);
+    myArchive->getOOptions().setPathAttribute(path_attrib);
+
+    GA_ROHandleS path_handle(gdp, GA_ATTRIB_PRIMITIVE, path_attrib);
+
+    const GA_PrimitiveGroup *grp = nullptr;
+    UT_String subdgroup;
+    SUBDGROUP(subdgroup, time);
+    if(subdgroup.isstring())
+	grp = gdp->findPrimitiveGroup(subdgroup);
+
+    auto &&alembic_def = GUgetFactory().lookupDefinition("AlembicRef"_sh);
+    UT_SortedMap<std::string, const GU_PrimPacked *> abc_prims;
+    UT_SortedMap<std::string, GA_OffsetList> offsets[2];
+
+    // partition geometry
+    const UT_String &name = sop->getName();
+    UT_WorkBuffer buf;
+    for(GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
+    {
+	GA_Offset offset = *it;
+
+	// normalise path
+	buf.clear();
+	const char *s = path_handle.isValid() ? path_handle.get(offset) : nullptr;
+	if(s)
+	{
+	    while(*s)
+	    {
+		// skip initial path separators
+		while(*s && *s == '/')
+		    ++s;
+
+		// parse next token
+		const char *start = s;
+		while(*s && *s != '/')
+		    ++s;
+		buf.append('/');
+		buf.append(start, s - start);
+
+		// skip trailing path separators
+		while(*s && *s == '/')
+		    ++s;
+	    }
+	}
+	// replace invalid names
+	if(buf.length() < 2)
+	{
+	    buf.clear();
+	    buf.append('/');
+	    buf.append(name);
+	}
+
+	std::string p = buf.buffer();
+
+	const GA_Primitive *prim = gdp->getPrimitive(offset);
+	if(GU_PrimPacked::isPackedPrimitive(*prim))
+	{
+	    const GU_PrimPacked *packed = static_cast<const GU_PrimPacked *>(prim);
+
+	    if(alembic_def && packed->getTypeId() == alembic_def->getId())
+	    {
+		abc_prims.emplace(p, packed);
+
+		// only refine shape nodes
+		const GABC_PackedImpl *impl = static_cast<const GABC_PackedImpl *>(packed->implementation());
+		if(!ropIsShape(impl->nodeType()))
+		    continue;
+	    }
+	}
+
+	if(grp && grp->contains(offset))
+	    offsets[1][p].append(offset);
+	else
+	    offsets[0][p].append(offset);
+    }
+
+    GA_ROHandleS up_vals(gdp, GA_ATTRIB_PRIMITIVE,
+			 GABC_Util::theUserPropsValsAttrib);
+    GA_ROHandleS up_meta(gdp, GA_ATTRIB_PRIMITIVE,
+			 GABC_Util::theUserPropsMetaAttrib);
+
+    UT_WorkBuffer data_dictionary;
+    UT_WorkBuffer meta_dictionary;
+
+    // handle transforms
+    UT_Array<ROP_AbcNodeXform *> ancestors;
+    UT_Array<GABC_IObject> objs;
+
+    UT_Map<ROP_AbcNodeXform *, rop_RefinedGeoAssignments *> visited;
+    UT_Map<ROP_AbcNodeXform *, UT_Matrix4D> xforms;
+    UT_Map<ROP_AbcNodeXform *, GABC_IObject> xform_obj;
+    UT_Map<ROP_AbcNodeXform *, const GU_PrimPacked *> xform_packed;
+    for(auto &it : abc_prims)
+    {
+	// we only use the first transform primitive
+	const GU_PrimPacked *packed = it.second;
+	const GABC_PackedImpl *impl = static_cast<const GABC_PackedImpl *>(packed->implementation());
+
+	const char *s = it.first.c_str();
+	bool do_implicit = (impl->objectPath() == s);
+
+	rop_SopAssignments *assignments = mySopAssignments.get();
+	ancestors.clear();
+	while(*s)
+	{
+	    // skip '/'
+	    UT_ASSERT(*s == '/');
+	    ++s;
+
+	    const char *start = s;
+	    while(*s && *s != '/')
+		++s;
+
+	    buf.strncpy(start, s - start);
+	    if(*s)
+	    {
+		std::string name = buf.buffer();
+		// create an xform node if needed
+		rop_SopAssignments *a = assignments->getChild(name);
+		if(!a)
+		{
+		    ROP_AbcNodeXform *xform =
+			    assignments->newXformNode(name, myArchive);
+		    assignments->addChild(name, rop_SopAssignments(xform));
+		    a = assignments->getChild(name);
+		}
+		assignments = a;
+		ROP_AbcNodeXform *node =
+			static_cast<ROP_AbcNodeXform *>(assignments->getParent());
+		// make xform node visible
+		// the proper transform will be set later
+		node->setData(UT_Matrix4D(1), true);
+		visited.emplace(node, assignments);
+		ancestors.append(node);
+	    }
+	}
+
+	exint n = ancestors.entries();
+	if(do_implicit)
+	{
+	    GABC_IObject obj = impl->object().getParent();
+
+	    // fetch parent GABC_IObjects
+	    objs.clear();
+	    exint i = n - 1;
+	    for(; i >= 0 && xforms.find(ancestors(i)) == xforms.end(); --i)
+	    {
+		objs.append(obj);
+		obj = obj.getParent();
+	    }
+	    ++i;
+
+	    UT_Matrix4D m;
+	    for(exint j = objs.entries() - 1; i < n; ++i, --j)
+	    {
+		ROP_AbcNodeXform *node = ancestors(i);
+		GEO_AnimationType atype;
+		const GABC_IObject &iobj = objs(j);
+		xform_obj.emplace(node, iobj);
+
+		iobj.getWorldTransform(m, time, atype);
+		xforms.emplace(node, m);
+
+		UT_String upv, upm;
+		data_dictionary.clear();
+		meta_dictionary.clear();
+		UT_JSONWriter *data_writer = UT_JSONWriter::allocWriter(data_dictionary);
+		UT_JSONWriter *meta_writer = UT_JSONWriter::allocWriter(meta_dictionary);
+		auto props = iobj.getUserProperties();
+		if(GABC_Util::importUserPropertyDictionary(data_writer, meta_writer, obj, props, time))
+		{
+		    upv = data_dictionary.buffer();
+		    upm = meta_dictionary.buffer();
+		}
+
+		delete meta_writer;
+		delete data_writer;
+
+		node->setUserProperties(upv, upm);
+	    }
+	}
+
+	if(impl->nodeType() == GABC_NodeType::GABC_XFORM)
+	{
+	    std::string name = buf.buffer();
+	    // create an xform node if needed
+	    rop_SopAssignments *a = assignments->getChild(name);
+	    if(!a)
+	    {
+		ROP_AbcNodeXform *xform =
+			assignments->newXformNode(name, myArchive);
+		assignments->addChild(name, rop_SopAssignments(xform));
+		a = assignments->getChild(name);
+	    }
+	    ROP_AbcNodeXform *node =
+			static_cast<ROP_AbcNodeXform *>(a->getParent());
+	    visited.emplace(node, a);
+	    xform_packed.emplace(node, packed);
+
+	    UT_Matrix4D m;
+	    packed->getFullTransform4(m);
+	    xforms.emplace(node, m);
+
+	    UT_String upv, upm;
+	    if(up_vals.isValid() && up_meta.isValid())
+	    {
+		GA_Offset offset = packed->getMapOffset();
+		upv = up_vals.get(offset);
+		upm = up_meta.get(offset);
+	    }
+
+	    if(!upv.isstring() && !upm.isstring())
+	    {
+		data_dictionary.clear();
+		meta_dictionary.clear();
+		UT_JSONWriter *data_writer = UT_JSONWriter::allocWriter(data_dictionary);
+		UT_JSONWriter *meta_writer = UT_JSONWriter::allocWriter(meta_dictionary);
+		GABC_IObject iobj = impl->object();
+		auto props = iobj.getUserProperties();
+		if(GABC_Util::importUserPropertyDictionary(data_writer, meta_writer, iobj, props, time))
+		{
+		    upv = data_dictionary.buffer();
+		    upm = meta_dictionary.buffer();
+		}
+
+		delete meta_writer;
+		delete data_writer;
+	    }
+
+	    node->setUserProperties(upv, upm);
+	}
+	else if(!do_implicit && n > 0 && ropIsShape(impl->nodeType()))
+	{
+	    UT_Matrix4D m;
+	    packed->getFullTransform4(m);
+	    xforms.emplace(ancestors(n - 1), m);
+	}
+    }
+
+    for(auto &it : xforms)
+    {
+	ROP_AbcNodeXform *node = it.first;
+	UT_Matrix4D m = it.second;
+
+	ROP_AbcNode *parent = node->getParent();
+	if(parent->getParent())
+	{
+	    auto it2 = xforms.find(static_cast<ROP_AbcNodeXform *>(parent));
+	    if(it2 != xforms.end())
+	    {
+		UT_Matrix4D m2 = it2->second;
+		m2.invert();
+		m *= m2;
+	    }
+	}
+
+	// make this robust against numerical issues
+	auto a = visited.find(node)->second;
+	a->setMatrix(m);
+	node->setData(a->getMatrix(), true);
+    }
+
+    for(int idx = 0; idx < 2; ++idx)
+    {
+	bool subd = (idx == 1);
+	for(auto &it : offsets[idx])
+	{
+	    const char *s = it.first.c_str();
+
+	    rop_SopAssignments *assignments = mySopAssignments.get();
+	    buf.clear();
+	    while(*s)
+	    {
+		// skip '/'
+		UT_ASSERT(*s == '/');
+		++s;
+
+		const char *start = s;
+		while(*s && *s != '/')
+		    ++s;
+
+		buf.strncpy(start, s - start);
+		if(*s)
+		{
+		    std::string name = buf.buffer();
+		    // create an xform node if needed
+		    rop_SopAssignments *a = assignments->getChild(name);
+		    if(!a)
+		    {
+			ROP_AbcNodeXform *xform =
+				assignments->newXformNode(name, myArchive);
+			assignments->addChild(name, rop_SopAssignments(xform));
+			a = assignments->getChild(name);
+		    }
+		    assignments = a;
+		    ROP_AbcNodeXform *node = static_cast<ROP_AbcNodeXform *>(assignments->getParent());
+		    if(visited.find(node) == visited.end())
+		    {
+			// make this robust against numerical issues
+			visited.emplace(node, assignments);
+			assignments->setMatrix(UT_Matrix4D(1));
+			node->setData(assignments->getMatrix(), true);
+		    }
+		}
+	    }
+
+	    GA_Range r(gdp->getPrimitiveMap(), it.second);
+
+	    // subd
+	    std::string name = buf.buffer();
+	    if(subd)
+		name += "_subd";
+
+	    GT_PrimitiveHandle prim = GT_GEODetail::makeDetail(gdh, &r);
+	    for(ROP_AbcNode *parent = assignments->getParent();
+		parent->getParent();
+		parent = parent->getParent())
+	    {
+		ROP_AbcNodeXform *node = static_cast<ROP_AbcNodeXform *>(parent);
+		auto it2 = xforms.find(node);
+		if(it2 != xforms.end())
+		{
+		    UT_Matrix4D m2 = it2->second;
+		    m2.invert();
+		    prim = prim->copyTransformed(new GT_Transform(&m2, 1));
+		    break;
+		}
+	    }
+
+	    assignments->refine(prim, packedmode, facesetmode, subd,
+				use_instancing, name, myArchive);
+	    exportUserProperties(*assignments, subd, *gdp, r, name,
+				 up_vals, up_meta);
+	}
+    }
+
+    return true;
+}
+
+bool
+ROP_AlembicOut::updateFromHierarchy(
+    PackedMode packedmode, exint facesetmode, bool use_instancing)
+{
+    fpreal time = myArchive->getCookTime();
+
+    UT_String root;
+    ROOT(root, time);
+    root.trimBoundingSpace();
+
+    if(!root.isstring())
+    {
+	addError(ROP_MESSAGE, "Require root for all objects");
+	return false;
+    }
+
+    OP_Node *rootnode = findNode(root);
+    if(!rootnode)
+    {
+	addError(ROP_MESSAGE, "Can't find root node");
+	return false;
+    }
+
+    UT_String collapse;
+    COLLAPSE(collapse, time);
+    bool collapse_geo = (collapse == "geo");
+    bool collapse_on = (collapse == "on");
+
+    UT_String objects;
+    OBJECTS(objects, time);
+
+    UT_Array<OBJ_Node *> work;
+    OP_Bundle *bundle =
+		getParmBundle("objects", 0, objects,
+			    OPgetDirector()->getManager("obj"), "!!OBJ!!");
+    if(bundle)
+    {
+	UT_Set<OBJ_Node *> visited;
+	for(exint i = 0; i < bundle->entries(); ++i)
+	{
+	    OBJ_Node *obj = bundle->getNode(i)->castToOBJNode();
+	    if(obj && visited.find(obj) == visited.end())
+	    {
+		visited.insert(obj);
+		work.append(obj);
+	    }
+	}
+    }
+    bool save_hidden = SAVE_HIDDEN(time);
+    UT_Array<OBJ_Node *> ancestors;
+    for(exint w = 0; w < work.entries(); ++w)
+    {
+	OBJ_Node *obj = work(w);
+	if(!obj || myObjAssignments.find(obj) != myObjAssignments.end())
+	    continue;
+
+	UT_WorkBuffer buf;
+	obj->getFullPath(buf);
+
+	OBJ_Camera *cam = obj->castToOBJCamera();
+	OBJ_Geometry *geo = obj->castToOBJGeometry();
+
+	ancestors.clear();
+	for(;;)
+	{
+	    if(!obj || rootnode == obj || myObjAssignments.find(obj) != myObjAssignments.end())
+	    {
+		// reached root or an assigned node
+		ROP_AbcNode *parent = nullptr;
+		if(!obj || rootnode == obj)
+		    parent = myRoot.get();
+		else
+		    parent = myObjAssignments.find(obj)->second;
+
+		exint n = ancestors.entries();
+		for(exint i = n - 1; i >= 0; --i)
+		{
+		    obj = ancestors(i);
+
+		    std::string name(obj->getName());
+
+		    // handle name collisions
+		    parent->makeCollisionFreeName(name);
+
+		    ROP_AbcNodeXform *child = new ROP_AbcNodeXform(name);
+		    child->setArchive(myArchive);
+		    parent->addChild(child);
+
+		    myObjAssignments.emplace(obj, child);
+		    parent = child;
+		}
+
+		if(geo && myGeoAssignments.find(geo) == myGeoAssignments.end())
+		{
+		    myGeoAssignments.emplace(geo, rop_RefinedGeoAssignments(parent));
+		    myGeos.append(geo);
+		}
+		if(cam && myCamAssignments.find(cam) == myCamAssignments.end())
+		{
+		    std::string name("cameraProperties");
+
+		    // handle name collisions
+		    parent->makeCollisionFreeName(name);
+
+		    ROP_AbcNodeCamera *child = new ROP_AbcNodeCamera(name, cam->RESX(time), cam->RESY(time));
+		    child->setArchive(myArchive);
+		    parent->addChild(child);
+		    myCamAssignments.emplace(cam, child);
+		}
+		break;
+	    }
+
+	    if(!rop_abcfilter(obj, save_hidden, time))
+		break;
+
+	    // skip collapsed objects
+	    int abc_collapse = 0;
+	    obj->evalParameterOrProperty("abc_collapse", 0, time, abc_collapse);
+	    if(!abc_collapse && ((!collapse_on && (!collapse_geo || !obj->castToOBJGeometry())) || !rop_isStaticIdentity(obj, time)))
+		ancestors.append(obj);
+
+	    // continue towards root
+	    OP_Node *parent = obj->getInput(0);
+	    if(!parent || parent->getParent() != obj->getParent())
+	    {
+		parent = obj->getParent();
+		if(!parent)
+		    break;
+	    }
+
+	    obj = parent->castToOBJNode();
+	    if(!obj && parent != rootnode)
+		break;
+	}
+    }
+
+    OP_Context context(time);
+    for(auto &it : myObjAssignments)
+    {
+	auto obj = it.first;
+
+	UT_Matrix4D m;
+	if(obj->isSubNetwork(false))
+	    static_cast<OBJ_SubNet *>(obj)->getSubnetTransform(context, m);
+	else
+	    obj->getLocalTransform(context, m); 
+
+	UT_String user_props;
+	UT_String user_props_meta;
+	bool has_vals = obj->hasParm("userProps");
+	bool has_meta = obj->hasParm("userPropsMeta");
+	if(has_vals && has_meta)
+	{
+	    obj->evalString(user_props, "userProps", 0, time);
+	    obj->evalString(user_props_meta, "userPropsMeta", 0, time);
+	    it.second->setUserProperties(user_props, user_props_meta);
+	}
+
+	it.second->setData(m, obj->getObjectDisplay(time));
+    }
+
+    const CH_Manager *chman = OPgetDirector()->getChannelManager();
+    for(auto &it : myCamAssignments)
+    {
+	auto cam = it.first;
+
+	fpreal aspect = cam->ASPECT(time);
+	// Alembic stores value in cm. (not mm.)
+	fpreal aperture = 0.1 * cam->APERTURE(time) / aspect;
+
+	// FIXME: consider setting the resolution here too
+	it.second->setData(cam->FOCAL(time),
+			   cam->FSTOP(time),
+			   cam->FOCUS(time),
+			   chman->getTimeDelta(cam->SHUTTER(time)),
+			   cam->getNEAR(time),
+			   cam->getFAR(time),
+			   cam->WINSIZEX(time),
+			   cam->WINSIZEY(time),
+			   aperture,
+			   aperture,
+			   cam->WINX(time) * aperture,
+			   cam->WINY(time) * aperture,
+			   aspect);
+    }
+
+    // add data sources for the geometry
+    bool displaysop = DISPLAYSOP(time);
+    for(exint i = 0; i < myGeos.entries(); ++i)
+    {
+	OBJ_Geometry *geo = myGeos(i);
+	// get cooked geometry
+	SOP_Node *sop = displaysop ? geo->getDisplaySopPtr() : geo->getRenderSopPtr();
+	if(sop)
+	{
+	    auto it = myGeoAssignments.find(geo);
+	    if(it != myGeoAssignments.end())
+	    {
+		refineSop(it->second, packedmode, facesetmode, use_instancing,
+			  geo, sop, time);
+	    }
+	    else
+	    {
+		// all entries in myGeos should be in myGeoAssignments
+		UT_ASSERT(0);
+	    }
+	}
+    }
+
+    return true;
 }
 
 void
 newDriverOperator(OP_OperatorTable *table)
 {
+    OP_TemplatePair pair(theParameters);
+    OP_TemplatePair templatepair(ROP_Node::getROPbaseTemplate(), &pair);
+    OP_VariablePair vp(ROP_Node::myVariableList);
+
     OP_Operator	*alembic_op = new OP_Operator(
         CUSTOM_ALEMBIC_TOKEN_PREFIX "alembic",		// Internal name
         CUSTOM_ALEMBIC_LABEL_PREFIX "Alembic",		// GUI name
-	createAlembicOut,
-	getTemplatePair(),
-	0, 9999,
-	getVariablePair(),
+	ROP_AlembicOut::myConstructor,
+	&templatepair, 0, 9999, &vp,
 	OP_FLAG_UNORDERED | OP_FLAG_GENERATOR);
+    alembic_op->setObsoleteTemplates(theObsoleteParameters);
     alembic_op->setIconName("ROP_alembic");
     table->addOperator(alembic_op);
 
     OP_Operator	*alembic_sop = new OP_Operator(
         CUSTOM_ALEMBIC_TOKEN_PREFIX "rop_alembic",
         CUSTOM_ALEMBIC_LABEL_PREFIX "ROP Alembic Output",
-	createAlembicOut,
-	getTemplatePair(),
-	0, 1,
-	getVariablePair(),
+	ROP_AlembicOut::myConstructor,
+	&templatepair, 0, 1, &vp,
 	OP_FLAG_GENERATOR | OP_FLAG_MANAGER);
+    alembic_sop->setObsoleteTemplates(theObsoleteParameters);
     alembic_sop->setIconName("ROP_alembic");
 
     // Note:  This is reliant on the order of operator table construction and

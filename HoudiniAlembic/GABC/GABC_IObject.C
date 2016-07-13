@@ -2921,16 +2921,8 @@ GABC_IObject::visibilityCache() const
 
 	if (ntrue == nsamples || ntrue == 0)
 	{
-	    if (ntrue)
-	    {
-		UT_ASSERT(vis == GABC_VISIBLE_VISIBLE);
-            }
-            else
-            {
-                UT_ASSERT(vis == GABC_VISIBLE_HIDDEN);
-            }
-
-	    return new GABC_VisibilityCache(vis, NULL);
+	    return new GABC_VisibilityCache(ntrue ? GABC_VISIBLE_VISIBLE
+						  : GABC_VISIBLE_HIDDEN, NULL);
 	}
 
 	return new GABC_VisibilityCache(vis,

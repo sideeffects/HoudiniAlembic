@@ -25,48 +25,40 @@
  *----------------------------------------------------------------------------
  */
 
-#include "GABC_OOptions.h"
+#ifndef __ROP_AbcUserProperties__
+#define __ROP_AbcUserProperties__
 
-using namespace GABC_NAMESPACE;
+#include "ROP_AbcNode.h"
 
-GABC_OOptions::GABC_OOptions()
-    : myFaceSetMode(FACESET_DEFAULT)
-    , mySubdGroup()
-    , myPrimToDetailPattern()
-    , myFullBounds(false)
-    , myForcePrimToDetail(false)
+#include <Alembic/Abc/All.h>
+
+#include <GABC/GABC_Util.h>
+
+typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
+
+typedef GABC_NAMESPACE::GABC_Util::PropertyMap PropertyMap;
+
+/// utility class to simplify writing user properties
+class ROP_AbcUserProperties
 {
-}
+public:
+    ROP_AbcUserProperties() : mySampleCount(0) {}
+    ~ROP_AbcUserProperties() { clear(); }
 
-// Check if the given attribute matches the mask for it's level.
-bool
-GABC_OOptions::matchAttribute(GA_AttributeOwner own, const char *name) const
-{
-    if(myPathAttribute == name)
-	return false;
+    /// releases all references to user property data
+    void clear();
+    /// set a new user property sample, creating the user properties if needed
+    void update(OCompoundProperty &props,
+		const UT_StringHolder &vals, const UT_StringHolder &meta,
+		const ROP_AbcArchivePtr &archive);
 
-    UT_String	str(name);
-    return str.multiMatch(myAttributePatterns[own]) != 0;
-}
+private:
+    void exportData(OCompoundProperty *props,
+		    const UT_StringHolder &vals, const UT_StringHolder &meta,
+		    const ROP_AbcArchivePtr &archive);
 
-// Determine the attribute owner from the Alembic scope and compare the
-// attribute against the mask for that owner.
-bool
-GABC_OOptions::matchAttribute(Alembic::AbcGeom::GeometryScope scope,
-			const char *name) const
-{
-    switch (scope)
-    {
-	case Alembic::AbcGeom::kConstantScope:
-	    return matchAttribute(GA_ATTRIB_DETAIL, name);
-	case Alembic::AbcGeom::kUniformScope:
-	case Alembic::AbcGeom::kUnknownScope:
-	    return matchAttribute(GA_ATTRIB_PRIMITIVE, name);
-	case Alembic::AbcGeom::kVaryingScope:
-	    return matchAttribute(GA_ATTRIB_POINT, name);
-	case Alembic::AbcGeom::kVertexScope:
-	case Alembic::AbcGeom::kFacevaryingScope:
-	    return matchAttribute(GA_ATTRIB_VERTEX, name);
-    }
-    return true;
-}
+    PropertyMap myProps;
+    exint mySampleCount;
+};
+
+#endif

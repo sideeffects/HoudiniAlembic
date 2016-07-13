@@ -28,56 +28,100 @@
 #ifndef __ROP_AbcArchive__
 #define __ROP_AbcArchive__
 
-#include "ROP_AbcObject.h"
-#include "ROP_AbcContext.h"
+#include <Alembic/Abc/All.h>
+
+#include <FS/FS_Writer.h>
 #include <GABC/GABC_OError.h>
+#include <GABC/GABC_OOptions.h>
+#include <SYS/SYS_Types.h>
+#include <UT/UT_Array.h>
+#include <UT/UT_BoundingBox.h>
+#include <UT/UT_SharedPtr.h>
+#include <UT/UT_UniquePtr.h>
 
-class OBJ_Node;
-class FS_Writer;
+typedef GABC_NAMESPACE::GABC_OError GABC_OError;
+typedef GABC_NAMESPACE::GABC_OOptions GABC_OOptions;
 
-/// The Houdini representation of the output Alembic archive.
-class ROP_AbcArchive : public ROP_AbcObject
+typedef Alembic::Abc::OArchive OArchive;
+typedef Alembic::Abc::OBox3dProperty OBox3dProperty;
+typedef Alembic::Abc::OObject OObject;
+typedef Alembic::Abc::TimeSamplingPtr TimeSamplingPtr;
+
+class ROP_AbcArchive
 {
+    class rop_OOptions : public GABC_OOptions
+    {
+    public:
+	rop_OOptions(const TimeSamplingPtr &ts) : myTimeSampling(ts) {}
+
+	virtual const TimeSamplingPtr &timeSampling() const
+	    { return myTimeSampling; }
+
+    private:
+	const TimeSamplingPtr &myTimeSampling;
+    };
+
 public:
-    typedef Alembic::Abc::OArchive		OArchive;
-    typedef Alembic::Abc::OBox3dProperty	OBox3dProperty;
+    ROP_AbcArchive(const char *filename, bool ogawa, GABC_OError &err);
 
-    ROP_AbcArchive();
-    virtual ~ROP_AbcArchive();
+    /// Returns true if the archive was successfully opened for writing.
+    bool isValid() { return myArchive != nullptr; }
 
-    /// Open a file for writing
-    bool	open(GABC_OError &err, const char *file, const char *format);
-
-    /// Close the archive
-    void	close();
-
-    /// Write the first frame to the archive
-    bool	firstFrame(GABC_OError &err, const ROP_AbcContext &ctx);
-    /// Write the next frame to the archvive
-    bool	nextFrame(GABC_OError &err, const ROP_AbcContext &ctx);
-
-protected:
     /// @{
-    /// Interface defined on ROP_AbcObject
-    virtual const char	*className() const	{ return "OArchive"; }
-    virtual bool	start(const OObject &parent,
-				GABC_OError &err,
-				const ROP_AbcContext &ctx,
-				UT_BoundingBox &box);
-    virtual bool	update(GABC_OError &err,
-				const ROP_AbcContext &ctx,
-				UT_BoundingBox &box);
-    virtual bool	selfTimeDependent() const;
-    virtual bool	getLastBounds(UT_BoundingBox &box) const;
+    /// Time sampling
+    void setTimeSampling(int nframes, fpreal tstart, fpreal tend,
+			 int mb_samples,
+			 fpreal shutter_open, fpreal shutter_close);
+    TimeSamplingPtr getTimeSampling() const { return myTimeSampling; }
     /// @}
 
+    /// @{
+    /// Manage sub-frame time sampling.  To write a single frame, you'll want
+    /// to have code like:
+    /// @code
+    ///   void writeFrame(fpreal time)
+    ///   {
+    ///       for (exint i = 0; i < archive.samplesPerFrame(); ++i)
+    ///       {
+    ///           archive.setCookTime(time, i);
+    ///           ...
+    ///       }
+    ///   }
+    /// @endcode
+    exint getSamplesPerFrame() const { return myBlurTimes.entries(); }
+    void setCookTime(fpreal tstart, exint idx);
+    fpreal getCookTime() const { return myCookTime; }
+    /// @}
+
+    /// Total number of samples being exported
+    exint getSampleCount() const { return mySampleCount; }
+
+    /// returns the archive's top OObject
+    const OObject getTop() const { return myArchive->getTop(); }
+
+    /// Sets the computed box.
+    void setBoundingBox(const UT_BoundingBox &box);
+
+    /// The options used during Alembic archive export
+    GABC_OOptions &getOOptions() { return myOOptions; }
+    /// Handler for error messages and warnings during the export of
+    /// Alembic geometry.
+    GABC_OError &getOError() { return myOError; }
+
 private:
-    OArchive		 myArchive;
-    FS_Writer		*myWriter;
-    OBox3dProperty	 myBoxProp;
-    UT_BoundingBox	 myBox;
-    int			 myTSIndex;
-    bool		 myTimeDependent;
+    UT_UniquePtr<FS_Writer> myWriter;
+    UT_UniquePtr<OArchive> myArchive;
+
+    TimeSamplingPtr myTimeSampling;
+    UT_Array<fpreal> myBlurTimes;
+    exint mySampleCount;
+    fpreal myCookTime;
+    OBox3dProperty myBoxProperty;
+
+    rop_OOptions myOOptions;
+    GABC_OError &myOError;
 };
+
+typedef UT_SharedPtr<ROP_AbcArchive> ROP_AbcArchivePtr;
 
 #endif

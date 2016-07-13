@@ -26,43 +26,46 @@
  */
 
 #include "ROP_AbcArchive.h"
-#include "ROP_AbcContext.h"
 #include <GABC/GABC_Util.h>
-#include <GABC/GABC_OError.h>
-#include <OP/OP_Director.h>
-#include <SYS/SYS_Version.h>
-#include <UT/UT_Date.h>
-#include <FS/FS_Writer.h>
+
 #include <Alembic/AbcCoreHDF5/All.h>
 #if defined(GABC_OGAWA)
     #include <Alembic/AbcCoreOgawa/All.h>
 #endif
 
-using namespace GABC_NAMESPACE;
+#include <FS/FS_Writer.h>
+#include <OP/OP_Director.h>
+#include <SYS/SYS_Version.h>
+#include <UT/UT_Date.h>
 
-namespace
+typedef GABC_NAMESPACE::GABC_Util GABC_Util;
+
+typedef Alembic::Abc::chrono_t chrono_t;
+typedef Alembic::Abc::MetaData MetaData;
+typedef Alembic::Abc::OArchive OArchive;
+typedef Alembic::Abc::TimeSampling TimeSampling;
+typedef Alembic::Abc::TimeSamplingType TimeSamplingType;
+
+ROP_AbcArchive::ROP_AbcArchive(
+    const char *filename, bool ogawa, GABC_OError &err)
+    : mySampleCount(0)
+    , myOOptions(myTimeSampling)
+    , myOError(err)
 {
-typedef Alembic::Abc::OArchive	OArchive;
-typedef Alembic::Abc::Box3d		Box3d;
-typedef Alembic::Abc::MetaData	MetaData;
+    // Since HDF5 doesn't allow writing to a file already opened for reading,
+    // clear any IArchives which might be hanging around.
+    GABC_Util::clearCache();
 
-OArchive
-createOgawaWithInfo(std::ostream *is,
-	const char *filename,
-	const char *application_writer,
-	const char *user_description,
-	const Alembic::Abc::Argument &iArg0=Alembic::Abc::Argument(),
-	const Alembic::Abc::Argument &iArg1=Alembic::Abc::Argument())
-{
-    UT_ASSERT(UTisstring(application_writer));
-    UT_ASSERT(UTisstring(user_description));
+    auto md = Alembic::Abc::MetaData();
 
-    auto	policy = GetErrorHandlerPolicyFromArgs(iArg0, iArg1);
-    auto	md = GetMetaData(iArg0, iArg1);
-    auto	now = time(0);
-    char	datebuf[128];
+    // set the application name
+    UT_WorkBuffer version;
+    version.sprintf("Houdini %s", SYS_Version::full());
+    md.set(Alembic::Abc::kApplicationNameKey, version.buffer());
 
-    md.set(Alembic::Abc::kApplicationNameKey, application_writer);
+    // set the date
+    auto now = time(0);
+    char datebuf[128];
 #if defined(WIN32)
     ctime_s(datebuf, 128, &now);
 #else
@@ -71,206 +74,120 @@ createOgawaWithInfo(std::ostream *is,
     if (auto nl = strchr(datebuf, '\n'))
 	*nl = 0;
     md.set(Alembic::Abc::kDateWrittenKey, datebuf);
-    md.set(Alembic::Abc::kUserDescriptionKey, user_description);
 
-    auto factory = Alembic::AbcCoreOgawa::WriteArchive();
-    return OArchive(factory(is, md), Alembic::Abc::kWrapExisting, policy);
-}
-
-OArchive
-openHDF5(const char *filename, const char *version, const char *userinfo)
-{
-    return Alembic::Abc::CreateArchiveWithInfo(
-		    Alembic::AbcCoreHDF5::WriteArchive(),
-		    filename,
-		    version,
-		    userinfo,
-		    Alembic::Abc::ErrorHandler::kThrowPolicy);
-}
-
-OArchive
-openOgawa(const char *filename, const char *version, const char *userinfo,
-	FS_Writer *&writer)
-{
-#if defined(GABC_OGAWA)
-    writer = new FS_Writer(filename);
-    if (!writer || !writer->getStream())
-    {
-	delete writer;
-	writer = nullptr;
-	return Alembic::Abc::CreateArchiveWithInfo(
-		    Alembic::AbcCoreOgawa::WriteArchive(),
-		    filename,
-		    version,
-		    userinfo,
-		    Alembic::Abc::ErrorHandler::kThrowPolicy);
-    }
-    return createOgawaWithInfo(
-		    writer->getStream(),
-		    filename,
-		    version,
-		    userinfo,
-		    Alembic::Abc::ErrorHandler::kThrowPolicy);
-#else
-    // No Ogawa support
-    return openHDF5(filename, version, userinfo);
-#endif
-}
-}
-
-ROP_AbcArchive::ROP_AbcArchive()
-    : myArchive()
-    , myWriter(nullptr)
-    , myTSIndex(-1)
-    , myTimeDependent(false)
-{
-    myBox.makeInvalid();
-}
-
-ROP_AbcArchive::~ROP_AbcArchive()
-{
-    close();
-}
-
-bool
-ROP_AbcArchive::open(GABC_OError &err, const char *file, const char *format)
-{
-    close();
-
-    // Since HDF5 doesn't allow writing to a file already opened for reading,
-    // clear any IArchives which might be hanging around.
-    GABC_Util::clearCache();
-
-    UT_WorkBuffer	version;
-    UT_WorkBuffer	userinfo;
-    UT_String		hipfile;
-    UT_WorkBuffer	timestamp;
-
-    version.sprintf("Houdini%s", SYS_Version::full());
-
+    // set the description
+    UT_String hipfile;
     OPgetDirector()->getCommandManager()->getVariable("HIPFILE", hipfile);
+
+    UT_WorkBuffer timestamp;
     UT_Date::dprintf(timestamp, "%Y-%m-%d %H:%M:%S", time(0));
+
+    UT_WorkBuffer userinfo;
     userinfo.sprintf("Exported from %s on %s",
-	    hipfile.buffer(), timestamp.buffer());
+		     hipfile.buffer(), timestamp.buffer());
+    md.set(Alembic::Abc::kUserDescriptionKey, userinfo.buffer());
+
     try
     {
-	if (!strcmp(format, "hdf5"))
-	    myArchive = openHDF5(file, version.buffer(), userinfo.buffer());
-	else
+#if defined(GABC_OGAWA)
+	if(ogawa)
 	{
-#if !defined(GABC_OGAWA)
-	    if (!strcmp(format, "ogawa"))
+	    myWriter.reset(new FS_Writer(filename));
+	    if(myWriter)
 	    {
-		// User has specified Ogawa, but with no Ogawa support.
-		err.warningString("Ogawa not supported in this version "
-			    "of Houdini");
+		Alembic::AbcCoreAbstract::ArchiveWriterPtr writer;
+		auto factory = Alembic::AbcCoreOgawa::WriteArchive();
+		myArchive.reset(new OArchive(factory(myWriter->getStream(), md), Alembic::Abc::kWrapExisting, Alembic::Abc::ErrorHandler::kThrowPolicy));
+		return;
 	    }
-#endif
-	    // Default format
-	    myArchive = openOgawa(file, version.buffer(), userinfo.buffer(),
-		    myWriter);
 	}
+#endif
+
+	auto factory = Alembic::AbcCoreHDF5::WriteArchive();
+	myArchive.reset(new OArchive(factory(filename, md), Alembic::Abc::kWrapExisting, Alembic::Abc::ErrorHandler::kThrowPolicy));
     }
-    catch (const std::exception &e)
+    catch(const std::exception &e)
     {
-	err.error("Error creating archive: %s", e.what());
-	myArchive = Alembic::Abc::OArchive();
+	myOError.error("Error creating archive: %s", e.what());
     }
-    if (!myArchive.valid())
-    {
-	err.error("Unable to create archive: %s", file);
-	myArchive = Alembic::Abc::OArchive();
-	return false;
-    }
-    return true;
 }
 
 void
-ROP_AbcArchive::close()
+ROP_AbcArchive::setTimeSampling(
+    int nframes, fpreal tstart, fpreal tend,
+    int mb_samples, fpreal shutter_open, fpreal shutter_close)
 {
-    try
+    fpreal tdelta = tend - tstart;
+
+    fpreal spf = CHgetManager()->getSecsPerSample();
+    
+    fpreal tstep;
+    if(nframes < 2 || SYSequalZero(tdelta))
+	tstep = spf;
+    else
+	tstep = tdelta / (nframes - 1);
+
+    tstart += spf;
+    if(mb_samples < 2)
     {
-	myBoxProp = OBox3dProperty();
-	myArchive = OArchive();
+	myTimeSampling.reset(new TimeSampling(tstep, tstart));
+	myBlurTimes.append(0);
     }
-    catch (const std::exception &e)
+    else if(shutter_open < shutter_close)
     {
-	UT_ASSERT(0 && "Alembic exception on close!");
-	fprintf(stderr, "Alembic exception on closing: %s\n", e.what());
+	fpreal shutter_step = shutter_close - shutter_open;
+	fpreal blur_offset = shutter_open;
+	if(SYSequalZero(shutter_step - 1))
+	{
+	    shutter_step /= mb_samples;
+	    // Uniform time sampling
+	    myTimeSampling.reset(new TimeSampling(tstep/mb_samples, tstart));
+	    for(exint i = 0; i < mb_samples; ++i, blur_offset += shutter_step)
+		myBlurTimes.append(blur_offset * spf);
+	}
+	else
+	{
+	    shutter_step /= mb_samples - 1;
+	    std::vector<chrono_t> abcTimes;
+	    for(int i = 0; i < mb_samples; ++i, blur_offset += shutter_step)
+	    {
+		myBlurTimes.append(blur_offset * spf);
+		abcTimes.push_back(tstart + myBlurTimes.last());
+	    }
+	    TimeSamplingType tstype(abcTimes.size(), spf);
+	    myTimeSampling.reset(new TimeSampling(tstype, abcTimes));
+	}
     }
-    myBox.makeInvalid();
-    myTimeDependent = false;
-    deleteChildren();
-
-    delete myWriter;
-    myWriter = nullptr;
-}
-
-bool
-ROP_AbcArchive::firstFrame(GABC_OError &err, const ROP_AbcContext &ctx)
-{
-    UT_ASSERT(myArchive.valid());
-    myTSIndex = myArchive.addTimeSampling(*(ctx.timeSampling()));
-    myBox.makeInvalid();
-    if (!startChildren(myArchive.getTop(), err, ctx, myBox))
-	return false;
-    if (ctx.fullBounds())
+    else
     {
-	myBoxProp = Alembic::AbcGeom::CreateOArchiveBounds(myArchive, myTSIndex);
-	Box3d	b3 = GABC_Util::getBox(myBox);
-	myBoxProp.set(b3);
+	// invalid shutter times, disable motion blur
+	myTimeSampling.reset(new TimeSampling(tstep, tstart));
+	myBlurTimes.append(0);
     }
-    // Note this is a "custom" tag on exports to export the time samples
-    if (myTSIndex >= 0)
-    {
-	UT_WorkBuffer	pname;
-	pname.sprintf("%d.samples", myTSIndex);
-	Alembic::Abc::OUInt32Property	samp(myArchive.getTop().getProperties(),
-		pname.buffer());
-	samp.set(ctx.totalSamples());
-    }
-    updateTimeDependentKids();
-    return true;
+    UT_ASSERT(myBlurTimes.entries() >= 1);
+
+    uint32_t idx = myArchive->addTimeSampling(*myTimeSampling);
+    // add custom tag for pyalembic's cask wrapper.
+    UT_WorkBuffer pname;
+    pname.sprintf("%d.samples", idx);
+    Alembic::Abc::OUInt32Property samp(myArchive->getTop().getProperties(),
+				       pname.buffer());
+    samp.set(nframes * myBlurTimes.entries());
+
+    if(myOOptions.fullBounds())
+	myBoxProperty = Alembic::AbcGeom::CreateOArchiveBounds(*myArchive, idx);
 }
 
-bool
-ROP_AbcArchive::nextFrame(GABC_OError &err, const ROP_AbcContext &ctx)
+void
+ROP_AbcArchive::setCookTime(fpreal tstart, exint idx)
 {
-    myBox.makeInvalid();
-    bool status = updateChildren(err, ctx, myBox);
-    if (ctx.fullBounds())
-    {
-	Box3d	b3 = GABC_Util::getBox(myBox);
-	myBoxProp.set(b3);
-    }
-    return status;
+    myCookTime = tstart + myBlurTimes(idx);
+    ++mySampleCount;
 }
 
-bool
-ROP_AbcArchive::start(const OObject &,
-	GABC_OError &, const ROP_AbcContext &, UT_BoundingBox &)
+void
+ROP_AbcArchive::setBoundingBox(const UT_BoundingBox &box)
 {
-    UT_ASSERT(0);
-    return false;
-}
-
-bool
-ROP_AbcArchive::update(GABC_OError &err,
-	const ROP_AbcContext &ctx, UT_BoundingBox &box)
-{
-    UT_ASSERT(0);
-    return false;
-}
-
-bool
-ROP_AbcArchive::getLastBounds(UT_BoundingBox &box) const
-{
-    box = myBox;
-    return true;
-}
-
-bool
-ROP_AbcArchive::selfTimeDependent() const
-{
-    return myTimeDependent;
+    if(myOOptions.fullBounds())
+	myBoxProperty.set(GABC_Util::getBox(box));
 }

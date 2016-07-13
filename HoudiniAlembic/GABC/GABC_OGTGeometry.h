@@ -251,7 +251,7 @@ public:
 	GT_DataArrayHandle	myData[9];
     };
 
-    static IgnoreList &     getDefaultSkip();
+    static const IgnoreList &getDefaultSkip();
 
      GABC_OGTGeometry(const std::string &name);
     ~GABC_OGTGeometry();
@@ -280,6 +280,9 @@ public:
     /// Return the OObject for this shape
     OObject         getOObject() const;
 
+    /// Return the user properties for this shape.
+    OCompoundProperty getUserProperties() const;
+
     /// Return the secondary cache (allocating if needed)
     SecondaryCache  &getSecondaryCache();
 
@@ -301,49 +304,13 @@ protected:
 			const GABC_OOptions &ctx);
     // Reuse previous samples of attribute data for current frame.
     void        writeArbPropertiesFromPrevious();
-
-    // Make Alembic user properties.
-    bool        makeUserProperties(const GT_PrimitiveHandle &prim,
-                        OCompoundProperty *parent,
-                        GABC_OError &err,
-                        const GABC_OOptions &ctx);
-    // Output user property samples to Alembic.
-    bool        writeUserProperties(const GT_PrimitiveHandle &prim,
-                        GABC_OError &err,
-                        const GABC_OOptions &ctx);
-    // Reuse previous user property sample for current frame.
-    void        writeUserPropertiesFromPrevious();
-
     // Clear out existing data.
     void	clearProperties();
     void        clearArbProperties();
-    void        clearUserProperties();
     void	clearShape();
     void	clearCache();
 
 private:
-    // User properties output states.
-    //
-    //
-    //  NO_USER_PROPERTIES:         No user property data on the first frame.
-    //                              Keep checking for errors on subsequent
-    //                              frames.
-    //  ERROR_READING_PROPERTIES:   An error occurred reading user property
-    //                              data on the first frame or a subsequent
-    //                              frame. Ignore user properties completely.
-    //  WRITE_USER_PROPERTIES:      User property data output successfully for
-    //                              first frame. Try to write user property
-    //                              info for subsequent frames, but if there
-    //                              is a problem fall back to the previous
-    //                              existing samples.
-    enum UserPropertiesState
-    {
-        NO_USER_PROPERTIES,
-        ERROR_READING_PROPERTIES,
-        WRITE_USER_PROPERTIES,
-
-        UNSET=-1
-    };
     // Attribute scopes.
     enum
     {
@@ -366,10 +333,8 @@ private:
     IntrinsicCache          myCache; // Cache for space optimization
     OVisibilityProperty     myVisibility;
     PropertyMap             myArbProperties[MAX_PROPERTIES];
-    PropertyMap             myUserProperties;
     SecondaryCache         *mySecondaryCache;
     UT_StringArray          myFaceSetNames;
-    UserPropertiesState     myUserPropState;
     std::string             myName;
     exint                   myElapsedFrames;
     int                     myType;

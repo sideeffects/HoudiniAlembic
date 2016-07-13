@@ -25,48 +25,27 @@
  *----------------------------------------------------------------------------
  */
 
-#include "GABC_OOptions.h"
+#ifndef __ROP_AbcNodeInstance__
+#define __ROP_AbcNodeInstance__
 
-using namespace GABC_NAMESPACE;
+#include "ROP_AbcNodeShape.h"
 
-GABC_OOptions::GABC_OOptions()
-    : myFaceSetMode(FACESET_DEFAULT)
-    , mySubdGroup()
-    , myPrimToDetailPattern()
-    , myFullBounds(false)
-    , myForcePrimToDetail(false)
+/// Class describing instanced geometry exported to an Alembic archive.
+class ROP_AbcNodeInstance : public ROP_AbcNode
 {
-}
+public:
+    ROP_AbcNodeInstance(const std::string &name, ROP_AbcNodeShape *src)
+	: ROP_AbcNode(name), mySource(src), myIsValid(false) {}
 
-// Check if the given attribute matches the mask for it's level.
-bool
-GABC_OOptions::matchAttribute(GA_AttributeOwner own, const char *name) const
-{
-    if(myPathAttribute == name)
-	return false;
+    virtual OObject getOObject();
+    virtual void setArchive(const ROP_AbcArchivePtr &archive);
+    virtual void update();
 
-    UT_String	str(name);
-    return str.multiMatch(myAttributePatterns[own]) != 0;
-}
+private:
+    void makeValid();
 
-// Determine the attribute owner from the Alembic scope and compare the
-// attribute against the mask for that owner.
-bool
-GABC_OOptions::matchAttribute(Alembic::AbcGeom::GeometryScope scope,
-			const char *name) const
-{
-    switch (scope)
-    {
-	case Alembic::AbcGeom::kConstantScope:
-	    return matchAttribute(GA_ATTRIB_DETAIL, name);
-	case Alembic::AbcGeom::kUniformScope:
-	case Alembic::AbcGeom::kUnknownScope:
-	    return matchAttribute(GA_ATTRIB_PRIMITIVE, name);
-	case Alembic::AbcGeom::kVaryingScope:
-	    return matchAttribute(GA_ATTRIB_POINT, name);
-	case Alembic::AbcGeom::kVertexScope:
-	case Alembic::AbcGeom::kFacevaryingScope:
-	    return matchAttribute(GA_ATTRIB_VERTEX, name);
-    }
-    return true;
-}
+    ROP_AbcNodeShape *mySource;
+    bool myIsValid;
+};
+
+#endif

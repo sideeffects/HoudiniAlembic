@@ -29,132 +29,227 @@
 #define __ROP_AlembicOut__
 
 #include <ROP/ROP_Node.h>
-#include <ROP/ROP_Error.h>
-#include <GABC/GABC_OError.h>
+#include "ROP_AbcArchive.h"
+#include "ROP_AbcNodeCamera.h"
+#include "ROP_AbcNodeInstance.h"
+#include "ROP_AbcNodeShape.h"
+#include "ROP_AbcNodeXform.h"
 
-class ROP_AbcContext;
-class ROP_AbcArchive;
+#include <GA/GA_Handle.h>
+#include <GA/GA_Range.h>
+#include <UT/UT_Array.h>
+#include <UT/UT_Interrupt.h>
+#include <UT/UT_Map.h>
+#include <UT/UT_UniquePtr.h>
 
-/// The Alembic output ROP. Outputs scene data to an Alembic archive.
+class OBJ_Camera;
+class OBJ_Node;
+class OBJ_Geometry;
+
 class ROP_AlembicOut : public ROP_Node
 {
 public:
-    typedef GABC_NAMESPACE::GABC_OError	GABC_OError;
-    ROP_AlembicOut(OP_Network *net, const char *name, OP_Operator *op);
-    virtual ~ROP_AlembicOut();
-
-    virtual int			startRender(int nframes, fpreal s, fpreal e);
-    virtual ROP_RENDER_CODE	renderFrame(fpreal time, UT_Interrupt *boss);
-    virtual ROP_RENDER_CODE	endRender();
-    virtual bool		updateParmsFlags();
-    virtual void	getDescriptiveParmName(UT_String &str) const
+    static OP_Node *myConstructor(OP_Network *net, const char *name, OP_Operator *op);
+    virtual bool updateParmsFlags();
+    virtual void getDescriptiveParmName(UT_String &str) const
 			{ str = "filename"; }
-
     /// We need to hint to the merge ROP that we can't be called one frame at a
     /// time.
-    virtual void	buildRenderDependencies(
-				const ROP_RenderDepParms &p);
+    virtual void buildRenderDependencies(const ROP_RenderDepParms &p);
 
-    void	abcError(const char *message)
-		{
-		    addError(ROP_MESSAGE, message);
-		}
-    void	abcWarning(const char *message)
-		{
-		    addWarning(ROP_MESSAGE, message);
-		}
-    void	abcInfo(int verbose, const char *message)
-		{
-		    if (verbose < myVerbose)
-			addMessage(ROP_MESSAGE, message);
-		}
-    SOP_Node   *getSOPInput(fpreal time)
-                {
-                    SOP_Node   *node = NULL;
-                    UT_String   sop_path;
-
-                    if (USE_SOP_PATH(time))
-                    {
-                        SOP_PATH(sop_path, time);
-                        sop_path.trimBoundingSpace();
-                        if (sop_path.isstring())
-                        {
-                            node = CAST_SOPNODE(findNode(sop_path));
-                        }
-                    }
-
-                    return node;
-                }
+    SOP_Node *getSopNode(fpreal time) const;
 
 protected:
-    void	close();
-    bool	filterNode(OP_Node *obj, OP_Node *root, fpreal now);
+    ROP_AlembicOut(OP_Network *net, const char *name, OP_Operator *entry);
+    virtual ~ROP_AlembicOut();
 
-    void	FILENAME(UT_String &str, fpreal time)
-		    { getOutputOverrideEx(str, time, "filename", "mkpath"); }
-    void	FORMAT(UT_String &str, fpreal time)
-		    { evalString(str, "format", 0, time); }
-    void	ROOT(UT_String &str, fpreal time)
-		    { evalString(str, "root", 0, time); }
-    bool	USE_SOP_PATH(fpreal time)
-		    { return evalInt("use_sop_path", 0, time) != 0; }
-    void	SOP_PATH(UT_String &str, fpreal time)
-		    { evalString(str, "sop_path", 0, time); }
-    void	OBJECTS(UT_String &str, fpreal time)
-		    { evalString(str, "objects", 0, time); }
-    int		COLLAPSE(fpreal time);
-    bool	USE_INSTANCING(fpreal time)
-		    { return evalInt("use_instancing", 0, time) != 0; }
-    bool	SAVE_HIDDEN(fpreal time)
-		    { return evalInt("save_hidden", 0, time) != 0; }
-    bool	SAVE_ATTRIBUTES(fpreal time)
-		    { return evalInt("save_attributes", 0, time) != 0; }
-    bool	DISPLAYSOP(fpreal time)
-		    { return evalInt("displaysop", 0, time) != 0; }
-    bool	FULL_BOUNDS(fpreal time)
-		    { return evalInt("full_bounds", 0, time) != 0; }
-    bool	BUILD_HIERARCHY_FROM_PATH(fpreal time)
-		    { return evalInt("build_from_path", 0, time) != 0; }
-    void        PATH_ATTRIBUTE(UT_String &sval, fpreal time)
-                    { evalString(sval, "path_attrib", 0, time); }
-    void        PACKED_ABC_PRIORITY(UT_String &sval, fpreal time)
-                    { evalString(sval, "packed_priority", 0, time); }
-    void	FACESET_MODE(UT_String &sval, fpreal time)
-		    { evalString(sval, "facesets", 0, time); }
-    void	PARTITION_MODE(UT_String &sval, fpreal time)
-		    { evalString(sval, "partition_mode", 0, time); }
-    void	PARTITION_ATTRIBUTE(UT_String &str, fpreal time)
-		    { evalString(str, "partition_attribute", 0, time); }
-    void	UV_ATTRIBUTE(UT_String &str, fpreal time)
-		    { evalString(str, "uvAttributes", 0, time); }
-    void	SUBDGROUP(UT_String &str, fpreal time)
-		    { evalString(str, "subdgroup", 0, time); }
-    int		VERBOSE(fpreal time)
-		    { return evalInt("verbose", 0, time); }
-    bool	MOTIONBLUR(fpreal time)
-		    { return evalInt("motionBlur", 0, time) != 0; }
-    fpreal	SHUTTEROPEN(fpreal time)
-		    { return evalFloat("shutter", 0, time); }
-    fpreal	SHUTTERCLOSE(fpreal time)
-		    { return evalFloat("shutter", 1, time); }
-    int		SAMPLES(fpreal time)
-		    { return evalInt("samples", 0, time); }
-    bool	INITSIM(fpreal time)
-		    { return evalInt("initsim", 0, time) != 0; }
-    bool	RENDER_FULL_RANGE()
-		    { return evalInt("render_full_range", 0, 0.0) != 0; }
-    void	PRIM_TO_DETAIL_PATTERN(UT_String &str, fpreal time)
-		    { evalString(str, "prim_to_detail_pattern", 0, time); }
-    bool	FORCE_PRIM_TO_DETAIL(fpreal time)
-		    { return evalInt("force_prim_to_detail", 0, time); }
+    virtual int startRender(int nframes, fpreal s, fpreal e);
+    virtual ROP_RENDER_CODE renderFrame(fpreal time, UT_Interrupt *boss);
+    virtual ROP_RENDER_CODE endRender();
 
-    ROP_AbcArchive	*myArchive;
-    ROP_AbcContext	*myContext;
-    GABC_OError		*myError;
-    fpreal		 myEndTime;
-    int			 myVerbose;
-    bool		 myFirstFrame;
+    void FILENAME(UT_String &str, fpreal time)
+		{ getOutputOverrideEx(str, time, "filename", "mkpath"); }
+    void FORMAT(UT_String &str, fpreal time) const
+		{ evalString(str, "format", 0, time); }
+    bool RENDER_FULL_RANGE() const
+		{ return evalInt("render_full_range", 0, 0.0) != 0; }
+    bool INITSIM(fpreal time) const
+		{ return evalInt("initsim", 0, time) != 0; }
+    bool USE_SOP_PATH(fpreal time) const
+		{ return evalInt("use_sop_path", 0, time) != 0; }
+    void SOP_PATH(UT_String &str, fpreal time) const
+		{ evalString(str, "sop_path", 0, time); }
+    void SUBDGROUP(UT_String &str, fpreal time) const
+		{ evalString(str, "subdgroup", 0, time); }
+    bool BUILD_FROM_PATH(fpreal time) const
+		{ return evalInt("build_from_path", 0, time) != 0; }
+    void PATH_ATTRIBUTE(UT_String &sval, fpreal time) const
+		{ evalString(sval, "path_attrib", 0, time); }
+    void ROOT(UT_String &str, fpreal time) const
+		{ evalString(str, "root", 0, time); }
+    void OBJECTS(UT_String &str, fpreal time) const
+		{ evalString(str, "objects", 0, time); }
+    void COLLAPSE(UT_String &str, fpreal time) const
+		{ evalString(str, "collapse", 0, time); }
+    bool SAVE_HIDDEN(fpreal time) const
+		{ return evalInt("save_hidden", 0, time) != 0; }
+    bool DISPLAYSOP(fpreal time) const
+		{ return evalInt("displaysop", 0, time) != 0; }
+    void PARTITION_MODE(UT_String &sval, fpreal time) const
+		{ evalString(sval, "partition_mode", 0, time); }
+    void PARTITION_ATTRIBUTE(UT_String &str, fpreal time) const
+		{ evalString(str, "partition_attribute", 0, time); }
+    bool FULL_BOUNDS(fpreal time) const
+		{ return evalInt("full_bounds", 0, time) != 0; }
+    void PACKED_MODE(UT_String &str, fpreal time) const
+		{ evalString(str, "packed_mode", 0, time); }
+    bool USE_INSTANCING(fpreal time) const
+		{ return evalInt("use_instancing", 0, time) != 0; }
+    bool SAVE_ATTRIBUTES(fpreal time) const
+		{ return evalInt("save_attributes", 0, time) != 0; }
+    void PRIM_TO_DETAIL_PATTERN(UT_String &str, fpreal time) const
+		{ evalString(str, "prim_to_detail_pattern", 0, time); }
+    bool FORCE_PRIM_TO_DETAIL(fpreal time) const
+		{ return evalInt("force_prim_to_detail", 0, time); }
+    void UV_ATTRIBUTE(UT_String &str, fpreal time) const
+		{ evalString(str, "uvAttributes", 0, time); }
+    void FACESET_MODE(UT_String &str, fpreal time) const
+		{ evalString(str, "facesets", 0, time); }
+    bool MOTIONBLUR(fpreal time) const
+		{ return evalInt("motionBlur", 0, time) != 0; }
+    int SAMPLES(fpreal time) const
+		{ return evalInt("samples", 0, time); }
+    fpreal SHUTTEROPEN(fpreal time) const
+		{ return evalFloat("shutter", 0, time); }
+    fpreal SHUTTERCLOSE(fpreal time) const
+		{ return evalFloat("shutter", 1, time); }
+
+private:
+    enum PackedMode
+    {
+	ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_SHAPE,
+	ROP_ALEMBIC_PACKEDMODE_TRANSFORM_AND_SHAPE,
+	ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT,
+	ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT_AND_SHAPE
+    };
+
+    class rop_OError : public GABC_OError
+    {
+    public:
+	rop_OError() : GABC_OError(UTgetInterrupt()) {}
+
+	virtual void handleError(const char *msg)
+	    { myErrors.append(msg); }
+	virtual void handleWarning(const char *msg)
+	    { myWarnings.append(msg); }
+
+	UT_StringArray myErrors;
+	UT_StringArray myWarnings;
+    };
+
+    class rop_RefinedGeoAssignments
+    {
+	class rop_Instance
+	{
+	public:
+	    rop_Instance() : myShape(nullptr) {}
+
+	    ROP_AbcNodeShape *myShape;
+	    UT_Array<ROP_AbcNodeXform *> myXforms;
+	    UT_Array<ROP_AbcNodeInstance *> myInstances;
+	};
+
+    public:
+	rop_RefinedGeoAssignments(ROP_AbcNode *parent)
+	    : myParent(parent), myMatrix(1), myLocked(false),
+	      myWarnedRoot(false), myWarnedChildren(false) {}
+
+	ROP_AbcNode *getParent() const { return myParent; }
+
+	void refine(const GT_PrimitiveHandle &prim,
+		    PackedMode packedmode, exint facesetmode, bool subd,
+		    bool use_instancing, const std::string &name,
+		    const ROP_AbcArchivePtr &abc);
+
+	void setUserProperties(const UT_String &vals, const UT_String &meta,
+			       bool subd, const std::string &name);
+
+	ROP_AbcNodeXform *newXformNode(const std::string &name,
+				       const ROP_AbcArchivePtr &abc);
+
+	void setMatrix(const UT_Matrix4D &m);
+	const UT_Matrix4D &getMatrix() const { return myMatrix; }
+
+	void setLocked(bool locked);
+	bool isLocked() const { return myLocked; }
+
+	void warnRoot(const ROP_AbcArchivePtr &abc);
+	void warnChildren(const ROP_AbcArchivePtr &abc);
+
+    private:
+	ROP_AbcNodeShape *newShapeNode(const std::string &name,
+				       const ROP_AbcArchivePtr &abc);
+
+	ROP_AbcNode *myParent;
+	UT_Matrix4D myMatrix;
+	// use sorted maps so name collisions are resolved deterministicly
+	UT_SortedMap<std::tuple<std::string, int, bool>, UT_Array<ROP_AbcNodeShape *> > myShapes;
+	UT_SortedMap<std::tuple<std::string, int, bool>, UT_Array<rop_Instance> > myInstances;
+	UT_Array<rop_RefinedGeoAssignments> myChildren;
+	bool myLocked;
+	bool myWarnedRoot;
+	bool myWarnedChildren;
+    };
+
+    class rop_SopAssignments : public rop_RefinedGeoAssignments
+    {
+    public:
+	rop_SopAssignments(ROP_AbcNode *parent) : rop_RefinedGeoAssignments(parent) {}
+
+	void addChild(const std::string &name, const rop_SopAssignments &refinement)
+	    { myChildren.emplace(name, refinement); }
+
+	rop_SopAssignments *getChild(const std::string &name)
+	    {
+		auto it = myChildren.find(name);
+		return it != myChildren.end() ? &it->second : nullptr;
+	    }
+
+    private:
+	UT_Map<std::string, rop_SopAssignments> myChildren;
+    };
+
+    static void exportUserProperties(
+			rop_RefinedGeoAssignments &r, bool subd,
+			const GU_Detail &gdp, const GA_Range &range,
+			const std::string &name,
+			const GA_ROHandleS &vals, const GA_ROHandleS &meta);
+    void refineSop(rop_RefinedGeoAssignments &refinement, PackedMode packedmode,
+		   exint facesetmode, bool use_instancing, OBJ_Geometry *geo,
+		   SOP_Node *sop, fpreal time);
+
+    bool updateFromSop(SOP_Node *sop, PackedMode packedmode, exint facesetmode,
+		       bool use_instancing);
+    bool updateFromHierarchy(PackedMode packedmode, exint facesetmode,
+			     bool use_instancing);
+
+    // temporary storage when exporting to an Alembic archive
+    ROP_AbcArchivePtr myArchive;
+    UT_UniquePtr<rop_OError> myErrors;
+    UT_UniquePtr<ROP_AbcNode> myRoot;
+    bool myRenderFullRange;
+    fpreal myNFrames;
+    fpreal myEndTime;
+
+    // temporary storage when exporting an OBJ hierarchy
+    UT_Map<OBJ_Node *, ROP_AbcNodeXform *> myObjAssignments;
+    UT_Map<OBJ_Camera *, ROP_AbcNodeCamera *> myCamAssignments;
+    UT_Map<OBJ_Geometry *, rop_RefinedGeoAssignments> myGeoAssignments;
+    // keys of myGeoAssignments for deterministic OBJ_Geometry traversal
+    UT_Array<OBJ_Geometry *> myGeos;
+
+    // temporary storage when exporting a SOP hierarchy
+    UT_UniquePtr<rop_SopAssignments> mySopAssignments;
 };
 
 #endif
-

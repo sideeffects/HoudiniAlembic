@@ -304,9 +304,11 @@ public:
     const IObject	&object() const			{ return myObject; }
     /// @}
 
+    /// Get the user properties for this node
+    ICompoundProperty   getUserProperties() const;
+
 private:
     ICompoundProperty   getArbGeomParams() const;
-    ICompoundProperty   getUserProperties() const;
     void                setObject(const IObject &o)	{ myObject = o; }
 
     std::string         myObjectPath;

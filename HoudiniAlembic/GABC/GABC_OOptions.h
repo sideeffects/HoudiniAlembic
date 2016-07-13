@@ -74,17 +74,16 @@ public:
     exint       firstFrame() const      { return myFirstFrame; }
     void        setFirstFrame(exint f)  { myFirstFrame = f; }
     /// @}
-
-    /// @{
-    /// Whether or not to save attributes along with the geometry.  Default true
-    bool	saveAttributes() const		{ return mySaveAttributes; }
-    void	setSaveAttributes(bool f)	{ mySaveAttributes = f; }
-    /// @}
-
     /// @{
     /// Whether to cook full bounding boxes for all nodes
     bool	fullBounds() const	{ return myFullBounds; }
     void	setFullBounds(bool f)	{ myFullBounds = f; }
+    /// @}
+
+    /// @{
+    /// Set path attribute for writing geometry to a specific hierarchy.
+    const char *pathAttribute() const { return myPathAttribute.buffer(); }
+    void        setPathAttribute(const char *s) { myPathAttribute.harden(s); }
     /// @}
 
     /// @{
@@ -103,7 +102,6 @@ public:
     void	 setAttributePattern(GA_AttributeOwner own, const char *pattern)
 		 {
 		     myAttributePatterns[own].harden(pattern);
-		     checkAttributeStars();
 		 }
     /// @}
 
@@ -130,16 +128,13 @@ public:
     /// @}
 
 private:
-    void		checkAttributeStars();
-
     FaceSetMode		myFaceSetMode;
     UT_String		mySubdGroup;
+    UT_String		myPathAttribute;
     UT_String		myAttributePatterns[GA_ATTRIB_OWNER_N];
     UT_String           myUVAttribPattern;
     UT_StringHolder	myPrimToDetailPattern;
     exint               myFirstFrame;
-    bool		myAttributeStars;
-    bool		mySaveAttributes;
     bool		myFullBounds;
     bool		myForcePrimToDetail;
 };
@@ -147,4 +142,3 @@ private:
 }   // end GABC_NAMESPACE
 
 #endif
-
