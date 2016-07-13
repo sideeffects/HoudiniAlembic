@@ -61,7 +61,6 @@ GABCCFILES = \
 	HoudiniAlembic/GABC/GABC_IItem.C \
 	HoudiniAlembic/GABC/GABC_IObject.C \
 	HoudiniAlembic/GABC/GABC_Error.C \
-	HoudiniAlembic/GABC/GABC_OGTAbc.C \
 	HoudiniAlembic/GABC/GABC_OGTGeometry.C \
 	HoudiniAlembic/GABC/GABC_OOptions.C \
 	HoudiniAlembic/GABC/GABC_OArrayProperty.C \
