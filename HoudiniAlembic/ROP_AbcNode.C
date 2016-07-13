@@ -44,7 +44,7 @@ ROP_AbcNode::makeCollisionFreeName(std::string &name) const
 
     UT_WorkBuffer buf;
     buf.append(name.c_str());
-    buf.appendSprintf("_%ld", val);
+    buf.appendSprintf("_%" SYS_PRId64, val);
     name = buf.buffer();
 
     UT_Array<const ROP_AbcNode *> ancestors;
