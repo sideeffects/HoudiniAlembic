@@ -237,7 +237,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		{
 		    UT_WorkBuffer buf;
 		    buf.append(myName.c_str());
-		    buf.appendSprintf("_instance%ld", i + 1);
+		    buf.appendSprintf("_instance%" SYS_PRId64, i + 1);
 		    std::string name = buf.buffer();
 		    rop_xforms.append(
 			myAssignments.newXformNode(name, myArchive));
@@ -324,7 +324,8 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		{
 		    UT_WorkBuffer buf;
 		    buf.append(myName.c_str());
-		    buf.appendSprintf("_packed%ld", children.entries() + 1);
+		    buf.appendSprintf("_packed%"SYS_PRId64,
+				      children.entries() + 1);
 		    children.append(
 			rop_RefinedGeoAssignments(
 			    myAssignments.newXformNode(buf.buffer(),
