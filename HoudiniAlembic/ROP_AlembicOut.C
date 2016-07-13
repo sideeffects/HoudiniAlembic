@@ -774,6 +774,7 @@ static PRM_Template theObsoleteParameters[] =
     PRM_Template(PRM_SEPARATOR, 1, &separator2Name),
     PRM_Template(PRM_SEPARATOR, 1, &separator3Name),
     PRM_Template(PRM_INT,   1, &theVerboseName, 0, 0, &theVerboseRange),
+    PRM_Template(),
 };
 
 ROP_AlembicOut::ROP_AlembicOut(OP_Network *net, const char *name, OP_Operator *entry)
