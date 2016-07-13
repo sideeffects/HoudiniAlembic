@@ -324,7 +324,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		{
 		    UT_WorkBuffer buf;
 		    buf.append(myName.c_str());
-		    buf.appendSprintf("_packed%"SYS_PRId64,
+		    buf.appendSprintf("_packed%" SYS_PRId64,
 				      children.entries() + 1);
 		    children.append(
 			rop_RefinedGeoAssignments(
