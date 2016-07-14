@@ -1656,13 +1656,16 @@ GABC_Util::Walker::walkChildren(const GABC_IObject &obj)
 {
     exint   nkids = obj.getNumChildren();
 
+    // we want to walk children in sorted order
+    std::multimap<std::string, exint, UTnumberedStringCompare> child_map;
     for (exint i = 0; i < nkids; ++i)
+	child_map.emplace(obj.getChild(i).getName(), i);
+
+    for (auto &it : child_map)
     {
 	// Returns false on interrupt
-	if (!ArchiveCacheEntry::walkTree(obj.getChild(i), *this))
-	{
+	if (!ArchiveCacheEntry::walkTree(obj.getChild(it.second), *this))
 	    return false;
-        }
     }
 
     return true;
