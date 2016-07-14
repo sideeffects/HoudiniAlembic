@@ -93,7 +93,7 @@ protected:
     /// this node's computed bounding box
     UT_BoundingBox myBox;
     /// this node's children
-    UT_Map<std::string, ROP_AbcNode *> myChildren;
+    UT_SortedMap<std::string, ROP_AbcNode *> myChildren;
 
 private:
     // for nodes ending with "_number", a mapping from the prefix to the
