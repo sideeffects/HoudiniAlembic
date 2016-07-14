@@ -1778,6 +1778,7 @@ ROP_AlembicOut::updateFromSop(
 		name += "_subd";
 
 	    GT_PrimitiveHandle prim = GT_GEODetail::makeDetail(gdh, &r);
+	    ancestors.clear();
 	    for(ROP_AbcNode *parent = assignments->getParent();
 		parent->getParent();
 		parent = parent->getParent())
@@ -1786,11 +1787,16 @@ ROP_AlembicOut::updateFromSop(
 		auto it2 = xforms.find(node);
 		if(it2 != xforms.end())
 		{
+		    // update the other ancestor transforms so we don't need to
+		    // traverse up again.
 		    UT_Matrix4D m2 = it2->second;
+		    for(exint i = ancestors.entries() - 1; i >= 0; --i)
+			xforms.emplace(ancestors(i), m2);
 		    m2.invert();
 		    prim = prim->copyTransformed(new GT_Transform(&m2, 1));
 		    break;
 		}
+		ancestors.append(node);
 	    }
 
 	    assignments->refine(prim, packedmode, facesetmode, subd,
