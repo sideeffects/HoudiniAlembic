@@ -236,7 +236,7 @@ GABC_PackedGT::getFullGeometry(const GT_RefineParms *parms, bool &xform) const
     else
     {
 	load_style = GABC_IObject::GABC_LOAD_FULL;
-	if (!parms->getAlembicHoudiniAttribs())
+	if (!GT_RefineParms::getAlembicHoudiniAttribs(parms))
 	    load_style &= ~GABC_IObject::GABC_LOAD_HOUDINI;
     }
     return impl->fullGT(load_style);
