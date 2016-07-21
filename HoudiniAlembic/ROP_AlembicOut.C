@@ -422,7 +422,12 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::setUserProperties(
 	{
 	    auto &insts = it.second;
 	    for(exint i = 0; i < insts.entries(); ++i)
-		insts(i).myShape->setUserProperties(vals, meta);
+	    {
+		// could be null with ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT
+		ROP_AbcNodeShape *shape = insts(i).myShape;
+		if(shape)
+		    shape->setUserProperties(vals, meta);
+	    }
 	}
     }
     for(exint i = 0; i < myChildren.entries(); ++i)
