@@ -2593,6 +2593,25 @@ namespace
 	return ss.getNumSamples();
     }
 
+    static bool
+    abcFaceSetsAnimated(const GABC_IObject &obj)
+    {
+	exint nkids = obj.getNumChildren();
+	for (exint i = 0; i < nkids; ++i)
+	{
+	    const GABC_IObject &kid = obj.getChild(i);
+	    if (kid.valid() && kid.nodeType() == GABC_FACESET)
+	    {
+		IFaceSet shape(kid.object(), gabcWrapExisting);
+		const IFaceSetSchema   &ss = shape.getSchema();
+		if(!ss.isConstant())
+		    return true;
+	    }
+	}
+
+	return false;
+    }
+
     template <typename ABC_T>
     static GEO_AnimationType
     getAnimation(const GABC_IObject &obj)
@@ -2605,10 +2624,12 @@ namespace
 	{
 	    case Alembic::AbcGeom::kConstantTopology:
 		atype = GEO_ANIMATION_CONSTANT;
-		if (GABC_Util::isABCPropertyAnimated(schema.getArbGeomParams()))
+		if (GABC_Util::isABCPropertyAnimated(schema.getArbGeomParams()) ||
+		    GABC_Util::isABCPropertyAnimated(schema.getUserProperties()) ||
+		    abcFaceSetsAnimated(obj))
+		{
 		    atype = GEO_ANIMATION_ATTRIBUTE;
-		else if (GABC_Util::isABCPropertyAnimated(schema.getUserProperties()))
-		    atype = GEO_ANIMATION_ATTRIBUTE;
+		}
 		break;
 	    case Alembic::AbcGeom::kHomogenousTopology:
 		atype = GEO_ANIMATION_ATTRIBUTE;
