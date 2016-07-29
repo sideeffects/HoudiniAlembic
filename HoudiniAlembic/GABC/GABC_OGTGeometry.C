@@ -772,6 +772,7 @@ namespace
 		    if (strcmp(s0, data->getS(i)) != 0)
 			return false;
 		}
+		return true;
 	    }
 	    case GT_STORE_INVALID:
 	    case GT_NUM_STORAGE_TYPES:
