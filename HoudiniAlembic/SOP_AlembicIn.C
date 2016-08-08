@@ -1349,7 +1349,7 @@ namespace
     class unpackTask
     {
     public:
-	unpackTask(UT_ValArray<GU_Detail *> &unpacked, const GU_Detail &src)
+	unpackTask(UT_Array<GU_Detail *> &unpacked, const GU_Detail &src)
 	    : myUnpacked(unpacked)
 	    , mySrc(src)
 	{
@@ -1368,8 +1368,8 @@ namespace
 	    }
 	}
 
-	UT_ValArray<GU_Detail *>	 myUnpacked;
-	const GU_Detail			&mySrc;
+	UT_Array<GU_Detail *>	 myUnpacked;
+	const GU_Detail		&mySrc;
     };
 }
 
@@ -1378,7 +1378,7 @@ SOP_AlembicIn2::unpack(GU_Detail &dest, const GU_Detail &src)
 {
     dest.stashAll();
     UT_ASSERT(dest.getNumPoints() == 0);
-    UT_ValArray<GU_Detail *>	unpacked;
+    UT_Array<GU_Detail *>	unpacked;
     for (auto it = GA_Iterator(src.getPrimitiveRange()); !it.atEnd(); ++it)
     {
 	UT_ASSERT(GU_PrimPacked::isPackedPrimitive(*src.getGEOPrimitive(*it)));
