@@ -25,5 +25,5 @@ else:
             m *= p.inverted()
     hou.pwd().setCookTransform(m)
     
-    if isConstant:
+    if isConstant and inherit:
         self.hdaModule().SetConstantXform(self, (cacheKey, m))

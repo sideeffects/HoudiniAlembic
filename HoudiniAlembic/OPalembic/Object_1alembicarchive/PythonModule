@@ -371,6 +371,9 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
                 if _setVisibility(currentNode, fileName, currentPath, ""):
                     animated = True
 
+	    if not _abc.getLocalXform(fileName, currentPath, 0)[2]:
+		animated = True
+
             if channelRefs:
                 ExpressionToParm(rootNode.parm('fileName'),
                         currentNode.parm('fileName'),
