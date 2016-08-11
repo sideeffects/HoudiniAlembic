@@ -86,6 +86,7 @@ namespace
     typedef Alembic::Abc::index_t		    index_t;
     typedef Alembic::Abc::chrono_t		    chrono_t;
 
+    typedef Alembic::Abc::M44d			    M44d;
     typedef Alembic::Abc::V2d			    V2d;
 
     // Properties
@@ -112,6 +113,7 @@ namespace
     typedef Alembic::AbcGeom::IPolyMesh		    IPolyMesh;
     typedef Alembic::AbcGeom::ISubD		    ISubD;
     typedef Alembic::AbcGeom::IXform		    IXform;
+    typedef Alembic::AbcGeom::IXformSchema	    IXformSchema;
 
     // Camera
     typedef Alembic::AbcGeom::ICamera		    ICamera;
@@ -335,10 +337,22 @@ namespace
     		case GABC_XFORM:
     		    {
     			IXform	xform(obj.object(), Alembic::Abc::kWrapExisting);
-    			if (xform.getSchema().isConstant())
-    			    otype = "cxform";
-    			else
-    			    otype = "xform";
+			IXformSchema &ss = xform.getSchema();
+			otype = "xform";
+			if (ss.isConstant())
+			{
+			    if (ss.getInheritsXforms())
+				otype = "cxform";
+			    else
+			    {
+				GABC_IObject parent = obj.getParent();
+				M44d xform;
+				bool isConstant = true;
+				bool inherits = true;
+				if(!parent.worldTransform(0.0, xform, isConstant, inherits) || isConstant)
+				    otype = "cxform";
+			    }
+			}
     		    }
     		    break;
     		case GABC_POLYMESH:

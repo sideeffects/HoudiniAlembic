@@ -23,7 +23,8 @@ else:
         if parent:
             p = hou.Matrix4(parent[0])
             m *= p.inverted()
+	    isConstant &= parent[1]
     hou.pwd().setCookTransform(m)
     
-    if isConstant and inherit:
+    if isConstant:
         self.hdaModule().SetConstantXform(self, (cacheKey, m))
