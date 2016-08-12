@@ -75,11 +75,10 @@ ROP_AbcNode::addChild(ROP_AbcNode *child)
     exint n = name.length();
 
     const char *s = name.c_str();
-    auto is_digit = [](char x){ return x >= '0' && x <= '9'; };
     for(exint i = n; i > 0; --i)
     {
 	char c = s[i - 1];
-	if(!is_digit(c))
+	if(c < '0' || c > '9')
 	{
 	    if(c == '_' && i < n)
 	    {
