@@ -1657,7 +1657,7 @@ GABC_Util::Walker::walkChildren(const GABC_IObject &obj)
     exint   nkids = obj.getNumChildren();
 
     // we want to walk children in sorted order
-    std::multimap<std::string, exint, UTnumberedStringCompare> child_map;
+    UT_SortedMap<std::string, exint, UTnumberedStringCompare> child_map;
     for (exint i = 0; i < nkids; ++i)
 	child_map.emplace(obj.getChild(i).getName(), i);
 
