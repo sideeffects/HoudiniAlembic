@@ -290,6 +290,17 @@ public:
 				const GABC_IObject &object);
 
     //
+    // Visibility
+    //
+
+    /// Get the visibility for a GABC_IObject.
+    static GABC_VisibilityType getVisibility(
+				const GABC_IObject &object,
+				fpreal sample_time,
+				bool &animated,
+				bool check_parent);
+
+    //
     //  Walk Alembic Hierarchy
     //
 
