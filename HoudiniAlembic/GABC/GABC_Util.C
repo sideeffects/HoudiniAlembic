@@ -1925,7 +1925,7 @@ GABC_Util::getWorldTransform(const std::string &filename,
 }
 
 bool
-GABC_Util::getWorldTransform(const std::string &filename,
+GABC_Util::getWorldTransform(
 	const GABC_IObject &obj,
 	fpreal sample_time,
 	UT_Matrix4D &xform,
@@ -1939,6 +1939,7 @@ GABC_Util::getWorldTransform(const std::string &filename,
     {
 	try
 	{
+	    std::string filename = obj.archive()->filename();
 	    ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
 	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
 	    success = cacheEntry->getWorldTransform(wxform,
@@ -1961,8 +1962,7 @@ GABC_Util::getWorldTransform(const std::string &filename,
 }
 
 bool
-GABC_Util::isTransformAnimated(const std::string &filename,
-	const GABC_IObject &obj)
+GABC_Util::isTransformAnimated(const GABC_IObject &obj)
 {
     bool    animated = false;
 
@@ -1970,6 +1970,7 @@ GABC_Util::isTransformAnimated(const std::string &filename,
     {
 	try
 	{
+	    std::string filename = obj.archive()->filename();
 	    ArchiveCacheEntryPtr    cacheEntry = LoadArchive(filename);
 	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
 	    animated = cacheEntry->isObjectAnimated(obj);

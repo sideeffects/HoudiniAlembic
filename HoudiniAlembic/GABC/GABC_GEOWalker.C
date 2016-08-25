@@ -2533,7 +2533,7 @@ GABC_GEOWalker::preProcess(const GABC_IObject &root)
     {
 	UT_Matrix4D	m;
 	bool		c, i;
-	if (!GABC_Util::getWorldTransform(filename(), parent, time(), m, c, i))
+	if (!GABC_Util::getWorldTransform(parent, time(), m, c, i))
 	{
 	    m.identity();
 	}

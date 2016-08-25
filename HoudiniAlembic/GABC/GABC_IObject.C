@@ -3388,7 +3388,7 @@ GABC_IObject::isTransformAnimated() const
     if (!xform.valid())
 	return false;
 
-    return GABC_Util::isTransformAnimated(archive()->filename(), xform);
+    return GABC_Util::isTransformAnimated(xform);
 }
 
 GT_DataArrayHandle
@@ -3760,12 +3760,11 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
     lock.unlock();
     if (ascended)
     {
-	return GABC_Util::getWorldTransform(archive()->filename(),
-		GABC_IObject(archive(), obj), t, xform,
-		isConstant, inheritsXform);
+	return GABC_Util::getWorldTransform(GABC_IObject(archive(), obj), t,
+					    xform, isConstant, inheritsXform);
     }
-    return GABC_Util::getWorldTransform(archive()->filename(),
-			*this, t, xform, isConstant, inheritsXform);
+    return GABC_Util::getWorldTransform(*this, t, xform, isConstant,
+					inheritsXform);
 }
 
 bool

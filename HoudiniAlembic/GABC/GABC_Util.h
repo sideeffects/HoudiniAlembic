@@ -276,11 +276,10 @@ public:
 				UT_Matrix4D &xform,
 				bool &isConstant,
 				bool &inheritsXform);
-    /// Get the world transform for an GABC_IObject in an Alembic file.  If the
+    /// Get the world transform for a GABC_IObject in an Alembic file.  If the
     /// given node is a shape node, the transform up to its parent will be
     /// returned.
     static bool		 getWorldTransform(
-				const std::string &filename,
 				const GABC_IObject &object,
 				fpreal sample_time,
 				UT_Matrix4D &xform,
@@ -288,7 +287,6 @@ public:
 				bool &inheritsXform);
     /// Test whether an object is static or has an animated transform
     static bool		isTransformAnimated(
-				const std::string &filename,
 				const GABC_IObject &object);
 
     //
