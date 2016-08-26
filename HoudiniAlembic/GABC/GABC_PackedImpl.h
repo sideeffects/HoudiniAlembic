@@ -220,12 +220,14 @@ protected:
     {
     public:
 	GTCache()
-	    : myAnimationType(GEO_ANIMATION_INVALID)
+	    : myVisibility(NULL)
+	    , myAnimationType(GEO_ANIMATION_INVALID)
 	{
 	    clear();
 	}
 	GTCache(const GTCache &)
-	    : myAnimationType(GEO_ANIMATION_INVALID)
+	    : myVisibility(NULL)
+	    , myAnimationType(GEO_ANIMATION_INVALID)
 	{
 	    clear();	// Just clear
 	}
@@ -269,6 +271,7 @@ protected:
 	GT_TransformHandle	 myTransform;
 	GEO_AnimationType	 myAnimationType;
 	GEO_ViewportLOD		 myRep;
+	GABC_VisibilityCache	*myVisibility;
 	fpreal			 myFrame;
 	int			 myLoadStyle;
     };

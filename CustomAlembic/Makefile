@@ -53,6 +53,7 @@ EXTRALIBS = \
 ABCFLAGS = $(ABCDEF) -I$(ABCINC) -I$(HALFDIR)
 
 GABCCFILES = \
+	HoudiniAlembic/GABC/GABC_ChannelCache.C \
 	HoudiniAlembic/GABC/GABC_GEOWalker.C \
 	HoudiniAlembic/GABC/GABC_IArchive.C \
 	HoudiniAlembic/GABC/GABC_IArray.C \
@@ -67,7 +68,8 @@ GABCCFILES = \
 	HoudiniAlembic/GABC/GABC_PackedGT.C \
 	HoudiniAlembic/GABC/GABC_PackedImpl.C \
 	HoudiniAlembic/GABC/GABC_Types.C \
-	HoudiniAlembic/GABC/GABC_Util.C
+	HoudiniAlembic/GABC/GABC_Util.C \
+	HoudiniAlembic/GABC/GABC_Visibility.C
 GABCOFILES = $(GABCCFILES:.C=.o)
 GABCLIB = libs/libCustomGABC.so
 

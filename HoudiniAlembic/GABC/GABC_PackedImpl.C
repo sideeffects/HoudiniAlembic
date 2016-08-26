@@ -17,6 +17,7 @@
 
 #include "GABC_PackedImpl.h"
 #include "GABC_PackedGT.h"
+#include "GABC_Visibility.h"
 #include <UT/UT_JSONParser.h>
 #include <UT/UT_Debug.h>
 #include <UT/UT_MemoryCounter.h>
@@ -1005,6 +1006,8 @@ GABC_PackedImpl::animationType() const
 void
 GABC_PackedImpl::GTCache::clear()
 {
+    delete myVisibility;
+    myVisibility = NULL;
     myPrim = GT_PrimitiveHandle();
     myTransform = GT_TransformHandle();
     myRep = GEO_VIEWPORT_INVALID_MODE;
@@ -1021,6 +1024,8 @@ GABC_PackedImpl::GTCache::getMemoryUsage(bool inclusive) const
         mem += myPrim->getMemoryUsage();
     if (myTransform)
         mem += myTransform->getMemoryUsage();
+    if (myVisibility)
+        mem += myVisibility->getMemoryUsage(true);
 
     return mem;
 }
@@ -1199,16 +1204,39 @@ bool
 GABC_PackedImpl::GTCache::visible(const GABC_PackedImpl *abc)
 {
     if (!abc->useVisibility())
+    {
+	delete myVisibility;
+	myVisibility = NULL;
 	return true;
-
-    return abc->computeVisibility(true) != GABC_VISIBLE_HIDDEN;
+    }
+    if (!myVisibility)
+    {
+	const GABC_IObject	&o = abc->object();
+	if (!o.valid())
+	    return false;
+	myVisibility = o.visibilityCache();
+    }
+    UT_ASSERT(myVisibility);
+    myVisibility->update(abc->frame());
+    if (myAnimationType <= GEO_ANIMATION_CONSTANT && myVisibility->animated())
+    {
+	myAnimationType = GEO_ANIMATION_TRANSFORM;
+    }
+    return myVisibility->visible();
 }
 
 GABC_VisibilityType
 GABC_PackedImpl::computeVisibility(bool check_parent) const
 {
-    bool animated;
-    return GABC_Util::getVisibility(object(), frame(), animated, check_parent);
+    const GABC_IObject &o = object();
+    bool                animated;
+
+    if (!o.valid())
+    {
+	return GABC_VISIBLE_HIDDEN;
+    }
+
+    return o.visibility(animated, frame(), check_parent);
 }
 
 UT_StringHolder 
@@ -1237,15 +1265,13 @@ GABC_PackedImpl::GTCache::refreshTransform(const GABC_PackedImpl *abc)
     UT_AutoLock	lock(theLock);
     if (!myTransform)
     {
-	if (myAnimationType == GEO_ANIMATION_CONSTANT && abc->useVisibility())
+	if (myAnimationType == GEO_ANIMATION_CONSTANT
+		&& abc->useVisibility()
+		&& myVisibility
+		&& myVisibility->animated())
 	{
-	    bool animated;
-	    GABC_Util::getVisibility(abc->object(), abc->frame(), animated, true);
-	    if(animated)
-	    {
-		// Mark animated visibility as animated transforms
-		myAnimationType = GEO_ANIMATION_TRANSFORM;
-	    }
+	    // Mark animated visibility as animated transforms
+	    myAnimationType = GEO_ANIMATION_TRANSFORM;
 	}
 
 	UT_Matrix4D		xform;

@@ -32,10 +32,10 @@
 #include "GABC_Include.h"
 #include "GABC_Types.h"
 #include "GABC_IItem.h"
+#include "GABC_Visibility.h"
 #include <GEO/GEO_PackedNameMap.h>
 #include <UT/UT_Matrix4.h>
 #include <UT/UT_BoundingBox.h>
-#include <GT/GT_DataArray.h>
 #include <GT/GT_Handles.h>
 #include <Alembic/Abc/IObject.h>
 #include <Alembic/AbcGeom/GeometryScope.h>
@@ -45,13 +45,6 @@ class UT_StringArray;
 
 namespace GABC_NAMESPACE
 {
-
-enum GABC_VisibilityType
-{
-    GABC_VISIBLE_DEFER		= -1,
-    GABC_VISIBLE_HIDDEN		= 0,
-    GABC_VISIBLE_VISIBLE	= 1
-};
 
 /// This class wraps an Alembic IObject and provides convenience methods that
 /// allow thread-safe access to its data.
@@ -129,6 +122,10 @@ public:
     /// Query visibility
     GABC_VisibilityType	visibility(bool &animated, fpreal t,
 				bool check_parent=false) const;
+
+    /// Query the visibilty by acquiring a visibility cache.  Returns a new
+    /// cache.
+    GABC_VisibilityCache	*visibilityCache() const;
 
     /// Get animation type for this node.
     /// @note This only checks animation types of intrinsic properties
