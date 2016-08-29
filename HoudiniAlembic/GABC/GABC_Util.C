@@ -34,7 +34,6 @@
 #include <GT/GT_DAIndexedString.h>
 #include <GT/GT_DANumeric.h>
 #include <UT/UT_CappedCache.h>
-#include <UT/UT_Compare.h>
 #include <UT/UT_ErrorLog.h>
 #include <UT/UT_FSA.h>
 #include <UT/UT_FSATable.h>
