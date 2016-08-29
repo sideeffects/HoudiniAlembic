@@ -34,6 +34,7 @@
 #include <GT/GT_DAIndexedString.h>
 #include <GT/GT_DANumeric.h>
 #include <UT/UT_CappedCache.h>
+#include <UT/UT_Compare.h>
 #include <UT/UT_ErrorLog.h>
 #include <UT/UT_FSA.h>
 #include <UT/UT_FSATable.h>
@@ -208,12 +209,14 @@ namespace
     typedef Alembic::AbcGeom::IFaceSetSchema	    IFaceSetSchema;
     typedef Alembic::AbcGeom::ICamera		    ICamera;
     typedef Alembic::AbcGeom::XformSample	    XformSample;
+    typedef Alembic::AbcGeom::IVisibilityProperty   IVisibilityProperty;
 
     typedef GABC_Util::PathList			    PathList;
     typedef GABC_Util::PropertyMap                  PropertyMap;
     typedef GABC_Util::PropertyMapInsert            PropertyMapInsert;
 
     typedef UT_SymbolMap<LocalWorldXform>               AbcTransformMap;
+    typedef UT_SymbolMap<GABC_VisibilityType>		AbcVisibilityMap;
     typedef UT_SharedPtr<ArchiveCacheEntry>             ArchiveCacheEntryPtr;
     typedef UT_Map<std::string, ArchiveCacheEntryPtr>   ArchiveCache;
 
@@ -227,6 +230,7 @@ namespace
     static UT_Lock		theFileLock;
     static UT_Lock		theOCacheLock;
     static UT_Lock		theXCacheLock;
+    static UT_Lock		theVisibilityCacheLock;
 
     const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
@@ -317,6 +321,21 @@ namespace
 	LocalWorldXform	myX;
     };
 
+    // Used to store Visibility objects as items in a UT_CappedCache.
+    class ArchiveVisibilityItem : public UT_CappedItem
+    {
+    public:
+	ArchiveVisibilityItem() : UT_CappedItem(), myVisibility(GABC_VISIBLE_DEFER) {}
+	ArchiveVisibilityItem(GABC_VisibilityType vis)
+	    : UT_CappedItem(), myVisibility(vis) {}
+
+	virtual int64 getMemoryUsage() const  { return sizeof(*this); }
+	GABC_VisibilityType visibility() const   { return myVisibility; }
+
+    private:
+	GABC_VisibilityType myVisibility;
+    };
+
     // Used to store GABC_IObject objects as items in a UT_CappedCache.
     class ArchiveObjectItem : public UT_CappedItem
     {
@@ -384,6 +403,8 @@ namespace
         ArchiveCacheEntry()
 	    : myCache("abcObjects", 8)
 	    , myDynamicXforms("abcTransforms", 64)
+	    , myDynamicVisibility("abcVisibility", 64)
+	    , myDynamicFullVisibility("abcFullVisibility", 64)
 	    , myXformCacheBuilt(false)
         {}
         virtual ~ArchiveCacheEntry()
@@ -638,6 +659,131 @@ namespace
             return true;
         }
 
+	GABC_VisibilityType
+	getVisibilityInternal(const GABC_IObject &obj,
+	        fpreal now,
+		bool &animated,
+		bool check_parent)
+        {
+	    animated = false;
+
+            std::string path = obj.getFullName();
+	    ArchiveObjectKey key(path.c_str(), now);
+	    if(check_parent)
+	    {
+		// check if it is in our static full visibility cache
+		auto it = myStaticFullVisibility.find(path);
+		if (it != myStaticFullVisibility.map_end())
+		    return it->second;
+
+		// check if it is in our dynamic full visibility cache
+		UT_CappedItemHandle item = myDynamicFullVisibility.findItem(key);
+		if (item)
+		{
+		    animated = true;
+
+		    ArchiveVisibilityItem *vitem =
+			    UTverify_cast<ArchiveVisibilityItem *>(item.get());
+		    return vitem->visibility();
+		}
+	    }
+
+	    // check if it is in our static visibility cache
+	    GABC_VisibilityType vis = GABC_VISIBLE_DEFER;
+	    auto it = myStaticVisibility.find(path);
+	    if (it != myStaticVisibility.map_end())
+	    {
+		vis = it->second;
+		if(!check_parent || vis != GABC_VISIBLE_DEFER)
+		    return vis;
+	    }
+	    else
+	    {
+		// check if it is in our dynamic visibility cache
+		UT_CappedItemHandle item = myDynamicVisibility.findItem(key);
+		if (item)
+		{
+		    animated = true;
+
+		    ArchiveVisibilityItem *vitem =
+			    UTverify_cast<ArchiveVisibilityItem *>(item.get());
+		    vis = vitem->visibility();
+		    if(!check_parent || vis != GABC_VISIBLE_DEFER)
+			return vis;
+		}
+		else
+		{
+		    // compute visibility
+		    IObject o = obj.object();
+		    IVisibilityProperty vprop =
+				Alembic::AbcGeom::GetVisibilityProperty(o);
+		    if (vprop.valid())
+		    {
+			animated = !vprop.isConstant();
+			ISampleSelector iss(now);
+
+			switch (vprop.getValue(iss))
+			{
+			    default:
+				UT_ASSERT(0 && "Strange visibility value");
+				// fall through...
+
+			    case -1:
+				vis = GABC_VISIBLE_DEFER;
+				break;
+
+			    case 0:
+				vis = GABC_VISIBLE_HIDDEN;
+				break;
+
+			    case 1:
+				vis = GABC_VISIBLE_VISIBLE;
+				break;
+			}
+		    }
+
+		    // cache computed visibility
+		    if(animated)
+			myDynamicVisibility.addItem(key, new ArchiveVisibilityItem(vis));
+		    else
+			myStaticVisibility[path] = vis;
+		}
+	    }
+
+	    if(check_parent && vis == GABC_VISIBLE_DEFER)
+	    {
+		GABC_IObject parent = obj.getParent();
+		if(parent.valid())
+		{
+		    // recurse up to parent
+		    bool parent_animated;
+		    vis = getVisibilityInternal(parent, now, parent_animated, true);
+		    animated |= parent_animated;
+		}
+		else
+		    vis = GABC_VISIBLE_VISIBLE;
+
+		// cache visibility
+		if(animated)
+		    myDynamicFullVisibility.addItem(key, new ArchiveVisibilityItem(vis));
+		else
+		    myStaticFullVisibility[path] = vis;
+	    }
+
+	    return vis;
+	}
+
+	/// Get an object's visibility
+	GABC_VisibilityType
+	getVisibility(const GABC_IObject &obj,
+	        fpreal now,
+		bool &animated,
+		bool check_parent)
+        {
+            UT_AutoLock	lock(theVisibilityCacheLock);
+	    return getVisibilityInternal(obj, now, animated, check_parent);
+	}
+
 	/// Find an object in the object cache -- this prevents having to
 	/// traverse from the root every time we need an object.
 	GABC_IObject
@@ -796,6 +942,10 @@ namespace
 	AbcTransformMap		myStaticXforms;
 	UT_CappedCache		myCache;
 	UT_CappedCache		myDynamicXforms;
+	AbcVisibilityMap	myStaticVisibility;
+	AbcVisibilityMap	myStaticFullVisibility;
+	UT_CappedCache		myDynamicVisibility;
+	UT_CappedCache		myDynamicFullVisibility;
 	HandlerSetType		myHandlers;
     };
 
@@ -1982,6 +2132,35 @@ GABC_Util::isTransformAnimated(const GABC_IObject &obj)
     }
 
     return animated;
+}
+
+GABC_VisibilityType
+GABC_Util::getVisibility(
+    const GABC_IObject &obj,
+    fpreal sample_time,
+    bool &animated,
+    bool check_parent)
+{
+    GABC_VisibilityType vis = GABC_VISIBLE_HIDDEN;
+    animated = false;
+    if (obj.valid())
+    {
+	try
+	{
+	    std::string filename = obj.archive()->filename();
+	    ArchiveCacheEntryPtr cacheEntry = LoadArchive(filename);
+	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
+	    vis = cacheEntry->getVisibility(obj, sample_time, animated,
+					    check_parent);
+	}
+	catch (const std::exception &)
+	{
+	    vis = GABC_VISIBLE_HIDDEN;
+	    animated = false;
+	}
+    }
+
+    return vis;
 }
 
 bool

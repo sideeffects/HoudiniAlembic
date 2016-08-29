@@ -31,7 +31,6 @@
 #include "GABC_IArchive.h"
 #include "GABC_Util.h"
 #include "GABC_GTUtil.h"
-#include "GABC_ChannelCache.h"
 #include <SYS/SYS_AtomicInt.h>
 #include <GEO/GEO_PackedNameMap.h>
 #include <GEO/GEO_PrimPacked.h>
@@ -2833,131 +2832,8 @@ GABC_IObject::isMayaLocator() const
 GABC_VisibilityType
 GABC_IObject::visibility(bool &animated, fpreal t, bool check_parent) const
 {
-    animated = false;
-    GABC_AlembicLock lock(archive());
-    ISampleSelector iss(t);
-    for (IObject obj = myObject; obj.valid(); obj = obj.getParent())
-    {
-	IVisibilityProperty vprop = Alembic::AbcGeom::GetVisibilityProperty(obj);
-	if (vprop.valid())
-	{
-	    animated |= !vprop.isConstant();
-
-	    switch (vprop.getValue(iss))
-	    {
-		default:
-		    UT_ASSERT(0 && "Strange visibility value");
-		    // fall through...
-
-		case -1:
-		    if (check_parent)
-			break;
-		    return GABC_VISIBLE_DEFER;
-
-		case 0:
-		    return GABC_VISIBLE_HIDDEN;
-
-		case 1:
-		    return GABC_VISIBLE_VISIBLE;
-	    }
-	}
-    }
-    return GABC_VISIBLE_VISIBLE;
+    return GABC_Util::getVisibility(*this, t, animated, check_parent);
 }
-
-GABC_VisibilityCache *
-GABC_IObject::visibilityCache() const
-{
-    // TODO: This reqires lots of traversal of the hierarchy, so it might be a
-    // good idea to have a cache.
-
-    if (!myObject.valid())
-    {
-	return new GABC_VisibilityCache();
-    }
-
-    GABC_AlembicLock	lock(archive());
-    GABC_IObject        parent(getParent());
-    IVisibilityProperty	vprop = Alembic::AbcGeom::GetVisibilityProperty(
-				    const_cast<IObject &>(myObject));
-    if (vprop.valid())
-    {
-	GABC_VisibilityType     vis;
-	GT_DABool              *bits;
-	TimeSamplingPtr         t_samp = vprop.getTimeSampling();
-	exint                   nsamples = vprop.getNumSamples();
-	exint                   ntrue = 0;
-	bool                    anim;
-
-	switch (vprop.getValue(ISampleSelector((index_t)0)))
-	{
-	    case -1:
-                vis = GABC_VISIBLE_DEFER;
-                break;
-
-	    case 0:
-	        vis = GABC_VISIBLE_HIDDEN;
-                break;
-
-	    case 1:
-	        vis = GABC_VISIBLE_VISIBLE;
-                break;
-	}
-
-	if (vprop.isConstant())
-	{
-	    if (vis == GABC_VISIBLE_DEFER)
-	    {
-	        return parent.visibilityCache();
-	    }
-
-	    return new GABC_VisibilityCache(vis, NULL);
-	}
-
-	// Create a data array for the visibility cache
-	bits = new GT_DABool(nsamples);
-	bits->setAllBits(false);
-	for (exint i = 0; i < nsamples; ++i)
-	{
-	    index_t idx = (index_t)i;
-	    switch (vprop.getValue(ISampleSelector(idx)))
-	    {
-	        case -1:
-	            if (parent.visibility(anim, t_samp->getSampleTime(idx), true))
-	            {
-                        bits->setBit(i, true);
-                        ++ntrue;
-	            }
-	            break;
-
-	        case 1:
-	            bits->setBit(i, true);
-                    ++ntrue;
-                    break;
-
-                default:
-                    break;
-	    }
-	}
-
-	if (ntrue == nsamples || ntrue == 0)
-	{
-	    return new GABC_VisibilityCache(ntrue ? GABC_VISIBLE_VISIBLE
-						  : GABC_VISIBLE_HIDDEN, NULL);
-	}
-
-	return new GABC_VisibilityCache(vis,
-                new GABC_ChannelCache(GT_DataArrayHandle(bits), t_samp));
-    }
-
-    if (!parent.valid())
-    {
-	return new GABC_VisibilityCache(GABC_VISIBLE_VISIBLE, NULL);
-    }
-
-    return parent.visibilityCache();
-}
-
 GEO_AnimationType
 GABC_IObject::getAnimationType(bool include_transform) const
 {
