@@ -159,6 +159,15 @@ private:
 	    UT_Array<ROP_AbcNodeInstance *> myInstances;
 	};
 
+	class rop_TransformAndShape
+	{
+	public:
+	    rop_TransformAndShape() : myXform(nullptr), myChildIndex(-1) {}
+
+	    ROP_AbcNodeXform *myXform;
+	    exint myChildIndex;
+	};
+
     public:
 	rop_RefinedGeoAssignments(ROP_AbcNode *parent)
 	    : myParent(parent), myMatrix(1), myLocked(false),
@@ -195,6 +204,7 @@ private:
 	// use sorted maps so name collisions are resolved deterministicly
 	UT_SortedMap<std::tuple<std::string, int, bool>, UT_Array<ROP_AbcNodeShape *> > myShapes;
 	UT_SortedMap<std::tuple<std::string, int, bool>, UT_Array<rop_Instance> > myInstances;
+	UT_SortedMap<std::pair<std::string, bool>, UT_Array<rop_TransformAndShape> > myTransformAndShapes;
 	UT_Array<rop_RefinedGeoAssignments> myChildren;
 	bool myLocked;
 	bool myWarnedRoot;

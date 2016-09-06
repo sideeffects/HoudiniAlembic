@@ -160,17 +160,20 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		const GT_GEOPrimPacked *packed =
 			    static_cast<const GT_GEOPrimPacked *>(geo.get());
 
+		// use the packed primitive's pivot as the geometry's origin
+		UT_Matrix4D prim_xform;
+		packed->getPrimitiveTransform()->getMatrix(prim_xform, 0);
 		UT_Vector3 pivot;
 		packed->getPrim()->getPivot(pivot);
 		UT_Matrix4D m(1);
 		m.setTranslates(pivot);
+		m *= prim_xform;
 
 		GT_TransformArrayHandle xforms_copy =
 			inst->transforms()->preMultiply(new GT_Transform(&m, 1));
 
-		m.setTranslates(-pivot);
+		m.invert();
 		GT_PrimitiveHandle geo_copy = geo->copyTransformed(new GT_Transform(&m, 1));
-
 		GT_PrimInstance instance(geo_copy, xforms_copy,
 					 inst->packedPrimOffsets(),
 					 inst->uniform(),
@@ -287,17 +290,21 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		return false;
 	    }
 
-	    UT_Matrix4D prim_xform;
-	    prim->getPrimitiveTransform()->getMatrix(prim_xform, 0);
-
 	    const GT_GEOPrimPacked *packed =
 			static_cast<const GT_GEOPrimPacked *>(prim.get());
 
+	    // use the packed primitive's pivot as the geometry's origin
+	    UT_Matrix4D prim_xform;
+	    packed->getPrimitiveTransform()->getMatrix(prim_xform, 0);
+	    const GU_PrimPacked *p = packed->getPrim();
 	    UT_Vector3 pivot;
-	    packed->getPrim()->getPivot(pivot);
+	    p->getPivot(pivot);
 	    UT_Matrix4D m(1);
 	    m.setTranslates(pivot);
 
+	    UT_Matrix4D packed_xform;
+	    p->getFullTransform4(packed_xform);
+	    m *= packed_xform;
 	    prim_xform = m * prim_xform;
 
 	    if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT)
@@ -312,27 +319,34 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		return true;
 	    }
 
-	    m.setTranslates(-pivot);
+	    m.invert();
 	    GT_PrimitiveHandle copy = prim->doSoftCopy();
 	    copy->setPrimitiveTransform(new GT_Transform(&m, 1));
 	    if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORM_AND_SHAPE)
 	    {
+		auto &rop_i = myAssignments.myTransformAndShapes[std::make_pair(myName, mySubd)];
 		// create transform node
 		exint idx = myPackedCount++;
 		auto &children = myAssignments.myChildren;
-		while(idx >= children.entries())
+		while(idx >= rop_i.entries())
+		    rop_i.append(rop_TransformAndShape());
+
+		auto &xform_and_shape = rop_i(idx);
+		if(!xform_and_shape.myXform)
 		{
 		    UT_WorkBuffer buf;
 		    buf.append(myName.c_str());
-		    buf.appendSprintf("_packed%" SYS_PRId64,
-				      children.entries() + 1);
+		    buf.appendSprintf("_packed%" SYS_PRId64, idx + 1);
+
+		    xform_and_shape.myChildIndex = children.entries();
+		    xform_and_shape.myXform =
+			myAssignments.newXformNode(buf.buffer(), myArchive);
+
 		    children.append(
-			rop_RefinedGeoAssignments(
-			    myAssignments.newXformNode(buf.buffer(),
-						       myArchive)));
+			rop_RefinedGeoAssignments(xform_and_shape.myXform));
 		}
 
-		auto &assignment = children[idx];
+		auto &assignment = children[xform_and_shape.myChildIndex];
 		ROP_AbcNode *parent = assignment.myParent;
 		static_cast<ROP_AbcNodeXform *>(parent)->setData(prim_xform, true);
 		assignment.refine(copy, myPackedMode, myFacesetMode, mySubd,
