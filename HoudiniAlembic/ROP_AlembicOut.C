@@ -301,10 +301,6 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	    p->getPivot(pivot);
 	    UT_Matrix4D m(1);
 	    m.setTranslates(pivot);
-
-	    UT_Matrix4D packed_xform;
-	    p->getFullTransform4(packed_xform);
-	    m *= packed_xform;
 	    prim_xform = m * prim_xform;
 
 	    if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT)
