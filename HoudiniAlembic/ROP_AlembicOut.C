@@ -38,6 +38,7 @@
 #include <GT/GT_GEOPrimPacked.h>
 #include <GT/GT_PrimCollect.h>
 #include <GT/GT_PrimInstance.h>
+#include <GU/GU_PackedFragment.h>
 #include <OBJ/OBJ_Camera.h>
 #include <OBJ/OBJ_Geometry.h>
 #include <OBJ/OBJ_Node.h>
@@ -163,10 +164,17 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		// use the packed primitive's pivot as the geometry's origin
 		UT_Matrix4D prim_xform;
 		packed->getPrimitiveTransform()->getMatrix(prim_xform, 0);
+		const GU_PrimPacked *p = packed->getPrim();
 		UT_Vector3 pivot;
-		packed->getPrim()->getPivot(pivot);
+		p->getPivot(pivot);
 		UT_Matrix4D m(1);
 		m.setTranslates(pivot);
+		if(p->getTypeId() == GU_PackedFragment::typeId())
+		{
+		    UT_Matrix4D packed_xform;
+		    p->getFullTransform4(packed_xform);
+		    m *= packed_xform;
+		}
 		m *= prim_xform;
 
 		GT_TransformArrayHandle xforms_copy =
@@ -301,6 +309,12 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	    p->getPivot(pivot);
 	    UT_Matrix4D m(1);
 	    m.setTranslates(pivot);
+	    if(p->getTypeId() == GU_PackedFragment::typeId())
+	    {
+		UT_Matrix4D packed_xform;
+		p->getFullTransform4(packed_xform);
+		m *= packed_xform;
+	    }
 	    prim_xform = m * prim_xform;
 
 	    if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT)
