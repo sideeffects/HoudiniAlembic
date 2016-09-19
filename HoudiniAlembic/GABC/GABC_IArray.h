@@ -55,17 +55,6 @@ public:
     typedef Alembic::Abc::chrono_t		chrono_t;
     typedef Alembic::Abc::PlainOldDataType	PlainOldDataType;
 
-    /// Create an array wrapper for the given array sample.
-    /// The @c interp is the "intepretation", which is one of
-    ///	 - "point"
-    ///	 - "vector"
-    ///	 - "matrix"
-    ///	 - "normal"
-    ///	 - "quat"
-    /// (see Abc/TypedPropertyTraits.h)
-    static GABC_IArray getSample(GABC_IArchive &arch,
-		const ArraySamplePtr &sample, const char *interp,
-		int array_extent, bool is_constant);
     /// Create an array wrapper for the given array sample with the specified
     /// GT_Type as the interpretation.
     static GABC_IArray getSample(GABC_IArchive &arch,
@@ -74,20 +63,20 @@ public:
 
     static GABC_IArray getSample(GABC_IArchive &arch,
 		const IArrayProperty &prop, index_t index,
-		GT_Type override_type=GT_TYPE_NONE)
+		GT_Type type=GT_TYPE_NONE)
     {
-	return getSample(arch, prop, ISampleSelector(index), override_type);
+	return getSample(arch, prop, ISampleSelector(index), type);
     }
     static GABC_IArray getSample(GABC_IArchive &arch,
 		const IArrayProperty &prop, chrono_t time,
-		GT_Type override_type=GT_TYPE_NONE)
+		GT_Type type=GT_TYPE_NONE)
     {
-	return getSample(arch, prop, ISampleSelector(time), override_type);
+	return getSample(arch, prop, ISampleSelector(time), type);
     }
     // If a type is specified, the implicit array type will be overridden
     static GABC_IArray getSample(GABC_IArchive &arch,
 		const IArrayProperty &prop, const ISampleSelector &iss,
-		GT_Type override_type);
+		GT_Type type);
 
     GABC_IArray()
 	: GABC_IItem()

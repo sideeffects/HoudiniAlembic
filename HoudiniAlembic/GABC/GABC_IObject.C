@@ -893,10 +893,6 @@ namespace
 	}
     }
 
-    #define LOOKUP_TYPE(VAR) \
-	GABC_GTUtil::getGTTypeInfo(VAR::traits_type::interpretation(), \
-				VAR->getDataType().getExtent())
-
     #define SET_ARRAY(VAR, NAME, TYPEINFO, NAMEMAP) \
 	if (VAR && *VAR && (!NAMEMAP || NAMEMAP->matchPattern(GA_ATTRIB_POINT, NAME))) { \
 	    if (ONLY_ANIMATING && VAR->isConstant()) \
@@ -1105,7 +1101,7 @@ namespace
 		GT_Storage	store = getGTStorage(arb, header);
 		if (store == GT_STORE_INVALID)
 		    continue;
-		GT_DataArrayHandle data = obj.convertIProperty(arb, header, t, 0, expected_size);
+		GT_DataArrayHandle data = obj.convertIProperty(arb, header, t, namemap, 0, expected_size);
 		if(data)
 		{
 		    setAttributeData(alist, obj, name, data, filled);
@@ -3405,20 +3401,33 @@ GT_DataArrayHandle
 GABC_IObject::convertIProperty(ICompoundProperty &parent,
 			    const PropertyHeader &header,
 			    fpreal t,
+			    const GEO_PackedNameMapPtr &namemap,
 			    GEO_AnimationType *atype,
 			    exint expected_size) const
 {
     GABC_IArchive	&arch = *(archive().get());
     if (header.isArray())
     {
-	IArrayProperty	prop(parent, header.getName());
+	const std::string &name = header.getName();
+	IArrayProperty	prop(parent, name);
 	if (atype)
 	{
 	    *atype = prop.isConstant() ? GEO_ANIMATION_CONSTANT
 				    : GEO_ANIMATION_ATTRIBUTE;
 	}
-	// Pick up the type from the property interpretation
-	return readArrayProperty(arch, prop, t, GT_TYPE_NONE, expected_size);
+
+	auto &metadata = prop.getMetaData();
+	std::string interp = metadata.get("interpretation");
+	int size = prop.getDataType().getExtent();
+
+	GT_Type type = GABC_GTUtil::getGTTypeInfo(interp.c_str(), size);
+	if(namemap)
+	{
+	    const char *typeinfo = namemap->getTypeInfo(name);
+	    if(typeinfo)
+		type = GABC_GTUtil::getGTTypeInfo(typeinfo, size);
+	}
+	return readArrayProperty(arch, prop, t, type, expected_size);
     }
     else if (header.isScalar())
     {
@@ -3439,8 +3448,8 @@ GABC_IObject::convertIProperty(ICompoundProperty &parent,
 	{
 	    GT_DataArrayHandle	gtidx, gtval;
 	    GEO_AnimationType	atidx, atval;
-	    gtidx = convertIProperty(comp, *hidx, t, &atidx, expected_size);
-	    gtval = convertIProperty(comp, *hval, t, &atval, -1);
+	    gtidx = convertIProperty(comp, *hidx, t, namemap, &atidx, expected_size);
+	    gtval = convertIProperty(comp, *hval, t, namemap, &atval);
 	    if (gtidx && gtval)
 	    {
 		GT_DataArray	*gt = new GT_DAIndirect(gtidx, gtval);
@@ -3517,7 +3526,7 @@ GABC_IObject::getGeometryProperty(exint index, fpreal t,
 	{
 	    const PropertyHeader	&header = arb.getPropertyHeader(index);
 	    name = header.getName();
-	    data = convertIProperty(arb, header, t, &atype, -1);
+	    data = convertIProperty(arb, header, t, GEO_PackedNameMapPtr(), &atype);
 	    scope = getArbitraryPropertyScope(header);
 	}
     }
@@ -3542,7 +3551,7 @@ GABC_IObject::getGeometryProperty(const std::string &name, fpreal t,
 	    const PropertyHeader	*header = arb.getPropertyHeader(name);
 	    if (header)
 	    {
-		data = convertIProperty(arb, *header, t, &atype, -1);
+		data = convertIProperty(arb, *header, t, GEO_PackedNameMapPtr(), &atype);
 		scope = getArbitraryPropertyScope(*header);
 	    }
 	}
@@ -3575,7 +3584,7 @@ GABC_IObject::getUserProperty(exint index, fpreal t,
 	{
 	    const PropertyHeader	&header = arb.getPropertyHeader(index);
 	    name = header.getName();
-	    data = convertIProperty(arb, header, t, &atype, -1);
+	    data = convertIProperty(arb, header, t, GEO_PackedNameMapPtr(), &atype);
 	}
     }
     catch (const std::exception &)
@@ -3599,7 +3608,7 @@ GABC_IObject::getUserProperty(const std::string &name, fpreal t,
 	    const PropertyHeader	*header = arb.getPropertyHeader(name);
 	    if (header)
 	    {
-		data = convertIProperty(arb, *header, t, &atype, -1);
+		data = convertIProperty(arb, *header, t, GEO_PackedNameMapPtr(), &atype);
 	    }
 	}
     }

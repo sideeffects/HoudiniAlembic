@@ -1692,7 +1692,8 @@ namespace
                 const DataType     &dt = header->getDataType();
                 GT_DataArrayHandle  da = obj.convertIProperty(uprops,
                                             *header,
-                                            time);
+                                            time,
+					    GEO_PackedNameMapPtr());
 
                 // Writes GT_DataArray to JSON array, creating nested arrays
                 // if tuple size is greater than 1.

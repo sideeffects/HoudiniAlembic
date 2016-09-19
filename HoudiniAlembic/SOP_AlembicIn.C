@@ -332,12 +332,28 @@ SOP_AlembicIn2::myConstructor(OP_Network *net, const char *name, OP_Operator *op
 }
 
 //-*****************************************************************************
+static PRM_Name typeInfoOptions[] = {
+    PRM_Name("keep", "Keep Type Info"),
+    PRM_Name("clear", "Clear Type Info"),
+    PRM_Name("matrix", "Set To Matrix"),
+    PRM_Name("normal", "Set To Normal"),
+    PRM_Name("point", "Set To Point"),
+    PRM_Name("quat", "Set To Quaternion"),
+    PRM_Name("rgb", "Set To Color"),
+    PRM_Name("vector", "Set To Vector"),
+    PRM_Name()
+};
+static PRM_ChoiceList menu_typeInfo(PRM_CHOICELIST_SINGLE, typeInfoOptions);
+static PRM_Default prm_typeInfoDefault(0, "keep");
 
 static PRM_Name prm_abcAttribName("abcName#", "Alembic Name #");
 static PRM_Name prm_hAttribName("hName#", "Houdini Name #");
+static PRM_Name prm_typeInfoName("typeInfo#", "Type Info");
 static PRM_Template prm_AttributeRemapTemplate[] = {
     PRM_Template(PRM_STRING, 1, &prm_abcAttribName),
     PRM_Template(PRM_STRING, 1, &prm_hAttribName),
+    PRM_Template(PRM_ORD, 1, &prm_typeInfoName, &prm_typeInfoDefault,
+	    &menu_typeInfo),
     PRM_Template()
 };
 
@@ -934,11 +950,22 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     parms.myNameMapPtr = new GEO_PackedNameMap();
     for (int i = 1; i <= nmapSize; ++i)
     {
-	UT_String	abcName, hName;
+	UT_String abcName;
 	evalStringInst("abcName#", &i, abcName, 0, now);
-	evalStringInst("hName#", &i, hName, 0, now);
-	if (abcName.isstring() && hName.isstring())
-	    parms.myNameMapPtr->addMap(abcName, hName);
+	if (abcName.isstring())
+	{
+	    UT_String hName, typeInfo;
+	    evalStringInst("hName#", &i, hName, 0, now);
+	    evalStringInst("typeInfo#", &i, typeInfo, 0, now);
+	    if (hName.isstring())
+		parms.myNameMapPtr->addMap(abcName, hName);
+	    if (typeInfo.isstring() && typeInfo != "keep")
+	    {
+		if(typeInfo == "clear")
+		    typeInfo = "";
+		parms.myNameMapPtr->addTypeInfo(abcName, typeInfo);
+	    }
+	}
     }
     for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
     {

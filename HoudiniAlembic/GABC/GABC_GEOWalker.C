@@ -556,6 +556,14 @@ namespace {
                 nprim,
                 promote_points);
 
+	auto &namemap = walk.nameMapPtr();
+	if(namemap)
+	{
+	    const char *typeinfo = namemap->getTypeInfo(abcname);
+	    if(typeinfo)
+		interp = typeinfo;
+	}
+
 	attrib = findAttribute(gdp,
 	        owner,
 	        name,

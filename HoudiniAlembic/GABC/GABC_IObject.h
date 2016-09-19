@@ -233,6 +233,7 @@ public:
     GT_DataArrayHandle	convertIProperty(ICompoundProperty &arb,
 					const PropertyHeader &head,
 					fpreal time,
+					const GEO_PackedNameMapPtr &namemap,
 					GEO_AnimationType *atype=NULL,
 					exint expected_size=-1) const;
 
