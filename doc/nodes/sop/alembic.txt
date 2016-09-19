@@ -382,4 +382,4 @@ Remap attributes:
     Use this multiparm to rename Alembic point, vertex, and/or primitive
     attributes to their Houdini equivalents and optionally change their type
     info.  For example, remapping `MyColor` to `Cd` (diffuse color). Click
-    the + button to add a new mapping.
+    the ((+)) button to add a new mapping.
