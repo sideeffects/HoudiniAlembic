@@ -163,18 +163,13 @@ Subdivision Group:
 
 Object Path:
     #id: objectPath
-
-	A path to one or more objects inside the archive. If specified, the
-	node will load only these object and their children. The default is
-	blank, which means load all the geometry in the archive.
+    
+    A path to one or more objects inside the archive. If specified, the node will load only these object and their children. The default is blank, which means load all the geometry in the archive.
 
 Object Exclude:
     #id: objectExclude
-
-	A path to one or more objects inside the archive. If specified, the
-	node will skip loading these objects and their children. These
-	exclusions override the objects specified in the Object Path. The
-	default is blank, which means don't exclude any objects.
+    
+    A path to one or more objects inside the archive. If specified, the node will skip loading these objects and their children. These exclusions override the objects specified in the Object Path. The default is blank, which means don't exclude any objects.
 
 Object Pattern:
     #id: objectPattern
