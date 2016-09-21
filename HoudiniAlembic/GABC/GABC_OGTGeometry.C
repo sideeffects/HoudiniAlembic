@@ -56,49 +56,49 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef Alembic::Abc::OCompoundProperty	OCompoundProperty;
-    typedef Alembic::Abc::TimeSamplingPtr	TimeSamplingPtr;
+    using OCompoundProperty = Alembic::Abc::OCompoundProperty;
+    using TimeSamplingPtr = Alembic::Abc::TimeSamplingPtr;
 
-    typedef Alembic::Abc::V2f			V2f;
-    typedef Alembic::Abc::V3f			V3f;
-    typedef Alembic::Abc::UcharArraySample	UcharArraySample;
-    typedef Alembic::Abc::UcharArraySample	UInt8ArraySample;
-    typedef Alembic::Abc::Int32ArraySample	Int32ArraySample;
-    typedef Alembic::Abc::UInt32ArraySample	UInt32ArraySample;
-    typedef Alembic::Abc::UInt64ArraySample	UInt64ArraySample;
-    typedef Alembic::Abc::FloatArraySample	FloatArraySample;
-    typedef Alembic::Abc::V2fArraySample	V2fArraySample;
-    typedef Alembic::Abc::V3fArraySample	V3fArraySample;
-    typedef Alembic::Abc::P3fArraySample	P3fArraySample;
-    typedef Alembic::Abc::P3fArraySamplePtr	P3fArraySamplePtr;
+    using V2f = Alembic::Abc::V2f;
+    using V3f = Alembic::Abc::V3f;
+    using UcharArraySample = Alembic::Abc::UcharArraySample;
+    using UInt8ArraySample = Alembic::Abc::UcharArraySample;
+    using Int32ArraySample = Alembic::Abc::Int32ArraySample;
+    using UInt32ArraySample = Alembic::Abc::UInt32ArraySample;
+    using UInt64ArraySample = Alembic::Abc::UInt64ArraySample;
+    using FloatArraySample = Alembic::Abc::FloatArraySample;
+    using V2fArraySample = Alembic::Abc::V2fArraySample;
+    using V3fArraySample = Alembic::Abc::V3fArraySample;
+    using P3fArraySample = Alembic::Abc::P3fArraySample;
+    using P3fArraySamplePtr = Alembic::Abc::P3fArraySamplePtr;
 
-    typedef Alembic::AbcGeom::ObjectVisibility	ObjectVisibility;
+    using ObjectVisibility = Alembic::AbcGeom::ObjectVisibility;
 
-    typedef Alembic::AbcGeom::OFaceSet		OFaceSet;
-    typedef Alembic::AbcGeom::OPolyMesh		OPolyMesh;
-    typedef Alembic::AbcGeom::OSubD		OSubD;
-    typedef Alembic::AbcGeom::OCurves		OCurves;
-    typedef Alembic::AbcGeom::OPoints		OPoints;
-    typedef Alembic::AbcGeom::ONuPatch		ONuPatch;
+    using OFaceSet = Alembic::AbcGeom::OFaceSet;
+    using OPolyMesh = Alembic::AbcGeom::OPolyMesh;
+    using OSubD = Alembic::AbcGeom::OSubD;
+    using OCurves = Alembic::AbcGeom::OCurves;
+    using OPoints = Alembic::AbcGeom::OPoints;
+    using ONuPatch = Alembic::AbcGeom::ONuPatch;
 
-    typedef Alembic::AbcGeom::OFaceSetSchema	OFaceSetSchema;
-    typedef Alembic::AbcGeom::OPolyMeshSchema	OPolyMeshSchema;
-    typedef Alembic::AbcGeom::OSubDSchema	OSubDSchema;
-    typedef Alembic::AbcGeom::OCurvesSchema	OCurvesSchema;
-    typedef Alembic::AbcGeom::OPointsSchema	OPointsSchema;
-    typedef Alembic::AbcGeom::ONuPatchSchema	ONuPatchSchema;
+    using OFaceSetSchema = Alembic::AbcGeom::OFaceSetSchema;
+    using OPolyMeshSchema = Alembic::AbcGeom::OPolyMeshSchema;
+    using OSubDSchema = Alembic::AbcGeom::OSubDSchema;
+    using OCurvesSchema = Alembic::AbcGeom::OCurvesSchema;
+    using OPointsSchema = Alembic::AbcGeom::OPointsSchema;
+    using ONuPatchSchema = Alembic::AbcGeom::ONuPatchSchema;
 
-    typedef Alembic::AbcGeom::OFloatGeomParam	OFloatGeomParam;
-    typedef Alembic::AbcGeom::OP3fGeomParam	OP3fGeomParam;
-    typedef Alembic::AbcGeom::OV2fGeomParam	OV2fGeomParam;
-    typedef Alembic::AbcGeom::OV3fGeomParam	OV3fGeomParam;
-    typedef Alembic::AbcGeom::ON3fGeomParam	ON3fGeomParam;
+    using OFloatGeomParam = Alembic::AbcGeom::OFloatGeomParam;
+    using OP3fGeomParam = Alembic::AbcGeom::OP3fGeomParam;
+    using OV2fGeomParam = Alembic::AbcGeom::OV2fGeomParam;
+    using OV3fGeomParam = Alembic::AbcGeom::OV3fGeomParam;
+    using ON3fGeomParam = Alembic::AbcGeom::ON3fGeomParam;
 
-    typedef GABC_OGTGeometry::PropertyMap       PropertyMap;
-    typedef GABC_OGTGeometry::PropertyMapInsert PropertyMapInsert;
-    typedef GABC_OGTGeometry::IgnoreList        IgnoreList;
-    typedef GABC_OGTGeometry::IntrinsicCache    IntrinsicCache;
-    typedef GABC_OGTGeometry::SecondaryCache    SecondaryCache;
+    using PropertyMap = GABC_OGTGeometry::PropertyMap;
+    using PropertyMapInsert = GABC_OGTGeometry::PropertyMapInsert;
+    using IgnoreList = GABC_OGTGeometry::IgnoreList;
+    using IntrinsicCache = GABC_OGTGeometry::IntrinsicCache;
+    using SecondaryCache = GABC_OGTGeometry::SecondaryCache;
 
     static UT_FSATableT<GT_Owner, GT_OWNER_INVALID>	theXlateOwner(
 	    GT_OWNER_POINT,	"pt",
@@ -160,7 +160,7 @@ namespace
 	    GT_Owner				myGTOwner;
 	    Alembic::AbcGeom::GeometryScope	myScope;
 	};
-	typedef UT_Map<Key, Item, UT_HashFunctor<Key> >	MapType;
+	using MapType = UT_Map<Key, Item, UT_HashFunctor<Key>>;
 
 	RiXlate(const GT_Primitive &prim, int type)
 	{
@@ -480,8 +480,8 @@ namespace
 	if (!cache.needWrite(ctx, name, data))
 	    return true;
 
-	typedef Alembic::Abc::TypedArraySample<TRAITS>	ArraySample;
-	typedef typename TRAITS::value_type		ValueType;
+	using ArraySample = Alembic::Abc::TypedArraySample<TRAITS>;
+	using ValueType = typename TRAITS::value_type;
 	int tsize = TRAITS::dataType().getExtent();
 	int n = data->entries();
 	const fpreal32 *flatarray =

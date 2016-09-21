@@ -301,12 +301,12 @@ public:
 private:
 };
 
-typedef GABC_IGTArray<uint8, GT_STORE_UINT8>		GABC_GTUnsigned8Array;
-typedef GABC_IGTArray<int32, GT_STORE_INT32>		GABC_GTInt32Array;
-typedef GABC_IGTArray<int64, GT_STORE_INT64>		GABC_GTInt64Array;
-typedef GABC_IGTArray<fpreal16, GT_STORE_REAL16>	GABC_GTReal16Array;
-typedef GABC_IGTArray<fpreal32, GT_STORE_REAL32>	GABC_GTReal32Array;
-typedef GABC_IGTArray<fpreal64, GT_STORE_REAL64>	GABC_GTReal64Array;
+using GABC_GTUnsigned8Array = GABC_IGTArray<uint8, GT_STORE_UINT8>;
+using GABC_GTInt32Array = GABC_IGTArray<int32, GT_STORE_INT32>;
+using GABC_GTInt64Array = GABC_IGTArray<int64, GT_STORE_INT64>;
+using GABC_GTReal16Array = GABC_IGTArray<fpreal16, GT_STORE_REAL16>;
+using GABC_GTReal32Array = GABC_IGTArray<fpreal32, GT_STORE_REAL32>;
+using GABC_GTReal64Array = GABC_IGTArray<fpreal64, GT_STORE_REAL64>;
 
 GABC_API extern GT_DataArrayHandle GABCarray(const GABC_IArray &iarray);
 }

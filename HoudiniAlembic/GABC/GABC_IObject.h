@@ -61,14 +61,14 @@ enum GABC_VisibilityType
 class GABC_API GABC_IObject : public GABC_IItem
 {
 public:
-    typedef Alembic::Abc::M44d			    M44d;
-    typedef Alembic::Abc::IObject		    IObject;
-    typedef Alembic::Abc::ObjectHeader		    ObjectHeader;
-    typedef Alembic::Abc::ICompoundProperty	    ICompoundProperty;
-    typedef Alembic::Abc::PropertyHeader	    PropertyHeader;
-    typedef Alembic::Abc::TimeSamplingPtr	    TimeSamplingPtr;
-    typedef Alembic::AbcGeom::GeometryScope	    GeometryScope;
-    typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
+    using M44d = Alembic::Abc::M44d;
+    using IObject = Alembic::Abc::IObject;
+    using ObjectHeader = Alembic::Abc::ObjectHeader;
+    using ICompoundProperty = Alembic::Abc::ICompoundProperty;
+    using PropertyHeader = Alembic::Abc::PropertyHeader;
+    using TimeSamplingPtr = Alembic::Abc::TimeSamplingPtr;
+    using GeometryScope = Alembic::AbcGeom::GeometryScope;
+    using CompoundPropertyReaderPtr = Alembic::Abc::CompoundPropertyReaderPtr;
 
     GABC_IObject();
     GABC_IObject(const GABC_IObject &obj);

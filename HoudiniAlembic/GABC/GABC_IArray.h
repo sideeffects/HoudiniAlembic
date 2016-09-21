@@ -48,12 +48,12 @@ namespace GABC_NAMESPACE
 class GABC_API GABC_IArray : public GABC_IItem
 {
 public:
-    typedef Alembic::Abc::ArraySamplePtr	ArraySamplePtr;
-    typedef Alembic::Abc::IArrayProperty	IArrayProperty;
-    typedef Alembic::Abc::ISampleSelector	ISampleSelector;
-    typedef Alembic::Abc::index_t		index_t;
-    typedef Alembic::Abc::chrono_t		chrono_t;
-    typedef Alembic::Abc::PlainOldDataType	PlainOldDataType;
+    using index_t = Alembic::Abc::index_t;
+    using chrono_t = Alembic::Abc::chrono_t;
+    using ArraySamplePtr = Alembic::Abc::ArraySamplePtr;
+    using IArrayProperty = Alembic::Abc::IArrayProperty;
+    using ISampleSelector = Alembic::Abc::ISampleSelector;
+    using PlainOldDataType = Alembic::Abc::PlainOldDataType;
 
     /// Create an array wrapper for the given array sample with the specified
     /// GT_Type as the interpretation.

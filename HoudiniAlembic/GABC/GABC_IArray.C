@@ -32,8 +32,8 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef Alembic::Abc::DataType		DataType;
-    typedef Alembic::Abc::IArrayProperty	IArrayProperty;
+    using DataType = Alembic::Abc::DataType;
+    using IArrayProperty = Alembic::Abc::IArrayProperty;
 
     static int
     arrayExtent(const IArrayProperty &prop)

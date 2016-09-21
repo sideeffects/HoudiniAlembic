@@ -46,12 +46,12 @@ UT_COUNTER(theCount, "GABC_IArchive")
 
 namespace
 {
-    typedef Alembic::Abc::IObject			IObject;
-    typedef Alembic::Abc::IArchive			IArchive;
+    using IObject = Alembic::Abc::IObject;
+    using IArchive = Alembic::Abc::IArchive;
 #if defined(GABC_OGAWA)
-    typedef Alembic::AbcCoreFactory::IFactory		IFactory;
+    using IFactory = Alembic::AbcCoreFactory::IFactory;
 #endif
-    typedef UT_Map<std::string, GABC_IArchive *>	ArchiveCache;
+    using ArchiveCache = UT_Map<std::string, GABC_IArchive *>;
 
     static ArchiveCache	theArchiveCache;
 }

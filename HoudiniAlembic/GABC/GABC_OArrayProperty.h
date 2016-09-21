@@ -49,12 +49,12 @@ class GABC_OOptions;
 class GABC_API GABC_OArrayProperty : public GABC_OProperty
 {
 public:
-    typedef Alembic::Abc::OArrayProperty        OArrayProperty;
-    typedef Alembic::Abc::OUInt32ArrayProperty  OUInt32ArrayProperty;
+    using OArrayProperty = Alembic::Abc::OArrayProperty;
+    using OUInt32ArrayProperty = Alembic::Abc::OUInt32ArrayProperty;
 
-    typedef Alembic::AbcGeom::GeometryScope     GeometryScope;
+    using GeometryScope = Alembic::AbcGeom::GeometryScope;
 
-    typedef Alembic::Util::PlainOldDataType     PlainOldDataType;
+    using PlainOldDataType = Alembic::Util::PlainOldDataType;
 
     /// This constructor is used if we're creating a user property.
     GABC_OArrayProperty()

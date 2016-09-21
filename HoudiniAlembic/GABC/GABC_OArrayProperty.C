@@ -36,86 +36,86 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef Alembic::AbcCoreAbstract::DataType          DataType;
-    typedef Alembic::AbcCoreAbstract::ArraySample       ArraySample;
-    typedef Alembic::AbcCoreAbstract::MetaData          MetaData;
+    using DataType = Alembic::AbcCoreAbstract::DataType;
+    using ArraySample = Alembic::AbcCoreAbstract::ArraySample;
+    using MetaData = Alembic::AbcCoreAbstract::MetaData;
 
-    typedef Alembic::Abc::OCompoundProperty             OCompoundProperty;
-    typedef Alembic::Abc::OArrayProperty                OArrayProperty;
-    typedef Alembic::Abc::OUInt32ArrayProperty          OUInt32ArrayProperty;
-    typedef Alembic::Abc::TimeSamplingPtr               TimeSamplingPtr;
+    using OCompoundProperty = Alembic::Abc::OCompoundProperty;
+    using OArrayProperty = Alembic::Abc::OArrayProperty;
+    using OUInt32ArrayProperty = Alembic::Abc::OUInt32ArrayProperty;
+    using TimeSamplingPtr = Alembic::Abc::TimeSamplingPtr;
 
     // Simple properties
-    typedef Alembic::AbcGeom::OBoolGeomParam            OBoolGeomParam;
-    typedef Alembic::AbcGeom::OCharGeomParam            OCharGeomParam;
-    typedef Alembic::AbcGeom::OUcharGeomParam           OUcharGeomParam;
-    typedef Alembic::AbcGeom::OUcharGeomParam           OInt16GeomParam;
-    typedef Alembic::AbcGeom::OUInt16GeomParam          OUInt16GeomParam;
-    typedef Alembic::AbcGeom::OInt32GeomParam           OInt32GeomParam;
-    typedef Alembic::AbcGeom::OUInt32GeomParam          OUInt32GeomParam;
-    typedef Alembic::AbcGeom::OInt64GeomParam           OInt64GeomParam;
-    typedef Alembic::AbcGeom::OUInt64GeomParam          OUInt64GeomParam;
-    typedef Alembic::AbcGeom::OHalfGeomParam            OHalfGeomParam;
-    typedef Alembic::AbcGeom::OFloatGeomParam           OFloatGeomParam;
-    typedef Alembic::AbcGeom::ODoubleGeomParam          ODoubleGeomParam;
-    typedef Alembic::AbcGeom::OStringGeomParam          OStringGeomParam;
+    using OBoolGeomParam = Alembic::AbcGeom::OBoolGeomParam;
+    using OCharGeomParam = Alembic::AbcGeom::OCharGeomParam;
+    using OUcharGeomParam = Alembic::AbcGeom::OUcharGeomParam;
+    using OUcharGeomParam = Alembic::AbcGeom::OUcharGeomParam;
+    using OUInt16GeomParam = Alembic::AbcGeom::OUInt16GeomParam;
+    using OInt32GeomParam = Alembic::AbcGeom::OInt32GeomParam;
+    using OUInt32GeomParam = Alembic::AbcGeom::OUInt32GeomParam;
+    using OInt64GeomParam = Alembic::AbcGeom::OInt64GeomParam;
+    using OUInt64GeomParam = Alembic::AbcGeom::OUInt64GeomParam;
+    using OHalfGeomParam = Alembic::AbcGeom::OHalfGeomParam;
+    using OFloatGeomParam = Alembic::AbcGeom::OFloatGeomParam;
+    using ODoubleGeomParam = Alembic::AbcGeom::ODoubleGeomParam;
+    using OStringGeomParam = Alembic::AbcGeom::OStringGeomParam;
 
     // Complex properties
-    typedef Alembic::AbcGeom::OP2sGeomParam             OP2sGeomParam;
-    typedef Alembic::AbcGeom::OP2iGeomParam             OP2iGeomParam;
-    typedef Alembic::AbcGeom::OP2fGeomParam             OP2fGeomParam;
-    typedef Alembic::AbcGeom::OP2dGeomParam             OP2dGeomParam;
+    using OP2sGeomParam = Alembic::AbcGeom::OP2sGeomParam;
+    using OP2iGeomParam = Alembic::AbcGeom::OP2iGeomParam;
+    using OP2fGeomParam = Alembic::AbcGeom::OP2fGeomParam;
+    using OP2dGeomParam = Alembic::AbcGeom::OP2dGeomParam;
 
-    typedef Alembic::AbcGeom::OP3sGeomParam             OP3sGeomParam;
-    typedef Alembic::AbcGeom::OP3iGeomParam             OP3iGeomParam;
-    typedef Alembic::AbcGeom::OP3fGeomParam             OP3fGeomParam;
-    typedef Alembic::AbcGeom::OP3dGeomParam             OP3dGeomParam;
+    using OP3sGeomParam = Alembic::AbcGeom::OP3sGeomParam;
+    using OP3iGeomParam = Alembic::AbcGeom::OP3iGeomParam;
+    using OP3fGeomParam = Alembic::AbcGeom::OP3fGeomParam;
+    using OP3dGeomParam = Alembic::AbcGeom::OP3dGeomParam;
 
-    typedef Alembic::AbcGeom::OV2sGeomParam             OV2sGeomParam;
-    typedef Alembic::AbcGeom::OV2iGeomParam             OV2iGeomParam;
-    typedef Alembic::AbcGeom::OV2fGeomParam             OV2fGeomParam;
-    typedef Alembic::AbcGeom::OV2dGeomParam             OV2dGeomParam;
+    using OV2sGeomParam = Alembic::AbcGeom::OV2sGeomParam;
+    using OV2iGeomParam = Alembic::AbcGeom::OV2iGeomParam;
+    using OV2fGeomParam = Alembic::AbcGeom::OV2fGeomParam;
+    using OV2dGeomParam = Alembic::AbcGeom::OV2dGeomParam;
 
-    typedef Alembic::AbcGeom::OV3sGeomParam             OV3sGeomParam;
-    typedef Alembic::AbcGeom::OV3iGeomParam             OV3iGeomParam;
-    typedef Alembic::AbcGeom::OV3fGeomParam             OV3fGeomParam;
-    typedef Alembic::AbcGeom::OV3dGeomParam             OV3dGeomParam;
+    using OV3sGeomParam = Alembic::AbcGeom::OV3sGeomParam;
+    using OV3iGeomParam = Alembic::AbcGeom::OV3iGeomParam;
+    using OV3fGeomParam = Alembic::AbcGeom::OV3fGeomParam;
+    using OV3dGeomParam = Alembic::AbcGeom::OV3dGeomParam;
 
-    typedef Alembic::AbcGeom::ON2fGeomParam             ON2fGeomParam;
-    typedef Alembic::AbcGeom::ON2dGeomParam             ON2dGeomParam;
+    using ON2fGeomParam = Alembic::AbcGeom::ON2fGeomParam;
+    using ON2dGeomParam = Alembic::AbcGeom::ON2dGeomParam;
 
-    typedef Alembic::AbcGeom::ON3fGeomParam             ON3fGeomParam;
-    typedef Alembic::AbcGeom::ON3dGeomParam             ON3dGeomParam;
+    using ON3fGeomParam = Alembic::AbcGeom::ON3fGeomParam;
+    using ON3dGeomParam = Alembic::AbcGeom::ON3dGeomParam;
 
-    typedef Alembic::AbcGeom::OQuatfGeomParam           OQuatfGeomParam;
-    typedef Alembic::AbcGeom::OQuatdGeomParam           OQuatdGeomParam;
+    using OQuatfGeomParam = Alembic::AbcGeom::OQuatfGeomParam;
+    using OQuatdGeomParam = Alembic::AbcGeom::OQuatdGeomParam;
 
-    typedef Alembic::AbcGeom::OC3hGeomParam             OC3hGeomParam;
-    typedef Alembic::AbcGeom::OC3fGeomParam             OC3fGeomParam;
-    typedef Alembic::AbcGeom::OC3cGeomParam             OC3cGeomParam;
+    using OC3hGeomParam = Alembic::AbcGeom::OC3hGeomParam;
+    using OC3fGeomParam = Alembic::AbcGeom::OC3fGeomParam;
+    using OC3cGeomParam = Alembic::AbcGeom::OC3cGeomParam;
 
-    typedef Alembic::AbcGeom::OC4hGeomParam             OC4hGeomParam;
-    typedef Alembic::AbcGeom::OC4fGeomParam             OC4fGeomParam;
-    typedef Alembic::AbcGeom::OC4cGeomParam             OC4cGeomParam;
+    using OC4hGeomParam = Alembic::AbcGeom::OC4hGeomParam;
+    using OC4fGeomParam = Alembic::AbcGeom::OC4fGeomParam;
+    using OC4cGeomParam = Alembic::AbcGeom::OC4cGeomParam;
 
-    typedef Alembic::AbcGeom::OBox2sGeomParam           OBox2sGeomParam;
-    typedef Alembic::AbcGeom::OBox2iGeomParam           OBox2iGeomParam;
-    typedef Alembic::AbcGeom::OBox2fGeomParam           OBox2fGeomParam;
-    typedef Alembic::AbcGeom::OBox2dGeomParam           OBox2dGeomParam;
+    using OBox2sGeomParam = Alembic::AbcGeom::OBox2sGeomParam;
+    using OBox2iGeomParam = Alembic::AbcGeom::OBox2iGeomParam;
+    using OBox2fGeomParam = Alembic::AbcGeom::OBox2fGeomParam;
+    using OBox2dGeomParam = Alembic::AbcGeom::OBox2dGeomParam;
 
-    typedef Alembic::AbcGeom::OBox3sGeomParam           OBox3sGeomParam;
-    typedef Alembic::AbcGeom::OBox3iGeomParam           OBox3iGeomParam;
-    typedef Alembic::AbcGeom::OBox3fGeomParam           OBox3fGeomParam;
-    typedef Alembic::AbcGeom::OBox3dGeomParam           OBox3dGeomParam;
+    using OBox3sGeomParam = Alembic::AbcGeom::OBox3sGeomParam;
+    using OBox3iGeomParam = Alembic::AbcGeom::OBox3iGeomParam;
+    using OBox3fGeomParam = Alembic::AbcGeom::OBox3fGeomParam;
+    using OBox3dGeomParam = Alembic::AbcGeom::OBox3dGeomParam;
 
-    typedef Alembic::AbcGeom::OM33fGeomParam            OM33fGeomParam;
-    typedef Alembic::AbcGeom::OM33dGeomParam            OM33dGeomParam;
+    using OM33fGeomParam = Alembic::AbcGeom::OM33fGeomParam;
+    using OM33dGeomParam = Alembic::AbcGeom::OM33dGeomParam;
 
-    typedef Alembic::AbcGeom::OM44fGeomParam            OM44fGeomParam;
-    typedef Alembic::AbcGeom::OM44dGeomParam            OM44dGeomParam;
+    using OM44fGeomParam = Alembic::AbcGeom::OM44fGeomParam;
+    using OM44dGeomParam = Alembic::AbcGeom::OM44dGeomParam;
 
-    typedef Alembic::Util::Dimensions                   Dimensions;
-    typedef Alembic::Util::PlainOldDataType             PlainOldDataType;
+    using Dimensions = Alembic::Util::Dimensions;
+    using PlainOldDataType = Alembic::Util::PlainOldDataType;
 
 #define REINTERPRET_DATA(FUNC) \
     do \

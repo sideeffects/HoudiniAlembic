@@ -185,9 +185,9 @@ private:
 };
 
 #if defined(GABC_ALEMBIC_THREADSAFE)
-typedef GABC_AutoFakeLock	GABC_AlembicLock;
+using GABC_AlembicLock = GABC_AutoFakeLock;
 #else
-typedef GABC_AutoLock	GABC_AlembicLock;
+using GABC_AlembicLock = GABC_AutoLock;
 #endif
 
 }

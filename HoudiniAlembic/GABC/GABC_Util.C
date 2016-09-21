@@ -54,177 +54,177 @@ namespace
     class ArchiveCacheEntry;
     class LocalWorldXform;
 
-    typedef Alembic::Abc::index_t		    index_t;
-    typedef Alembic::Abc::chrono_t		    chrono_t;
-    typedef Alembic::Abc::M44d			    M44d;
+    using index_t = Alembic::Abc::index_t;
+    using chrono_t = Alembic::Abc::chrono_t;
+    using M44d = Alembic::Abc::M44d;
 
-    typedef Alembic::Abc::ISampleSelector	    ISampleSelector;
-    typedef Alembic::Abc::TimeSamplingPtr	    TimeSamplingPtr;
+    using ISampleSelector = Alembic::Abc::ISampleSelector;
+    using TimeSamplingPtr = Alembic::Abc::TimeSamplingPtr;
 
-    typedef Alembic::Abc::IObject                   IObject;
-    typedef Alembic::Abc::ObjectHeader		    ObjectHeader;
-    typedef Alembic::Abc::ObjectReaderPtr           ObjectReaderPtr;
+    using IObject = Alembic::Abc::IObject;
+    using ObjectHeader = Alembic::Abc::ObjectHeader;
+    using ObjectReaderPtr = Alembic::Abc::ObjectReaderPtr;
 
-    typedef Alembic::Abc::DataType                  DataType;
-    typedef Alembic::Abc::PlainOldDataType          PlainOldDataType;
-    typedef Alembic::Abc::WrapExistingFlag	    WrapExistingFlag;
+    using DataType = Alembic::Abc::DataType;
+    using PlainOldDataType = Alembic::Abc::PlainOldDataType;
+    using WrapExistingFlag = Alembic::Abc::WrapExistingFlag;
 
     // PROPERTIES
-    typedef Alembic::Abc::PropertyHeader            PropertyHeader;
+    using PropertyHeader = Alembic::Abc::PropertyHeader;
 
     // INPUT PROPERTIES
-    typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
-    typedef Alembic::Abc::ICompoundProperty         ICompoundProperty;
-    typedef Alembic::Abc::IArrayProperty            IArrayProperty;
-    typedef Alembic::Abc::IScalarProperty           IScalarProperty;
+    using CompoundPropertyReaderPtr = Alembic::Abc::CompoundPropertyReaderPtr;
+    using ICompoundProperty = Alembic::Abc::ICompoundProperty;
+    using IArrayProperty = Alembic::Abc::IArrayProperty;
+    using IScalarProperty = Alembic::Abc::IScalarProperty;
 
     // OUTPUT PROPERTIES
-    typedef Alembic::Abc::BasePropertyWriterPtr	    BasePropertyWriterPtr;
-    typedef Alembic::Abc::CompoundPropertyWriter    CompoundPropertyWriter;
-    typedef Alembic::Abc::CompoundPropertyWriterPtr CompoundPropertyWriterPtr;
-    typedef Alembic::Abc::OBaseProperty	            OBaseProperty;
-    typedef Alembic::Abc::OCompoundProperty	    OCompoundProperty;
+    using BasePropertyWriterPtr = Alembic::Abc::BasePropertyWriterPtr;
+    using CompoundPropertyWriter = Alembic::Abc::CompoundPropertyWriter;
+    using CompoundPropertyWriterPtr = Alembic::Abc::CompoundPropertyWriterPtr;
+    using OBaseProperty = Alembic::Abc::OBaseProperty;
+    using OCompoundProperty = Alembic::Abc::OCompoundProperty;
 
     // ARRAY PROPERTIES
-    typedef Alembic::Abc::IV2sArrayProperty         IV2sArrayProperty;
-    typedef Alembic::Abc::IV2iArrayProperty         IV2iArrayProperty;
-    typedef Alembic::Abc::IV2fArrayProperty         IV2fArrayProperty;
-    typedef Alembic::Abc::IV2dArrayProperty         IV2dArrayProperty;
+    using IV2sArrayProperty = Alembic::Abc::IV2sArrayProperty;
+    using IV2iArrayProperty = Alembic::Abc::IV2iArrayProperty;
+    using IV2fArrayProperty = Alembic::Abc::IV2fArrayProperty;
+    using IV2dArrayProperty = Alembic::Abc::IV2dArrayProperty;
 
-    typedef Alembic::Abc::IV3sArrayProperty         IV3sArrayProperty;
-    typedef Alembic::Abc::IV3iArrayProperty         IV3iArrayProperty;
-    typedef Alembic::Abc::IV3fArrayProperty         IV3fArrayProperty;
-    typedef Alembic::Abc::IV3dArrayProperty         IV3dArrayProperty;
+    using IV3sArrayProperty = Alembic::Abc::IV3sArrayProperty;
+    using IV3iArrayProperty = Alembic::Abc::IV3iArrayProperty;
+    using IV3fArrayProperty = Alembic::Abc::IV3fArrayProperty;
+    using IV3dArrayProperty = Alembic::Abc::IV3dArrayProperty;
 
-    typedef Alembic::Abc::IP2sArrayProperty         IP2sArrayProperty;
-    typedef Alembic::Abc::IP2iArrayProperty         IP2iArrayProperty;
-    typedef Alembic::Abc::IP2fArrayProperty         IP2fArrayProperty;
-    typedef Alembic::Abc::IP2dArrayProperty         IP2dArrayProperty;
+    using IP2sArrayProperty = Alembic::Abc::IP2sArrayProperty;
+    using IP2iArrayProperty = Alembic::Abc::IP2iArrayProperty;
+    using IP2fArrayProperty = Alembic::Abc::IP2fArrayProperty;
+    using IP2dArrayProperty = Alembic::Abc::IP2dArrayProperty;
 
-    typedef Alembic::Abc::IP3sArrayProperty         IP3sArrayProperty;
-    typedef Alembic::Abc::IP3iArrayProperty         IP3iArrayProperty;
-    typedef Alembic::Abc::IP3fArrayProperty         IP3fArrayProperty;
-    typedef Alembic::Abc::IP3dArrayProperty         IP3dArrayProperty;
+    using IP3sArrayProperty = Alembic::Abc::IP3sArrayProperty;
+    using IP3iArrayProperty = Alembic::Abc::IP3iArrayProperty;
+    using IP3fArrayProperty = Alembic::Abc::IP3fArrayProperty;
+    using IP3dArrayProperty = Alembic::Abc::IP3dArrayProperty;
 
-    typedef Alembic::Abc::IBox2sArrayProperty       IBox2sArrayProperty;
-    typedef Alembic::Abc::IBox2iArrayProperty       IBox2iArrayProperty;
-    typedef Alembic::Abc::IBox2fArrayProperty       IBox2fArrayProperty;
-    typedef Alembic::Abc::IBox2dArrayProperty       IBox2dArrayProperty;
+    using IBox2sArrayProperty = Alembic::Abc::IBox2sArrayProperty;
+    using IBox2iArrayProperty = Alembic::Abc::IBox2iArrayProperty;
+    using IBox2fArrayProperty = Alembic::Abc::IBox2fArrayProperty;
+    using IBox2dArrayProperty = Alembic::Abc::IBox2dArrayProperty;
 
-    typedef Alembic::Abc::IBox3sArrayProperty       IBox3sArrayProperty;
-    typedef Alembic::Abc::IBox3iArrayProperty       IBox3iArrayProperty;
-    typedef Alembic::Abc::IBox3fArrayProperty       IBox3fArrayProperty;
-    typedef Alembic::Abc::IBox3dArrayProperty       IBox3dArrayProperty;
+    using IBox3sArrayProperty = Alembic::Abc::IBox3sArrayProperty;
+    using IBox3iArrayProperty = Alembic::Abc::IBox3iArrayProperty;
+    using IBox3fArrayProperty = Alembic::Abc::IBox3fArrayProperty;
+    using IBox3dArrayProperty = Alembic::Abc::IBox3dArrayProperty;
 
-    typedef Alembic::Abc::IM33fArrayProperty        IM33fArrayProperty;
-    typedef Alembic::Abc::IM33dArrayProperty        IM33dArrayProperty;
-    typedef Alembic::Abc::IM44fArrayProperty        IM44fArrayProperty;
-    typedef Alembic::Abc::IM44dArrayProperty        IM44dArrayProperty;
+    using IM33fArrayProperty = Alembic::Abc::IM33fArrayProperty;
+    using IM33dArrayProperty = Alembic::Abc::IM33dArrayProperty;
+    using IM44fArrayProperty = Alembic::Abc::IM44fArrayProperty;
+    using IM44dArrayProperty = Alembic::Abc::IM44dArrayProperty;
 
-    typedef Alembic::Abc::IQuatfArrayProperty       IQuatfArrayProperty;
-    typedef Alembic::Abc::IQuatdArrayProperty       IQuatdArrayProperty;
+    using IQuatfArrayProperty = Alembic::Abc::IQuatfArrayProperty;
+    using IQuatdArrayProperty = Alembic::Abc::IQuatdArrayProperty;
 
-    typedef Alembic::Abc::IC3hArrayProperty         IC3hArrayProperty;
-    typedef Alembic::Abc::IC3fArrayProperty         IC3fArrayProperty;
-    typedef Alembic::Abc::IC3cArrayProperty         IC3cArrayProperty;
+    using IC3hArrayProperty = Alembic::Abc::IC3hArrayProperty;
+    using IC3fArrayProperty = Alembic::Abc::IC3fArrayProperty;
+    using IC3cArrayProperty = Alembic::Abc::IC3cArrayProperty;
 
-    typedef Alembic::Abc::IC4hArrayProperty         IC4hArrayProperty;
-    typedef Alembic::Abc::IC4fArrayProperty         IC4fArrayProperty;
-    typedef Alembic::Abc::IC4cArrayProperty         IC4cArrayProperty;
+    using IC4hArrayProperty = Alembic::Abc::IC4hArrayProperty;
+    using IC4fArrayProperty = Alembic::Abc::IC4fArrayProperty;
+    using IC4cArrayProperty = Alembic::Abc::IC4cArrayProperty;
 
-    typedef Alembic::Abc::IN2fArrayProperty         IN2fArrayProperty;
-    typedef Alembic::Abc::IN2dArrayProperty         IN2dArrayProperty;
+    using IN2fArrayProperty = Alembic::Abc::IN2fArrayProperty;
+    using IN2dArrayProperty = Alembic::Abc::IN2dArrayProperty;
 
-    typedef Alembic::Abc::IN3fArrayProperty         IN3fArrayProperty;
-    typedef Alembic::Abc::IN3dArrayProperty         IN3dArrayProperty;
+    using IN3fArrayProperty = Alembic::Abc::IN3fArrayProperty;
+    using IN3dArrayProperty = Alembic::Abc::IN3dArrayProperty;
 
     // SCALAR PROPERTIES
-    typedef Alembic::Abc::IV2sProperty              IV2sProperty;
-    typedef Alembic::Abc::IV2iProperty              IV2iProperty;
-    typedef Alembic::Abc::IV2fProperty              IV2fProperty;
-    typedef Alembic::Abc::IV2dProperty              IV2dProperty;
-
-    typedef Alembic::Abc::IV3sProperty              IV3sProperty;
-    typedef Alembic::Abc::IV3iProperty              IV3iProperty;
-    typedef Alembic::Abc::IV3fProperty              IV3fProperty;
-    typedef Alembic::Abc::IV3dProperty              IV3dProperty;
-
-    typedef Alembic::Abc::IP2sProperty              IP2sProperty;
-    typedef Alembic::Abc::IP2iProperty              IP2iProperty;
-    typedef Alembic::Abc::IP2fProperty              IP2fProperty;
-    typedef Alembic::Abc::IP2dProperty              IP2dProperty;
-
-    typedef Alembic::Abc::IP3sProperty              IP3sProperty;
-    typedef Alembic::Abc::IP3iProperty              IP3iProperty;
-    typedef Alembic::Abc::IP3fProperty              IP3fProperty;
-    typedef Alembic::Abc::IP3dProperty              IP3dProperty;
-
-    typedef Alembic::Abc::IBox2sProperty            IBox2sProperty;
-    typedef Alembic::Abc::IBox2iProperty            IBox2iProperty;
-    typedef Alembic::Abc::IBox2fProperty            IBox2fProperty;
-    typedef Alembic::Abc::IBox2dProperty            IBox2dProperty;
-
-    typedef Alembic::Abc::IBox3sProperty            IBox3sProperty;
-    typedef Alembic::Abc::IBox3iProperty            IBox3iProperty;
-    typedef Alembic::Abc::IBox3fProperty            IBox3fProperty;
-    typedef Alembic::Abc::IBox3dProperty            IBox3dProperty;
-
-    typedef Alembic::Abc::IM33fProperty             IM33fProperty;
-    typedef Alembic::Abc::IM33dProperty             IM33dProperty;
-    typedef Alembic::Abc::IM44fProperty             IM44fProperty;
-    typedef Alembic::Abc::IM44dProperty             IM44dProperty;
-
-    typedef Alembic::Abc::IQuatfProperty            IQuatfProperty;
-    typedef Alembic::Abc::IQuatdProperty            IQuatdProperty;
-
-    typedef Alembic::Abc::IC3hProperty              IC3hProperty;
-    typedef Alembic::Abc::IC3fProperty              IC3fProperty;
-    typedef Alembic::Abc::IC3cProperty              IC3cProperty;
-
-    typedef Alembic::Abc::IC4hProperty              IC4hProperty;
-    typedef Alembic::Abc::IC4fProperty              IC4fProperty;
-    typedef Alembic::Abc::IC4cProperty              IC4cProperty;
-
-    typedef Alembic::Abc::IN2fProperty              IN2fProperty;
-    typedef Alembic::Abc::IN2dProperty              IN2dProperty;
-
-    typedef Alembic::Abc::IN3fProperty              IN3fProperty;
-    typedef Alembic::Abc::IN3dProperty              IN3dProperty;
+    using IV2sProperty = Alembic::Abc::IV2sProperty;
+    using IV2iProperty = Alembic::Abc::IV2iProperty;
+    using IV2fProperty = Alembic::Abc::IV2fProperty;
+    using IV2dProperty = Alembic::Abc::IV2dProperty;
+                                   
+    using IV3sProperty = Alembic::Abc::IV3sProperty;
+    using IV3iProperty = Alembic::Abc::IV3iProperty;
+    using IV3fProperty = Alembic::Abc::IV3fProperty;
+    using IV3dProperty = Alembic::Abc::IV3dProperty;
+                                   
+    using IP2sProperty = Alembic::Abc::IP2sProperty;
+    using IP2iProperty = Alembic::Abc::IP2iProperty;
+    using IP2fProperty = Alembic::Abc::IP2fProperty;
+    using IP2dProperty = Alembic::Abc::IP2dProperty;
+                                   
+    using IP3sProperty = Alembic::Abc::IP3sProperty;
+    using IP3iProperty = Alembic::Abc::IP3iProperty;
+    using IP3fProperty = Alembic::Abc::IP3fProperty;
+    using IP3dProperty = Alembic::Abc::IP3dProperty;
+                                   
+    using IBox2sProperty = Alembic::Abc::IBox2sProperty;
+    using IBox2iProperty = Alembic::Abc::IBox2iProperty;
+    using IBox2fProperty = Alembic::Abc::IBox2fProperty;
+    using IBox2dProperty = Alembic::Abc::IBox2dProperty;
+                                   
+    using IBox3sProperty = Alembic::Abc::IBox3sProperty;
+    using IBox3iProperty = Alembic::Abc::IBox3iProperty;
+    using IBox3fProperty = Alembic::Abc::IBox3fProperty;
+    using IBox3dProperty = Alembic::Abc::IBox3dProperty;
+                                   
+    using IM33fProperty = Alembic::Abc::IM33fProperty;
+    using IM33dProperty = Alembic::Abc::IM33dProperty;
+    using IM44fProperty = Alembic::Abc::IM44fProperty;
+    using IM44dProperty = Alembic::Abc::IM44dProperty;
+                                   
+    using IQuatfProperty = Alembic::Abc::IQuatfProperty;
+    using IQuatdProperty = Alembic::Abc::IQuatdProperty;
+                                   
+    using IC3hProperty = Alembic::Abc::IC3hProperty;
+    using IC3fProperty = Alembic::Abc::IC3fProperty;
+    using IC3cProperty = Alembic::Abc::IC3cProperty;
+                                   
+    using IC4hProperty = Alembic::Abc::IC4hProperty;
+    using IC4fProperty = Alembic::Abc::IC4fProperty;
+    using IC4cProperty = Alembic::Abc::IC4cProperty;
+                                   
+    using IN2fProperty = Alembic::Abc::IN2fProperty;
+    using IN2dProperty = Alembic::Abc::IN2dProperty;
+                                   
+    using IN3fProperty = Alembic::Abc::IN3fProperty;
+    using IN3dProperty = Alembic::Abc::IN3dProperty;
 
     // INPUT OBJECTS AND SCHEMAS
-    typedef Alembic::AbcGeom::IXform		    IXform;
-    typedef Alembic::AbcGeom::IPolyMesh		    IPolyMesh;
-    typedef Alembic::AbcGeom::ISubD		    ISubD;
-    typedef Alembic::AbcGeom::ICurves		    ICurves;
-    typedef Alembic::AbcGeom::IPoints		    IPoints;
-    typedef Alembic::AbcGeom::INuPatch		    INuPatch;
-    typedef Alembic::AbcGeom::IFaceSet		    IFaceSet;
-    typedef Alembic::AbcGeom::IXformSchema	    IXformSchema;
-    typedef Alembic::AbcGeom::IPolyMeshSchema	    IPolyMeshSchema;
-    typedef Alembic::AbcGeom::ISubDSchema	    ISubDSchema;
-    typedef Alembic::AbcGeom::ICurvesSchema	    ICurvesSchema;
-    typedef Alembic::AbcGeom::IPointsSchema	    IPointsSchema;
-    typedef Alembic::AbcGeom::INuPatchSchema	    INuPatchSchema;
-    typedef Alembic::AbcGeom::IFaceSetSchema	    IFaceSetSchema;
-    typedef Alembic::AbcGeom::ICamera		    ICamera;
-    typedef Alembic::AbcGeom::XformSample	    XformSample;
-    typedef Alembic::AbcGeom::IVisibilityProperty   IVisibilityProperty;
+    using IXform = Alembic::AbcGeom::IXform;
+    using IPolyMesh = Alembic::AbcGeom::IPolyMesh;
+    using ISubD = Alembic::AbcGeom::ISubD;
+    using ICurves = Alembic::AbcGeom::ICurves;
+    using IPoints = Alembic::AbcGeom::IPoints;
+    using INuPatch = Alembic::AbcGeom::INuPatch;
+    using IFaceSet = Alembic::AbcGeom::IFaceSet;
+    using IXformSchema = Alembic::AbcGeom::IXformSchema;
+    using IPolyMeshSchema = Alembic::AbcGeom::IPolyMeshSchema;
+    using ISubDSchema = Alembic::AbcGeom::ISubDSchema;
+    using ICurvesSchema = Alembic::AbcGeom::ICurvesSchema;
+    using IPointsSchema = Alembic::AbcGeom::IPointsSchema;
+    using INuPatchSchema = Alembic::AbcGeom::INuPatchSchema;
+    using IFaceSetSchema = Alembic::AbcGeom::IFaceSetSchema;
+    using ICamera = Alembic::AbcGeom::ICamera;
+    using XformSample = Alembic::AbcGeom::XformSample;
+    using IVisibilityProperty = Alembic::AbcGeom::IVisibilityProperty;
 
-    typedef GABC_Util::PathList			    PathList;
-    typedef GABC_Util::PropertyMap                  PropertyMap;
-    typedef GABC_Util::PropertyMapInsert            PropertyMapInsert;
+    using PathList = GABC_Util::PathList;
+    using PropertyMap = GABC_Util::PropertyMap;
+    using PropertyMapInsert = GABC_Util::PropertyMapInsert;
 
-    typedef UT_SymbolMap<LocalWorldXform>               AbcTransformMap;
-    typedef UT_SymbolMap<GABC_VisibilityType>		AbcVisibilityMap;
-    typedef UT_SharedPtr<ArchiveCacheEntry>             ArchiveCacheEntryPtr;
-    typedef UT_Map<std::string, ArchiveCacheEntryPtr>   ArchiveCache;
+    using AbcTransformMap = UT_SymbolMap<LocalWorldXform>;
+    using AbcVisibilityMap = UT_SymbolMap<GABC_VisibilityType>;
+    using ArchiveCacheEntryPtr = UT_SharedPtr<ArchiveCacheEntry>;
+    using ArchiveCache = UT_Map<std::string, ArchiveCacheEntryPtr>;
 
-    typedef UT_SortedMap<std::string, const PropertyHeader *>   HeaderMap;
-    typedef std::pair<std::string, const PropertyHeader *>      HeaderMapInsert;
+    using HeaderMap = UT_SortedMap<std::string, const PropertyHeader *>;
+    using HeaderMapInsert = std::pair<std::string, const PropertyHeader *>;
 
-    typedef std::pair<GT_DataArrayHandle, PlainOldDataType> UPSample;
-    typedef UT_Map<GABC_OProperty *, UPSample>              UPSampleMap;
-    typedef std::pair<GABC_OProperty *, UPSample>           UPSampleMapInsert;
+    using UPSample = std::pair<GT_DataArrayHandle, PlainOldDataType>;
+    using UPSampleMap = UT_Map<GABC_OProperty *, UPSample>;
+    using UPSampleMapInsert = std::pair<GABC_OProperty *, UPSample>;
 
     static UT_Lock		theFileLock;
     static UT_Lock		theOCacheLock;
@@ -395,9 +395,9 @@ namespace
     class ArchiveCacheEntry
     {
     public:
-	typedef GABC_Util::ArchiveEventHandler      ArchiveEventHandler;
-	typedef GABC_Util::ArchiveEventHandlerPtr   ArchiveEventHandlerPtr;
-	typedef UT_Set<ArchiveEventHandlerPtr>      HandlerSetType;
+	using ArchiveEventHandler = GABC_Util::ArchiveEventHandler;
+	using ArchiveEventHandlerPtr = GABC_Util::ArchiveEventHandlerPtr;
+	using HandlerSetType = UT_Set<ArchiveEventHandlerPtr>;
 
         ArchiveCacheEntry()
 	    : myCache("abcObjects", 8)
@@ -817,11 +817,11 @@ namespace
         void
         tokenizeObjectPath(const std::string & objectPath, PathList & pathList)
         {
-            typedef boost::char_separator<char> Separator;
-            typedef boost::tokenizer<Separator> Tokenizer;
+            using Separator = boost::char_separator<char>;
+            using Tokenizer = boost::tokenizer<Separator>;
 
             Tokenizer   tokenizer(objectPath, Separator( "/" ));
-            for (Tokenizer::iterator iter = tokenizer.begin();
+            for (auto iter = tokenizer.begin();
                     iter != tokenizer.end();
                     ++iter)
             {

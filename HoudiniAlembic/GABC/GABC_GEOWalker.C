@@ -62,69 +62,69 @@ namespace Alembic {
 using namespace GABC_NAMESPACE;
 
 namespace {
-    typedef Imath::M44d				    M44d;
-    typedef Imath::V3f			            V3f;
-    typedef Imath::V3d				    V3d;
-    typedef Imath::V4f                              V4f;
+    using M44d = Imath::M44d;
+    using V3f = Imath::V3f;
+    using V3d = Imath::V3d;
+    using V4f = Imath::V4f;
 
-    typedef Alembic::Abc::DataType		    DataType;
-    typedef Alembic::Abc::Dimensions                Dimensions;
-    typedef Alembic::Abc::MetaData                  MetaData;
-    typedef Alembic::Abc::ISampleSelector	    ISampleSelector;
-    typedef Alembic::Abc::ObjectHeader		    ObjectHeader;
-    typedef Alembic::Abc::PropertyHeader	    PropertyHeader;
-    typedef Alembic::Abc::WrapExistingFlag	    WrapExistingFlag;
-    typedef Alembic::Abc::TimeSamplingPtr           TimeSamplingPtr;
+    using DataType = Alembic::Abc::DataType;
+    using Dimensions = Alembic::Abc::Dimensions;
+    using MetaData = Alembic::Abc::MetaData;
+    using ISampleSelector = Alembic::Abc::ISampleSelector;
+    using ObjectHeader = Alembic::Abc::ObjectHeader;
+    using PropertyHeader = Alembic::Abc::PropertyHeader;
+    using WrapExistingFlag = Alembic::Abc::WrapExistingFlag;
+    using TimeSamplingPtr = Alembic::Abc::TimeSamplingPtr;
 
-    typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
-    typedef Alembic::Abc::ICompoundProperty	    ICompoundProperty;
-    typedef Alembic::Abc::IArrayProperty	    IArrayProperty;
+    using CompoundPropertyReaderPtr = Alembic::Abc::CompoundPropertyReaderPtr;
+    using ICompoundProperty = Alembic::Abc::ICompoundProperty;
+    using IArrayProperty = Alembic::Abc::IArrayProperty;
 
-    typedef Alembic::Abc::ArraySample               ArraySample;
-    typedef Alembic::Abc::ArraySamplePtr	    ArraySamplePtr;
-    typedef Alembic::Abc::UcharArraySamplePtr	    UcharArraySamplePtr;
-    typedef Alembic::Abc::Int32ArraySamplePtr	    Int32ArraySamplePtr;
-    typedef Alembic::Abc::UInt64ArraySamplePtr	    UInt64ArraySamplePtr;
-    typedef Alembic::Abc::FloatArraySamplePtr	    FloatArraySamplePtr;
-    typedef Alembic::Abc::P3fArraySamplePtr	    P3fArraySamplePtr;
-    typedef Alembic::Abc::V3fArraySamplePtr	    V3fArraySamplePtr;
+    using ArraySample = Alembic::Abc::ArraySample;
+    using ArraySamplePtr = Alembic::Abc::ArraySamplePtr;
+    using UcharArraySamplePtr = Alembic::Abc::UcharArraySamplePtr;
+    using Int32ArraySamplePtr = Alembic::Abc::Int32ArraySamplePtr;
+    using UInt64ArraySamplePtr = Alembic::Abc::UInt64ArraySamplePtr;
+    using FloatArraySamplePtr = Alembic::Abc::FloatArraySamplePtr;
+    using P3fArraySamplePtr = Alembic::Abc::P3fArraySamplePtr;
+    using V3fArraySamplePtr = Alembic::Abc::V3fArraySamplePtr;
 
-    typedef Alembic::Abc::IUInt64ArrayProperty	    IUInt64ArrayProperty;
-    typedef Alembic::Abc::IP3fArrayProperty	    IP3fArrayProperty;
-    typedef Alembic::Abc::IV3fArrayProperty	    IV3fArrayProperty;
+    using IUInt64ArrayProperty = Alembic::Abc::IUInt64ArrayProperty;
+    using IP3fArrayProperty = Alembic::Abc::IP3fArrayProperty;
+    using IV3fArrayProperty = Alembic::Abc::IV3fArrayProperty;
 
-    typedef Alembic::AbcGeom::BasisType             BasisType;
-    typedef Alembic::AbcGeom::CurvePeriodicity      CurvePeriodicity;
-    typedef Alembic::AbcGeom::GeometryScope	    GeometryScope;
+    using BasisType = Alembic::AbcGeom::BasisType;
+    using CurvePeriodicity = Alembic::AbcGeom::CurvePeriodicity;
+    using GeometryScope = Alembic::AbcGeom::GeometryScope;
 
-    typedef Alembic::AbcGeom::IFloatGeomParam       IFloatGeomParam;
-    typedef Alembic::AbcGeom::IV2fGeomParam         IV2fGeomParam;
-    typedef Alembic::AbcGeom::IN3fGeomParam         IN3fGeomParam;
+    using IFloatGeomParam = Alembic::AbcGeom::IFloatGeomParam;
+    using IV2fGeomParam = Alembic::AbcGeom::IV2fGeomParam;
+    using IN3fGeomParam = Alembic::AbcGeom::IN3fGeomParam;
 
-    typedef Alembic::AbcGeom::IXform		    IXform;
-    typedef Alembic::AbcGeom::IXformSchema	    IXformSchema;
-    typedef Alembic::AbcGeom::XformSample	    XformSample;
-    typedef Alembic::AbcGeom::IFaceSet		    IFaceSet;
-    typedef Alembic::AbcGeom::IFaceSetSchema	    IFaceSetSchema;
-    typedef Alembic::AbcGeom::IPolyMesh		    IPolyMesh;
-    typedef Alembic::AbcGeom::IPolyMeshSchema	    IPolyMeshSchema;
-    typedef Alembic::AbcGeom::ISubD		    ISubD;
-    typedef Alembic::AbcGeom::ISubDSchema	    ISubDSchema;
-    typedef Alembic::AbcGeom::IPoints		    IPoints;
-    typedef Alembic::AbcGeom::IPointsSchema	    IPointsSchema;
-    typedef Alembic::AbcGeom::ICurves		    ICurves;
-    typedef Alembic::AbcGeom::ICurvesSchema	    ICurvesSchema;
-    typedef ICurvesSchema::Sample                   ICurvesSample;
-    typedef Alembic::AbcGeom::INuPatch		    INuPatch;
-    typedef Alembic::AbcGeom::INuPatchSchema	    INuPatchSchema;
-    typedef INuPatchSchema::Sample		    INuPatchSample;
+    using IXform = Alembic::AbcGeom::IXform;
+    using IXformSchema = Alembic::AbcGeom::IXformSchema;
+    using XformSample = Alembic::AbcGeom::XformSample;
+    using IFaceSet = Alembic::AbcGeom::IFaceSet;
+    using IFaceSetSchema = Alembic::AbcGeom::IFaceSetSchema;
+    using IPolyMesh = Alembic::AbcGeom::IPolyMesh;
+    using IPolyMeshSchema = Alembic::AbcGeom::IPolyMeshSchema;
+    using ISubD = Alembic::AbcGeom::ISubD;
+    using ISubDSchema = Alembic::AbcGeom::ISubDSchema;
+    using IPoints = Alembic::AbcGeom::IPoints;
+    using IPointsSchema = Alembic::AbcGeom::IPointsSchema;
+    using ICurves = Alembic::AbcGeom::ICurves;
+    using ICurvesSchema = Alembic::AbcGeom::ICurvesSchema;
+    using ICurvesSample = ICurvesSchema::Sample;
+    using INuPatch = Alembic::AbcGeom::INuPatch;
+    using INuPatchSchema = Alembic::AbcGeom::INuPatchSchema;
+    using INuPatchSample = INuPatchSchema::Sample;
 
-    typedef Alembic::Util::PlainOldDataType         PlainOldDataType;
+    using PlainOldDataType = Alembic::Util::PlainOldDataType;
 
     // Types used for NURBS rationalization, but undefined by Alembic
-    typedef Alembic::Abc::P4fTPTraits                   P4fTPTraits;
-    typedef Alembic::Abc::TypedArraySample<P4fTPTraits> P4fArraySample;
-    typedef Alembic::Util::shared_ptr<P4fArraySample>   P4fArraySamplePtr;
+    using P4fTPTraits = Alembic::Abc::P4fTPTraits;
+    using P4fArraySample = Alembic::Abc::TypedArraySample<P4fTPTraits>;
+    using P4fArraySamplePtr = Alembic::Util::shared_ptr<P4fArraySample>;
 
     static const WrapExistingFlag   gabcWrapExisting = Alembic::Abc::kWrapExisting;
     static const M44d               identity44d(1, 0, 0, 0,

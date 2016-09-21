@@ -59,8 +59,8 @@ namespace GABC_NAMESPACE
 class GABC_API GABC_GEOWalker : public GABC_Util::Walker
 {
 public:
-    typedef Alembic::Abc::M44d			M44d;
-    typedef Alembic::Abc::ISampleSelector	ISampleSelector;
+    using M44d = Alembic::Abc::M44d;
+    using ISampleSelector = Alembic::Abc::ISampleSelector;
 
     /// Test by loading "test.abc" in the current directory and saving
     /// "test.geo" as output.
