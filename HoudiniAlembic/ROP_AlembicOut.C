@@ -565,6 +565,10 @@ static PRM_Default theFaceSetModeDefault(1, "nonempty");
 static PRM_Default theSampleDefault(2);
 static PRM_Default theShutterDefault[] = {0, 1};
 
+static PRM_SpareData theAbcPattern(
+	PRM_SpareToken(PRM_SpareData::getFileChooserPatternToken(), "*.abc")
+    );
+
 static PRM_Default mainSwitcher[] =
 {
     PRM_Default(13, "Hierarchy"),
@@ -731,7 +735,8 @@ static PRM_SpareData theObjectList(PRM_SpareArgs()
 
 static PRM_Template theParameters[] =
 {
-    PRM_Template(PRM_FILE, 1, &theFilenameName, &theFilenameDefault),
+    PRM_Template(PRM_FILE, 1, &theFilenameName, &theFilenameDefault,
+		    0, 0, 0, &theAbcPattern),
     PRM_Template(PRM_ORD, 1, &theFormatName, &theFormatDefault, &theFormatMenu),
     PRM_Template(PRM_TOGGLE, 1, &ROPmkpath, PRMoneDefaults),
     PRM_Template(PRM_TOGGLE, 1, &theRenderFullRange, PRMoneDefaults),
