@@ -105,17 +105,14 @@ GABC_PackedImpl::build(GU_Detail &gdp,
 			bool useVisibility)
 {
     UT_ASSERT(theFactory);
-    GA_Primitive	*prim;
-    GU_PrimPacked	*pack;
-    GABC_PackedImpl	*abc;
-    
-    prim = gdp.getPrimitiveFactory().create(theFactory->typeDef().getId(), gdp);
+
+    GA_Primitive *prim = gdp.appendPrimitive(theFactory->typeDef().getId());
     // Note:  The primitive is invalid until you do something like
     //   prim->setVertexPoint(gdp.appendPointOffset());
     // The Alembic creation code has an option to have a shared point for all
     // Alembic primitives, so this is handled separately.
-    pack = UTverify_cast<GU_PrimPacked *>(prim);
-    abc = UTverify_cast<GABC_PackedImpl *>(pack->implementation());
+    GU_PrimPacked *pack = UTverify_cast<GU_PrimPacked *>(prim);
+    GABC_PackedImpl *abc = UTverify_cast<GABC_PackedImpl *>(pack->implementation());
     abc->setFilename(filename);
     abc->setObject(obj);
     abc->setFrame(frame);
