@@ -214,8 +214,8 @@ namespace
     using PropertyMap = GABC_Util::PropertyMap;
     using PropertyMapInsert = GABC_Util::PropertyMapInsert;
 
-    using AbcTransformMap = UT_SymbolMap<LocalWorldXform>;
-    using AbcVisibilityMap = UT_SymbolMap<GABC_VisibilityType>;
+    using AbcTransformMap = UT_StringMap<LocalWorldXform>;
+    using AbcVisibilityMap = UT_StringMap<GABC_VisibilityType>;
     using ArchiveCacheEntryPtr = UT_SharedPtr<ArchiveCacheEntry>;
     using ArchiveCache = UT_Map<std::string, ArchiveCacheEntryPtr>;
 
@@ -324,9 +324,14 @@ namespace
     class ArchiveVisibilityItem : public UT_CappedItem
     {
     public:
-	ArchiveVisibilityItem() : UT_CappedItem(), myVisibility(GABC_VISIBLE_DEFER) {}
+	ArchiveVisibilityItem()
+	    : UT_CappedItem()
+	    , myVisibility(GABC_VISIBLE_DEFER)
+	{}
 	ArchiveVisibilityItem(GABC_VisibilityType vis)
-	    : UT_CappedItem(), myVisibility(vis) {}
+	    : UT_CappedItem()
+	    , myVisibility(vis)
+	{}
 
 	virtual int64 getMemoryUsage() const  { return sizeof(*this); }
 	GABC_VisibilityType visibility() const   { return myVisibility; }
@@ -414,9 +419,7 @@ namespace
 	{
 	    if (myArchive)
 	    {
-		for (HandlerSetType::iterator it = myHandlers.begin();
-			it != myHandlers.end();
-			++it)
+		for (auto it = myHandlers.begin(); it != myHandlers.end(); ++it)
 		{
 		    const ArchiveEventHandlerPtr   &handler = *it;
 		    if (handler->archive() == myArchive.get())
@@ -524,12 +527,10 @@ namespace
 	bool
 	staticLocalTransform(const char *fullpath, M44d &xform)
         {
-            AbcTransformMap::const_map_iterator     it;
-
             ensureValidTransformCache();
 
-            it = myStaticXforms.find(fullpath);
-            if (it != myStaticXforms.map_end())
+            auto it = myStaticXforms.find(fullpath);
+            if (it != myStaticXforms.end())
             {
                 xform = it->second.getLocal();
                 return true;
@@ -542,12 +543,10 @@ namespace
 	bool
 	staticWorldTransform(const char *fullpath, M44d &xform)
         {
-            AbcTransformMap::const_map_iterator     it;
-
             ensureValidTransformCache();
 
-            it = myStaticXforms.find(fullpath);
-            if (it != myStaticXforms.map_end())
+            auto it = myStaticXforms.find(fullpath);
+            if (it != myStaticXforms.end())
             {
                 xform = it->second.getWorld();
                 return true;
@@ -575,13 +574,8 @@ namespace
 	bool
 	isObjectAnimated(const GABC_IObject &obj)
 	{
-	    AbcTransformMap::const_map_iterator     it;
-	    std::string                             path = obj.getFullName();
-
 	    ensureValidTransformCache();
-
-	    it = myStaticXforms.find(path.c_str());
-	    return it == myStaticXforms.map_end();
+	    return myStaticXforms.count(obj.getFullName().c_str()) == 0;
 	}
 
 	/// Find the full world transform for an object
@@ -592,8 +586,6 @@ namespace
                 bool &isConstant,
                 bool &inheritsXform)
         {
-            UT_AutoLock	lock(theXCacheLock);
-
             std::string         path = obj.getFullName();
             ArchiveObjectKey    key(path.c_str(), now);
             UT_CappedItemHandle item;
@@ -609,7 +601,7 @@ namespace
             item = myDynamicXforms.findItem(key);
             if (item)
             {
-                ArchiveTransformItem   *xitem = UTverify_cast<ArchiveTransformItem *>(item.get());
+                auto xitem = UTverify_cast<ArchiveTransformItem *>(item.get());
 
                 x = xitem->getWorld();
                 isConstant = xitem->isConstant();
@@ -617,6 +609,8 @@ namespace
             }
             else
             {
+		UT_AutoLock	lock(myTransformLock);
+
                 // Get our local transform
                 GABC_IObject    dad = obj.getParent();
                 M44d            localXform;
@@ -672,7 +666,7 @@ namespace
 	    {
 		// check if it is in our static full visibility cache
 		auto it = myStaticFullVisibility.find(path);
-		if (it != myStaticFullVisibility.map_end())
+		if (it != myStaticFullVisibility.end())
 		    return it->second;
 
 		// check if it is in our dynamic full visibility cache
@@ -690,7 +684,7 @@ namespace
 	    // check if it is in our static visibility cache
 	    GABC_VisibilityType vis = GABC_VISIBLE_DEFER;
 	    auto it = myStaticVisibility.find(path);
-	    if (it != myStaticVisibility.map_end())
+	    if (it != myStaticVisibility.end())
 	    {
 		vis = it->second;
 		if(!check_parent || vis != GABC_VISIBLE_DEFER)
@@ -925,7 +919,7 @@ namespace
         }
 
 	void    setArchive(const GABC_IArchivePtr &a)   { myArchive = a; }
-	void    setError(const std::string &e)          { error = e; }
+	void    setError(const std::string &e)          { myError = e; }
 
     private:
 	GABC_IObject		root()
@@ -934,7 +928,7 @@ namespace
         }
 
 	GABC_IArchivePtr	myArchive;
-	std::string		error;
+	std::string		myError;
 	PathList		myObjectList;
 	PathList		myFullObjectList;
 	bool			myXformCacheBuilt;
@@ -946,6 +940,7 @@ namespace
 	UT_CappedCache		myDynamicVisibility;
 	UT_CappedCache		myDynamicFullVisibility;
 	HandlerSetType		myHandlers;
+	UT_Lock			myTransformLock;
     };
 
     //-*************************************************************************

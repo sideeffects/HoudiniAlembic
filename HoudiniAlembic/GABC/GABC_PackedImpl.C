@@ -681,8 +681,6 @@ GABC_PackedImpl::unpackUsingPolygons(GU_Detail &destgdp) const
     return unpackGeometry(destgdp, false);
 }
 
-static UT_Lock	theLock;
-
 #ifdef USE_FAST_CACHE
 #include <Alembic/AbcGeom/All.h>
 namespace
@@ -860,7 +858,7 @@ GABC_PackedImpl::fullGT(int load_style) const
 GT_PrimitiveHandle
 GABC_PackedImpl::instanceGT() const
 {
-    UT_AutoLock	lock(theLock);
+    UT_AutoLock	lock(myLock);
     int		loadstyle = GABC_IObject::GABC_LOAD_FULL;
     // We don't want to copy over the attributes from the Houdini geometry
     loadstyle &= ~(GABC_IObject::GABC_LOAD_HOUDINI);
@@ -1236,7 +1234,7 @@ GABC_PackedImpl::getFaceSetNames() const
 void
 GABC_PackedImpl::GTCache::refreshTransform(const GABC_PackedImpl *abc)
 {
-    UT_AutoLock	lock(theLock);
+    UT_AutoLock	lock(abc->myLock);
     if (!myTransform)
     {
 	if (myAnimationType == GEO_ANIMATION_CONSTANT && abc->useVisibility())

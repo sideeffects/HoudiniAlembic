@@ -22,6 +22,7 @@
 #include "GABC_Util.h"
 #include <GU/GU_PackedImpl.h>
 #include <GT/GT_Primitive.h>
+#include <UT/UT_Lock.h>
 
 //#define USE_FAST_CACHE
 #ifdef USE_FAST_CACHE
@@ -284,19 +285,20 @@ private:
     void	clearGT();
     bool	unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const;
 
-    mutable GABC_IObject	            myObject;
-    mutable GTCache		            myCache;
-    mutable bool		            myCachedUniqueID;
-    mutable int64		            myUniqueID;
-    UT_StringHolder		            myFilename;
-    UT_StringHolder		            myObjectPath;
-    fpreal			            myFrame;
-    bool			            myUseTransform;
-    bool			            myUseVisibility;
+    mutable UT_Lock		myLock;
+    mutable GABC_IObject	myObject;
+    mutable GTCache		myCache;
+    mutable bool		myCachedUniqueID;
+    mutable int64		myUniqueID;
+    UT_StringHolder		myFilename;
+    UT_StringHolder		myObjectPath;
+    fpreal			myFrame;
+    bool			myUseTransform;
+    bool			myUseVisibility;
 
-    mutable GABC_VisibilityType	            myConstVisibility;
-    mutable bool		            myHasConstBounds;
-    mutable UT_BoundingBox	            myConstBounds;
+    mutable GABC_VisibilityType myConstVisibility;
+    mutable bool		myHasConstBounds;
+    mutable UT_BoundingBox	myConstBounds;
 
 #ifdef USE_FAST_CACHE
     gabc_ObjectCacheItem	 *getObjectCacheItem() const;
