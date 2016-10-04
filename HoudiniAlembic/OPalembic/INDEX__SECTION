@@ -1,7 +1,7 @@
 Operator:     alembicxform
 Label:        Alembic Xform
 Path:         oplib:/Object/alembicxform?Object/alembicxform
-Icon:         SOP_alembic
+Icon:         SOP_alembicxform
 Table:        Object
 License:      
 Extra:        
@@ -14,7 +14,7 @@ Modified:     Fri Aug 12 12:25:00 2011
 Operator:     alembicarchive
 Label:        Alembic Archive
 Path:         oplib:/Object/alembicarchive?Object/alembicarchive
-Icon:         SOP_alembic
+Icon:         SOP_alembicarchive
 Table:        Object
 License:      
 Extra:        
