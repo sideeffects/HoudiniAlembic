@@ -34,6 +34,7 @@
 #include <PRM/PRM_Shared.h>
 #include <PRM/PRM_SpareData.h>
 #include <GU/GU_PrimPacked.h>
+#include <GU/GU_Selection.h>
 #include <GABC/GABC_PackedImpl.h>
 #include <SYS/SYS_ParseNumber.h>
 
@@ -196,18 +197,24 @@ static void
 buildPrimSelection(GU_Detail *gdp, const std::vector<std::string> &group_names)
 {
     if (group_names.size() == 1)
-	gdp->attachCookSelectionGroup(
+	gdp->createShallowCookSelection(
 	    gdp->findPrimitiveGroup(group_names[0].c_str()));
     else
     {
-	GA_PrimitiveGroup *selgroup = 
-		gdp->getCookSelectionGroup<GA_PrimitiveGroup>();
-	for (int i = 0; i < group_names.size(); i++)
+	GU_SelectionHandle	 sel = gdp->getOrCreateCookSelection(
+					    GA_GROUP_PRIMITIVE,
+					    /* ordered */ false,
+					    /* clear_matching */ true);
+
+	if (sel)
 	{
-	    const GA_PrimitiveGroup *group = gdp->findPrimitiveGroup(
-						    group_names[i].c_str());
-	    if (group)
-		selgroup->combine(group);
+	    for (int i = 0; i < group_names.size(); i++)
+	    {
+		const GA_PrimitiveGroup *group = gdp->findPrimitiveGroup(
+							group_names[i].c_str());
+		if (group)
+		    sel->modifyGroup(*gdp, *group, GU_AddSelect);
+	    }
 	}
     }
 }
