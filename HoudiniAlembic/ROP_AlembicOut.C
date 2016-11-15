@@ -1284,6 +1284,7 @@ ROP_AlembicOut::refineSop(
     // identify subd
     const GA_PrimitiveGroup *grp = nullptr;
     bool subd_all = false;
+    UT_String subdgroup;
     if(geo)
     {
 	if(ropIsToggleEnabled(geo, "vm_rendersubd", time) ||
@@ -1298,11 +1299,11 @@ ROP_AlembicOut::refineSop(
     }
     else
     {
-	UT_String subdgroup;
 	SUBDGROUP(subdgroup, time);
 	if(subdgroup.isstring())
 	    grp = gdp->findPrimitiveGroup(subdgroup);
     }
+    myArchive->getOOptions().setSubdGroup(subdgroup);
 
     UT_String partition_mode;
     PARTITION_MODE(partition_mode, time);
@@ -1507,6 +1508,7 @@ ROP_AlembicOut::updateFromSop(
     SUBDGROUP(subdgroup, time);
     if(subdgroup.isstring())
 	grp = gdp->findPrimitiveGroup(subdgroup);
+    myArchive->getOOptions().setSubdGroup(subdgroup);
 
     auto &&alembic_def = GUgetFactory().lookupDefinition("AlembicRef"_sh);
     UT_SortedMap<std::string, const GU_PrimPacked *> abc_prims;
