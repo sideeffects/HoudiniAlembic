@@ -255,4 +255,11 @@
 	range	{ 0 1 }
 	export	none
     }
+    parm {
+	name	"fetchworldxform"
+	label	"Fetch World Transform"
+	type	toggle
+	default	{ "0" }
+	export	none
+    }
 }

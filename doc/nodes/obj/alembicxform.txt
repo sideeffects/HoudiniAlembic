@@ -18,6 +18,8 @@ archive (`.abc`)."""
 
 [Include:/nodes/sop/alembic#fps]
 
+Fetch World Transform:
+    #id: fetchworldxform
 
-
-
+    If this option is set, the Alembic Xform object will fetch the specified
+    object's world transform instead of its local transform.

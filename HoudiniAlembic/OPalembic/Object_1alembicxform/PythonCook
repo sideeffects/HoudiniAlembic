@@ -4,8 +4,9 @@ import os
 self = hou.pwd()
 abcPath = self.evalParm('fileName')
 objPath = self.evalParm('objectPath')
+fetchworldxform = self.evalParm('fetchworldxform')
 
-cacheKey = '%s@%s' % (abcPath, objPath)
+cacheKey = '%d@%s@%s' % (fetchworldxform, abcPath, objPath)
 
 cacheTuple = self.hdaModule().GetConstantXform(self)
 
@@ -15,16 +16,20 @@ else:
     frameParm = self.parm('frame')
     fpsParm = self.parm('fps')
     sampleTime = frameParm.eval() / fpsParm.eval()
-    xform, isConstant, inherit = _ahe.getLocalXform(abcPath, objPath, sampleTime)
-    m = hou.Matrix4(xform)
-    if not inherit:
-        parentPath = os.path.split(objPath)[0]
-        parent = _ahe.getWorldXform(abcPath, parentPath, sampleTime)
-        if parent:
-            p = hou.Matrix4(parent[0])
-            m *= p.inverted()
-	    isConstant &= parent[1]
+    if fetchworldxform:
+	xform, isConstant, inherit = _ahe.getWorldXform(abcPath, objPath, sampleTime)
+	m = hou.Matrix4(xform)
+    else:
+	xform, isConstant, inherit = _ahe.getLocalXform(abcPath, objPath, sampleTime)
+	m = hou.Matrix4(xform)
+	if not inherit:
+	    parentPath = os.path.split(objPath)[0]
+	    parent = _ahe.getWorldXform(abcPath, parentPath, sampleTime)
+	    if parent:
+		p = hou.Matrix4(parent[0])
+		m *= p.inverted()
+		isConstant &= parent[1]
     hou.pwd().setCookTransform(m)
-    
+
     if isConstant:
-        self.hdaModule().SetConstantXform(self, (cacheKey, m))
+	self.hdaModule().SetConstantXform(self, (cacheKey, m))
