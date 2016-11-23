@@ -32,7 +32,7 @@ using namespace GABC_NAMESPACE;
 namespace
 {
 
-class GABC_API GABC_PackedGT : public GT_GEOPrimPacked
+class GABC_PackedGT : public GT_GEOPrimPacked
 {
 public:
     GABC_PackedGT(const GU_ConstDetailHandle &prim_gdh,
