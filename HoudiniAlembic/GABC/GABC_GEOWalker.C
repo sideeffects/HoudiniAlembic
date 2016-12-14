@@ -2349,7 +2349,6 @@ namespace {
 	GA_Offset firstpoint = gdp.appendPointBlock(8);
 	GU_PrimPolySoup::build(&gdp, firstpoint, 8, *theCounts,
 		boxVertexMap);
-	gdp.getTopology().validate();
     }
 
     static void
