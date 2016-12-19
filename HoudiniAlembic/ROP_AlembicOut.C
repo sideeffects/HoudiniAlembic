@@ -291,8 +291,8 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 
 	bool processPacked(const GT_PrimitiveHandle &prim)
 	{
-	    if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_DEFORM ||
-	       prim->getPrimitiveType() != GT_GEO_PACKED)
+	    if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_DEFORM_GEOMETRY
+		|| prim->getPrimitiveType() != GT_GEO_PACKED)
 	    {
 		return false;
 	    }
@@ -319,7 +319,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	    m.invert();
 	    GT_PrimitiveHandle copy = prim->doSoftCopy();
 	    copy->setPrimitiveTransform(new GT_Transform(&m, 1));
-	    if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM)
+	    if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM_GEOMETRY)
 	    {
 		auto &rop_i = myAssignments.myTransformAndShapes[std::make_pair(myName, mySubd)];
 		// create transform node
@@ -897,17 +897,20 @@ ROP_AlembicOut::resolveObsoleteParms(PRM_ParmList *obsolete_parms)
 
     UT_String packed;
     obsolete_parms->evalStringRaw(packed, thePackedModeName.getToken(), 0, 0.0f);
-    if(packed == "transformedshape")
-	setString("deform", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
-    else if(packed == "transformedparent")
+    if(packed.isstring())
     {
-	setString("transformparent", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
-	setInt("shape_nodes", 0, 0.0f, false);
+	if(packed == "transformedshape")
+	    setString("deform", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
+	else if(packed == "transformedparent")
+	{
+	    setString("transformparent", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
+	    setInt("shape_nodes", 0, 0.0f, false);
+	}
+	else if(packed == "transformedparentandshape")
+	    setString("transformparent", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
+	else if(packed == "transformandshape")
+	    setString("transform", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
     }
-    else if(packed == "transformedparentandshape")
-	setString("transformparent", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
-    else // if(packed == "transformandshape")
-	setString("transform", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
 
     ROP_Node::resolveObsoleteParms(obsolete_parms);
 }
@@ -1040,11 +1043,11 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
     PACKED_TRANSFORM(packed, time);
     PackedTransform packedtransform;
     if(packed == "deform")
-	packedtransform = ROP_ALEMBIC_PACKEDTRANSFORM_DEFORM;
+	packedtransform = ROP_ALEMBIC_PACKEDTRANSFORM_DEFORM_GEOMETRY;
     else if(packed == "transformparent")
 	packedtransform = ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM;
     else // if(packed == "transform")
-	packedtransform = ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM;
+	packedtransform = ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM_GEOMETRY;
 
     UT_String faceset;
     FACESET_MODE(faceset, time);
