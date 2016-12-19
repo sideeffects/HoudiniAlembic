@@ -55,6 +55,7 @@ public:
 			{ str = "filename"; }
     /// We need to hint to the merge ROP that we can't be called one frame at a
     /// time.
+    virtual void resolveObsoleteParms(PRM_ParmList *obsolete_parms);
     virtual void buildRenderDependencies(const ROP_RenderDepParms &p);
 
     SOP_Node *getSopNode(fpreal time) const;
@@ -101,10 +102,12 @@ protected:
 		{ evalString(str, "partition_attribute", 0, time); }
     bool FULL_BOUNDS(fpreal time) const
 		{ return evalInt("full_bounds", 0, time) != 0; }
-    void PACKED_MODE(UT_String &str, fpreal time) const
-		{ evalString(str, "packed_mode", 0, time); }
+    void PACKED_TRANSFORM(UT_String &str, fpreal time) const
+		{ evalString(str, "packed_transform", 0, time); }
     bool USE_INSTANCING(fpreal time) const
 		{ return evalInt("use_instancing", 0, time) != 0; }
+    bool SHAPE_NODES(fpreal time) const
+		{ return evalInt("shape_nodes", 0, time) != 0; }
     bool SAVE_ATTRIBUTES(fpreal time) const
 		{ return evalInt("save_attributes", 0, time) != 0; }
     void PRIM_TO_DETAIL_PATTERN(UT_String &str, fpreal time) const
@@ -131,6 +134,13 @@ private:
 	ROP_ALEMBIC_PACKEDMODE_TRANSFORM_AND_SHAPE,
 	ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT,
 	ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT_AND_SHAPE
+    };
+
+    enum PackedTransform
+    {
+	ROP_ALEMBIC_PACKEDTRANSFORM_DEFORM,
+	ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM,
+	ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM
     };
 
     class rop_OError : public GABC_OError
@@ -176,9 +186,9 @@ private:
 	ROP_AbcNode *getParent() const { return myParent; }
 
 	void refine(const GT_PrimitiveHandle &prim,
-		    PackedMode packedmode, exint facesetmode, bool subd,
-		    bool use_instancing, const std::string &name,
-		    const ROP_AbcArchivePtr &abc);
+		    PackedTransform packedtransform, exint facesetmode,
+		    bool subd, bool use_instancing, bool shape_nodes,
+		    const std::string &name, const ROP_AbcArchivePtr &abc);
 
 	void setUserProperties(const UT_String &vals, const UT_String &meta,
 			       bool subd, const std::string &name);
@@ -234,14 +244,16 @@ private:
 			const GU_Detail &gdp, const GA_Range &range,
 			const std::string &name,
 			const GA_ROHandleS &vals, const GA_ROHandleS &meta);
-    void refineSop(rop_RefinedGeoAssignments &refinement, PackedMode packedmode,
-		   exint facesetmode, bool use_instancing, OBJ_Geometry *geo,
+    void refineSop(rop_RefinedGeoAssignments &refinement,
+		   PackedTransform packedtransform, exint facesetmode,
+		   bool use_instancing, bool shape_nodes, OBJ_Geometry *geo,
 		   SOP_Node *sop, fpreal time);
 
-    bool updateFromSop(SOP_Node *sop, PackedMode packedmode, exint facesetmode,
-		       bool use_instancing);
-    bool updateFromHierarchy(PackedMode packedmode, exint facesetmode,
-			     bool use_instancing);
+    bool updateFromSop(SOP_Node *sop, PackedTransform packedtransform,
+		       exint facesetmode, bool use_instancing,
+		       bool shape_nodes);
+    bool updateFromHierarchy(PackedTransform packedtransform, exint facesetmode,
+			     bool use_instancing, bool shape_nodes);
 
     // temporary storage when exporting to an Alembic archive
     ROP_AbcArchivePtr myArchive;

@@ -208,21 +208,22 @@ Full Bounding Box Tree:
 
 == Geometry ==
 
-Packed Mode:
+Packed Transform:
         When saving a complex piece of geometry, it is possible to partition the
         geometry into multiple shape nodes using packed primitives.  There are several different ways to handle packed primitives.
 
-	Transformed Shape:
+	Deform Geometry:
 		The packed primitive's transform will be baked in to the resulting shape node's geometry.
-	Transform And Shape:
+	Transform Geometry:
 		A transform node will be created above the packed geometry.
-	Transformed Parent:
-		The packed primitive's transform will be baked in to the parent transform node.  No shape node will be generated.
-	Transformed Parent And Shape:
-		The packed geometry will be insert into the hierarchy and the packed primitive's transform will be baked in to the parent transform node.
+	Merge With Parent Transform:
+		The packed primitive's transform will be baked in to the parent transform node.
 
 Use Instancing Where Possible:
 	This will cause packed objects to be instanced within the Alembic archive during write, reusing geometry and potentially decreasing the size of the file.
+
+Create Shape Nodes:
+	This will cause Alembic shape nodes to be created for geometry.
 
 Save Attributes:
         If this checkbox is turned on, geometry attributes will be saved to the

@@ -99,10 +99,11 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::newShapeNode(
 void
 ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
     const GT_PrimitiveHandle &prim,
-    PackedMode packedmode,
+    PackedTransform packedtransform,
     exint facesetmode,
     bool subd,
     bool use_instancing,
+    bool shape_nodes,
     const std::string &name,
     const ROP_AbcArchivePtr &abc)
 {
@@ -121,10 +122,11 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
     public:
 	rop_AbcRefiner2(ROP_AlembicOut::rop_RefinedGeoAssignments &assignments,
 			const GT_RefineParms &rparms,
-			PackedMode packedmode,
+			PackedTransform packedtransform,
 			exint facesetmode,
 			bool subd,
 			bool use_instancing,
+			bool shape_nodes,
 			const std::string &name,
 			const ROP_AbcArchivePtr &abc)
 	    : myAssignments(assignments)
@@ -132,10 +134,11 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	    , myName(name)
 	    , myArchive(abc)
 	    , myPackedCount(0)
-	    , myPackedMode(packedmode)
+	    , myPackedTransform(packedtransform)
 	    , myFacesetMode(facesetmode)
 	    , mySubd(subd)
 	    , myUseInstancing(use_instancing)
+	    , myShapeNodes(shape_nodes)
 	{
 	}
 
@@ -227,8 +230,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		xform->getMatrix(m, 0);
 		m *= prim_xform;
 
-		if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT ||
-		   myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT_AND_SHAPE)
+		if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM)
 		{
 		    ROP_AbcNode *parent = myAssignments.myParent;
 		    if(!parent->getParent())
@@ -237,9 +239,6 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		    {
 			myAssignments.warnChildren(myArchive);
 		    }
-
-		    if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT)
-			continue;
 
 		    m.identity();
 		}
@@ -270,7 +269,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 			rop_inst.myInstances.append(child);
 		    }
 		}
-		else
+		else if(myShapeNodes)
 		{
 		    if(!rop_inst.myShape)
 		    {
@@ -292,7 +291,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 
 	bool processPacked(const GT_PrimitiveHandle &prim)
 	{
-	    if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_SHAPE ||
+	    if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_DEFORM ||
 	       prim->getPrimitiveType() != GT_GEO_PACKED)
 	    {
 		return false;
@@ -317,22 +316,10 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	    }
 	    prim_xform = m * prim_xform;
 
-	    if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT)
-	    {
-		ROP_AbcNode *parent = myAssignments.myParent;
-		if(!parent->getParent())
-		    myAssignments.warnRoot(myArchive);
-		else if(!static_cast<ROP_AbcNodeXform *>(parent)->setPreMatrix(prim_xform))
-		{
-		    myAssignments.warnChildren(myArchive);
-		}
-		return true;
-	    }
-
 	    m.invert();
 	    GT_PrimitiveHandle copy = prim->doSoftCopy();
 	    copy->setPrimitiveTransform(new GT_Transform(&m, 1));
-	    if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORM_AND_SHAPE)
+	    if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM)
 	    {
 		auto &rop_i = myAssignments.myTransformAndShapes[std::make_pair(myName, mySubd)];
 		// create transform node
@@ -359,10 +346,11 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		auto &assignment = children[xform_and_shape.myChildIndex];
 		ROP_AbcNode *parent = assignment.myParent;
 		static_cast<ROP_AbcNodeXform *>(parent)->setData(prim_xform, true);
-		assignment.refine(copy, myPackedMode, myFacesetMode, mySubd,
-				  myUseInstancing, myName, myArchive);
+		assignment.refine(copy, myPackedTransform, myFacesetMode,
+				  mySubd, myUseInstancing, myShapeNodes, myName,
+				  myArchive);
 	    }
-	    else // if(myPackedMode == ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT_AND_SHAPE)
+	    else // if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM)
 	    {
 		ROP_AbcNode *parent = myAssignments.myParent;
 		if(!parent->getParent())
@@ -380,6 +368,9 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	{
 	    if(GABC_OGTGeometry::isPrimitiveSupported(prim))
 	    {
+		if(!myShapeNodes)
+		    return;
+
 		// get the shape node
 		int type = prim->getPrimitiveType();
 		exint idx;
@@ -414,11 +405,13 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	UT_Map<int, exint> myShapeCount;
 	UT_Map<int, exint> myInstanceCount;
 	exint myPackedCount;
-	PackedMode myPackedMode;
+	PackedTransform myPackedTransform;
 	exint myFacesetMode;
 	bool mySubd;
 	bool myUseInstancing;
-    } refiner(*this, rparms, packedmode, facesetmode, subd, use_instancing, name, abc);
+	bool myShapeNodes;
+    } refiner(*this, rparms, packedtransform, facesetmode, subd, use_instancing,
+	      shape_nodes, name, abc);
 
     prim->refine(refiner, &rparms);
 }
@@ -447,7 +440,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::setUserProperties(
 	    auto &insts = it.second;
 	    for(exint i = 0; i < insts.entries(); ++i)
 	    {
-		// could be null with ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT
+		// could be null with ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM
 		ROP_AbcNodeShape *shape = insts(i).myShape;
 		if(shape)
 		    shape->setUserProperties(vals, meta);
@@ -539,8 +532,9 @@ static PRM_Name theDisplaySOPName("displaysop", "Use Display SOP");
 static PRM_Name thePartitionModeName("partition_mode", "Partition Mode");
 static PRM_Name thePartitionAttributeName("partition_attribute", "Partition Attribute");
 static PRM_Name theFullBoundsName("full_bounds", "Full Bounding Box Tree");
-static PRM_Name thePackedModeName("packed_mode", "Packed Mode");
+static PRM_Name thePackedTransformName("packed_transform", "Packed Transform");
 static PRM_Name theUseInstancingName("use_instancing", "Use Instancing Where Possible");
+static PRM_Name theShapeNodesName("shape_nodes", "Create Shape Nodes");
 static PRM_Name theSaveAttributesName("save_attributes", "Save Attributes");
 static PRM_Name thePointAttributesName("pointAttributes", "Point Attributes");
 static PRM_Name theVertexAttributesName("vertexAttributes", "Vertex Attributes");
@@ -560,7 +554,7 @@ static PRM_Default theRootDefault(0, "/obj");
 static PRM_Default theStarDefault(0, "*");
 static PRM_Default thePathAttribDefault(0, "path");
 static PRM_Default theCollapseDefault(0, "off");
-static PRM_Default thePackedModeDefault(0, "transformedshape");
+static PRM_Default thePackedTransformDefault(0, "deform");
 static PRM_Default theFaceSetModeDefault(1, "nonempty");
 static PRM_Default theSampleDefault(2);
 static PRM_Default theShutterDefault[] = {0, 1};
@@ -572,7 +566,7 @@ static PRM_SpareData theAbcPattern(
 static PRM_Default mainSwitcher[] =
 {
     PRM_Default(13, "Hierarchy"),
-    PRM_Default(11, "Geometry"),
+    PRM_Default(12, "Geometry"),
     PRM_Default(3, "Motion Blur"),
 };
 
@@ -610,12 +604,11 @@ static PRM_Name thePartitionAttributeChoices[] =
     PRM_Name() // Sentinal
 };
 
-static PRM_Name thePackedModeChoices[] =
+static PRM_Name thePackedTransformChoices[] =
 {
-    PRM_Name("transformedshape",		"Transformed Shape"),
-    PRM_Name("transformandshape",		"Transform And Shape"),
-    PRM_Name("transformedparent",		"Transformed Parent"),
-    PRM_Name("transformedparentandshape",	"Transformed Parent And Shape"),
+    PRM_Name("deform",		"Deform Geometry"),
+    PRM_Name("transform",	"Transform Geometry"),
+    PRM_Name("transformparent",	"Merge With Parent Transform"),
     PRM_Name()
 };
 
@@ -725,7 +718,7 @@ static PRM_ChoiceList theObjectsMenu(PRM_CHOICELIST_REPLACE, buildBundleMenu);
 static PRM_ChoiceList theCollapseMenu(PRM_CHOICELIST_SINGLE, theCollapseChoices);
 static PRM_ChoiceList thePartitionModeMenu(PRM_CHOICELIST_SINGLE, thePartitionModeChoices);
 static PRM_ChoiceList thePartitionAttributeMenu(PRM_CHOICELIST_REPLACE, thePartitionAttributeChoices);
-static PRM_ChoiceList thePackedModeMenu(PRM_CHOICELIST_SINGLE, thePackedModeChoices);
+static PRM_ChoiceList thePackedTransformMenu(PRM_CHOICELIST_SINGLE, thePackedTransformChoices);
 static PRM_ChoiceList theFaceSetModeMenu(PRM_CHOICELIST_SINGLE, theFaceSetModeChoices);
 
 // Make paths relative to /obj (for the bundle code)
@@ -763,9 +756,10 @@ static PRM_Template theParameters[] =
     PRM_Template(PRM_STRING, 1, &thePartitionAttributeName, 0,
 		    &thePartitionAttributeMenu),
     PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName),
-    PRM_Template(PRM_ORD, 1, &thePackedModeName, &thePackedModeDefault,
-		    &thePackedModeMenu),
+    PRM_Template(PRM_ORD, 1, &thePackedTransformName,
+		    &thePackedTransformDefault, &thePackedTransformMenu),
     PRM_Template(PRM_TOGGLE, 1, &theUseInstancingName, PRMoneDefaults),
+    PRM_Template(PRM_TOGGLE, 1, &theShapeNodesName, PRMoneDefaults),
     PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName, PRMoneDefaults),
     PRM_Template(PRM_STRING, 1, &thePointAttributesName, &theStarDefault),
     PRM_Template(PRM_STRING, 1, &theVertexAttributesName, &theStarDefault),
@@ -787,8 +781,10 @@ static PRM_Name thePackedAbcPriorityName("packed_priority", "Packed Alembic Prio
 static PRM_Name separator2Name("_sep2", "");
 static PRM_Name separator3Name("_sep3", "");
 static PRM_Name theVerboseName("verbose", "Verbosity");
+static PRM_Name thePackedModeName("packed_mode", "Packed Mode");
 
 static PRM_Default thePackedAbcPriorityDefault(0, "hier");
+static PRM_Default thePackedModeDefault(0, "transformedshape");
 
 static PRM_Name thePackedAbcPriorityChoices[] =
 {
@@ -797,7 +793,17 @@ static PRM_Name thePackedAbcPriorityChoices[] =
     PRM_Name()
 };
 
+static PRM_Name thePackedModeChoices[] =
+{
+    PRM_Name("transformedshape",		"Transformed Shape"),
+    PRM_Name("transformandshape",		"Transform And Shape"),
+    PRM_Name("transformedparent",		"Transformed Parent"),
+    PRM_Name("transformedparentandshape",	"Transformed Parent And Shape"),
+    PRM_Name()
+};
+
 static PRM_ChoiceList thePackedAbcPriorityMenu(PRM_CHOICELIST_SINGLE, thePackedAbcPriorityChoices);
+static PRM_ChoiceList thePackedModeMenu(PRM_CHOICELIST_SINGLE, thePackedModeChoices);
 
 static PRM_Range theVerboseRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 3);
 
@@ -809,6 +815,8 @@ static PRM_Template theObsoleteParameters[] =
     PRM_Template(PRM_SEPARATOR, 1, &separator2Name),
     PRM_Template(PRM_SEPARATOR, 1, &separator3Name),
     PRM_Template(PRM_INT,   1, &theVerboseName, 0, 0, &theVerboseRange),
+    PRM_Template(PRM_ORD, 1, &thePackedModeName, &thePackedModeDefault,
+		    &thePackedModeMenu),
     PRM_Template(),
 };
 
@@ -842,7 +850,8 @@ ROP_AlembicOut::updateParmsFlags()
 	PARTITION_MODE(str, 0);
 	partition_attrib = (str != "no");
     }
-    bool save_attributes = SAVE_ATTRIBUTES(0);
+    bool shape_nodes = SHAPE_NODES(0);
+    bool save_attributes = (shape_nodes && SAVE_ATTRIBUTES(0));
     bool enable_prim_to_detail = save_attributes;
     if(enable_prim_to_detail)
     {
@@ -866,6 +875,7 @@ ROP_AlembicOut::updateParmsFlags()
     changed |= enableParm("displaysop", !sop_mode);
     changed |= enableParm("partition_mode", partition_mode);
     changed |= enableParm("partition_attribute", partition_attrib);
+    changed |= enableParm("save_attributes", shape_nodes);
     changed |= enableParm("vertexAttributes", save_attributes);
     changed |= enableParm("pointAttributes", save_attributes);
     changed |= enableParm("primitiveAttributes", save_attributes);
@@ -873,9 +883,33 @@ ROP_AlembicOut::updateParmsFlags()
     changed |= enableParm("prim_to_detail_pattern", save_attributes);
     changed |= enableParm("force_prim_to_detail", enable_prim_to_detail);
     changed |= enableParm("uvAttributes", save_attributes);
+    changed |= enableParm("facesets", shape_nodes);
     changed |= enableParm("shutter", motionblur);
     changed |= enableParm("samples", motionblur);
     return changed;
+}
+
+void
+ROP_AlembicOut::resolveObsoleteParms(PRM_ParmList *obsolete_parms)
+{
+    if(!obsolete_parms)
+	return;
+
+    UT_String packed;
+    obsolete_parms->evalStringRaw(packed, thePackedModeName.getToken(), 0, 0.0f);
+    if(packed == "transformedshape")
+	setString("deform", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
+    else if(packed == "transformedparent")
+    {
+	setString("transformparent", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
+	setInt("shape_nodes", 0, 0.0f, false);
+    }
+    else if(packed == "transformedparentandshape")
+	setString("transformparent", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
+    else // if(packed == "transformandshape")
+	setString("transform", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
+
+    ROP_Node::resolveObsoleteParms(obsolete_parms);
 }
 
 void
@@ -1003,16 +1037,14 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
     SOP_Node *sop = getSopNode(time);
 
     UT_String packed;
-    PACKED_MODE(packed, time);
-    PackedMode packedmode;
-    if(packed == "transformedshape")
-	packedmode = ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_SHAPE;
-    else if(packed == "transformedparent")
-	packedmode = ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT;
-    else if(packed == "transformedparentandshape")
-	packedmode = ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT_AND_SHAPE;
-    else // if(packed == "transformandshape")
-	packedmode = ROP_ALEMBIC_PACKEDMODE_TRANSFORM_AND_SHAPE;
+    PACKED_TRANSFORM(packed, time);
+    PackedTransform packedtransform;
+    if(packed == "deform")
+	packedtransform = ROP_ALEMBIC_PACKEDTRANSFORM_DEFORM;
+    else if(packed == "transformparent")
+	packedtransform = ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM;
+    else // if(packed == "transform")
+	packedtransform = ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM;
 
     UT_String faceset;
     FACESET_MODE(faceset, time);
@@ -1024,6 +1056,7 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
     else // if(faceset == "no")
 	facesetmode = GT_RefineParms::FACESET_NONE;
 
+    bool shape_nodes = SHAPE_NODES(time);
     bool use_instancing = USE_INSTANCING(time);
 
     exint n = myArchive->getSamplesPerFrame();
@@ -1035,10 +1068,10 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	// update tree
 	if(sop)
 	{
-	    if(!updateFromSop(sop, packedmode, facesetmode, use_instancing))
+	    if(!updateFromSop(sop, packedtransform, facesetmode, use_instancing, shape_nodes))
 		return ROP_ABORT_RENDER;
 	}
-	else if(!updateFromHierarchy(packedmode, facesetmode, use_instancing))
+	else if(!updateFromHierarchy(packedtransform, facesetmode, use_instancing, shape_nodes))
 	    return ROP_ABORT_RENDER;
 
 	myRoot->update();
@@ -1246,9 +1279,10 @@ ropPartitionXformShape(char *s)
 void
 ROP_AlembicOut::refineSop(
     rop_RefinedGeoAssignments &assignments,
-    PackedMode packedmode,
+    PackedTransform packedtransform,
     exint facesetmode,
     bool use_instancing,
+    bool shape_nodes,
     OBJ_Geometry *geo,
     SOP_Node *sop,
     fpreal time)
@@ -1399,8 +1433,9 @@ ROP_AlembicOut::refineSop(
 		    tmp_name += "_subd";
 
 		bool subd = (idx || subd_all);
-		assignments.refine(prim, packedmode, facesetmode, subd,
-				   use_instancing, tmp_name, myArchive);
+		assignments.refine(prim, packedtransform, facesetmode, subd,
+				   use_instancing, shape_nodes, tmp_name,
+				   myArchive);
 		exportUserProperties(assignments, subd, *gdp, range, tmp_name,
 				     up_vals, up_meta);
 	    }
@@ -1431,9 +1466,10 @@ ropIsShape(GABC_NodeType type)
 bool
 ROP_AlembicOut::updateFromSop(
     SOP_Node *sop,
-    PackedMode packedmode,
+    PackedTransform packedtransform,
     exint facesetmode,
-    bool use_instancing)
+    bool use_instancing,
+    bool shape_nodes)
 {
     fpreal time = myArchive->getCookTime();
     OP_Context context(time);
@@ -1477,8 +1513,8 @@ ROP_AlembicOut::updateFromSop(
 	    // make transform visible
 	    static_cast<ROP_AbcNodeXform *>(node)->setData(m, true);
 	}
-	refineSop(*mySopAssignments, packedmode, facesetmode, use_instancing,
-		  nullptr, sop, time);
+	refineSop(*mySopAssignments, packedtransform, facesetmode,
+		  use_instancing, shape_nodes, nullptr, sop, time);
 	return true;
     }
 
@@ -1835,8 +1871,8 @@ ROP_AlembicOut::updateFromSop(
 		ancestors.append(node);
 	    }
 
-	    assignments->refine(prim, packedmode, facesetmode, subd,
-				use_instancing, name, myArchive);
+	    assignments->refine(prim, packedtransform, facesetmode, subd,
+				use_instancing, shape_nodes, name, myArchive);
 	    exportUserProperties(*assignments, subd, *gdp, r, name,
 				 up_vals, up_meta);
 	}
@@ -1847,7 +1883,10 @@ ROP_AlembicOut::updateFromSop(
 
 bool
 ROP_AlembicOut::updateFromHierarchy(
-    PackedMode packedmode, exint facesetmode, bool use_instancing)
+    PackedTransform packedtransform,
+    exint facesetmode,
+    bool use_instancing,
+    bool shape_nodes)
 {
     fpreal time = myArchive->getCookTime();
 
@@ -2043,8 +2082,8 @@ ROP_AlembicOut::updateFromHierarchy(
 	    auto it = myGeoAssignments.find(geo);
 	    if(it != myGeoAssignments.end())
 	    {
-		refineSop(it->second, packedmode, facesetmode, use_instancing,
-			  geo, sop, time);
+		refineSop(it->second, packedtransform, facesetmode,
+			  use_instancing, shape_nodes, geo, sop, time);
 	    }
 	    else
 	    {
