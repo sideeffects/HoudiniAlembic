@@ -1946,9 +1946,6 @@ ROP_AlembicOut::updateFromHierarchy(
 	UT_WorkBuffer buf;
 	obj->getFullPath(buf);
 
-	OBJ_Camera *cam = obj->castToOBJCamera();
-	OBJ_Geometry *geo = obj->castToOBJGeometry();
-
 	ancestors.clear();
 	for(;;)
 	{
@@ -1977,24 +1974,27 @@ ROP_AlembicOut::updateFromHierarchy(
 
 		    myObjAssignments.emplace(obj, child);
 		    parent = child;
-		}
 
-		if(geo && myGeoAssignments.find(geo) == myGeoAssignments.end())
-		{
-		    myGeoAssignments.emplace(geo, rop_RefinedGeoAssignments(parent));
-		    myGeos.append(geo);
-		}
-		if(cam && myCamAssignments.find(cam) == myCamAssignments.end())
-		{
-		    std::string name("cameraProperties");
+		    OBJ_Geometry *geo = obj->castToOBJGeometry();
+		    if(geo && myGeoAssignments.find(geo) == myGeoAssignments.end())
+		    {
+			myGeoAssignments.emplace(geo, rop_RefinedGeoAssignments(parent));
+			myGeos.append(geo);
+		    }
 
-		    // handle name collisions
-		    parent->makeCollisionFreeName(name);
+		    OBJ_Camera *cam = obj->castToOBJCamera();
+		    if(cam && myCamAssignments.find(cam) == myCamAssignments.end())
+		    {
+			std::string name("cameraProperties");
 
-		    ROP_AbcNodeCamera *child = new ROP_AbcNodeCamera(name, cam->RESX(time), cam->RESY(time));
-		    child->setArchive(myArchive);
-		    parent->addChild(child);
-		    myCamAssignments.emplace(cam, child);
+			// handle name collisions
+			parent->makeCollisionFreeName(name);
+
+			ROP_AbcNodeCamera *child = new ROP_AbcNodeCamera(name, cam->RESX(time), cam->RESY(time));
+			child->setArchive(myArchive);
+			parent->addChild(child);
+			myCamAssignments.emplace(cam, child);
+		    }
 		}
 		break;
 	    }
