@@ -1946,9 +1946,10 @@ ROP_AlembicOut::updateFromHierarchy(
 
 	UT_WorkBuffer buf;
 	obj->getFullPath(buf);
-
 	OBJ_Camera *cam = obj->castToOBJCamera();
-	OBJ_Geometry *geo = obj->castToOBJGeometry();
+	OBJ_Geometry *geo = nullptr;
+	if(obj->getObjectType() == OBJ_GEOMETRY)
+	    geo = obj->castToOBJGeometry();
 
 	ancestors.clear();
 	for(;;)
