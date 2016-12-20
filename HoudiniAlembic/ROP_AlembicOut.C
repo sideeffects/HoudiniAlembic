@@ -1936,21 +1936,27 @@ ROP_AlembicOut::updateFromHierarchy(
 	}
     }
     bool save_hidden = SAVE_HIDDEN(time);
+    UT_Set<OBJ_Node *> visited;
     UT_Array<OBJ_Node *> ancestors;
     for(exint w = 0; w < work.entries(); ++w)
     {
 	OBJ_Node *obj = work(w);
-	if(!obj || myObjAssignments.find(obj) != myObjAssignments.end())
+	if(!obj || visited.find(obj) != visited.end())
 	    continue;
 
 	UT_WorkBuffer buf;
 	obj->getFullPath(buf);
+
+	OBJ_Camera *cam = obj->castToOBJCamera();
+	OBJ_Geometry *geo = obj->castToOBJGeometry();
 
 	ancestors.clear();
 	for(;;)
 	{
 	    if(!obj || rootnode == obj || myObjAssignments.find(obj) != myObjAssignments.end())
 	    {
+		visited.insert(obj);
+
 		// reached root or an assigned node
 		ROP_AbcNode *parent = nullptr;
 		if(!obj || rootnode == obj)
@@ -1974,27 +1980,24 @@ ROP_AlembicOut::updateFromHierarchy(
 
 		    myObjAssignments.emplace(obj, child);
 		    parent = child;
+		}
 
-		    OBJ_Geometry *geo = obj->castToOBJGeometry();
-		    if(geo && myGeoAssignments.find(geo) == myGeoAssignments.end())
-		    {
-			myGeoAssignments.emplace(geo, rop_RefinedGeoAssignments(parent));
-			myGeos.append(geo);
-		    }
+		if(geo && myGeoAssignments.find(geo) == myGeoAssignments.end())
+		{
+		    myGeoAssignments.emplace(geo, rop_RefinedGeoAssignments(parent));
+		    myGeos.append(geo);
+		}
+		if(cam && myCamAssignments.find(cam) == myCamAssignments.end())
+		{
+		    std::string name("cameraProperties");
 
-		    OBJ_Camera *cam = obj->castToOBJCamera();
-		    if(cam && myCamAssignments.find(cam) == myCamAssignments.end())
-		    {
-			std::string name("cameraProperties");
+		    // handle name collisions
+		    parent->makeCollisionFreeName(name);
 
-			// handle name collisions
-			parent->makeCollisionFreeName(name);
-
-			ROP_AbcNodeCamera *child = new ROP_AbcNodeCamera(name, cam->RESX(time), cam->RESY(time));
-			child->setArchive(myArchive);
-			parent->addChild(child);
-			myCamAssignments.emplace(cam, child);
-		    }
+		    ROP_AbcNodeCamera *child = new ROP_AbcNodeCamera(name, cam->RESX(time), cam->RESY(time));
+		    child->setArchive(myArchive);
+		    parent->addChild(child);
+		    myCamAssignments.emplace(cam, child);
 		}
 		break;
 	    }
