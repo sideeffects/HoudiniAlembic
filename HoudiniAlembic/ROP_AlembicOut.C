@@ -1936,12 +1936,11 @@ ROP_AlembicOut::updateFromHierarchy(
 	}
     }
     bool save_hidden = SAVE_HIDDEN(time);
-    UT_Set<OBJ_Node *> visited;
     UT_Array<OBJ_Node *> ancestors;
     for(exint w = 0; w < work.entries(); ++w)
     {
 	OBJ_Node *obj = work(w);
-	if(!obj || visited.find(obj) != visited.end())
+	if(!obj)
 	    continue;
 
 	UT_WorkBuffer buf;
@@ -1956,8 +1955,6 @@ ROP_AlembicOut::updateFromHierarchy(
 	{
 	    if(!obj || rootnode == obj || myObjAssignments.find(obj) != myObjAssignments.end())
 	    {
-		visited.insert(obj);
-
 		// reached root or an assigned node
 		ROP_AbcNode *parent = nullptr;
 		if(!obj || rootnode == obj)
