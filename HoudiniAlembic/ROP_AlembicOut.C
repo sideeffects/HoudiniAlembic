@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016
+ * Copyright (c) 2017
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1431,15 +1431,11 @@ ROP_AlembicOut::refineSop(
 	    {
 		exported = true;
 
-		std::string tmp_name = it.first;
-		if(idx)
-		    tmp_name += "_subd";
-
 		bool subd = (idx || subd_all);
 		assignments.refine(prim, packedtransform, facesetmode, subd,
-				   use_instancing, shape_nodes, tmp_name,
+				   use_instancing, shape_nodes, it.first,
 				   myArchive);
-		exportUserProperties(assignments, subd, *gdp, range, tmp_name,
+		exportUserProperties(assignments, subd, *gdp, range, it.first,
 				     up_vals, up_meta);
 	    }
 	}
@@ -1847,11 +1843,7 @@ ROP_AlembicOut::updateFromSop(
 
 	    GA_Range r(gdp->getPrimitiveMap(), it.second);
 
-	    // subd
 	    std::string name = buf.buffer();
-	    if(subd)
-		name += "_subd";
-
 	    GT_PrimitiveHandle prim = GT_GEODetail::makeDetail(gdh, &r);
 	    ancestors.clear();
 	    for(ROP_AbcNode *parent = assignments->getParent();
