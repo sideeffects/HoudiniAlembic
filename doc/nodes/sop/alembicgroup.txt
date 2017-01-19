@@ -3,7 +3,7 @@
 #type: node
 #context: sop
 #internal: alembicgroup
-#icon: SOP/alembicgroup
+#icon: SOP/alembic
 #tags: alembic, groups
 
 """Creates a geometry group for Alembic primitives."""

@@ -3,7 +3,7 @@
 #type: node
 #context: sop
 #internal: alembicprimitive
-#icon: SOP/alembicprimitive
+#icon: SOP/alembic
 #tags: alembic, edit
 
 """Modifies intrinsic properties of Alembic primitives."""
