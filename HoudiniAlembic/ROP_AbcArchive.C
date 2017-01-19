@@ -40,6 +40,7 @@
 
 typedef GABC_NAMESPACE::GABC_Util GABC_Util;
 
+typedef Alembic::Abc::Box3d Box3d;
 typedef Alembic::Abc::chrono_t chrono_t;
 typedef Alembic::Abc::MetaData MetaData;
 typedef Alembic::Abc::OArchive OArchive;
@@ -49,6 +50,7 @@ typedef Alembic::Abc::TimeSamplingType TimeSamplingType;
 ROP_AbcArchive::ROP_AbcArchive(
     const char *filename, bool ogawa, GABC_OError &err)
     : mySampleCount(0)
+    , myHasCachedBounds(false)
     , myOOptions(myTimeSampling)
     , myOError(err)
 {
@@ -189,5 +191,26 @@ void
 ROP_AbcArchive::setBoundingBox(const UT_BoundingBox &box)
 {
     if(myOOptions.fullBounds())
-	myBoxProperty.set(GABC_Util::getBox(box));
+    {
+	// avoid writing multiple samples for static bounds
+	if(myHasCachedBounds && (myCachedBounds == box))
+	    ++myCachedBoundsCount;
+	else
+	{
+	    if(myHasCachedBounds)
+	    {
+		Box3d b = GABC_Util::getBox(myCachedBounds);
+		for(; myCachedBoundsCount; --myCachedBoundsCount)
+		    myBoxProperty.set(b);
+		myHasCachedBounds = false;
+	    }
+	    else if(mySampleCount == 1)
+	    {
+		myCachedBounds = box;
+		myCachedBoundsCount = 0;
+		myHasCachedBounds = true;
+	    }
+	    myBoxProperty.set(GABC_Util::getBox(box));
+	}
+    }
 }
