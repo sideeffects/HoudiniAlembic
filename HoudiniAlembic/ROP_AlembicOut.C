@@ -959,7 +959,6 @@ ROP_AlembicOut::startRender(int nframes, fpreal tstart, fpreal tend)
     myErrors.reset(new rop_OError());
     myRoot.reset(new ROP_AbcNodeRoot());
 
-    myRenderFullRange = RENDER_FULL_RANGE();
     myNFrames = nframes;
     myEndTime = tend;
 
@@ -969,14 +968,18 @@ ROP_AlembicOut::startRender(int nframes, fpreal tstart, fpreal tend)
 ROP_RENDER_CODE
 ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 {
-    if(!myRenderFullRange)
+    UT_String filename;
+    FILENAME(filename, time);
+    filename.trimBoundingSpace();
+
+    if(!myArchive || filename != myFileName)
     {
+	myFileName.harden(filename);
+
 	// close the previous archive
 	const ROP_AbcArchivePtr dummy;
 	myRoot->setArchive(dummy);
 	myArchive.clear();
-	myNFrames = 1;
-	myEndTime = time;
     }
 
     if (!executePreFrameScript(time))
@@ -984,10 +987,6 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 
     if(!myArchive)
     {
-	UT_String filename;
-	FILENAME(filename, time);
-	filename.trimBoundingSpace();
-
 	UT_String format;
 	FORMAT(format, time);
 
@@ -1083,6 +1082,7 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
     if (!executePostFrameScript(time))
 	return ROP_ABORT_RENDER;
 
+    --myNFrames;
     return ROP_CONTINUE_RENDER;
 }
 
