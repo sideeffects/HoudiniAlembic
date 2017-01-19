@@ -60,6 +60,12 @@ ROP_AbcNodeShape::getOObject()
 static bool
 ropCompare(const GT_AttributeListHandle &a, const GT_AttributeListHandle &b)
 {
+    if(!a)
+	return !b;
+
+    if(!b)
+	return false;
+
     int n = a->entries();
     if(b->entries() != n)
 	return false;
