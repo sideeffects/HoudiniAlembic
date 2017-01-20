@@ -27,10 +27,6 @@
 
 #include "ROP_AbcNodeShape.h"
 
-#include <GT/GT_FaceSetMap.h>
-#include <GT/GT_PrimPolygonMesh.h>
-#include <GT/GT_PrimCurveMesh.h>
-
 typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
 
 void
@@ -48,97 +44,12 @@ ROP_AbcNodeShape::setArchive(const ROP_AbcArchivePtr &archive)
     myWriter.reset(nullptr);
     mySampleCount = 0;
     myUserProperties.clear();
-    myCached = nullptr;
 }
 
 OObject
 ROP_AbcNodeShape::getOObject()
 {
     return myWriter->getOObject();
-}
-
-static bool
-ropCompare(const GT_AttributeListHandle &a, const GT_AttributeListHandle &b)
-{
-    if(!a)
-	return !b;
-
-    if(!b)
-	return false;
-
-    int n = a->entries();
-    if(b->entries() != n)
-	return false;
-
-    int nsegs = a->getSegments();
-    if(b->getSegments() != nsegs)
-	return false;
-
-    for(int i = 0; i < n; ++i)
-    {
-	if(strcmp(a->getName(i), b->getName(i)))
-	    return false;
-	for(int j = 0; j < nsegs; ++j)
-	{
-	    if(!a->get(i, j)->isEqual(*b->get(i, j)))
-		return false;
-	}
-    }
-
-    return true;
-}
-
-static bool
-ropCompare(const GT_FaceSetMapPtr &a, const GT_FaceSetMapPtr &b)
-{
-    if(!a)
-	return !b;
-
-    if(!b || (a->entries() != b->entries()))
-	return false;
-
-    for(auto it = a->begin(); it != a->end(); ++it)
-    {
-	GT_FaceSetPtr faceset = b->find(it.name().c_str());
-	if(!faceset
-	    || !it.faceSet()->extractMembers()->isEqual(*faceset->extractMembers()))
-	    return false;
-    }
-
-    return true;
-}
-
-static bool
-ropCompare(const GT_PrimitiveHandle &a, const GT_PrimitiveHandle &b)
-{
-    if (*a->getPrimitiveTransform() != *b->getPrimitiveTransform()
-	|| !ropCompare(a->getPointAttributes(), b->getPointAttributes())
-	|| !ropCompare(a->getVertexAttributes(), b->getVertexAttributes())
-	|| !ropCompare(a->getUniformAttributes(), b->getUniformAttributes())
-	|| !ropCompare(a->getDetailAttributes(), b->getDetailAttributes()))
-	return false;
-
-    switch(a->getPrimitiveType())
-    {
-	case GT_PRIM_POLYGON_MESH:
-	case GT_PRIM_SUBDIVISION_MESH:
-	    {
-		if(!ropCompare(UTverify_cast<const GT_PrimPolygonMesh *>(a.get())->faceSetMap(),
-			       UTverify_cast<const GT_PrimPolygonMesh *>(b.get())->faceSetMap()))
-		    return false;
-	    }
-	    break;
-
-	case GT_PRIM_CURVE_MESH:
-	    {
-		if(!ropCompare(UTverify_cast<const GT_PrimCurveMesh *>(a.get())->faceSetMap(),
-			       UTverify_cast<const GT_PrimCurveMesh *>(b.get())->faceSetMap()))
-		    return false;
-	    }
-	    break;
-    }
-
-    return true; 
 }
 
 void
@@ -150,15 +61,11 @@ ROP_AbcNodeShape::update()
     exint nsamples = myArchive->getSampleCount();
     if(!myWriter && myPrim)
     {
-	myCached = myPrim->harden();
-	myCachedCount = 0;
-	myCachedVisDeferred = (nsamples == 1);
-
 	// write the first sample
 	myWriter.reset(new GABC_OGTGeometry(myName));
 	myWriter->start(myPrim, myParent->getOObject(),
 			myArchive->getOOptions(), myArchive->getOError(),
-			myCachedVisDeferred ?
+			(nsamples == 1) ?
 			    Alembic::AbcGeom::kVisibilityDeferred :
 			    Alembic::AbcGeom::kVisibilityHidden);
 	myPrim->enlargeBounds(&myBox, 1);
@@ -176,22 +83,9 @@ ROP_AbcNodeShape::update()
 
 	if(hidden)
 	{
-	    // avoid writing multiple samples for static geometry
-	    if(myCached && !myCachedVisDeferred)
-		myCachedCount += hidden;
-	    else
-	    {
-		if(myCached)
-		{
-		    myWriter->updateFromPrevious(myArchive->getOError(),
-						 Alembic::AbcGeom::kVisibilityDeferred,
-						 myCachedCount);
-		    myCached = nullptr;
-		}
-		myWriter->updateFromPrevious(myArchive->getOError(),
-					     Alembic::AbcGeom::kVisibilityHidden,
-					     hidden);
-	    }
+	    myWriter->updateFromPrevious(myArchive->getOError(),
+					 Alembic::AbcGeom::kVisibilityHidden,
+					 hidden);
 	}
 
 	if(myPrim)
@@ -199,42 +93,14 @@ ROP_AbcNodeShape::update()
 	    // write the current sample
 	    if(myLocked)
 	    {
-		// avoid writing multiple samples for static geometry
-		if(myCached && myCachedVisDeferred)
-		    ++myCachedCount;
-		else
-		{
-		    if(myCached)
-		    {
-			myWriter->updateFromPrevious(myArchive->getOError(),
-						     Alembic::AbcGeom::kVisibilityHidden,
-						     myCachedCount);
-			myCached = nullptr;
-		    }
-
-		    myWriter->updateFromPrevious(myArchive->getOError(),
+		myWriter->updateFromPrevious(myArchive->getOError(),
 					Alembic::AbcGeom::kVisibilityDeferred);
-		}
 	    }
 	    else
 	    {
-		// avoid writing multiple samples for static geometry
-		if(myCached && myCachedVisDeferred && ropCompare(myPrim, myCached))
-		    ++myCachedCount;
-		else
-		{
-		    if(myCached)
-		    {
-			myWriter->updateFromPrevious(myArchive->getOError(),
-						     myCachedVisDeferred ? Alembic::AbcGeom::kVisibilityDeferred : Alembic::AbcGeom::kVisibilityHidden,
-						     myCachedCount);
-			myCached = nullptr;
-		    }
-
-		    myWriter->update(myPrim, myArchive->getOOptions(),
-				     myArchive->getOError(),
-				     Alembic::AbcGeom::kVisibilityDeferred);
-		}
+		myWriter->update(myPrim, myArchive->getOOptions(),
+				 myArchive->getOError(),
+				 Alembic::AbcGeom::kVisibilityDeferred);
 		myPrim->enlargeBounds(&myBox, 1);
 	    }
 	}

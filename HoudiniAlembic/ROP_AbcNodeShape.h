@@ -66,9 +66,6 @@ private:
     ROP_AbcUserProperties myUserProperties;
 
     GT_PrimitiveHandle myPrim;
-    GT_PrimitiveHandle myCached;
-    exint myCachedCount;
-    bool myCachedVisDeferred;
     bool myLocked;
 };
 

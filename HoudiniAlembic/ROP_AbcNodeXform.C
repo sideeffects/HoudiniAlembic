@@ -49,14 +49,10 @@ void
 ROP_AbcNodeXform::setArchive(const ROP_AbcArchivePtr &archive)
 {
     myOXform = OXform();
-    mySampleCount = 0;
     myVisibility = OVisibilityProperty();
     ROP_AbcNode::setArchive(archive);
     myUserProperties.clear();
     myIsValid = false;
-    myHasCachedMatrix = false;
-    myHasCachedVis = false;
-    myHasCachedBounds = false;
 }
 
 OObject
@@ -87,81 +83,17 @@ ROP_AbcNodeXform::update()
 
     bool full_bounds = myArchive->getOOptions().fullBounds();
     exint nsamples = myArchive->getSampleCount();
-    for(exint i = mySampleCount; i < nsamples; ++i)
+    for(exint i = myOXform.getSchema().getNumSamples(); i < nsamples; ++i)
     {
-	// avoid writing multiple samples for static transforms
-	if(myHasCachedMatrix && (m == myCachedMatrix))
-	    ++myCachedMatrixCount;
-	else
-	{
-	    if(myHasCachedMatrix)
-	    {
-		for(; myCachedMatrixCount; --myCachedMatrixCount)
-		    myOXform.getSchema().setFromPrevious();
-		myHasCachedMatrix = false;
-	    }
-	    else if(!i)
-	    {
-		myCachedMatrix = m;
-		myCachedMatrixCount = 0;
-		myHasCachedMatrix = true;
-	    }
-	    myOXform.getSchema().set(sample);
-	}
-
-	// avoid writing multiple samples for static visibility
-	bool vis = (i + 1 == nsamples && myVisible);
-	if(myHasCachedVis && (myCachedVisDeferred == vis))
-	    ++myCachedVisCount;
-	else
-	{
-	    if(myHasCachedVis)
-	    {
-		for(; myCachedVisCount; --myCachedVisCount)
-		{
-		    myVisibility.set(myCachedVisDeferred ?
+	myOXform.getSchema().set(sample);
+	myVisibility.set((i + 1 == nsamples && myVisible) ?
 			    Alembic::AbcGeom::kVisibilityDeferred :
 			    Alembic::AbcGeom::kVisibilityHidden);
-		}
-		myHasCachedVis = false;
-	    }
-	    else if(!i)
-	    {
-		myCachedVisDeferred = vis;
-		myCachedVisCount = 0;
-		myHasCachedVis = true;
-	    }
-	    myVisibility.set(vis ?
-				Alembic::AbcGeom::kVisibilityDeferred :
-				Alembic::AbcGeom::kVisibilityHidden);
-	}
 
 	// update computed bounding box
 	if(full_bounds)
-	{
-	    // avoid writing multiple samples for static bounds
-	    if(myHasCachedBounds && (myCachedBounds == myBox))
-		++myCachedBoundsCount;
-	    else
-	    {
-		if(myHasCachedBounds)
-		{
-		    Box3d b = GABC_Util::getBox(myCachedBounds);
-		    for(; myCachedBoundsCount; --myCachedBoundsCount)
-			myOXform.getSchema().getChildBoundsProperty().set(b);
-		    myHasCachedBounds = false;
-		}
-		else if(!i)
-		{
-		    myCachedBounds = myBox;
-		    myCachedBoundsCount = 0;
-		    myHasCachedBounds = true;
-		}
-		myOXform.getSchema().getChildBoundsProperty().set(b3);
-	    }
-	}
+	    myOXform.getSchema().getChildBoundsProperty().set(b3);
     }
-    mySampleCount = nsamples;
 
     // update user properties
     if(myUserPropVals.isstring() && myUserPropMeta.isstring())

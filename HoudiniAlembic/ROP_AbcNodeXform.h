@@ -44,10 +44,8 @@ class ROP_AbcNodeXform : public ROP_AbcNode
 {
 public:
     ROP_AbcNodeXform(const std::string &name)
-	: ROP_AbcNode(name), myMatrix(1), myPreMatrix(1), mySampleCount(0),
-	  myHasCachedMatrix(false), myHasCachedVis(false),
-	  myHasCachedBounds(false), myPreMatrixSet(false), myIsValid(false),
-	  myVisible(false), myLocked(false) {}
+	: ROP_AbcNode(name), myMatrix(1), myPreMatrix(1), myPreMatrixSet(false),
+	  myIsValid(false), myVisible(false), myLocked(false) {}
 
     virtual OObject getOObject();
     virtual void clearData();
@@ -80,16 +78,6 @@ private:
 
     UT_Matrix4D myMatrix;
     UT_Matrix4D myPreMatrix;
-    UT_Matrix4D myCachedMatrix;
-    UT_BoundingBox myCachedBounds;
-    exint mySampleCount;
-    exint myCachedMatrixCount;
-    exint myCachedVisCount;
-    exint myCachedBoundsCount;
-    bool myCachedVisDeferred;
-    bool myHasCachedMatrix;
-    bool myHasCachedVis;
-    bool myHasCachedBounds;
     bool myPreMatrixSet;
     bool myIsValid;
     bool myVisible;

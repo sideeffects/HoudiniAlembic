@@ -114,10 +114,7 @@ private:
 
     TimeSamplingPtr myTimeSampling;
     UT_Array<fpreal> myBlurTimes;
-    UT_BoundingBox myCachedBounds;
     exint mySampleCount;
-    exint myCachedBoundsCount;
-    bool myHasCachedBounds;
     fpreal myCookTime;
     OBox3dProperty myBoxProperty;
 
