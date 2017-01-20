@@ -256,12 +256,12 @@ private:
 			     bool use_instancing, bool shape_nodes);
 
     // temporary storage when exporting to an Alembic archive
-    UT_String myFileName;
     ROP_AbcArchivePtr myArchive;
     UT_UniquePtr<rop_OError> myErrors;
     UT_UniquePtr<ROP_AbcNode> myRoot;
     fpreal myNFrames;
     fpreal myEndTime;
+    bool myFullBounds;
 
     // temporary storage when exporting an OBJ hierarchy
     UT_Map<OBJ_Node *, ROP_AbcNodeXform *> myObjAssignments;

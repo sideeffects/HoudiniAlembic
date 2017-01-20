@@ -44,6 +44,7 @@ ROP_AbcNodeCamera::setArchive(const ROP_AbcArchivePtr &archive)
 {
     myOCamera = OCamera();
     ROP_AbcNode::setArchive(archive);
+    myBBoxCache.clear();
     myIsValid = false;
 }
 
@@ -97,7 +98,7 @@ ROP_AbcNodeCamera::update()
     {
 	myOCamera.getSchema().set(sample);
 	if(full_bounds)
-	    myOCamera.getSchema().getChildBoundsProperty().set(b3);
+	    myBBoxCache.set(myOCamera.getSchema().getChildBoundsProperty(), b3);
     }
 }
 

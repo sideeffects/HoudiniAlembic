@@ -961,6 +961,7 @@ ROP_AlembicOut::startRender(int nframes, fpreal tstart, fpreal tend)
 
     myNFrames = nframes;
     myEndTime = tend;
+    myFullBounds = FULL_BOUNDS(tstart);
 
     return 1;
 }
@@ -972,10 +973,8 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
     FILENAME(filename, time);
     filename.trimBoundingSpace();
 
-    if(!myArchive || filename != myFileName)
+    if(!myArchive || (myArchive->getFileName() != filename))
     {
-	myFileName.harden(filename);
-
 	// close the previous archive
 	const ROP_AbcArchivePtr dummy;
 	myRoot->setArchive(dummy);
@@ -1008,7 +1007,7 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	}
 
 	auto &options = myArchive->getOOptions();
-	options.setFullBounds(FULL_BOUNDS(time));
+	options.setFullBounds(myFullBounds);
 	myArchive->setTimeSampling(myNFrames, time, myEndTime, mb_samples,
 				   shutter_open, shutter_close);
 	if(SAVE_ATTRIBUTES(time))

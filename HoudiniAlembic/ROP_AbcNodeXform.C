@@ -27,12 +27,7 @@
 
 #include "ROP_AbcNodeXform.h"
 
-typedef Alembic::Abc::Box3d Box3d;
 typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
-
-typedef Alembic::AbcGeom::XformSample XformSample;
-
-typedef GABC_NAMESPACE::GABC_Util GABC_Util;
 
 void
 ROP_AbcNodeXform::clearData()
@@ -52,6 +47,10 @@ ROP_AbcNodeXform::setArchive(const ROP_AbcArchivePtr &archive)
     myVisibility = OVisibilityProperty();
     ROP_AbcNode::setArchive(archive);
     myUserProperties.clear();
+    myBBoxCache.clear();
+    myXformCache.clear();
+    myVisibilityCache.clear();
+    mySampleCount = 0;
     myIsValid = false;
 }
 
@@ -67,10 +66,7 @@ ROP_AbcNodeXform::update()
 {
     makeValid();
 
-    XformSample sample;
     UT_Matrix4D m = myPreMatrix * myMatrix;
-    sample.setMatrix(GABC_Util::getM(m));
-
     myBox.initBounds();
     for(auto &it : myChildren)
     {
@@ -78,22 +74,20 @@ ROP_AbcNodeXform::update()
 	myBox.enlargeBounds(it.second->getBBox());
     }
     myBox.transform(m);
-
     Box3d b3 = GABC_Util::getBox(myBox);
 
     bool full_bounds = myArchive->getOOptions().fullBounds();
     exint nsamples = myArchive->getSampleCount();
-    for(exint i = myOXform.getSchema().getNumSamples(); i < nsamples; ++i)
+    for(exint i = mySampleCount; i < nsamples; ++i)
     {
-	myOXform.getSchema().set(sample);
-	myVisibility.set((i + 1 == nsamples && myVisible) ?
-			    Alembic::AbcGeom::kVisibilityDeferred :
-			    Alembic::AbcGeom::kVisibilityHidden);
+	myXformCache.set(myOXform.getSchema(), m);
+	myVisibilityCache.set(myVisibility, (i + 1 == nsamples) && myVisible);
 
 	// update computed bounding box
 	if(full_bounds)
-	    myOXform.getSchema().getChildBoundsProperty().set(b3);
+	    myBBoxCache.set(myOXform.getSchema().getChildBoundsProperty(), b3);
     }
+    mySampleCount = nsamples;
 
     // update user properties
     if(myUserPropVals.isstring() && myUserPropMeta.isstring())

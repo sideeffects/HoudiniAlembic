@@ -75,6 +75,7 @@ private:
     void makeValid();
 
     OCamera myOCamera;
+    ROP_AbcBBoxCache myBBoxCache;
     int myResX;
     int myResY;
     fpreal myFocalLength;

@@ -42,10 +42,36 @@
 typedef GABC_NAMESPACE::GABC_OError GABC_OError;
 typedef GABC_NAMESPACE::GABC_OOptions GABC_OOptions;
 
+typedef Alembic::Abc::Box3d Box3d;
 typedef Alembic::Abc::OArchive OArchive;
 typedef Alembic::Abc::OBox3dProperty OBox3dProperty;
 typedef Alembic::Abc::OObject OObject;
 typedef Alembic::Abc::TimeSamplingPtr TimeSamplingPtr;
+
+class ROP_AbcBBoxCache
+{
+public:
+    ROP_AbcBBoxCache() : myCount(0) {}
+    void clear() { myCount = 0; }
+
+    void set(OBox3dProperty prop, const Box3d &box)
+    {
+	if(myCount && (myBox == box))
+	    ++myCount;
+	else
+	{
+	    for(exint i = 1; i < myCount; ++i)
+		prop.set(myBox);
+	    myCount = 1;
+	    myBox = box;
+	    prop.set(box);
+	}
+    }
+
+private:
+    Box3d myBox;
+    exint myCount;
+};
 
 class ROP_AbcArchive
 {
@@ -66,6 +92,7 @@ public:
 
     /// Returns true if the archive was successfully opened for writing.
     bool isValid() { return myArchive != nullptr; }
+    const UT_String &getFileName() const { return myFileName; }
 
     /// @{
     /// Time sampling
@@ -109,6 +136,7 @@ public:
     GABC_OError &getOError() { return myOError; }
 
 private:
+    UT_String myFileName;
     UT_UniquePtr<FS_Writer> myWriter;
     UT_UniquePtr<OArchive> myArchive;
 
@@ -117,6 +145,7 @@ private:
     exint mySampleCount;
     fpreal myCookTime;
     OBox3dProperty myBoxProperty;
+    ROP_AbcBBoxCache myBBoxCache;
 
     rop_OOptions myOOptions;
     GABC_OError &myOError;

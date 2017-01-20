@@ -38,6 +38,71 @@
 
 typedef Alembic::AbcGeom::OVisibilityProperty OVisibilityProperty;
 typedef Alembic::AbcGeom::OXform OXform;
+typedef Alembic::AbcGeom::XformSample XformSample;
+typedef Alembic::AbcGeom::OXformSchema OXformSchema;
+
+typedef GABC_NAMESPACE::GABC_Util GABC_Util;
+
+class ROP_AbcXformCache
+{
+public:
+    ROP_AbcXformCache() : myCount(0) {}
+    void clear() { myCount = 0; }
+    void set(OXformSchema &schema, const UT_Matrix4D &xform)
+    {
+	if(myCount && (myXform == xform))
+	    ++myCount;
+	else
+	{
+	    for(exint i = 1; i < myCount; ++i)
+		setSample(schema);
+	    myXform = xform;
+	    myCount = 1;
+	    setSample(schema);
+	}
+    }
+
+private:
+    void setSample(OXformSchema &schema)
+    {
+	XformSample sample;
+	sample.setMatrix(GABC_Util::getM(myXform));
+	schema.set(sample);
+    }
+
+    UT_Matrix4D myXform;
+    exint myCount;
+};
+
+class ROP_AbcVisibilityCache
+{
+public:
+    ROP_AbcVisibilityCache() : myCount(0) {}
+    void clear() { myCount = 0; }
+    void set(OVisibilityProperty &prop, bool deferred)
+    {
+	if(myCount && (myDeferred == deferred))
+	    ++myCount;
+	else
+	{
+	    for(exint i = 1; i < myCount; ++i)
+		setSample(prop);
+	    myDeferred = deferred;
+	    myCount = 1;
+	    setSample(prop);
+	}
+    }
+
+private:
+    void setSample(OVisibilityProperty &prop)
+    {
+	prop.set(myDeferred ? Alembic::AbcGeom::kVisibilityDeferred
+			    : Alembic::AbcGeom::kVisibilityHidden);
+    }
+
+    bool myDeferred;
+    exint myCount;
+};
 
 /// Class describing a transform exported to an Alembic archive.
 class ROP_AbcNodeXform : public ROP_AbcNode
@@ -71,6 +136,9 @@ private:
 
     OXform myOXform;
     OVisibilityProperty myVisibility;
+    ROP_AbcBBoxCache myBBoxCache;
+    ROP_AbcXformCache myXformCache;
+    ROP_AbcVisibilityCache myVisibilityCache;
 
     UT_StringHolder myUserPropVals;
     UT_StringHolder myUserPropMeta;
@@ -78,6 +146,7 @@ private:
 
     UT_Matrix4D myMatrix;
     UT_Matrix4D myPreMatrix;
+    exint mySampleCount;
     bool myPreMatrixSet;
     bool myIsValid;
     bool myVisible;

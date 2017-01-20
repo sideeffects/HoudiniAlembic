@@ -105,6 +105,7 @@ ROP_AbcArchive::ROP_AbcArchive(
 
 	auto factory = Alembic::AbcCoreHDF5::WriteArchive();
 	myArchive.reset(new OArchive(factory(filename, md), Alembic::Abc::kWrapExisting, Alembic::Abc::ErrorHandler::kThrowPolicy));
+	myFileName.harden(filename);
     }
     catch(const std::exception &e)
     {
@@ -189,5 +190,5 @@ void
 ROP_AbcArchive::setBoundingBox(const UT_BoundingBox &box)
 {
     if(myOOptions.fullBounds())
-	myBoxProperty.set(GABC_Util::getBox(box));
+	myBBoxCache.set(myBoxProperty, GABC_Util::getBox(box));
 }
