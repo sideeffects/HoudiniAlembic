@@ -86,6 +86,7 @@ ROP_AbcArchive::ROP_AbcArchive(
     userinfo.sprintf("Exported from %s on %s",
 		     hipfile.buffer(), timestamp.buffer());
     md.set(Alembic::Abc::kUserDescriptionKey, userinfo.buffer());
+    myFileName.harden(filename);
 
     try
     {
@@ -105,7 +106,6 @@ ROP_AbcArchive::ROP_AbcArchive(
 
 	auto factory = Alembic::AbcCoreHDF5::WriteArchive();
 	myArchive.reset(new OArchive(factory(filename, md), Alembic::Abc::kWrapExisting, Alembic::Abc::ErrorHandler::kThrowPolicy));
-	myFileName.harden(filename);
     }
     catch(const std::exception &e)
     {
