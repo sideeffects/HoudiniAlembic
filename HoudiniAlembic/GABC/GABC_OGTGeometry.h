@@ -84,6 +84,36 @@ public:
 		    { return count(token) > 0; }
     };
 
+    class GABC_API VisibilityCache
+    {
+    public:
+	VisibilityCache() : myCount(-1) {}
+	void clear() { myCount = -1; }
+	void set(OVisibilityProperty &prop, bool deferred)
+	{
+	    if((myCount >= 0) && (myDeferred == deferred))
+		++myCount;
+	    else
+	    {
+		for(exint i = 0; i < myCount; ++i)
+		    setSample(prop);
+		myDeferred = deferred;
+		myCount = 0;
+		setSample(prop);
+	    }
+	}
+
+    private:
+	void setSample(OVisibilityProperty &prop)
+	{
+	    prop.set(myDeferred ? Alembic::AbcGeom::kVisibilityDeferred
+				: Alembic::AbcGeom::kVisibilityHidden);
+	}
+
+	bool myDeferred;
+	exint myCount;
+    };
+
     /// The intrinsic cache is used to cache array values frame to frame when
     /// optimizing the .abc file for space.  Only arrays which change will be
     /// written to the file.  The cache has storage for most primitive types.
@@ -332,6 +362,7 @@ private:
 
     IntrinsicCache          myCache; // Cache for space optimization
     OVisibilityProperty     myVisibility;
+    VisibilityCache	    myVisibilityCache;
     PropertyMap             myArbProperties[MAX_PROPERTIES];
     SecondaryCache         *mySecondaryCache;
     UT_StringArray          myFaceSetNames;

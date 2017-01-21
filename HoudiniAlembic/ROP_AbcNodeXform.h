@@ -32,6 +32,7 @@
 
 #include <Alembic/AbcGeom/All.h>
 
+#include <GABC/GABC_OGTGeometry.h>
 #include <UT/UT_Matrix4.h>
 
 #include "ROP_AbcUserProperties.h"
@@ -42,22 +43,23 @@ typedef Alembic::AbcGeom::XformSample XformSample;
 typedef Alembic::AbcGeom::OXformSchema OXformSchema;
 
 typedef GABC_NAMESPACE::GABC_Util GABC_Util;
+typedef GABC_NAMESPACE::GABC_OGTGeometry::VisibilityCache VisibilityCache;
 
 class ROP_AbcXformCache
 {
 public:
-    ROP_AbcXformCache() : myCount(0) {}
-    void clear() { myCount = 0; }
+    ROP_AbcXformCache() : myCount(-1) {}
+    void clear() { myCount = -1; }
     void set(OXformSchema &schema, const UT_Matrix4D &xform)
     {
-	if(myCount && (myXform == xform))
+	if((myCount >= 0) && (myXform == xform))
 	    ++myCount;
 	else
 	{
-	    for(exint i = 1; i < myCount; ++i)
+	    for(exint i = 0; i < myCount; ++i)
 		setSample(schema);
 	    myXform = xform;
-	    myCount = 1;
+	    myCount = 0;
 	    setSample(schema);
 	}
     }
@@ -71,36 +73,6 @@ private:
     }
 
     UT_Matrix4D myXform;
-    exint myCount;
-};
-
-class ROP_AbcVisibilityCache
-{
-public:
-    ROP_AbcVisibilityCache() : myCount(0) {}
-    void clear() { myCount = 0; }
-    void set(OVisibilityProperty &prop, bool deferred)
-    {
-	if(myCount && (myDeferred == deferred))
-	    ++myCount;
-	else
-	{
-	    for(exint i = 1; i < myCount; ++i)
-		setSample(prop);
-	    myDeferred = deferred;
-	    myCount = 1;
-	    setSample(prop);
-	}
-    }
-
-private:
-    void setSample(OVisibilityProperty &prop)
-    {
-	prop.set(myDeferred ? Alembic::AbcGeom::kVisibilityDeferred
-			    : Alembic::AbcGeom::kVisibilityHidden);
-    }
-
-    bool myDeferred;
     exint myCount;
 };
 
@@ -138,7 +110,7 @@ private:
     OVisibilityProperty myVisibility;
     ROP_AbcBBoxCache myBBoxCache;
     ROP_AbcXformCache myXformCache;
-    ROP_AbcVisibilityCache myVisibilityCache;
+    VisibilityCache myVisibilityCache;
 
     UT_StringHolder myUserPropVals;
     UT_StringHolder myUserPropMeta;

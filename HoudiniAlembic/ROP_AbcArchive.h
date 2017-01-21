@@ -51,18 +51,18 @@ typedef Alembic::Abc::TimeSamplingPtr TimeSamplingPtr;
 class ROP_AbcBBoxCache
 {
 public:
-    ROP_AbcBBoxCache() : myCount(0) {}
-    void clear() { myCount = 0; }
+    ROP_AbcBBoxCache() : myCount(-1) {}
+    void clear() { myCount = -1; }
 
     void set(OBox3dProperty prop, const Box3d &box)
     {
-	if(myCount && (myBox == box))
+	if((myCount >= 0) && (myBox == box))
 	    ++myCount;
 	else
 	{
-	    for(exint i = 1; i < myCount; ++i)
+	    for(exint i = 0; i < myCount; ++i)
 		prop.set(myBox);
-	    myCount = 1;
+	    myCount = 0;
 	    myBox = box;
 	    prop.set(box);
 	}
