@@ -1546,6 +1546,7 @@ GABC_OGTGeometry::getDefaultSkip()
 	def = new IgnoreList("P",
             "v",
             "__topology",
+            "__primitivelist",
             "__primitive_id",
             "__point_id",
             "__vertex_id",
