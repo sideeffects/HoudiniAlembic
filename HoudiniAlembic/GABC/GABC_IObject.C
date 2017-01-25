@@ -1991,6 +1991,27 @@ namespace
 	return true;
     }
 
+    static bool
+    validCurveCounts(const GT_DataArrayHandle &counts,
+	    const GT_AttributeListHandle &vertex)
+    {
+	if(vertex)
+	{
+	    exint nvtx = 0;
+	    exint n = counts->entries();
+	    for(exint i = 0; i < n; ++i)
+		nvtx += counts->getI32(i);
+
+	    n = vertex->entries();
+	    for(exint i = 0; i < n; ++i)
+	    {
+		if(vertex->get(i)->entries() < nvtx)
+		    return false;
+	    }
+	}
+	return true;
+    }
+
     static GT_Basis
     getGTBasis(Alembic::AbcGeom::BasisType abasis)
     {
@@ -2044,6 +2065,15 @@ namespace
 		    msg);
     }
 
+    static void
+    curveWarning(const GABC_IObject &obj, const char *msg)
+    {
+	UT_ErrorLog::mantraWarningOnce(
+		    "Alembic file %s (%s): %s - Ignoring corrupt curves",
+		    obj.archive()->filename().c_str(),
+		    obj.getFullName().c_str(),
+		    msg);
+    }
 
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
@@ -2089,6 +2119,14 @@ namespace
 				NULL,
 				&widths,
 				&Pw);
+
+	// guard against corrupt curves
+	if(!validCurveCounts(counts, vertex))
+	{
+	    curveWarning(obj, "Curves have missing vertices");
+	    return GT_PrimitiveHandle();
+	}
+
 	uniform = acreate.build(GT_OWNER_UNIFORM, counts->entries(),
 				prim, obj, namemap,
 				load_style, t,
