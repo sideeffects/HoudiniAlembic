@@ -2771,6 +2771,15 @@ GABC_IObject::~GABC_IObject()
     setArchive(NULL);
 }
 
+std::string
+GABC_IObject::getSourcePath() const
+{
+    if (myObject.valid() && myObject.isInstanceDescendant())
+       return IObject(myObject).instanceSourcePath();
+
+    return myObjectPath;
+}
+
 void
 GABC_IObject::purge()
 {

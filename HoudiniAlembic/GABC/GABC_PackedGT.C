@@ -27,16 +27,21 @@
 #include <GT/GT_PrimInstance.h>
 #include <SYS/SYS_Hash.h>
 
+// Enable to bucket geometry into instances. This currently incurs a penalty
+// for Alembic playback.
+//#define INSTANCED_ALEMBIC_PRIM_SUPPORT
+
 using namespace GABC_NAMESPACE;
 
 namespace
 {
-
+    
+ 
 class GABC_PackedGT : public GT_GEOPrimPacked
 {
 public:
     GABC_PackedGT(const GU_ConstDetailHandle &prim_gdh,
-		const GU_PrimPacked *prim)
+		  const GU_PrimPacked *prim)
 	: GT_GEOPrimPacked(prim_gdh, prim),
 	  myID(0)
     {
@@ -92,10 +97,11 @@ class CollectData : public GT_GEOPrimCollectData
 {
 public:
     CollectData(const GT_GEODetailListHandle &geometry,
-	    bool useViewportLOD)
+		const GT_RefineParms *parms)
 	: GT_GEOPrimCollectData()
 	, myGeometry(geometry)
-	, myUseViewportLOD(useViewportLOD)
+	, myUseViewportLOD(GT_GEOPrimPacked::useViewportLOD(parms))
+	, myRefineParms(parms)
     {
     }
     virtual ~CollectData() {}
@@ -119,12 +125,28 @@ public:
 		    myBoxPrims.append(&prim);
 		    return true;
 		default:
-		    // Fall through to generic handling
 		    break;
 	    }
 	}
+#ifdef INSTANCED_ALEMBIC_PRIM_SUPPORT
+	return bucketPrim(prim, impl);
+#endif
 	return false;
     }
+
+    bool bucketPrim(const GU_PrimPacked &prim,
+		    const GABC_PackedImpl *impl)
+	{
+	    UT_StringHolder path = impl->object().getSourcePath();
+
+	    // bucket instanced geometry.
+	    GT_PrimitiveHandle ph =
+		new GABC_PackedGT(myGeometry->getGeometry(0), &prim);
+	    myInstanceGeo[ path ].append(ph);
+
+	    return true;
+	}
+    
     class FillTask
     {
     public:
@@ -194,16 +216,114 @@ public:
 	return boxdata.getPrimitive();
     }
 
+    GT_PrimitiveHandle  finishInstances() const
+	{
+	    GT_PrimitiveHandle result;
+	    
+	    if(myInstanceGeo.size() == 0)
+		return result;
+
+	    GT_PrimCollect *collect = NULL;
+	    if(myInstanceGeo.size() > 1)
+	    {
+		collect = new GT_PrimCollect;
+		result = collect;
+	    }
+
+	    GT_GEOAttributeFilter filter;
+
+	    for(auto itr : myInstanceGeo)
+	    {
+		GABC_PackedGT *packinst =
+		    UTverify_cast<GABC_PackedGT*>(itr.second(0).get());
+
+		if(itr.second.entries() == 1)
+		{
+		    if(collect)
+			collect->appendPrimitive(GT_PrimitiveHandle(packinst));
+		    else
+			result = packinst;
+		    continue;
+		}
+
+		// Instanced geometry
+		bool dummy_xform = false;
+		GT_PrimitiveHandle geo =
+		    packinst->getFullGeometry(myRefineParms, dummy_xform);
+		GT_TransformArray *xforms = new GT_TransformArray;
+		GT_TransformArrayHandle xformh = xforms;
+		GT_GEOOffsetList offsets, voffsets;
+		bool use_vertex = true;
+		
+		for( auto inst : itr.second )
+		{
+		    packinst = UTverify_cast<GABC_PackedGT*>(inst.get());
+
+		    xforms->append( packinst->getFullTransform() );
+		    offsets.append( packinst->getPrim()->getMapOffset() );
+		    if(packinst->getPrim()->getVertexCount() > 0)
+		       voffsets.append(packinst->getPrim()->getVertexOffset(0));
+		    else
+			use_vertex = false; // avoid if one instance has 0 verts
+		}
+
+		// build vertex/prim/point list
+		GT_AttributeListHandle prim_attribs;
+		if(use_vertex)
+		{
+		    prim_attribs = 
+		    myGeometry->getPrimitiveVertexAttributes(
+			filter, offsets, voffsets,
+			GT_GEODetailList::GEO_INCLUDE_POINT,
+			GT_GEODetailList::GEO_SKIP_DETAIL);
+		}
+		else
+		{
+		    prim_attribs = 
+		    myGeometry->getPrimitiveAttributes(filter, &offsets,
+				       GT_GEODetailList::GEO_SKIP_DETAIL,false);
+		}
+
+		GT_AttributeListHandle detail_attribs =
+		    myGeometry->getDetailAttributes(filter, false);
+		
+		auto instance = new GT_PrimInstance(geo, xformh, offsets,
+						    prim_attribs,detail_attribs,
+						    GT_GEODetailListHandle());
+		if(collect)
+		    collect->appendPrimitive(GT_PrimitiveHandle(instance));
+		else
+		    result = instance;
+	    }
+	    return result;
+	}
+    
     GT_PrimitiveHandle	finish() const
     {
-	return finishBoxes();
+	GT_PrimCollect *collect = new GT_PrimCollect;
+	GT_PrimitiveHandle collecth = collect;
+	
+	GT_PrimitiveHandle instances = finishInstances();
+	if(instances)
+	    collect->appendPrimitive(instances);
+	
+	GT_PrimitiveHandle boxes = finishBoxes();
+	if(boxes)
+	    collect->appendPrimitive(boxes);
+
+	return collecth;
     }
 
 private:
     const GT_GEODetailListHandle	myGeometry;
+    const GT_RefineParms	       *myRefineParms;
+    
+    // Viewport
+    const bool				myUseViewportLOD;
     UT_Array<const GU_PrimPacked *>	myBoxPrims;
     UT_Array<const GU_PrimPacked *>	myCentroidPrims;
-    bool				myUseViewportLOD;
+    UT_StringMap< UT_Array<GT_PrimitiveHandle> > myInstanceGeo;
+
 };
 
 GT_PrimitiveHandle
@@ -387,22 +507,23 @@ GABC_PackedGT::getCentroidGeometry(const GT_RefineParms *) const
 
 }
 
+// -------------------------------------------------------------------------
+
 GABC_CollectPacked::~GABC_CollectPacked()
 {
 }
 
 GT_GEOPrimCollectData *
 GABC_CollectPacked::beginCollecting(const GT_GEODetailListHandle &geometry,
-				const GT_RefineParms *parms) const
+				    const GT_RefineParms *parms) const
 {
-    return new CollectData(geometry,
-	    GT_GEOPrimPacked::useViewportLOD(parms));
+    return new CollectData(geometry, parms);
 }
 
 GT_PrimitiveHandle
 GABC_CollectPacked::collect(const GT_GEODetailListHandle &geo,
-	const GEO_Primitive *const* prim,
-	int nsegments, GT_GEOPrimCollectData *data) const
+			    const GEO_Primitive *const* prim,
+			    int nsegments, GT_GEOPrimCollectData *data) const
 {
     CollectData		*collector = data->asPointer<CollectData>();
     const GU_PrimPacked *pack = UTverify_cast<const GU_PrimPacked *>(prim[0]);
@@ -413,7 +534,7 @@ GABC_CollectPacked::collect(const GT_GEODetailListHandle &geo,
 
 GT_PrimitiveHandle
 GABC_CollectPacked::endCollecting(const GT_GEODetailListHandle &geometry,
-				GT_GEOPrimCollectData *data) const
+				  GT_GEOPrimCollectData *data) const
 {
     CollectData			*collector = data->asPointer<CollectData>();
     return collector->finish();

@@ -109,6 +109,8 @@ public:
     /// Get the full name of the object
     const std::string	&getFullName() const { return myObjectPath; }
 
+    std::string		getSourcePath() const;
+
     /// @{
     /// Interface from GABC_IItem
     virtual void	purge();
