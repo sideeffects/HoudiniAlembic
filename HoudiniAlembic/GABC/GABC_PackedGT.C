@@ -137,12 +137,21 @@ public:
     bool bucketPrim(const GU_PrimPacked &prim,
 		    const GABC_PackedImpl *impl)
 	{
+	    UT_StringHolder bucket_name;
 	    UT_StringHolder path = impl->object().getSourcePath();
+	    UT_StringHolder arch = impl->object().archive()->filename();
 
-	    // bucket instanced geometry.
+	    if(impl->animationType() > GEO_ANIMATION_TRANSFORM)
+	    {
+		bucket_name.sprintf("%s:%s[%d]", arch.c_str(), path.c_str(),
+				    impl->frame());
+	    }
+	    else
+		bucket_name.sprintf("%s:%s", arch.c_str(), path.c_str());
+	    
 	    GT_PrimitiveHandle ph =
 		new GABC_PackedGT(myGeometry->getGeometry(0), &prim);
-	    myInstanceGeo[ path ].append(ph);
+	    myInstanceGeo[ bucket_name ].append(ph);
 
 	    return true;
 	}
@@ -232,6 +241,8 @@ public:
 
 	    GT_GEOAttributeFilter filter;
 
+	    // std::cerr << "# unique instances: " << myInstanceGeo.size()
+	    // 	      << std::endl;
 	    for(auto itr : myInstanceGeo)
 	    {
 		GABC_PackedGT *packinst =
@@ -267,6 +278,7 @@ public:
 			use_vertex = false; // avoid if one instance has 0 verts
 		}
 
+		// std::cerr << "Inst : " << offsets.entries() << std::endl;
 		// build vertex/prim/point list
 		GT_AttributeListHandle prim_attribs;
 		if(use_vertex)
