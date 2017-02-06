@@ -31,6 +31,7 @@
 // for Alembic playback.
 //#define INSTANCED_ALEMBIC_PRIM_SUPPORT
 
+
 using namespace GABC_NAMESPACE;
 
 namespace
@@ -91,6 +92,94 @@ public:
 private:
     int64	myID;
 };
+    
+class gabc_CreateInstanceGeos
+{
+public:
+    gabc_CreateInstanceGeos(
+	const UT_StringMap< UT_Array<const GU_PrimPacked*> > &geo,
+	const GT_GEODetailListHandle &geometry,
+	const GT_RefineParms *ref_parms,
+	UT_Array<GT_PrimitiveHandle> &gt_prims)
+	: myGeos(geo), myGeometry(geometry), myRefineParms(ref_parms),
+	  myPrims(gt_prims)
+	{}
+    
+    void	operator()(const UT_BlockedRange<exint> &range) const
+	{
+	    GT_GEOAttributeFilter filter;
+
+	    int index = 0;
+	    for(auto itr = myGeos.begin(); itr != myGeos.end(); ++itr, index++)
+	    {
+		if(index < range.begin())
+		    continue;
+		if(index == range.end())
+		    break;
+		
+		GABC_PackedGT *packinst =
+		    new GABC_PackedGT(myGeometry->getGeometry(0),
+				      itr->second(0));
+
+		if(itr->second.entries() == 1)
+		{
+		    myPrims(index) = packinst;
+		    continue;
+		}
+
+		// Instanced geometry
+		GT_PrimitiveHandle geo =
+		    packinst->getInstanceGeometry(myRefineParms);
+		GT_TransformArray *xforms = new GT_TransformArray;
+		GT_TransformArrayHandle xformh = xforms;
+		GT_GEOOffsetList offsets, voffsets;
+		bool use_vertex = true;
+		
+		for( auto pi : itr->second )
+		{
+		    GABC_PackedGT inst(myGeometry->getGeometry(0), pi);
+
+		    xforms->append( inst.getFullTransform() );
+		    offsets.append( inst.getPrim()->getMapOffset() );
+		    if(inst.getPrim()->getVertexCount() > 0)
+		       voffsets.append(inst.getPrim()->getVertexOffset(0));
+		    else
+			use_vertex = false; // avoid if one instance has 0 verts
+		}
+
+		// build vertex/prim/point list
+		GT_AttributeListHandle prim_attribs;
+		if(use_vertex)
+		{
+		    prim_attribs = 
+		    myGeometry->getPrimitiveVertexAttributes(
+			filter, offsets, voffsets,
+			GT_GEODetailList::GEO_INCLUDE_POINT,
+			GT_GEODetailList::GEO_SKIP_DETAIL);
+		}
+		else
+		{
+		    prim_attribs = 
+		    myGeometry->getPrimitiveAttributes(filter, &offsets,
+				       GT_GEODetailList::GEO_SKIP_DETAIL,false);
+		}
+
+		GT_AttributeListHandle detail_attribs =
+		    myGeometry->getDetailAttributes(filter, false);
+		
+		myPrims(index) = new GT_PrimInstance(geo, xformh, offsets,
+						    prim_attribs,detail_attribs,
+						    GT_GEODetailListHandle());
+		delete packinst;
+	    }
+	}
+
+private:
+    const UT_StringMap< UT_Array<const GU_PrimPacked *> > &myGeos;
+    UT_Array<GT_PrimitiveHandle>		 &myPrims;
+    const GT_GEODetailListHandle		  myGeometry;
+    const GT_RefineParms			 *myRefineParms;
+};
 
 
 class CollectData : public GT_GEOPrimCollectData
@@ -102,14 +191,12 @@ public:
 	, myGeometry(geometry)
 	, myUseViewportLOD(GT_GEOPrimPacked::useViewportLOD(parms))
 	, myRefineParms(parms)
-    {
-    }
+    { }
     virtual ~CollectData() {}
 
     bool	append(const GU_PrimPacked &prim)
     {
-	const GABC_PackedImpl	*impl;
-	impl = UTverify_cast<const GABC_PackedImpl *>(prim.implementation());
+	auto impl= UTverify_cast<const GABC_PackedImpl*>(prim.implementation());
 	if (!impl->visibleGT())
 	    return true;	// Handled
 	if (myUseViewportLOD)
@@ -129,31 +216,35 @@ public:
 	    }
 	}
 #ifdef INSTANCED_ALEMBIC_PRIM_SUPPORT
-	return bucketPrim(prim, impl);
+	bucketPrim(prim, impl);
+	return true;
 #endif
 	return false;
     }
 
-    bool bucketPrim(const GU_PrimPacked &prim,
+    void bucketPrim(const GU_PrimPacked &prim,
 		    const GABC_PackedImpl *impl)
 	{
-	    UT_StringHolder bucket_name;
+	    UT_WorkBuffer bucket_name;
 	    UT_StringHolder path = impl->object().getSourcePath();
 	    UT_StringHolder arch = impl->object().archive()->filename();
-
-	    if(impl->animationType() > GEO_ANIMATION_TRANSFORM)
+	    
+	    bucket_name.sprintf("%s:%s", arch.c_str(), path.c_str());
+	    
+	    auto entry = myInstanceAnim.find( bucket_name.buffer() );
+	    GEO_AnimationType anim;
+	    if(entry == myInstanceAnim.end())
 	    {
-		bucket_name.sprintf("%s:%s[%d]", arch.c_str(), path.c_str(),
-				    impl->frame());
+		anim = impl->animationType();
+		myInstanceAnim[ bucket_name.buffer() ] = anim;
 	    }
 	    else
-		bucket_name.sprintf("%s:%s", arch.c_str(), path.c_str());
+		anim = entry->second;
 	    
-	    GT_PrimitiveHandle ph =
-		new GABC_PackedGT(myGeometry->getGeometry(0), &prim);
-	    myInstanceGeo[ bucket_name ].append(ph);
-
-	    return true;
+	    if(anim > GEO_ANIMATION_TRANSFORM)
+		bucket_name.appendSprintf("[%f]", impl->frame());
+	    
+	    myInstanceGeo[ bucket_name.buffer() ].append(&prim);
 	}
     
     class FillTask
@@ -239,74 +330,28 @@ public:
 		result = collect;
 	    }
 
-	    GT_GEOAttributeFilter filter;
-
 	    // std::cerr << "# unique instances: " << myInstanceGeo.size()
 	    // 	      << std::endl;
-	    for(auto itr : myInstanceGeo)
+	    UT_Array<GT_PrimitiveHandle> prims;
+	    prims.entries( myInstanceGeo.size() );
+	    gabc_CreateInstanceGeos task(myInstanceGeo, myGeometry,
+					 myRefineParms, prims);
+#if 1
+	    UTparallelFor(UT_BlockedRange<exint>(0, myInstanceGeo.size()),
+			  task, 1, 20);
+#else
+	    UTserialFor(UT_BlockedRange<exint>(0, myInstanceGeo.size()),
+			task);
+#endif
+
+	    if(collect)
 	    {
-		GABC_PackedGT *packinst =
-		    UTverify_cast<GABC_PackedGT*>(itr.second(0).get());
-
-		if(itr.second.entries() == 1)
-		{
-		    if(collect)
-			collect->appendPrimitive(GT_PrimitiveHandle(packinst));
-		    else
-			result = packinst;
-		    continue;
-		}
-
-		// Instanced geometry
-		bool dummy_xform = false;
-		GT_PrimitiveHandle geo =
-		    packinst->getFullGeometry(myRefineParms, dummy_xform);
-		GT_TransformArray *xforms = new GT_TransformArray;
-		GT_TransformArrayHandle xformh = xforms;
-		GT_GEOOffsetList offsets, voffsets;
-		bool use_vertex = true;
-		
-		for( auto inst : itr.second )
-		{
-		    packinst = UTverify_cast<GABC_PackedGT*>(inst.get());
-
-		    xforms->append( packinst->getFullTransform() );
-		    offsets.append( packinst->getPrim()->getMapOffset() );
-		    if(packinst->getPrim()->getVertexCount() > 0)
-		       voffsets.append(packinst->getPrim()->getVertexOffset(0));
-		    else
-			use_vertex = false; // avoid if one instance has 0 verts
-		}
-
-		// std::cerr << "Inst : " << offsets.entries() << std::endl;
-		// build vertex/prim/point list
-		GT_AttributeListHandle prim_attribs;
-		if(use_vertex)
-		{
-		    prim_attribs = 
-		    myGeometry->getPrimitiveVertexAttributes(
-			filter, offsets, voffsets,
-			GT_GEODetailList::GEO_INCLUDE_POINT,
-			GT_GEODetailList::GEO_SKIP_DETAIL);
-		}
-		else
-		{
-		    prim_attribs = 
-		    myGeometry->getPrimitiveAttributes(filter, &offsets,
-				       GT_GEODetailList::GEO_SKIP_DETAIL,false);
-		}
-
-		GT_AttributeListHandle detail_attribs =
-		    myGeometry->getDetailAttributes(filter, false);
-		
-		auto instance = new GT_PrimInstance(geo, xformh, offsets,
-						    prim_attribs,detail_attribs,
-						    GT_GEODetailListHandle());
-		if(collect)
-		    collect->appendPrimitive(GT_PrimitiveHandle(instance));
-		else
-		    result = instance;
+		for(int i=0; i<prims.entries(); i++)
+		    collect->appendPrimitive(prims(i));
 	    }
+	    else
+		result = prims(0);
+
 	    return result;
 	}
     
@@ -334,7 +379,8 @@ private:
     const bool				myUseViewportLOD;
     UT_Array<const GU_PrimPacked *>	myBoxPrims;
     UT_Array<const GU_PrimPacked *>	myCentroidPrims;
-    UT_StringMap< UT_Array<GT_PrimitiveHandle> > myInstanceGeo;
+    UT_StringMap< UT_Array<const GU_PrimPacked *> > myInstanceGeo;
+    UT_StringMap< GEO_AnimationType >	myInstanceAnim;
 
 };
 
