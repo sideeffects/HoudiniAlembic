@@ -64,9 +64,7 @@ namespace
     using DataType = Alembic::Abc::DataType;
     using M44d = Alembic::Abc::M44d;
     using V3d = Alembic::Abc::V3d;
-    using Box3d = Alembic::Abc::Box3d;
     using Quatd = Alembic::Abc::Quatd;
-    using IArchive = Alembic::Abc::IArchive;
     using IObject = Alembic::Abc::IObject;
     using ICompoundProperty = Alembic::Abc::ICompoundProperty;
     using ISampleSelector = Alembic::Abc::ISampleSelector;
@@ -99,10 +97,8 @@ namespace
     using ICurvesSchema = Alembic::AbcGeom::ICurvesSchema;
     using IPointsSchema = Alembic::AbcGeom::IPointsSchema;
     using INuPatchSchema = Alembic::AbcGeom::INuPatchSchema;
-    using ILightSchema = Alembic::AbcGeom::ILightSchema;
     using IFaceSetSchema = Alembic::AbcGeom::IFaceSetSchema;
     using ICamera = Alembic::AbcGeom::ICamera;
-    using ICameraSchema = Alembic::AbcGeom::ICameraSchema;
     using XformSample = Alembic::AbcGeom::XformSample;
     using XformOp = Alembic::AbcGeom::XformOp;
     using XformOperationType = Alembic::AbcGeom::XformOperationType;
@@ -110,7 +106,6 @@ namespace
     using IN3fGeomParam = Alembic::AbcGeom::IN3fGeomParam;
     using IV2fGeomParam = Alembic::AbcGeom::IV2fGeomParam;
     using IFloatGeomParam = Alembic::AbcGeom::IFloatGeomParam;
-    using IVisibilityProperty = Alembic::AbcGeom::IVisibilityProperty;
     using IMaterial = Alembic::AbcMaterial::IMaterial;
 
     const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
@@ -141,51 +136,29 @@ namespace
 		exint expected_size)
     {
 	if (!param || (expected_size >= 0 && param->size() < expected_size))
-	{
 	    return GT_DataArrayHandle();
-        }
 
-	return GABC_NAMESPACE::GABCarray(GABC_IArray::getSample(arch,
-	        param,
-                gttype,
-                array_extent,
-                is_constant));
+	return GABC_NAMESPACE::GABCarray(
+			GABC_IArray::getSample(arch, param, gttype,
+					       array_extent, is_constant));
     }
     static GT_DataArrayHandle
     simpleArrayFromSample(GABC_IArchive &arch, const ArraySamplePtr &param,
 	    bool is_constant, exint expected_size = -1)
     {
-	return arrayFromSample(arch, param, 1, GT_TYPE_NONE,
-		is_constant, expected_size);
+	return arrayFromSample(arch, param, 1, GT_TYPE_NONE, is_constant,
+			       expected_size);
     }
 
     static bool
     matchScope(GeometryScope needle, const GeometryScope *haystack, int size)
     {
 	for (int i = 0; i < size; ++i)
+	{
 	    if (needle == haystack[i])
 		return true;
-	return false;
-    }
-
-    static GA_AttributeOwner
-    scopeToOwner(GeometryScope scope)
-    {
-	switch (scope)
-	{
-	    case Alembic::AbcGeom::kConstantScope:
-		return GA_ATTRIB_DETAIL;
-	    case Alembic::AbcGeom::kUniformScope:
-	    case Alembic::AbcGeom::kUnknownScope:
-		return GA_ATTRIB_PRIMITIVE;
-	    case Alembic::AbcGeom::kVaryingScope:
-		return GA_ATTRIB_POINT;
-	    case Alembic::AbcGeom::kVertexScope:
-	    case Alembic::AbcGeom::kFacevaryingScope:
-		return GA_ATTRIB_VERTEX;
 	}
-	UT_ASSERT(0);
-	return GA_ATTRIB_POINT;
+	return false;
     }
 
     static GeometryScope
@@ -244,16 +217,19 @@ namespace
 	i0 = i1 = t0.first;
 	if (nsamp == 1 || SYSisEqual(t, t0.second, timeBias))
 	    return 0;
+
 	std::pair<index_t, chrono_t> t1 = itime->getCeilIndex(t, nsamp);
 	i1 = t1.first;
 	if (i0 == i1)
 	    return 0;
+
 	fpreal	bias = (t - t0.second) / (t1.second - t0.second);
 	if (SYSisEqual(bias, 1, timeBias))
 	{
 	    i0 = i1;
 	    return 0;
 	}
+
 	return bias;
     }
 
@@ -263,12 +239,14 @@ namespace
     {
 	return ss.getTopologyVariance() == Alembic::AbcGeom::kHeterogeneousTopology;
     }
+
     template <>
     bool
     isHeterogeneousTopology<IPointsSchema>(const IPointsSchema &ss)
     {
 	return !ss.getIdsProperty().isConstant();
     }
+
     template <typename T_SCHEMA>
     static void
     adjustDeformingTimeSample(fpreal &t, const GABC_IObject &obj,
@@ -278,10 +256,12 @@ namespace
 	// sample rather than trying to blend between samples.
 	if (!isHeterogeneousTopology(ss))
 	    return;	// We can blend samples with impunity
+
 	// Now, pick a time, any time.
 	exint	 nsamp = SYSmax((exint)ss.getNumSamples(), (exint)1);
 	if (nsamp < 2)
 	    return;	// Only one sample?
+
 	const TimeSamplingPtr	&itime = ss.getTimeSampling();
 	std::pair<index_t, chrono_t> t0 = itime->getFloorIndex(t, nsamp);
 	std::pair<index_t, chrono_t> t1 = itime->getCeilIndex(t, nsamp);
@@ -307,7 +287,11 @@ namespace
 	    exint expected_size)
     {
 	GABC_IArray	iarray = GABC_IArray::getSample(arch, prop, idx, tinfo);
-	UT_ASSERT(expected_size < 0 || iarray.entries() >= expected_size);
+	if(expected_size >= 0 && iarray.entries() < expected_size)
+	{
+	    UT_ASSERT("Unexpected array size");
+	    return GT_DataArrayHandle();
+	}
 	return GABC_NAMESPACE::GABCarray(iarray);
     }
 
@@ -425,9 +409,9 @@ namespace
     static V3d
     lerp(const Imath::V3d &a, const Imath::V3d &b, double bias)
     {
-        return V3d(SYSlerp(a[0], b[0], bias),
-                SYSlerp(a[1], b[1], bias),
-                SYSlerp(a[2], b[2], bias));
+	return V3d(SYSlerp(a[0], b[0], bias),
+		   SYSlerp(a[1], b[1], bias),
+		   SYSlerp(a[2], b[2], bias));
     }
 
     // Blend two matrices together by decomposing them into their basic
@@ -444,14 +428,12 @@ namespace
 	decomposeXForm(m1, s1, h1, q1, t1);
 
 	if ((q0 ^ q1) < 0)
-	{
 	    q1 = -q1;
-        }
 
 	return recomposeXForm(lerp(s0, s1, bias),
-                lerp(h0, h1, bias),
-                Imath::slerp(q0, q1, (double)bias),
-                lerp(t0, t1, bias));
+			      lerp(h0, h1, bias),
+			      Imath::slerp(q0, q1, (double)bias),
+			      lerp(t0, t1, bias));
     }
 
     // Blend two Alembic XformSamples together by blending their individual
@@ -517,21 +499,17 @@ namespace
                 }
                 else
                 {
-                    V3d vec0(op0.getChannelValue(0),
-                            op0.getChannelValue(1),
-                            op0.getChannelValue(2));
-                    V3d vec1(op1.getChannelValue(0),
-                            op1.getChannelValue(1),
-                            op1.getChannelValue(2));
+		    V3d vec0(op0.getChannelValue(0),
+			     op0.getChannelValue(1),
+			     op0.getChannelValue(2));
+		    V3d vec1(op1.getChannelValue(0),
+			     op1.getChannelValue(1),
+			     op1.getChannelValue(2));
 
                     if (type0 == Alembic::AbcGeom::kScaleOperation)
-                    {
                         m.setScale(lerp(vec0, vec1, bias));
-                    }
                     else if ( type0 == Alembic::AbcGeom::kTranslateOperation )
-                    {
                         m.setTranslation(lerp(vec0, vec1, bias));
-                    }
                     else if ( type0 == Alembic::AbcGeom::kRotateOperation )
                     {
                         // Check that the axes match for rotation about an
@@ -598,17 +576,16 @@ namespace
                 p_tuple,
                 p->getTypeInfo());
         T                           *dest = gtarray->data();
-        T                           val;
         exint                       pos = 0;
 
         for (exint i = 0; i < p_entries; ++i)
         {
-            val = pw_data[i];
+            T val = pw_data[i];
 
             for (exint j = 0; j < p_tuple; ++j)
             {
                 dest[pos] = p_data[pos] / val;
-                pos = pos + 1;
+		++pos;
             }
         }
 
@@ -627,9 +604,7 @@ namespace
 	T	*dest = gtarray->data();
 	GT_Size	 fullsize = s0->entries() * s0->getTupleSize();
 	for (exint i = 0; i < fullsize; ++i)
-	{
 	    dest[i] = SYSlerp(f0[i], f1[i], bias);
-	}
 	return GT_DataArrayHandle(gtarray);
     }
 
@@ -648,6 +623,7 @@ namespace
     {
 	if (areArraysDifferent(s0, s1))
 	    return s0;
+
 	GT_DataArrayHandle	buf0, buf1;
 	switch (s0->getStorage())
 	{
@@ -685,15 +661,11 @@ namespace
 
 	s0 = getScalarSample(arch, prop, i0);
 	if (is_const || i0 == i1 || !s0 || !GTisFloat(s0->getStorage()))
-	{
 	    return s0;
-        }
 
 	s1 = getScalarSample(arch, prop, i1);
 	if (!s1)
-	{
 	    return s0;
-	}
 
 	return blendArrays(s0, s1, bias);
     }
@@ -704,9 +676,7 @@ namespace
             fpreal t, GT_Type tinfo, exint expected_size)
     {
 	if(prop.getNumSamples() == 0)
-	{
 	    return GT_DataArrayHandle();
-        }
 
         GT_DataArrayHandle  s0, s1;
 	index_t             i0, i1;
@@ -719,15 +689,11 @@ namespace
 
 	s0 = getArraySample(arch, prop, i0, tinfo, expected_size);
 	if (is_const || i0 == i1 || !s0 || !GTisFloat(s0->getStorage()))
-	{
 	    return s0;
-        }
 
 	s1 = getArraySample(arch, prop, i1, tinfo, expected_size);
 	if (!s1)
-	{
 	    return s0;
-	}
 
 	return blendArrays(s0, s1, bias);
     }
@@ -738,9 +704,7 @@ namespace
 	    GT_Type tinfo, exint expected_size)
     {
 	if (!gparam || !gparam.valid())
-	{
 	    return GT_DataArrayHandle();
-        }
 
 	typename T::sample_type v0, v1;
         GT_DataArrayHandle      s0, s1;
@@ -772,18 +736,14 @@ namespace
                 is_const,
 		expected_size);
 	if (is_const || i0 == i1 || !s0 || !GTisFloat(s0->getStorage()))
-	{
 	    return s0;
-        }
 
 	gparam.getExpanded(v1, i1);
 	s1 = arrayFromSample(arch, v1.getVals(),
                 gparam.getArrayExtent(), tinfo,
                 is_const, expected_size);
 	if (!s1)
-	{
 	    return s0;
-	}
 
 	return blendArrays(s0, s1, bias);
     }
@@ -799,13 +759,10 @@ namespace
 	UT_ASSERT(uv2 && uv2->getTupleSize() == 2);
 
 	if (!uv2)
-	{
 	    return GT_DataArrayHandle();
-	}
+
 	if (uv2->getTupleSize() == 3)
-	{
 	    return uv2;
-        }
 
 	GT_Size             n = uv2->entries();
 	GT_Real32Array     *uv3 = new GT_Real32Array(n, 3, uv2->getTypeInfo());
@@ -814,9 +771,7 @@ namespace
 	fpreal32           *dest = uv3->data();
 
 	if (uvs.isConstant())
-	{
 	    uv3->copyDataId(*uv2);  // Copy over data id if constant
-        }
 	for (exint i = 0; i < n; ++i, src += 2, dest += 3)
 	{
 	    dest[0] = src[0];
@@ -901,11 +856,10 @@ namespace
 		setAttributeData(alist, obj, NAME, \
 		    readArrayProperty(arch, *VAR, t, TYPEINFO, expected_size), filled); \
 	}
-    #define SET_GEOM_PARAM(VAR, NAME, TYPEINFO) \
+    #define SET_GEOM_PARAM(VAR, NAME, OWNER, TYPEINFO) \
 	if (VAR && VAR->valid() && matchScope(VAR->getScope(), \
 		    scope, scope_size)) { \
-	    if (!namemap || \
-		namemap->matchPattern(scopeToOwner(VAR->getScope()), NAME)) \
+	    if (!namemap || namemap->matchPattern(OWNER, NAME)) \
             { \
 		if (ONLY_ANIMATING && VAR->isConstant()) \
 		    markFilled(alist, NAME, filled); \
@@ -914,11 +868,10 @@ namespace
                             readGeomProperty(arch, *VAR, t, TYPEINFO, expected_size), filled); \
 	    } \
 	}
-    #define SET_GEOM_UVS_PARAM(VAR, NAME) \
+    #define SET_GEOM_UVS_PARAM(VAR, NAME, OWNER) \
 	if (VAR && VAR->valid() && matchScope(VAR->getScope(), \
 		    scope, scope_size)) { \
-	    if (!namemap || \
-		namemap->matchPattern(scopeToOwner(VAR->getScope()), NAME)) { \
+	    if (!namemap || namemap->matchPattern(OWNER, NAME)) { \
 		if (ONLY_ANIMATING && VAR->isConstant()) \
 		    markFilled(alist, NAME, filled); \
                 else \
@@ -932,15 +885,14 @@ namespace
     {
 	if (head.isArray() || head.isScalar())
 	    return GABC_GTUtil::getGTStorage(head.getDataType());
+
 	if (head.isCompound())
 	{
 	    ICompoundProperty	  comp(parent, head.getName());
 	    const PropertyHeader *hidx = comp.getPropertyHeader(".indices");
 	    const PropertyHeader *hval = comp.getPropertyHeader(".vals");
 	    if (hidx && hval)
-	    {
 		return getGTStorage(parent, *hval);
-	    }
 	}
 	UT_ASSERT(0 && "Unhandled property type");
 	return GT_STORE_INVALID;
@@ -983,6 +935,7 @@ namespace
 	    const GEO_Primitive *prim,
 	    const GABC_IObject &obj,
 	    fpreal t,
+	    GA_AttributeOwner owner,
 	    const GeometryScope *scope,
 	    int scope_size,
 	    ICompoundProperty arb,
@@ -1009,7 +962,8 @@ namespace
 	if(idx >= 0)
 	    filled[idx] = 1;
 
-        if (P && *P && (!GEO_PackedNameMapPtr() || GEO_PackedNameMapPtr()->matchPattern(GA_ATTRIB_POINT, "P"))) {
+        if (P && *P && (!GEO_PackedNameMapPtr() || GEO_PackedNameMapPtr()->matchPattern(GA_ATTRIB_POINT, "P")))
+	{
             if (ONLY_ANIMATING && P->isConstant())
                 markFilled(alist, "P", filled);
             else
@@ -1069,9 +1023,9 @@ namespace
 
 	SET_ARRAY(v, "v", GT_TYPE_VECTOR, namemap)
 	SET_ARRAY(ids, "id", GT_TYPE_NONE, namemap)
-	SET_GEOM_PARAM(N, "N", GT_TYPE_NORMAL)
-	SET_GEOM_UVS_PARAM(uvs, "uv")
-	SET_GEOM_PARAM(widths, "width", GT_TYPE_NONE)
+	SET_GEOM_PARAM(N, "N", owner, GT_TYPE_NORMAL)
+	SET_GEOM_UVS_PARAM(uvs, "uv", owner)
+	SET_GEOM_PARAM(widths, "width", owner, GT_TYPE_NONE)
 	if (prim && matchScope(gabcConstantScope, scope, scope_size))
 	{
 	    setAttributeData(alist, obj, "__primitive_id",
@@ -1084,16 +1038,15 @@ namespace
 		const PropertyHeader	&header = arb.getPropertyHeader(i);
 		GeometryScope		arbscope = getArbitraryPropertyScope(header);
 		if (!matchScope(arbscope, scope, scope_size))
-		{
 		    continue;
-		}
 
 		const char	*name = header.getName().c_str();
 		if (namemap)
 		{
 		    // Verify the attribute matches the pattern
-		    if (!namemap->matchPattern(scopeToOwner(arbscope), name))
+		    if (!namemap->matchPattern(owner, name))
 			continue;
+
 		    name = namemap->getName(name);
 		    if (!name)
 			continue;
@@ -1101,11 +1054,10 @@ namespace
 		GT_Storage	store = getGTStorage(arb, header);
 		if (store == GT_STORE_INVALID)
 		    continue;
+
 		GT_DataArrayHandle data = obj.convertIProperty(arb, header, t, namemap, 0, expected_size);
 		if(data)
-		{
 		    setAttributeData(alist, obj, name, data, filled);
-		}
 	    }
 	}
 	// We need to fill Houdini attributes last.  Otherwise, when converting
@@ -1134,26 +1086,21 @@ namespace
 	if (prop && *prop)
 	{
 	    if (!namemap || namemap->matchPattern(GA_ATTRIB_POINT, name))
-	    {
 		map.add(name, true);
-	    }
 	}
     }
 
     template <typename T>
     static void
     addGeomParamToMap(GT_AttributeMap &map, const char *name, T *param,
-	    const GeometryScope *scope, int scope_size,
+	    GA_AttributeOwner owner, const GeometryScope *scope, int scope_size,
 	    const GEO_PackedNameMapPtr &namemap)
     {
 	if (param && param->valid()
 		&& matchScope(param->getScope(), scope, scope_size))
 	{
-	    if (!namemap ||
-		namemap->matchPattern(scopeToOwner(param->getScope()), name))
-	    {
+	    if (!namemap || namemap->matchPattern(owner, name))
 		map.add(name, false);
-	    }
 	}
     }
 
@@ -1178,7 +1125,8 @@ namespace
 			const GABC_IObject &obj,
 			const GEO_PackedNameMapPtr &namemap,
 			int load_style,
-			fpreal t, 
+			fpreal t,
+			GA_AttributeOwner owner,
 			const GeometryScope *scope,
 			int scope_size,
 			ICompoundProperty arb,
@@ -1199,14 +1147,12 @@ namespace
 	addPropertyToMap(*map, "Pw", Pw, GEO_PackedNameMapPtr());
 	addPropertyToMap(*map, "v", v, namemap);
 	addPropertyToMap(*map, "id", ids, namemap);
-	addGeomParamToMap(*map, "N", N, scope, scope_size, namemap);
-	addGeomParamToMap(*map, "uv", uvs, scope, scope_size, namemap);
-	addGeomParamToMap(*map, "width", widths, scope, scope_size, namemap);
+	addGeomParamToMap(*map, "N", N, owner, scope, scope_size, namemap);
+	addGeomParamToMap(*map, "uv", uvs, owner, scope, scope_size, namemap);
+	addGeomParamToMap(*map, "width", widths, owner, scope, scope_size, namemap);
 
 	if (prim && matchScope(gabcConstantScope, scope, scope_size))
-	{
 	    map->add("__primitive_id", true);
-	}
 	if (arb)
 	{
 	    for (exint i = 0; i < arb.getNumProperties(); ++i)
@@ -1214,14 +1160,12 @@ namespace
 		const PropertyHeader	&header = arb.getPropertyHeader(i);
 		GeometryScope		 arbscope = getArbitraryPropertyScope(header);
 		if (!matchScope(arbscope, scope, scope_size))
-		{
 		    continue;
-		}
 
 		const char	*name = header.getName().c_str();
 		if (namemap)
 		{
-		    if (!namemap->matchPattern(scopeToOwner(arbscope), name))
+		    if (!namemap->matchPattern(owner, name))
 			continue;
 
 		    name = namemap->getName(name);
@@ -1231,6 +1175,7 @@ namespace
 		GT_Storage	store = getGTStorage(arb, header);
 		if (store == GT_STORE_INVALID)
 		    continue;
+
 		map->add(name, false);
 	    }
 	}
@@ -1248,12 +1193,13 @@ namespace
 	    delete map;
 	    return GT_AttributeListHandle();
 	}
+
 	GT_AttributeListHandle	alist(new GT_AttributeList(map));
 	UT_StringArray		removals;
 	if (alist->entries())
 	{
 	    fillAttributeList<false>(*alist, expected_size, namemap, load_style,
-			prim, obj, t, scope, scope_size,
+			prim, obj, t, owner, scope, scope_size,
 			arb, P, v, N, uvs, ids, widths, Pw,
 			removals);
 	}
@@ -1262,6 +1208,7 @@ namespace
 
     static UT_StringHolder
     getAttributeNames(const GEO_PackedNameMapPtr &namemap,
+			GA_AttributeOwner owner,
                         const GeometryScope *scope,
                         int scope_size,
                         ICompoundProperty arb,
@@ -1274,16 +1221,15 @@ namespace
                         const IFloatArrayProperty *Pw = NULL)
     {
         UT_String names;
-
         GT_AttributeMap map;
 
         addPropertyToMap(map, "P", P, GEO_PackedNameMapPtr());
         addPropertyToMap(map, "Pw", Pw, GEO_PackedNameMapPtr());
         addPropertyToMap(map, "v", v, namemap);
         addPropertyToMap(map, "id", ids, namemap);
-        addGeomParamToMap(map, "N", N, scope, scope_size, namemap);
-        addGeomParamToMap(map, "uv", uvs, scope, scope_size, namemap);
-        addGeomParamToMap(map, "width", widths, scope, scope_size, namemap);
+        addGeomParamToMap(map, "N", N, owner, scope, scope_size, namemap);
+        addGeomParamToMap(map, "uv", uvs, owner, scope, scope_size, namemap);
+        addGeomParamToMap(map, "width", widths, owner, scope, scope_size, namemap);
 
         if (arb)
         {
@@ -1292,14 +1238,12 @@ namespace
                 const PropertyHeader    &header = arb.getPropertyHeader(i);
                 GeometryScope            arbscope = getArbitraryPropertyScope(header);
                 if (!matchScope(arbscope, scope, scope_size))
-                {
                     continue;
-                }
 
                 const char      *name = header.getName().c_str();
                 if (namemap)
                 {
-                    if (!namemap->matchPattern(scopeToOwner(arbscope), name))
+                    if (!namemap->matchPattern(owner, name))
                         continue;
 
                     name = namemap->getName(name);
@@ -1309,6 +1253,7 @@ namespace
                 GT_Storage      store = getGTStorage(arb, header);
                 if (store == GT_STORE_INVALID)
                     continue;
+
                 map.add(name, false);
             }
         }
@@ -1327,7 +1272,8 @@ namespace
 			const GABC_IObject &obj,
 			const GEO_PackedNameMapPtr &namemap,
 			int load_style,
-			fpreal t, 
+			fpreal t,
+			GA_AttributeOwner owner,
 			const GeometryScope *scope,
 			int scope_size,
 			ICompoundProperty arb,
@@ -1347,7 +1293,7 @@ namespace
 	UT_StringArray		removals;
 	// Only fill animating attributes
 	fillAttributeList<true>(*alist, expected_size, namemap, load_style,
-			prim, obj, t, scope, scope_size,
+			prim, obj, t, owner, scope, scope_size,
 			arb, P, v, N, uvs, ids, widths, Pw,
 			removals);
 	return alist->removeAttributes(removals);
@@ -1364,13 +1310,13 @@ namespace
     {
     public:
 	inline GT_AttributeListHandle	build(
-			    GT_Owner owner,
 			    exint expected_size,
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
 			    const GEO_PackedNameMapPtr &namemap,
 			    int load_style,
 			    fpreal t,
+			    GA_AttributeOwner owner,
 			    const GeometryScope *scope,
 			    int scope_size,
 			    const ICompoundProperty &arb,
@@ -1384,17 +1330,17 @@ namespace
 	{
 	    return initializeAttributeList(prim, expected_size,
 		    obj, namemap, load_style, t,
-		    scope, scope_size, arb, owner == GT_OWNER_DETAIL,
+		    owner, scope, scope_size, arb, owner == GA_ATTRIB_DETAIL,
 		    P, v, N, uvs, ids, widths, Pw);
 	}
 	inline GT_AttributeListHandle	build(
-			    GT_Owner owner,
 			    exint expected_size,
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
 			    const GEO_PackedNameMapPtr &namemap,
 			    int load_style,
 			    fpreal t,
+			    GA_AttributeOwner owner,
 			    GeometryScope scope,
 			    const ICompoundProperty &arb,
 			    const IP3fArrayProperty *P = NULL,
@@ -1407,7 +1353,7 @@ namespace
 	{
 	    return initializeAttributeList(prim, expected_size,
 		    obj, namemap, load_style, t,
-		    &scope, 1, arb, owner == GT_OWNER_DETAIL,
+		    owner, &scope, 1, arb, owner == GA_ATTRIB_DETAIL,
 		    P, v, N, uvs, ids, widths, Pw);
 	}
     };
@@ -1418,17 +1364,17 @@ namespace
 	    : myPrim(prim)
 	{
 	}
-	inline const GT_AttributeListHandle &getSource(GT_Owner owner) const
+	inline const GT_AttributeListHandle &getSource(GA_AttributeOwner owner) const
 	{
 	    switch (owner)
 	    {
-		case GT_OWNER_VERTEX:
+		case GA_ATTRIB_VERTEX:
 		    return myPrim->getVertexAttributes();
-		case GT_OWNER_POINT:
+		case GA_ATTRIB_POINT:
 		    return myPrim->getPointAttributes();
-		case GT_OWNER_UNIFORM:
+		case GA_ATTRIB_PRIMITIVE:
 		    return myPrim->getUniformAttributes();
-		case GT_OWNER_DETAIL:
+		case GA_ATTRIB_DETAIL:
 		    return myPrim->getDetailAttributes();
 		default:
 		    UT_ASSERT(0);
@@ -1436,13 +1382,13 @@ namespace
 	    return myPrim->getPointAttributes();
 	}
 	inline GT_AttributeListHandle	build(
-			    GT_Owner owner,
 			    exint expected_size,
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
 			    const GEO_PackedNameMapPtr &namemap,
 			    int load_style,
 			    fpreal t,
+			    GA_AttributeOwner owner,
 			    const GeometryScope *scope,
 			    int scope_size,
 			    const ICompoundProperty &arb,
@@ -1455,17 +1401,17 @@ namespace
 			    const IFloatArrayProperty *Pw = NULL) const
 	{
 	    return updateAttributeList(getSource(owner), prim, expected_size,
-		    obj, namemap, load_style, t, scope, scope_size,
+		    obj, namemap, load_style, t, owner, scope, scope_size,
 		    arb, P, v, N, uvs, ids, widths, Pw);
 	}
 	inline GT_AttributeListHandle	build(
-			    GT_Owner owner,
 			    exint expected_size,
 			    const GEO_Primitive *prim,
 			    const GABC_IObject &obj,
 			    const GEO_PackedNameMapPtr &namemap,
 			    int load_style,
 			    fpreal t,
+			    GA_AttributeOwner owner,
 			    GeometryScope scope,
 			    const ICompoundProperty &arb,
 			    const IP3fArrayProperty *P = NULL,
@@ -1477,7 +1423,7 @@ namespace
 			    const IFloatArrayProperty *Pw = NULL) const
 	{
 	    return updateAttributeList(getSource(owner), prim, expected_size,
-		    obj, namemap, load_style, t, &scope, 1,
+		    obj, namemap, load_style, t, owner, &scope, 1,
 		    arb, P, v, N, uvs, ids, widths, Pw);
 	}
 	const GT_PrimitiveHandle	&myPrim;
@@ -1515,9 +1461,7 @@ namespace
 	    {
                 UT_String name(kid.getName());
 		if (name.multiMatch(attrib) && loadFaceSet(set, kid, iss))
-		{
 		    pmesh.addFaceSet(name, set);
-		}
 	    }
 	}
     }
@@ -1580,11 +1524,11 @@ namespace
 	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
 	    arb = ss.getArbGeomParams();
 
-	vertex = acreate.build(GT_OWNER_POINT, -1, prim, obj, namemap,
-		load_style, t, vertex_scope, 3, arb,
+	vertex = acreate.build(-1, prim, obj, namemap,
+		load_style, t, GA_ATTRIB_POINT, vertex_scope, 3, arb,
 		&P, &v, NULL, NULL, &ids, &widths);
-	detail = acreate.build(GT_OWNER_DETAIL, 1, prim, obj, namemap,
-		load_style, t, detail_scope, 3, arb);
+	detail = acreate.build(1, prim, obj, namemap,
+		load_style, t, GA_ATTRIB_DETAIL, detail_scope, 3, arb);
 
 	GT_Primitive	*gt = new GT_PrimPointMesh(vertex, detail);
 	return GT_PrimitiveHandle(gt);
@@ -1614,21 +1558,14 @@ namespace
             case GT_OWNER_POINT:
                 return emptyString;
             case GT_OWNER_VERTEX:
-                return getAttributeNames(namemap,
-                                         vertex_scope, 3,
-                                         arb,
-                                         &P,
-                                         &v,
-                                         NULL,
-                                         NULL,
-                                         &ids,
-                                         &widths);
+                return getAttributeNames(namemap, GA_ATTRIB_VERTEX,
+					 vertex_scope, 3, arb, &P, &v, nullptr,
+					 nullptr, &ids, &widths);
             case GT_OWNER_PRIMITIVE:
                 return emptyString;
             case GT_OWNER_DETAIL:
-                return getAttributeNames(namemap,
-                                         detail_scope, 3,
-                                         arb);
+                return getAttributeNames(namemap, GA_ATTRIB_DETAIL,
+					 detail_scope, 3, arb);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
                 UT_ASSERT(0 && "Unexpected attribute type");
@@ -1643,6 +1580,7 @@ namespace
     {
 	if (array->entries() == 0)
 	    return 0;
+
 	exint	lo, hi;
 	array->getRange(lo, hi);
 	return hi;
@@ -1672,6 +1610,7 @@ namespace
 			ss.getFaceCountsProperty().isConstant());
 	if (!counts || !counts->entries())
 	    return GT_PrimitiveHandle();
+
 	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices(),
 			ss.getFaceIndicesProperty().isConstant());
 	UT_ASSERT(indices);
@@ -1684,30 +1623,18 @@ namespace
 	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 
-	point = acreate.build(GT_OWNER_POINT, maxArrayValue(counts),
-				prim, obj, namemap,
-				load_style, t,
-				point_scope, 2,
-				arb,
-				&P,
-				&v,
-				NULL,
-				&uvs);
-	vertex = acreate.build(GT_OWNER_VERTEX, indices->entries(), prim, obj,
-				namemap, load_style, t,
-				gabcFacevaryingScope,
-				arb,
-				NULL,
-				NULL,
-				NULL,
-				&uvs);
-	uniform = acreate.build(GT_OWNER_UNIFORM, counts->entries(),
-				prim, obj, namemap,
-				load_style, t,
+	point = acreate.build(maxArrayValue(counts), prim, obj, namemap,
+			      load_style, t, GA_ATTRIB_POINT, point_scope, 2,
+			      arb, &P, &v, nullptr, &uvs);
+	vertex = acreate.build(indices->entries(), prim, obj, namemap,
+			       load_style, t, GA_ATTRIB_VERTEX,
+			       gabcFacevaryingScope, arb, nullptr, nullptr,
+			       nullptr, &uvs);
+	uniform = acreate.build(counts->entries(), prim, obj, namemap,
+				load_style, t, GA_ATTRIB_PRIMITIVE,
 				gabcUniformScope, arb);
-	detail = acreate.build(GT_OWNER_DETAIL, 1, prim, obj, namemap,
-				load_style, t,
-				theConstantUnknownScope, 2,
+	detail = acreate.build(1, prim, obj, namemap, load_style, t,
+			       GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
 				arb);
 
 	GT_PrimSubdivisionMesh	*gt = new GT_PrimSubdivisionMesh(counts,
@@ -1800,29 +1727,18 @@ namespace
         switch (owner)
         {
             case GT_OWNER_POINT:
-                return getAttributeNames(namemap, 
-                                         point_scope, 2,
-                                         arb,
-                                         &P,
-                                         &v,
-                                         NULL,
-                                         &uvs);
+                return getAttributeNames(namemap, GA_ATTRIB_POINT, point_scope,
+					 2, arb, &P, &v, nullptr, &uvs);
             case GT_OWNER_VERTEX:
-                return getAttributeNames(namemap,
-                                         &gabcFacevaryingScope, 1,
-                                         arb,
-                                         NULL,
-                                         NULL,
-                                         NULL,
-                                         &uvs);
+                return getAttributeNames(namemap, GA_ATTRIB_VERTEX,
+					 &gabcFacevaryingScope, 1, arb, nullptr,
+					 nullptr, nullptr, &uvs);
             case GT_OWNER_PRIMITIVE:
-                return getAttributeNames(namemap,
-                                         &gabcUniformScope, 1,
-                                         arb);
+                return getAttributeNames(namemap, GA_ATTRIB_PRIMITIVE,
+					 &gabcUniformScope, 1, arb);
             case GT_OWNER_DETAIL:
-                return getAttributeNames(namemap,
-                                         theConstantUnknownScope, 2,
-                                         arb);
+                return getAttributeNames(namemap, GA_ATTRIB_DETAIL,
+					 theConstantUnknownScope, 2, arb);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
                 UT_ASSERT(0 && "Unexpected attribute type");
@@ -1856,6 +1772,7 @@ namespace
 			ss.getFaceCountsProperty().isConstant());
 	if (!counts || !counts->entries())
 	    return GT_PrimitiveHandle();
+
 	indices = simpleArrayFromSample(*obj.archive(), sample.getFaceIndices(),
 			ss.getFaceIndicesProperty().isConstant());
 	UT_ASSERT(indices);
@@ -1869,30 +1786,19 @@ namespace
 	const IN3fGeomParam	&N = ss.getNormalsParam();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 
-	point = acreate.build(GT_OWNER_POINT, maxArrayValue(counts),
+	point = acreate.build(maxArrayValue(counts), prim, obj, namemap,
+			      load_style, t, GA_ATTRIB_POINT, point_scope, 2,
+			      arb, &P, &v, &N, &uvs);
+	vertex = acreate.build(indices->entries(), prim, obj, namemap,
+			       load_style, t, GA_ATTRIB_VERTEX,
+			       gabcFacevaryingScope, arb, nullptr, nullptr, &N,
+			       &uvs);
+	uniform = acreate.build(counts->entries(),
 				prim, obj, namemap,
+				load_style, t, GA_ATTRIB_PRIMITIVE, gabcUniformScope, arb);
+	detail = acreate.build(1, prim, obj, namemap,
 				load_style, t,
-				point_scope, 2,
-				arb,
-				&P,
-				&v,
-				&N,
-				&uvs);
-	vertex = acreate.build(GT_OWNER_VERTEX, indices->entries(),
-				prim, obj, namemap,
-				load_style, t,
-				gabcFacevaryingScope,
-				arb,
-				NULL,
-				NULL,
-				&N,
-				&uvs);
-	uniform = acreate.build(GT_OWNER_UNIFORM, counts->entries(),
-				prim, obj, namemap,
-				load_style, t, gabcUniformScope, arb);
-	detail = acreate.build(GT_OWNER_DETAIL, 1, prim, obj, namemap,
-				load_style, t,
-				theConstantUnknownScope, 2,
+				GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
 				arb);
 
 	GT_PrimPolygonMesh	*gt = new GT_PrimPolygonMesh(counts,
@@ -1930,29 +1836,18 @@ namespace
         switch (owner)
         {
             case GT_OWNER_POINT:
-                return getAttributeNames(namemap, 
-                                         point_scope, 2,
-                                         arb,
-                                         &P,
-                                         &v,
-                                         &N,
-                                         &uvs);
+                return getAttributeNames(namemap, GA_ATTRIB_POINT, point_scope,
+					 2, arb, &P, &v, &N, &uvs);
             case GT_OWNER_VERTEX:
-                return getAttributeNames(namemap,
-                                         &gabcFacevaryingScope, 1,
-                                         arb,
-                                         NULL,
-                                         NULL,
-                                         &N,
-                                         &uvs);
+                return getAttributeNames(namemap, GA_ATTRIB_VERTEX,
+					 &gabcFacevaryingScope, 1, arb, nullptr,
+					 nullptr, &N, &uvs);
             case GT_OWNER_PRIMITIVE:
-                return getAttributeNames(namemap,
-                                         &gabcUniformScope, 1,
-                                         arb);
+                return getAttributeNames(namemap, GA_ATTRIB_PRIMITIVE,
+					 &gabcUniformScope, 1, arb);
             case GT_OWNER_DETAIL:
-                return getAttributeNames(namemap,
-                                         theConstantUnknownScope, 2,
-                                         arb);
+                return getAttributeNames(namemap, GA_ATTRIB_DETAIL,
+					 theConstantUnknownScope, 2, arb);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
                 UT_ASSERT(0 && "Unexpected attribute type");
@@ -1983,6 +1878,7 @@ namespace
 	exint	n = counts->entries();
 	if (n != order->entries())
 	    return false;
+
 	for (exint i = 0; i < n; ++i)
 	{
 	    if (!eval.validCount(counts->getI32(i), order->getI32(i)))
@@ -2108,17 +2004,9 @@ namespace
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 	IFloatGeomParam		 widths = ss.getWidthsParam();
 
-	vertex = acreate.build(GT_OWNER_VERTEX, -1, prim, obj, namemap,
-				load_style, t,
-				vertex_scope, 3,
-				arb,
-				&P,
-				&v,
-				&N,
-				&uvs,
-				NULL,
-				&widths,
-				&Pw);
+	vertex = acreate.build(-1, prim, obj, namemap, load_style, t,
+			       GA_ATTRIB_VERTEX, vertex_scope, 3, arb, &P, &v,
+			       &N, &uvs, nullptr, &widths, &Pw);
 
 	// guard against corrupt curves
 	if(!validCurveCounts(counts, vertex))
@@ -2127,14 +2015,12 @@ namespace
 	    return GT_PrimitiveHandle();
 	}
 
-	uniform = acreate.build(GT_OWNER_UNIFORM, counts->entries(),
-				prim, obj, namemap,
-				load_style, t,
+	uniform = acreate.build(counts->entries(), prim, obj, namemap,
+				load_style, t, GA_ATTRIB_PRIMITIVE,
 				gabcUniformScope, arb);
-	detail = acreate.build(GT_OWNER_DETAIL, 1, prim, obj, namemap,
-				load_style, t,
-				theConstantUnknownScope, 2,
-				arb);
+	detail = acreate.build(1, prim, obj, namemap, load_style, t,
+			       GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
+			       arb);
 
 	GT_Basis basis = getGTBasis(sample.getBasis());
 	bool	 periodic = (sample.getWrap() == Alembic::AbcGeom::kPeriodic);
@@ -2241,24 +2127,15 @@ namespace
             case GT_OWNER_POINT:
                 return emptyString;
             case GT_OWNER_VERTEX:
-                return getAttributeNames(namemap,
-                                         vertex_scope, 3,
-                                         arb,
-                                         &P,
-                                         &v,
-                                         &N,
-                                         &uvs,
-                                         NULL,
-                                         &widths,
-                                         &Pw);
+                return getAttributeNames(namemap, GA_ATTRIB_VERTEX,
+					 vertex_scope, 3, arb, &P, &v, &N, &uvs,
+					 nullptr, &widths, &Pw);
             case GT_OWNER_PRIMITIVE:
-                return getAttributeNames(namemap,
-                                         &gabcUniformScope, 1,
-                                         arb);
+                return getAttributeNames(namemap, GA_ATTRIB_PRIMITIVE,
+					 &gabcUniformScope, 1, arb);
             case GT_OWNER_DETAIL:
-                return getAttributeNames(namemap,
-                                         theConstantUnknownScope, 2,
-                                         arb);
+                return getAttributeNames(namemap, GA_ATTRIB_DETAIL,
+					 theConstantUnknownScope, 2, arb);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
                 UT_ASSERT(0 && "Unexpected attribute type");
@@ -2336,8 +2213,8 @@ namespace
 	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
 	{
 	    point = point->mergeNewAttributes(
-			acreate.build(GT_OWNER_POINT, 1, NULL, obj, namemap,
-				      load_style, t, theConstantUnknownScope,
+			acreate.build(1, NULL, obj, namemap, load_style, t,
+				      GA_ATTRIB_POINT, theConstantUnknownScope,
 				      2, ss.getArbGeomParams()));
 	}
 
@@ -2422,21 +2299,11 @@ namespace
 	const IN3fGeomParam	&N = ss.getNormalsParam();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 
-	vertex = acreate.build(GT_OWNER_VERTEX, -1, prim, obj, namemap,
-				load_style, t,
-				vertex_scope, 3,
-				arb,
-				&P,
-				&v,
-				&N,
-				&uvs,
-				NULL,
-				NULL,
-				&Pw);
-	detail = acreate.build(GT_OWNER_DETAIL, 1, prim, obj, namemap,
-				load_style, t,
-				detail_scope, 3,
-				arb);
+	vertex = acreate.build(-1, prim, obj, namemap, load_style, t,
+				GA_ATTRIB_VERTEX, vertex_scope, 3, arb, &P, &v,
+				&N, &uvs, nullptr, nullptr, &Pw);
+	detail = acreate.build(1, prim, obj, namemap, load_style, t,
+			       GA_ATTRIB_DETAIL, detail_scope, 3, arb);
 
 	GT_PrimNuPatch	*gt = new GT_PrimNuPatch(uorder, uknots,
 				    vorder, vknots, vertex, detail);
@@ -2510,22 +2377,14 @@ namespace
             case GT_OWNER_POINT:
                 return emptyString;
             case GT_OWNER_VERTEX:
-                return getAttributeNames(namemap,
-                                         vertex_scope, 3,
-                                         arb,
-                                         &P,
-                                         &v,
-                                         &N,
-                                         &uvs,
-                                         NULL,
-                                         NULL,
-                                         &Pw);
+                return getAttributeNames(namemap, GA_ATTRIB_VERTEX,
+					 vertex_scope, 3, arb, &P, &v, &N, &uvs,
+					 nullptr, nullptr, &Pw);
             case GT_OWNER_PRIMITIVE:
                 return emptyString;
             case GT_OWNER_DETAIL:
-                return getAttributeNames(namemap,
-                                         detail_scope, 3,
-                                         arb);
+                return getAttributeNames(namemap, GA_ATTRIB_DETAIL,
+					 detail_scope, 3, arb);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
                 UT_ASSERT(0 && "Unexpected attribute type");
@@ -2859,6 +2718,7 @@ GABC_IObject::isMayaLocator() const
 {
     if (!myObject.valid())
 	return false;
+
     UT_ASSERT(IXform::matches(myObject.getHeader()));
     return myObject.getProperties().getPropertyHeader("locator") != NULL;
 }
@@ -2937,6 +2797,7 @@ GABC_IObject::getBoundingBox(UT_BoundingBox &box, fpreal t, bool &isconst) const
 {
     if (!valid())
 	return false;
+
     GABC_AlembicLock	lock(archive());
     try
     {
@@ -2972,6 +2833,7 @@ GABC_IObject::getRenderingBoundingBox(UT_BoundingBox &box, fpreal t) const
     bool	isconst;
     if (!getBoundingBox(box, t, isconst))
 	return false;
+
     switch (nodeType())
     {
 	case GABC_POINTS:
@@ -3214,9 +3076,7 @@ GABC_IObject::getPointCloud(fpreal t, GEO_AnimationType &atype) const
 {
     GT_DataArrayHandle	P = getPosition(t, atype);
     if (!P && nodeType() == GABC_XFORM)
-    {
 	P = GT_DataArrayHandle(new GT_RealConstant(1, 0.0, 3, GT_TYPE_POINT));
-    }
     if (P)
     {
 	GT_AttributeMapHandle	pmap(new GT_AttributeMap());
@@ -3238,6 +3098,7 @@ GABC_IObject::getBoxGeometry(fpreal t, GEO_AnimationType &atype) const
     UT_BoundingBox	box;
     if (!getBoundingBox(box, t, isconst))
 	return GT_PrimitiveHandle();
+
     atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_ATTRIBUTE;
     GT_BuilderStatus	err;
     return GT_PrimitiveBuilder::wireBox(err, box);
@@ -3250,6 +3111,7 @@ GABC_IObject::getCentroidGeometry(fpreal t, GEO_AnimationType &atype) const
     UT_BoundingBox	box;
     if (!getBoundingBox(box, t, isconst))
 	return GT_PrimitiveHandle();
+
     atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_ATTRIBUTE;
     fpreal64	pos[3];
     pos[0] = box.xcenter();
@@ -3270,6 +3132,7 @@ GABC_IObject::getLocalTransform(UT_Matrix4D &xform, fpreal t,
     bool	isconst = true;
     if (!localTransform(t, xform, isconst, inherits))
 	return false;
+
     atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_TRANSFORM;
     return true;
 }
@@ -3284,6 +3147,7 @@ GABC_IObject::getWorldTransform(UT_Matrix4D &xform, fpreal t,
     bool	isconst, inherits;
     if (!worldTransform(t, xform, isconst, inherits))
 	return false;
+
     atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_TRANSFORM;
 
     return false;
@@ -3666,6 +3530,7 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
 	xform.identity();
 	return false;
     }
+
     IObject		obj = object();
     GABC_AlembicLock	lock(archive());
     bool		ascended = false;
@@ -3680,6 +3545,7 @@ GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
 	xform.identity();
 	return false;
     }
+
     lock.unlock();
     if (ascended)
     {
@@ -3697,6 +3563,7 @@ GABC_IObject::worldTransform(fpreal t, M44d &m4,
     UT_Matrix4D	xform;
     if (!worldTransform(t, xform, is_const, inherits))
 	return false;
+
     m4 = GABC_Util::getM(xform);
     return true;
 }
@@ -3732,15 +3599,13 @@ GABC_IObject::localTransform(fpreal t, UT_Matrix4D &mat,
         inheritsXform = ss.getInheritsXforms();
 
 	ss.get(s0, ISampleSelector(i0));
-	if (i0 != i1)
+	if (i0 == i1)
+	    matrix = s0.getMatrix();
+	else
 	{
 	    ss.get(s1, ISampleSelector(i1));
 	    matrix = blendSamples(s0, s1, bias);
 	}
-	else
-	{
-	    matrix = s0.getMatrix();
-        }
 
 	mat = GABC_Util::getM(matrix);
     }
@@ -3759,6 +3624,7 @@ GABC_IObject::localTransform(fpreal t, M44d &m4,
     UT_Matrix4D	xform;
     if (!localTransform(t, xform, is_const, inherits))
 	return false;
+
     m4 = GABC_Util::getM(xform);
     return true;
 }
