@@ -56,6 +56,8 @@ public:
 	registerIntrinsic("abcobjectpath",
 	    StringHolderGetterCast(&GABC_PackedImpl::intrinsicObjectPath),
 	    StringHolderSetterCast(&GABC_PackedImpl::setObjectPath));
+	registerIntrinsic("abcsourcepath",
+	    StringHolderGetterCast(&GABC_PackedImpl::intrinsicSourcePath));
 	registerIntrinsic("abcframe",
 	    FloatGetterCast(&GABC_PackedImpl::frame),
 	    FloatSetterCast(&GABC_PackedImpl::setFrame));

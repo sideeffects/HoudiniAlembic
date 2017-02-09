@@ -162,6 +162,7 @@ public:
     UT_StringHolder	  intrinsicFilename() const { return myFilename; }
     const UT_StringHolder &objectPath() const	{ return myObjectPath; }
     UT_StringHolder	 intrinsicObjectPath() const { return myObjectPath; }
+    UT_StringHolder	 intrinsicSourcePath() const { return object().getSourcePath(); }
     fpreal		 frame() const		{ return myFrame; }
     bool		 useTransform() const	{ return myUseTransform; }
     bool		 useVisibility() const	{ return myUseVisibility; }
