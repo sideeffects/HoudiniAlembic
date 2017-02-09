@@ -109,6 +109,8 @@ public:
     /// Get the full name of the object
     const std::string	&getFullName() const { return myObjectPath; }
 
+    /// Get the source of instanced geometry.  The path to this object is
+    /// returned if the geometry is not instanced.
     std::string		getSourcePath() const;
 
     /// @{
