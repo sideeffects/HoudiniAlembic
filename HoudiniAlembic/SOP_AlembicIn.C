@@ -109,7 +109,7 @@ namespace
 	mgr->execute(cmd.buffer(), 0, &os);
 	UT_String	result(os.str().buffer());
 	result.trimBoundingSpace();
-	sop->setString(result, CH_STRING_LITERAL, parm_name, 0, t);
+	sop->setChRefString(result, CH_STRING_LITERAL, parm_name, 0, t);
 
 	return 0;
     }
