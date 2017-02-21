@@ -44,7 +44,6 @@ ROP_AbcNodeCamera::setArchive(const ROP_AbcArchivePtr &archive)
 {
     myOCamera = OCamera();
     ROP_AbcNode::setArchive(archive);
-    myBBoxCache.clear();
     myIsValid = false;
 }
 
@@ -90,16 +89,9 @@ ROP_AbcNodeCamera::update()
     sample.setVerticalFilmOffset(raspect * myVerticalFilmOffset);
     sample.setLensSqueezeRatio(myLensSqueezeRatio);
 
-    Box3d b3 = GABC_Util::getBox(myBox);
-
-    bool full_bounds = myArchive->getOOptions().fullBounds();
     exint nsamples = myArchive->getSampleCount();
     for(exint i = myOCamera.getSchema().getNumSamples(); i < nsamples; ++i)
-    {
 	myOCamera.getSchema().set(sample);
-	if(full_bounds)
-	    myBBoxCache.set(myOCamera.getSchema().getChildBoundsProperty(), b3);
-    }
 }
 
 void

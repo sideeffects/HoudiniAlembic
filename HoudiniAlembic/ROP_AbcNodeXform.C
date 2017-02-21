@@ -73,8 +73,8 @@ ROP_AbcNodeXform::update()
 	it.second->update();
 	myBox.enlargeBounds(it.second->getBBox());
     }
-    myBox.transform(m);
     Box3d b3 = GABC_Util::getBox(myBox);
+    myBox.transform(m);
 
     bool full_bounds = myArchive->getOOptions().fullBounds();
     exint nsamples = myArchive->getSampleCount();
