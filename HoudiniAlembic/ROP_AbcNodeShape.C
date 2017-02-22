@@ -52,6 +52,25 @@ ROP_AbcNodeShape::getOObject()
     return myWriter->getOObject();
 }
 
+static void
+ropEnlargeBounds(UT_BoundingBox &box, const GT_PrimitiveHandle &prim)
+{
+    GT_TransformHandle xform = prim->getPrimitiveTransform();
+    if(!xform || xform->isIdentity())
+    {
+	prim->enlargeBounds(&box, 1);
+	return;
+    }
+
+    UT_Matrix4D m;
+    xform->getMatrix(m, 0);
+
+    UT_BoundingBox tmp;
+    prim->enlargeBounds(&tmp, 1);
+    tmp.transform(m);
+    box.enlargeBounds(tmp);
+}
+
 void
 ROP_AbcNodeShape::update()
 {
@@ -68,7 +87,7 @@ ROP_AbcNodeShape::update()
 			(nsamples == 1) ?
 			    Alembic::AbcGeom::kVisibilityDeferred :
 			    Alembic::AbcGeom::kVisibilityHidden);
-	myPrim->enlargeBounds(&myBox, 1);
+	ropEnlargeBounds(myBox, myPrim);
 	mySampleCount = 1;
     }
 
@@ -101,7 +120,7 @@ ROP_AbcNodeShape::update()
 		myWriter->update(myPrim, myArchive->getOOptions(),
 				 myArchive->getOError(),
 				 Alembic::AbcGeom::kVisibilityDeferred);
-		myPrim->enlargeBounds(&myBox, 1);
+		ropEnlargeBounds(myBox, myPrim);
 	    }
 	}
 	mySampleCount = nsamples;

@@ -32,8 +32,6 @@
 
 #include <Alembic/AbcGeom/All.h>
 
-#include <UT/UT_Matrix4.h>
-
 typedef Alembic::AbcGeom::OCamera OCamera;
 
 /// Class describing a camera exported to an Alembic archive.
@@ -75,7 +73,6 @@ private:
     void makeValid();
 
     OCamera myOCamera;
-    ROP_AbcBBoxCache myBBoxCache;
     int myResX;
     int myResY;
     fpreal myFocalLength;
