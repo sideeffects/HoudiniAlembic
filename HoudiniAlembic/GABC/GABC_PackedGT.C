@@ -18,81 +18,43 @@
 #include "GABC_PackedGT.h"
 #include "GABC_PackedImpl.h"
 #include <UT/UT_StackBuffer.h>
+#include <GT/GT_CatPolygonMesh.h>
 #include <GT/GT_GEOPrimPacked.h>
 #include <GT/GT_GEOPrimCollectBoxes.h>
 #include <GT/GT_GEOAttributeFilter.h>
 #include <GT/GT_PrimCollect.h>
+#include <GT/GT_Refine.h>
 #include <GT/GT_RefineParms.h>
 #include <GT/GT_TransformArray.h>
 #include <GT/GT_PrimInstance.h>
+#include <GT/GT_PrimPolygonMesh.h>
 #include <SYS/SYS_Hash.h>
-
-// Enable to bucket geometry into instances. This currently incurs a penalty
-// for Alembic playback.
-//#define INSTANCED_ALEMBIC_PRIM_SUPPORT
+#include <tools/henv.h>
 
 
 using namespace GABC_NAMESPACE;
 
 namespace
 {
-    
- 
-class GABC_PackedGT : public GT_GEOPrimPacked
+
+int gabcExprUseArchivePrims()
 {
-public:
-    GABC_PackedGT(const GU_ConstDetailHandle &prim_gdh,
-		  const GU_PrimPacked *prim)
-	: GT_GEOPrimPacked(prim_gdh, prim),
-	  myID(0)
+    static int theEnvVar = -1;
+    if(theEnvVar == -1)
     {
-	if(prim)
+	UT_String var(::HoudiniGetenv("HOUDINIX_OGL_ALEMBIC_ARCHIVES"));
+	if(var.isstring())
 	{
-	    const GABC_PackedImpl *impl =
-	       UTverify_cast<const GABC_PackedImpl *>(prim->implementation());
-	    if(impl)
-	    {
-		fpreal frame = 0.0;
-		if(impl->animationType() > GEO_ANIMATION_TRANSFORM)
-		    frame = impl->frame();
-		SYS_HashType hash = impl->getPropertiesHash();
-		SYShashCombine(hash, SYSreal_hash(frame));
-		myID = hash;
-	    }
+	    theEnvVar = var.toInt();
+	    UTdebugPrint("(HOUDINIX_OGL_ALEMBIC_ARCHIVES) "
+			 "Using Alembic Archives, level ", theEnvVar);
 	}
+	else
+	    theEnvVar = 0;
     }
-    
-    GABC_PackedGT(const GABC_PackedGT &src)
-	: GT_GEOPrimPacked(src),
-	  myID(src.myID)
-    {
-    }
-    virtual ~GABC_PackedGT()
-    {
-    }
+    return theEnvVar;
+}
 
-    virtual const char	*className() const	{ return "GABC_PackedGT"; }
-    virtual GT_PrimitiveHandle	doSoftCopy() const
-				    { return new GABC_PackedGT(*this); }
-
-    virtual GT_PrimitiveHandle	getPointCloud(const GT_RefineParms *p,
-					bool &xform) const;
-    virtual GT_PrimitiveHandle	getFullGeometry(const GT_RefineParms *p,
-					bool &xform) const;
-    virtual GT_PrimitiveHandle	getBoxGeometry(const GT_RefineParms *p) const;
-    virtual GT_PrimitiveHandle	getCentroidGeometry(const GT_RefineParms *p) const;
-
-    virtual bool		canInstance() const	{ return true; }
-    virtual bool		getInstanceKey(UT_Options &options) const;
-    virtual GT_PrimitiveHandle	getInstanceGeometry(const GT_RefineParms *p) const;
-    virtual GT_TransformHandle	getInstanceTransform() const;
-
-    virtual bool		getUniqueID(int64 &id) const
-				{ id = myID; return true; }
-private:
-    int64	myID;
-};
-    
 class gabc_CreateInstanceGeos
 {
 public:
@@ -100,9 +62,10 @@ public:
 	const UT_StringMap< UT_Array<const GU_PrimPacked*> > &geo,
 	const GT_GEODetailListHandle &geometry,
 	const GT_RefineParms *ref_parms,
-	UT_Array<GT_PrimitiveHandle> &gt_prims)
-	: myGeos(geo), myGeometry(geometry), myRefineParms(ref_parms),
-	  myPrims(gt_prims)
+	UT_Array<GT_PrimitiveHandle> &gt_prims,
+	bool collect_anim_info)
+      : myGeos(geo), myGeometry(geometry), myRefineParms(ref_parms),
+	myPrims(gt_prims), myCollectAnimInfo(collect_anim_info)
 	{}
     
     void	operator()(const UT_BlockedRange<exint> &range) const
@@ -116,28 +79,38 @@ public:
 		    continue;
 		if(index == range.end())
 		    break;
-		
-		GABC_PackedGT *packinst =
-		    new GABC_PackedGT(myGeometry->getGeometry(0),
-				      itr->second(0));
 
+		auto impl= UTverify_cast<const GABC_PackedImpl*>
+		    (itr->second(0)->implementation());
+
+		// No need to pack if there is only a single instance.
 		if(itr->second.entries() == 1)
 		{
-		    myPrims(index) = packinst;
+		    GABC_PackedAlembic *packgt =
+			new GABC_PackedAlembic(myGeometry->getGeometry(0),
+					  itr->second(0));
+		    
+		    if(myCollectAnimInfo)
+			packgt->setAnimationType(impl->animationType());
+		    
+		    myPrims(index) = packgt;
 		    continue;
 		}
 
 		// Instanced geometry
-		GT_PrimitiveHandle geo =
-		    packinst->getInstanceGeometry(myRefineParms);
+		GT_PrimitiveHandle geo = impl->instanceGT();
 		GT_TransformArray *xforms = new GT_TransformArray;
 		GT_TransformArrayHandle xformh = xforms;
 		GT_GEOOffsetList offsets, voffsets;
 		bool use_vertex = true;
+
+		GEO_AnimationType anim_type = GEO_ANIMATION_INVALID;
+		if(myCollectAnimInfo)
+		    anim_type = impl->animationType();
 		
 		for( auto pi : itr->second )
 		{
-		    GABC_PackedGT inst(myGeometry->getGeometry(0), pi);
+		    GABC_PackedAlembic inst(myGeometry->getGeometry(0), pi);
 
 		    xforms->append( inst.getFullTransform() );
 		    offsets.append( inst.getPrim()->getMapOffset() );
@@ -145,6 +118,16 @@ public:
 		       voffsets.append(inst.getPrim()->getVertexOffset(0));
 		    else
 			use_vertex = false; // avoid if one instance has 0 verts
+
+		    // check for an animated transform.
+		    if(myCollectAnimInfo &&
+		       anim_type < GEO_ANIMATION_TRANSFORM)
+		    {
+			auto impl= UTverify_cast<const GABC_PackedImpl*>
+			    (pi->implementation());
+			if(impl->object().isTransformAnimated())
+			    anim_type = GEO_ANIMATION_TRANSFORM;
+		    }
 		}
 
 		// build vertex/prim/point list
@@ -167,10 +150,10 @@ public:
 		GT_AttributeListHandle detail_attribs =
 		    myGeometry->getDetailAttributes(filter, false);
 		
-		myPrims(index) = new GT_PrimInstance(geo, xformh, offsets,
-						    prim_attribs,detail_attribs,
-						    GT_GEODetailListHandle());
-		delete packinst;
+		myPrims(index) = new GABC_PackedInstance(geo, xformh, anim_type,
+							 offsets, prim_attribs,
+							 detail_attribs,
+						     GT_GEODetailListHandle());
 	    }
 	}
 
@@ -179,6 +162,7 @@ private:
     UT_Array<GT_PrimitiveHandle>		 &myPrims;
     const GT_GEODetailListHandle		  myGeometry;
     const GT_RefineParms			 *myRefineParms;
+    const bool					  myCollectAnimInfo;
 };
 
 
@@ -190,6 +174,7 @@ public:
 	: GT_GEOPrimCollectData()
 	, myGeometry(geometry)
 	, myUseViewportLOD(GT_GEOPrimPacked::useViewportLOD(parms))
+	, myAlembicInstancing(parms ? parms->getAlembicInstancing() : false)
 	, myRefineParms(parms)
     { }
     virtual ~CollectData() {}
@@ -211,17 +196,24 @@ public:
 		case GEO_VIEWPORT_BOX:
 		    myBoxPrims.append(&prim);
 		    return true;
-		default:
+	        default:
+		    if(gabcExprUseArchivePrims() >= 2)
+		    {
+			assignToArchive(prim, impl);
+			return true;
+		    }
 		    break;
 	    }
 	}
-#ifdef INSTANCED_ALEMBIC_PRIM_SUPPORT
-	bucketPrim(prim, impl);
-	return true;
-#endif
+	if(myAlembicInstancing || gabcExprUseArchivePrims() == 1)
+	{
+	    bucketPrim(prim, impl);
+	    return true;
+	}
 	return false;
     }
 
+    // bucket by archive:prim into lists of instances.
     void bucketPrim(const GU_PrimPacked &prim,
 		    const GABC_PackedImpl *impl)
 	{
@@ -233,6 +225,7 @@ public:
 	    
 	    auto entry = myInstanceAnim.find( bucket_name.buffer() );
 	    GEO_AnimationType anim;
+		anim = impl->animationType();
 	    if(entry == myInstanceAnim.end())
 	    {
 		anim = impl->animationType();
@@ -245,6 +238,26 @@ public:
 		bucket_name.appendSprintf("[%f]", impl->frame());
 	    
 	    myInstanceGeo[ bucket_name.buffer() ].append(&prim);
+	}
+
+    // only bucket by archive. will be bucketed later. 
+    void assignToArchive(const GU_PrimPacked &prim,
+			 const GABC_PackedImpl *impl)
+	{
+	    GT_PrimitiveHandle archive;
+	    UT_StringHolder archname = impl->object().archive()->filename();
+	    auto entry = myViewportArchives.find( archname );
+	    if(entry == myViewportArchives.end())
+	    {
+		archive = new GABC_PackedArchive(archname, myGeometry);
+		myViewportArchives[ archname] = archive;
+	    }
+	    else
+		archive = entry->second;
+
+	    static_cast<GABC_PackedArchive *>(archive.get())->
+		appendAlembic( prim.getMapOffset() );
+
 	}
     
     class FillTask
@@ -335,7 +348,7 @@ public:
 	    UT_Array<GT_PrimitiveHandle> prims;
 	    prims.entries( myInstanceGeo.size() );
 	    gabc_CreateInstanceGeos task(myInstanceGeo, myGeometry,
-					 myRefineParms, prims);
+					 myRefineParms, prims, false);
 #if 1
 	    UTparallelFor(UT_BlockedRange<exint>(0, myInstanceGeo.size()),
 			  task, 1, 20);
@@ -368,15 +381,20 @@ public:
 	if(boxes)
 	    collect->appendPrimitive(boxes);
 
+	for( auto p : myViewportArchives)
+	    collect->appendPrimitive(p.second);
+
 	return collecth;
     }
 
 private:
     const GT_GEODetailListHandle	myGeometry;
     const GT_RefineParms	       *myRefineParms;
+    UT_StringMap<GT_PrimitiveHandle>	myViewportArchives;
     
     // Viewport
     const bool				myUseViewportLOD;
+    const bool				myAlembicInstancing;
     UT_Array<const GU_PrimPacked *>	myBoxPrims;
     UT_Array<const GU_PrimPacked *>	myCentroidPrims;
     UT_StringMap< UT_Array<const GU_PrimPacked *> > myInstanceGeo;
@@ -384,8 +402,48 @@ private:
 
 };
 
+} // namespace
+
+
+// ---------------------------------------------------------- GABC_PackedAlembic
+
+
+GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
+				       const GU_PrimPacked *prim)
+    : GT_GEOPrimPacked(prim_gdh, prim),
+      myID(0),
+      myAnimType(GEO_ANIMATION_INVALID)
+{
+    if(prim)
+    {
+	const GABC_PackedImpl *impl =
+	    UTverify_cast<const GABC_PackedImpl *>(prim->implementation());
+	if(impl)
+	{
+	    fpreal frame = 0.0;
+	    myAnimType = impl->animationType();
+	    if(myAnimType > GEO_ANIMATION_TRANSFORM)
+		frame = impl->frame();
+	    SYS_HashType hash = impl->getPropertiesHash();
+	    SYShashCombine(hash, SYSreal_hash(frame));
+	    myID = hash;
+	}
+    }
+}
+
+GABC_PackedAlembic::GABC_PackedAlembic(const GABC_PackedAlembic &src)
+    : GT_GEOPrimPacked(src),
+      myID(src.myID)
+{
+}
+
+GABC_PackedAlembic::~GABC_PackedAlembic()
+{
+}
+
+
 GT_PrimitiveHandle
-GABC_PackedGT::getPointCloud(const GT_RefineParms *, bool &xform) const
+GABC_PackedAlembic::getPointCloud(const GT_RefineParms *, bool &xform) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
@@ -394,7 +452,8 @@ GABC_PackedGT::getPointCloud(const GT_RefineParms *, bool &xform) const
 }
 
 GT_PrimitiveHandle
-GABC_PackedGT::getFullGeometry(const GT_RefineParms *parms, bool &xform) const
+GABC_PackedAlembic::getFullGeometry(const GT_RefineParms *parms,
+				    bool &xform) const
 {
     const GABC_PackedImpl	*impl;
     int				 load_style;
@@ -475,8 +534,9 @@ addString(UT_Options &options, const char *name, const GT_DataArrayHandle &h)
 }
 #endif
 
+
 bool
-GABC_PackedGT::getInstanceKey(UT_Options &options) const
+GABC_PackedAlembic::getInstanceKey(UT_Options &options) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
@@ -532,7 +592,7 @@ GABC_PackedGT::getInstanceKey(UT_Options &options) const
 }
 
 GT_PrimitiveHandle
-GABC_PackedGT::getInstanceGeometry(const GT_RefineParms *p) const
+GABC_PackedAlembic::getInstanceGeometry(const GT_RefineParms *p) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
@@ -540,7 +600,7 @@ GABC_PackedGT::getInstanceGeometry(const GT_RefineParms *p) const
 }
 
 GT_TransformHandle
-GABC_PackedGT::getInstanceTransform() const
+GABC_PackedAlembic::getInstanceTransform() const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
@@ -548,7 +608,7 @@ GABC_PackedGT::getInstanceTransform() const
 }
 
 GT_PrimitiveHandle
-GABC_PackedGT::getBoxGeometry(const GT_RefineParms *) const
+GABC_PackedAlembic::getBoxGeometry(const GT_RefineParms *) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
@@ -556,14 +616,538 @@ GABC_PackedGT::getBoxGeometry(const GT_RefineParms *) const
 }
 
 GT_PrimitiveHandle
-GABC_PackedGT::getCentroidGeometry(const GT_RefineParms *) const
+GABC_PackedAlembic::getCentroidGeometry(const GT_RefineParms *) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
     return impl->centroidGT();
 }
 
+bool
+GABC_PackedAlembic::refine(GT_Refine &refiner,
+			   const GT_RefineParms *parms) const
+{
+    GT_PrimitiveHandle	prim;
+    UT_BoundingBox	box;
+    bool		xform = true;
+
+    int	lod = GT_RefineParms::getOverridePackedViewportLOD(parms);
+    if( !(lod >= 0 && lod < GEO_VIEWPORT_NUM_MODES))
+    {
+	//TODO:
+	// if (GT_RefineParms::getPackedViewportLOD(parms))
+	//     lod = viewportLOD();
+	// else 
+	    lod = GEO_VIEWPORT_FULL;
+    }
+    // Otherwise return full refinement
+    switch (lod)
+    {
+	case GEO_VIEWPORT_HIDDEN:
+	    return false;
+	    
+	case GEO_VIEWPORT_CENTROID:
+	    prim = getCentroidGeometry(parms);
+	    break;
+	case GEO_VIEWPORT_BOX:
+	    prim = getBoxGeometry(parms);
+	    break;
+	case GEO_VIEWPORT_POINTS:
+	    prim = getPointCloud(parms, xform);
+	    break;
+	case GEO_VIEWPORT_INVALID_MODE:
+	case GEO_VIEWPORT_FULL:
+	case GEO_VIEWPORT_SUBDIVISION:
+	case GEO_VIEWPORT_DEFORM:
+	    prim = getFullGeometry(parms, xform);
+    }
+    
+    refiner.addPrimitive(prim);
+    return true;
 }
+
+void
+GABC_PackedAlembic::cacheGeometry(const GT_PrimitiveHandle &ph)
+{
+    auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+
+    myCache.cacheGeometry(impl->frame(), ph );
+}
+
+bool 
+GABC_PackedAlembic::getCachedGeometry(GT_PrimitiveHandle &ph) const
+{
+    auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+    return myCache.getGeometry(impl->frame(), ph);
+}
+
+
+void
+GABC_PackedAlembic::cacheTransform(const GT_TransformHandle &th)
+{
+    auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+    UT_Matrix4F mat;
+    th->getMatrix(mat);
+    myCache.cacheTransform(impl->frame(), mat );
+}
+
+bool
+GABC_PackedAlembic::getCachedTransform(GT_TransformHandle &th) const
+{
+    auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+    UT_Matrix4F mat;
+    if(myCache.getTransform(impl->frame(), mat))
+    {
+	th = new GT_Transform(&mat, 1);
+	return true;
+    }
+    return false;
+}
+
+// -------------------------------------------------------------------------
+
+namespace
+{
+class gabc_BucketAlembics
+{
+public:
+    gabc_BucketAlembics(const GU_Detail *dtl,
+			const GA_OffsetArray &offsets)
+	: myDetail(dtl),
+	  myOffsets(offsets)
+	{}
+
+    gabc_BucketAlembics(const gabc_BucketAlembics &src, UT_Split)
+	: myDetail(src.myDetail),
+	  myOffsets(src.myOffsets)
+	{}
+
+    void	operator()(const UT_BlockedRange<exint> &range)
+	{
+	    for(exint i = range.begin(); i != range.end(); ++i)
+	    {
+		const GU_PrimPacked *prim = static_cast<const GU_PrimPacked *>
+		    (myDetail->getPrimitive(myOffsets(i)));
+		auto impl= UTverify_cast<const GABC_PackedImpl*>
+		    (prim->implementation());
+
+		UT_StringHolder path = impl->object().getSourcePath();
+
+		myBuckets[ path ].append(prim);
+	    }
+	}
+  
+    void	join(const gabc_BucketAlembics &other)
+	{
+	    for(auto itr : other.myBuckets)
+	    {
+		auto entry = myBuckets.find(itr.first);
+		if(entry == myBuckets.end())
+		{
+		    auto &new_array = myBuckets[itr.first];
+		    for(auto p : itr.second)
+			new_array.append(p);
+		}
+		else
+		{
+		    for(auto p : itr.second)
+			entry->second.append(p);
+		}
+	    }
+	}
+
+    const UT_StringMap< UT_Array<const GU_PrimPacked *> > &buckets() const
+	{
+	    return myBuckets;
+	}
+
+private:
+    const GU_Detail *myDetail;
+    const GA_OffsetArray &myOffsets;
+    UT_StringMap< UT_Array<const GU_PrimPacked *> > myBuckets;
+};
+
+class gabc_GenerateMeshes
+{
+public:
+    gabc_GenerateMeshes(const UT_Array<GT_PrimitiveHandle> &alem_meshes,
+			const GT_RefineParms *parms)
+	: myAlembics(alem_meshes),
+	  myParms(parms)
+	{}
+
+    gabc_GenerateMeshes(const gabc_GenerateMeshes &src, UT_Split)
+	: myAlembics(src.myAlembics),
+	  myParms(src.myParms)
+	{}
+    
+    void operator()(const UT_BlockedRange<exint> &range)
+	{
+	    for(int i = range.begin(); i< range.end(); i++)
+	    {
+		auto pack =
+		    UTverify_cast<GABC_PackedAlembic *>(myAlembics(i).get());
+
+		// This is the expensive part, the reason this is threaded.
+		GT_PrimitiveHandle geoh = pack->getInstanceGeometry(myParms);
+		if(geoh)
+		{
+		    pack->cacheGeometry(geoh);
+		    if(geoh->getPrimitiveType() == GT_PRIM_POLYGON_MESH ||
+		       geoh->getPrimitiveType() == GT_PRIM_SUBDIVISION_MESH ||
+		       geoh->getPrimitiveType() == GT_PRIM_POLYGON)
+		    {
+			myMeshes.append(myAlembics(i));
+		    }
+		    else
+		    {
+			myOthers.append(myAlembics(i));
+		    }
+		}
+		else
+		{
+		    myOthers.append(myAlembics(i));
+		}
+	    }
+	}
+    void join(const gabc_GenerateMeshes &other)
+	{
+	    myMeshes.concat(other.myMeshes);
+	    myOthers.concat(other.myOthers);
+	}
+
+    UT_Array<GT_PrimitiveHandle>	&meshes() { return myMeshes; }
+    UT_Array<GT_PrimitiveHandle>	&prims() { return myOthers; }
+
+private:
+    const UT_Array<GT_PrimitiveHandle> &myAlembics;
+    UT_Array<GT_PrimitiveHandle>	myMeshes, myOthers;
+    const GT_RefineParms	       *myParms;
+};
+
+void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
+		   UT_IntArray &combined,
+		   UT_Array<GT_PrimitiveHandle> &shapes,
+		   GT_PrimitiveHandle &mesh)
+{
+    if(combined.entries() > 1)
+    {
+	SYS_HashType id  =0;
+	GT_CatPolygonMesh merge_meshes;
+	for(auto idx : combined)
+	{
+	    auto pack = UTverify_cast<GABC_PackedAlembic *>(meshes(idx).get());
+	    GT_PrimitiveHandle mesh;
+	    if(pack->getCachedGeometry(mesh))
+	    {
+		if(!merge_meshes.append(mesh, pack->getInstanceTransform()))
+		{
+		    int64 pid = 0;
+		    if(pack->getUniqueID(pid))
+			SYShashCombine<int64>(id, pid);
+		    shapes.append(meshes(idx));
+		}
+	    }
+	}
+
+	GT_PrimitiveHandle merged_mesh =  merge_meshes.result();
+	if(merged_mesh)
+	    shapes.append(new GABC_PackedAlembicMesh(merged_mesh, id));
+    }
+    else if(combined.entries() == 1)
+	shapes.append(meshes(combined(0)));
+    else if(combined.entries() == 0 && mesh)
+	shapes.append(mesh);
+    
+    combined.entries(0);
+}
+
+} // end anon namespace
+
+
+GABC_PackedArchive::GABC_PackedArchive(const UT_StringHolder &arch,
+				       const GT_GEODetailListHandle &dlist)
+    : myName(arch),
+      myDetailList(dlist)
+{
+}
+    
+bool
+GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
+				const GT_RefineParms *parms)
+{
+    if(prev_archive && archiveMatch(prev_archive))
+	return false;
+
+    // Sort the collected Alembic primitives into buckets for instancing.
+    GU_DetailHandleAutoReadLock gdplock(myDetailList->getGeometry(0));
+    gabc_BucketAlembics btask(gdplock.getGdp(), myAlembicOffsets);
+
+    UTparallelReduce(UT_BlockedRange<exint>(0, myAlembicOffsets.entries()),
+		     btask);
+
+    // Create GT primitives for the buckets
+    UT_Array<GT_PrimitiveHandle> prims;
+    prims.entries(btask.buckets().size());
+    gabc_CreateInstanceGeos gttask(btask.buckets(), myDetailList, parms, prims,
+				   true);
+    
+    UTparallelFor(UT_BlockedRange<exint>(0, btask.buckets().size()), gttask);
+
+    UT_Array<GT_PrimitiveHandle> alem_meshes;
+    int ccount = 0;
+    // Sort the primitives into buckets based on animation.
+    for(auto &p : prims)
+    {
+	GEO_AnimationType type = GEO_ANIMATION_INVALID;
+	
+	GABC_PackedAlembic *single =dynamic_cast<GABC_PackedAlembic *>(p.get());
+	if(single)
+	{
+	    type = single->animationType();
+	}
+	else
+	{
+	    // Currently only have one other GT type produced.
+	    GABC_PackedInstance *inst =
+		UTverify_cast<GABC_PackedInstance *>(p.get());
+	    type = inst->animationType();
+	}
+
+	if(type == GEO_ANIMATION_CONSTANT)
+	{
+	    if(single && gabcExprUseArchivePrims() == 3)
+		alem_meshes.append(p);
+	    else
+		myConstShapes.append(p);
+	}
+	else if(type <= GEO_ANIMATION_TRANSFORM)
+	    myTransformShapes.append(p);
+	else
+	    myDeformShapes.append(p);
+    }
+
+    if(alem_meshes.entries())
+    {
+	gabc_GenerateMeshes task(alem_meshes, parms);
+
+	UTparallelReduce(UT_BlockedRange<exint>(0,alem_meshes.entries()), task);
+
+	myConstShapes.concat(task.prims());
+
+	UT_Array<GT_PrimitiveHandle> &meshes = task.meshes();
+	if(meshes.entries() > 1)
+	{
+	    UTdebugPrint("#meshes = ", meshes.entries());
+	    int index = 0;
+	    int total = 0;
+	    UT_IntArray combined;
+	    const int max_faces = parms? parms->getMaxPolyMeshSize() :1000000;
+	    
+	    for(auto mesh : meshes)
+	    {
+		auto pack = UTverify_cast<GABC_PackedAlembic *>(mesh.get());
+		GT_PrimitiveHandle meshh;
+
+		if(pack->getCachedGeometry(meshh))
+		{
+		    auto pmesh=UTverify_cast<GT_PrimPolygonMesh*>(meshh.get());
+		    int num = pmesh->getFaceCount();
+		    if(num + total > max_faces)
+			combineMeshes(meshes, combined, myConstShapes, mesh);
+		    else
+			combined.append(index);
+		}
+		else
+		    myConstShapes.append(pack);
+
+		index++;
+	    }
+
+	    if(combined.entries() > 0)
+	    {
+		GT_PrimitiveHandle null_shape;
+		combineMeshes(meshes, combined, myConstShapes, null_shape);
+		ccount++;
+	    }
+	}
+	else
+	    myConstShapes.concat(meshes);
+    }
+
+    UTdebugPrint("# const  = ", myConstShapes.entries(), ccount, "combined");
+    UTdebugPrint("# anim   = ", myTransformShapes.entries());
+    UTdebugPrint("# deform = ", myDeformShapes.entries());
+		  
+    return true;
+}
+
+bool
+GABC_PackedArchive::archiveMatch(const GABC_PackedArchive *archive) const
+{
+    if(myName != archive->archiveName() ||
+       myAlembicOffsets.entries() != archive->myAlembicOffsets.entries())
+	return false;
+
+    GU_DetailHandleAutoReadLock this_lock(myDetailList->getGeometry(0));
+    const GU_Detail *this_dtl = this_lock.getGdp();
+    
+    GU_DetailHandleAutoReadLock cmp_lock(archive->myDetailList->getGeometry(0));
+    const GU_Detail *cmp_dtl = cmp_lock.getGdp();
+    
+    for(int i=0; i<myAlembicOffsets.entries(); i++)
+    {
+	const GU_PrimPacked *this_prim = static_cast<const GU_PrimPacked *>
+	    (this_dtl->getPrimitive(myAlembicOffsets(i)));
+	auto this_impl = UTverify_cast<const GABC_PackedImpl*>
+	    (this_prim->implementation());
+
+	const GU_PrimPacked *cmp_prim = static_cast<const GU_PrimPacked *>
+	    (cmp_dtl->getPrimitive(archive->myAlembicOffsets(i)));
+	auto cmp_impl = UTverify_cast<const GABC_PackedImpl*>
+	    (cmp_prim->implementation());
+
+	if(this_impl->object().getFullName()!= cmp_impl->object().getFullName())
+	    return false;
+    }
+
+
+    return true;
+}
+
+
+void
+GABC_PackedArchive::enlargeBounds(UT_BoundingBox boxes[],
+			     int nsegments) const
+{
+    // do nothing.
+}
+int64
+GABC_PackedArchive::getMemoryUsage() const
+{
+    return 0;
+}
+
+GT_PrimitiveHandle
+GABC_PackedArchive::doSoftCopy() const
+{
+    return NULL;
+}
+// -------------------------------------------------------------------------
+
+GABC_PackedInstance::GABC_PackedInstance()
+    : GT_PrimInstance(),
+      myAnimType(GEO_ANIMATION_INVALID)
+{
+}
+
+GABC_PackedInstance::GABC_PackedInstance(const GABC_PackedInstance &src)
+    : GT_PrimInstance(src),
+      myAnimType(src.myAnimType)
+{
+    myCache.entries( entries() );
+}
+
+GABC_PackedInstance::GABC_PackedInstance(
+    const GT_PrimitiveHandle &geometry,
+    const GT_TransformArrayHandle &transforms,
+    GEO_AnimationType anim,
+    const GT_GEOOffsetList &packed_prim_offsets,
+    const GT_AttributeListHandle &uniform,
+    const GT_AttributeListHandle &detail,
+    const GT_GEODetailListHandle &source)
+    : GT_PrimInstance(geometry, transforms, packed_prim_offsets,
+		      uniform, detail, source),
+      myAnimType(anim)
+{
+    myCache.entries( entries() );
+}
+
+GABC_PackedInstance::~GABC_PackedInstance()
+{
+}
+
+// -------------------------------------------------------------------------
+
+GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GT_PrimitiveHandle &geo,
+					       int64 id)
+    : myMeshGeo(geo),
+      myID(id)
+{
+}
+
+GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GABC_PackedAlembicMesh &m)
+    : GT_Primitive(m),
+      myMeshGeo(m.myMeshGeo),
+      myID(m.myID)
+{
+}
+
+bool
+GABC_PackedAlembicMesh::refine(GT_Refine &refiner,
+			       const GT_RefineParms *parms) const
+{
+    if(myMeshGeo)
+    {
+	refiner.addPrimitive(myMeshGeo);
+	return true;
+    }
+    return false;
+}
+
+void
+GABC_PackedAlembicMesh::enlargeBounds(UT_BoundingBox boxes[],
+				      int nsegments) const
+{
+    if(myMeshGeo)
+	myMeshGeo->enlargeBounds(boxes, nsegments);
+}
+
+int64
+GABC_PackedAlembicMesh::getMemoryUsage() const
+{
+    return sizeof(*this) + (myMeshGeo ? myMeshGeo->getMemoryUsage() : 0);
+}
+
+// -------------------------------------------------------------------------
+
+bool
+GABC_AlembicCache::getVisibility(fpreal t, bool &visible) const
+{
+    auto entry = myVisibility.find(t);
+    if(entry != myVisibility.end())
+    {
+	visible = entry->second;
+	return true;
+    }
+    return false;
+}
+
+bool
+GABC_AlembicCache::getTransform(fpreal t, UT_Matrix4F &transform) const
+{
+    auto entry = myTransform.find(t);
+    if(entry != myTransform.end())
+    {
+	transform = entry->second;
+	return true;
+    }
+    return false;
+}
+
+bool
+GABC_AlembicCache::getGeometry(fpreal t,  GT_PrimitiveHandle &geo) const
+{
+    auto entry = myGeometry.find(t);
+    if(entry != myGeometry.end())
+    {
+	geo = entry->second;
+	return true;
+    }
+    return false;
+}
+
+
 
 // -------------------------------------------------------------------------
 
@@ -586,7 +1170,8 @@ GABC_CollectPacked::collect(const GT_GEODetailListHandle &geo,
     CollectData		*collector = data->asPointer<CollectData>();
     const GU_PrimPacked *pack = UTverify_cast<const GU_PrimPacked *>(prim[0]);
     if (!collector->append(*pack))
-	return GT_PrimitiveHandle(new GABC_PackedGT(geo->getGeometry(0), pack));
+	return GT_PrimitiveHandle(new GABC_PackedAlembic(geo->getGeometry(0),
+							 pack));
     return GT_PrimitiveHandle();
 }
 
