@@ -30,6 +30,7 @@
 #include <GT/GT_PrimPolygonMesh.h>
 #include <SYS/SYS_Hash.h>
 #include <tools/henv.h>
+#include <UT/UT_Debug.h>
 
 
 using namespace GABC_NAMESPACE;
