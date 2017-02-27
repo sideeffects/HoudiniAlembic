@@ -42,9 +42,10 @@
 #include <UT/UT_Map.h>
 #include <UT/UT_UniquePtr.h>
 
+class GA_PrimitiveGroup;
 class OBJ_Camera;
-class OBJ_Node;
 class OBJ_Geometry;
+class OBJ_Node;
 
 class ROP_AlembicOut : public ROP_Node
 {
@@ -244,14 +245,16 @@ private:
 			const GU_Detail &gdp, const GA_Range &range,
 			const std::string &name,
 			const GA_ROHandleS &vals, const GA_ROHandleS &meta);
+    const GA_PrimitiveGroup *getSubdGroup(bool &subd_all, OBJ_Geometry *geo,
+					  const GU_Detail *gdp, fpreal time);
     void refineSop(rop_RefinedGeoAssignments &refinement,
 		   PackedTransform packedtransform, exint facesetmode,
 		   bool use_instancing, bool shape_nodes, OBJ_Geometry *geo,
 		   SOP_Node *sop, fpreal time);
 
-    bool updateFromSop(SOP_Node *sop, PackedTransform packedtransform,
-		       exint facesetmode, bool use_instancing,
-		       bool shape_nodes);
+    bool updateFromSop(OBJ_Geometry *geo, SOP_Node *sop,
+		       PackedTransform packedtransform, exint facesetmode,
+		       bool use_instancing, bool shape_nodes);
     bool updateFromHierarchy(PackedTransform packedtransform, exint facesetmode,
 			     bool use_instancing, bool shape_nodes);
 
