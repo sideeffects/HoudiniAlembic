@@ -1036,6 +1036,13 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
     }
 
     SOP_Node *sop = getSopNode(time);
+    OBJ_Geometry *geo = nullptr;
+    if(sop)
+    {
+	OBJ_Node *obj = CAST_OBJNODE(sop->getCreator());
+	if(obj)
+	    geo = obj->castToOBJGeometry();
+    }
 
     UT_String packed;
     PACKED_TRANSFORM(packed, time);
@@ -1069,7 +1076,7 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	// update tree
 	if(sop)
 	{
-	    if(!updateFromSop(sop, packedtransform, facesetmode, use_instancing, shape_nodes))
+	    if(!updateFromSop(geo, sop, packedtransform, facesetmode, use_instancing, shape_nodes))
 		return ROP_ABORT_RENDER;
 	}
 	else if(!updateFromHierarchy(packedtransform, facesetmode, use_instancing, shape_nodes))
@@ -1278,6 +1285,29 @@ ropPartitionXformShape(char *s)
     return start;
 }
 
+const GA_PrimitiveGroup *
+ROP_AlembicOut::getSubdGroup(
+    bool &subd_all, OBJ_Geometry *geo, const GU_Detail *gdp, fpreal time)
+{
+    bool subd = (geo && (ropIsToggleEnabled(geo, "vm_rendersubd", time)
+			|| ropIsToggleEnabled(geo, "ri_rendersubd", time)));
+
+    UT_String subdgroup;
+    if(subd)
+	geo->evalParameterOrProperty("vm_subdgroup", 0, time, subdgroup);
+    else
+	SUBDGROUP(subdgroup, time);
+
+    const GA_PrimitiveGroup *grp = nullptr;
+    subd_all = false;
+    if(subdgroup.isstring())
+	grp = gdp->findPrimitiveGroup(subdgroup);
+    else if(subd)
+	subd_all = true;
+    myArchive->getOOptions().setSubdGroup(subdgroup);
+    return grp;
+}
+
 void
 ROP_AlembicOut::refineSop(
     rop_RefinedGeoAssignments &assignments,
@@ -1318,28 +1348,8 @@ ROP_AlembicOut::refineSop(
 			 GABC_Util::theUserPropsMetaAttrib);
 
     // identify subd
-    const GA_PrimitiveGroup *grp = nullptr;
-    bool subd_all = false;
-    UT_String subdgroup;
-    if(geo)
-    {
-	if(ropIsToggleEnabled(geo, "vm_rendersubd", time) ||
-	   ropIsToggleEnabled(geo, "ri_rendersubd", time))
-	{
-	    UT_String group;
-	    if(geo->evalParameterOrProperty("vm_subdgroup", 0, time, group) && group.isstring())
-		grp = gdp->findPrimitiveGroup(group);
-	    else
-		subd_all = true;
-	}
-    }
-    else
-    {
-	SUBDGROUP(subdgroup, time);
-	if(subdgroup.isstring())
-	    grp = gdp->findPrimitiveGroup(subdgroup);
-    }
-    myArchive->getOOptions().setSubdGroup(subdgroup);
+    bool subd_all;
+    const GA_PrimitiveGroup *grp = getSubdGroup(subd_all, geo, gdp, time);
 
     UT_String partition_mode;
     PARTITION_MODE(partition_mode, time);
@@ -1392,7 +1402,7 @@ ROP_AlembicOut::refineSop(
 	else
 	    p = name;
 
-	int idx = grp && grp->contains(offset) ? 1 : 0;
+	int idx = (subd_all || (grp && grp->contains(offset))) ? 1 : 0;
 	partitions[idx][p].append(offset);
     }
 
@@ -1430,7 +1440,7 @@ ROP_AlembicOut::refineSop(
 	    {
 		exported = true;
 
-		bool subd = (idx || subd_all);
+		bool subd = (idx == 1);
 		assignments.refine(prim, packedtransform, facesetmode, subd,
 				   use_instancing, shape_nodes, it.first,
 				   myArchive);
@@ -1463,6 +1473,7 @@ ropIsShape(GABC_NodeType type)
 
 bool
 ROP_AlembicOut::updateFromSop(
+    OBJ_Geometry *geo,
     SOP_Node *sop,
     PackedTransform packedtransform,
     exint facesetmode,
@@ -1476,9 +1487,6 @@ ROP_AlembicOut::updateFromSop(
     {
 	if(!mySopAssignments)
 	{
-	    // FIXME: use myObjAssignments and all build all items up to the
-	    // root?
-
 	    // insert a transform node
 	    ROP_AbcNode *root = myRoot.get();
 	    OBJ_Node *obj = CAST_OBJNODE(sop->getCreator());
@@ -1512,7 +1520,7 @@ ROP_AlembicOut::updateFromSop(
 	    static_cast<ROP_AbcNodeXform *>(node)->setData(m, true);
 	}
 	refineSop(*mySopAssignments, packedtransform, facesetmode,
-		  use_instancing, shape_nodes, nullptr, sop, time);
+		  use_instancing, shape_nodes, geo, sop, time);
 	return true;
     }
 
@@ -1537,12 +1545,9 @@ ROP_AlembicOut::updateFromSop(
 
     GA_ROHandleS path_handle(gdp, GA_ATTRIB_PRIMITIVE, path_attrib);
 
-    const GA_PrimitiveGroup *grp = nullptr;
-    UT_String subdgroup;
-    SUBDGROUP(subdgroup, time);
-    if(subdgroup.isstring())
-	grp = gdp->findPrimitiveGroup(subdgroup);
-    myArchive->getOOptions().setSubdGroup(subdgroup);
+    // identify subd
+    bool subd_all;
+    const GA_PrimitiveGroup *grp = getSubdGroup(subd_all, geo, gdp, time);
 
     auto &&alembic_def = GUgetFactory().lookupDefinition("AlembicRef"_sh);
     UT_SortedMap<std::string, const GU_PrimPacked *> abc_prims;
@@ -1604,7 +1609,7 @@ ROP_AlembicOut::updateFromSop(
 	    }
 	}
 
-	if(grp && grp->contains(offset))
+	if(subd_all || (grp && grp->contains(offset)))
 	    offsets[1][p].append(offset);
 	else
 	    offsets[0][p].append(offset);
