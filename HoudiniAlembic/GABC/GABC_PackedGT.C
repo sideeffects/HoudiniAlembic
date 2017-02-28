@@ -628,6 +628,9 @@ bool
 GABC_PackedAlembic::refine(GT_Refine &refiner,
 			   const GT_RefineParms *parms) const
 {
+    if(gabcExprUseArchivePrims() == 0)
+	return GT_GEOPrimPacked::refine(refiner,parms);
+    
     GT_PrimitiveHandle	prim;
     UT_BoundingBox	box;
     bool		xform = true;
@@ -853,7 +856,11 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 
 	GT_PrimitiveHandle merged_mesh =  merge_meshes.result();
 	if(merged_mesh)
+	{
+	    // UTdebugPrint("Mesh size",UTverify_cast<GT_PrimPolygonMesh*>
+	    // 		 (merged_mesh.get())->getFaceCount());
 	    shapes.append(new GABC_PackedAlembicMesh(merged_mesh, id));
+	}
     }
     else if(combined.entries() == 1)
 	shapes.append(meshes(combined(0)));
