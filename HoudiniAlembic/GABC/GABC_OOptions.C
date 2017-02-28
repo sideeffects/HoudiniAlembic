@@ -36,6 +36,8 @@ GABC_OOptions::GABC_OOptions()
     , myFullBounds(false)
     , myForcePrimToDetail(false)
 {
+    for(int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
+	myAttributePatterns[i] = "*";
 }
 
 // Check if the given attribute matches the mask for it's level.
