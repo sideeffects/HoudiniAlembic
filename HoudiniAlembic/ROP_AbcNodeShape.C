@@ -66,6 +66,7 @@ ropEnlargeBounds(UT_BoundingBox &box, const GT_PrimitiveHandle &prim)
     xform->getMatrix(m, 0);
 
     UT_BoundingBox tmp;
+    tmp.initBounds();
     prim->enlargeBounds(&tmp, 1);
     tmp.transform(m);
     box.enlargeBounds(tmp);
