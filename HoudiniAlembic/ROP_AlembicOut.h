@@ -265,6 +265,7 @@ private:
     fpreal myNFrames;
     fpreal myEndTime;
     bool myFullBounds;
+    bool myFromSOP;
 
     // temporary storage when exporting an OBJ hierarchy
     UT_Map<OBJ_Node *, ROP_AbcNodeXform *> myObjAssignments;
