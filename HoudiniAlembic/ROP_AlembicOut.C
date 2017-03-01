@@ -1035,8 +1035,9 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	myRoot->setArchive(myArchive);
     }
 
-    SOP_Node *sop = getSopNode(time);
     OBJ_Geometry *geo = nullptr;
+    SOP_Node *sop = getSopNode(time);
+    myFromSOP = (sop != nullptr);
     if(sop)
     {
 	OBJ_Node *obj = CAST_OBJNODE(sop->getCreator());
@@ -1295,7 +1296,7 @@ ROP_AlembicOut::getSubdGroup(
     UT_String subdgroup;
     if(subd)
 	geo->evalParameterOrProperty("vm_subdgroup", 0, time, subdgroup);
-    else
+    else if(myFromSOP)
 	SUBDGROUP(subdgroup, time);
 
     const GA_PrimitiveGroup *grp = nullptr;
