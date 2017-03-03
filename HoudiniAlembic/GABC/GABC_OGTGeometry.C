@@ -1601,7 +1601,6 @@ void
 GABC_OGTGeometry::clearCache()
 {
     myCache.clear();
-    myVisibilityCache.clear();
     delete mySecondaryCache;
     mySecondaryCache = NULL;
 }
@@ -1881,7 +1880,6 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
     GT_PrimitiveHandle	prim;
     UT_ASSERT(src);
     myCache.clear();
-    myVisibilityCache.clear();
     myType = GT_PRIM_UNDEFINED;
     prim = getPrimitive(src, myType);
     myElapsedFrames = 0;
@@ -1977,7 +1975,8 @@ GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
     if (!prim)
 	return false;
 
-    myVisibilityCache.set(myVisibility, vis);
+    myVisibility.set(vis ? Alembic::AbcGeom::kVisibilityDeferred
+			 : Alembic::AbcGeom::kVisibilityHidden);
 
     switch (myType)
     {
@@ -2048,7 +2047,8 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
     {
 	case GT_PRIM_POLYGON_MESH:
 	    for (exint i = 0; i < frames; ++i) {
-		myVisibilityCache.set(myVisibility, vis);
+		myVisibility.set(vis ? Alembic::AbcGeom::kVisibilityDeferred
+				     : Alembic::AbcGeom::kVisibilityHidden);
                 myShape.myPolyMesh->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
                 fillFaceSetsFromPrevious(myFaceSetNames,
@@ -2058,7 +2058,8 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
 
 	case GT_PRIM_SUBDIVISION_MESH:
 	    for (exint i = 0; i < frames; ++i) {
-		myVisibilityCache.set(myVisibility, vis);
+		myVisibility.set(vis ? Alembic::AbcGeom::kVisibilityDeferred
+				     : Alembic::AbcGeom::kVisibilityHidden);
                 myShape.mySubD->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
                 fillFaceSetsFromPrevious(myFaceSetNames,
@@ -2068,7 +2069,8 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
 
 	case GT_PRIM_POINT_MESH:
 	    for (exint i = 0; i < frames; ++i) {
-		myVisibilityCache.set(myVisibility, vis);
+		myVisibility.set(vis ? Alembic::AbcGeom::kVisibilityDeferred
+				     : Alembic::AbcGeom::kVisibilityHidden);
 	        myShape.myPoints->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
             }
@@ -2076,7 +2078,8 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
 
 	case GT_PRIM_CURVE_MESH:
 	    for (exint i = 0; i < frames; ++i) {
-		myVisibilityCache.set(myVisibility, vis);
+		myVisibility.set(vis ? Alembic::AbcGeom::kVisibilityDeferred
+				     : Alembic::AbcGeom::kVisibilityHidden);
 	        myShape.myCurves->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
             }
@@ -2084,7 +2087,8 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
 
 	case GT_PRIM_NUPATCH:
 	    for (exint i = 0; i < frames; ++i) {
-		myVisibilityCache.set(myVisibility, vis);
+		myVisibility.set(vis ? Alembic::AbcGeom::kVisibilityDeferred
+				     : Alembic::AbcGeom::kVisibilityHidden);
 	        myShape.myNuPatch->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
             }

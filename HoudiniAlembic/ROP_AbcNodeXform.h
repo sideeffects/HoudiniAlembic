@@ -43,38 +43,6 @@ typedef Alembic::AbcGeom::XformSample XformSample;
 typedef Alembic::AbcGeom::OXformSchema OXformSchema;
 
 typedef GABC_NAMESPACE::GABC_Util GABC_Util;
-typedef GABC_NAMESPACE::GABC_OGTGeometry::VisibilityCache VisibilityCache;
-
-class ROP_AbcXformCache
-{
-public:
-    ROP_AbcXformCache() : myCount(-1) {}
-    void clear() { myCount = -1; }
-    void set(OXformSchema &schema, const UT_Matrix4D &xform)
-    {
-	if((myCount >= 0) && (myXform == xform))
-	    ++myCount;
-	else
-	{
-	    for(exint i = 0; i < myCount; ++i)
-		setSample(schema);
-	    myXform = xform;
-	    myCount = 0;
-	    setSample(schema);
-	}
-    }
-
-private:
-    void setSample(OXformSchema &schema)
-    {
-	XformSample sample;
-	sample.setMatrix(GABC_Util::getM(myXform));
-	schema.set(sample);
-    }
-
-    UT_Matrix4D myXform;
-    exint myCount;
-};
 
 /// Class describing a transform exported to an Alembic archive.
 class ROP_AbcNodeXform : public ROP_AbcNode
@@ -108,9 +76,6 @@ private:
 
     OXform myOXform;
     OVisibilityProperty myVisibility;
-    ROP_AbcBBoxCache myBBoxCache;
-    ROP_AbcXformCache myXformCache;
-    VisibilityCache myVisibilityCache;
 
     UT_StringHolder myUserPropVals;
     UT_StringHolder myUserPropMeta;

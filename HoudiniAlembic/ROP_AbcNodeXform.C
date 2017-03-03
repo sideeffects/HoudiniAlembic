@@ -47,9 +47,6 @@ ROP_AbcNodeXform::setArchive(const ROP_AbcArchivePtr &archive)
     myVisibility = OVisibilityProperty();
     ROP_AbcNode::setArchive(archive);
     myUserProperties.clear();
-    myBBoxCache.clear();
-    myXformCache.clear();
-    myVisibilityCache.clear();
     mySampleCount = 0;
     myIsValid = false;
 }
@@ -80,12 +77,16 @@ ROP_AbcNodeXform::update()
     exint nsamples = myArchive->getSampleCount();
     for(exint i = mySampleCount; i < nsamples; ++i)
     {
-	myXformCache.set(myOXform.getSchema(), m);
-	myVisibilityCache.set(myVisibility, (i + 1 == nsamples) && myVisible);
+	XformSample sample;
+	sample.setMatrix(GABC_Util::getM(m));
+	myOXform.getSchema().set(sample);
+	bool vis = ((i + 1 == nsamples) && myVisible);
+	myVisibility.set(vis ? Alembic::AbcGeom::kVisibilityDeferred
+			     : Alembic::AbcGeom::kVisibilityHidden);
 
 	// update computed bounding box
 	if(full_bounds)
-	    myBBoxCache.set(myOXform.getSchema().getChildBoundsProperty(), b3);
+	    myOXform.getSchema().getChildBoundsProperty().set(b3);
     }
     mySampleCount = nsamples;
 
