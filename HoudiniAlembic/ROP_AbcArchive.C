@@ -190,5 +190,5 @@ void
 ROP_AbcArchive::setBoundingBox(const UT_BoundingBox &box)
 {
     if(myOOptions.fullBounds())
-	myBBoxCache.set(myBoxProperty, GABC_Util::getBox(box));
+	myBoxProperty.set(GABC_Util::getBox(box));
 }

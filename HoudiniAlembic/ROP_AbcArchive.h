@@ -48,31 +48,6 @@ typedef Alembic::Abc::OBox3dProperty OBox3dProperty;
 typedef Alembic::Abc::OObject OObject;
 typedef Alembic::Abc::TimeSamplingPtr TimeSamplingPtr;
 
-class ROP_AbcBBoxCache
-{
-public:
-    ROP_AbcBBoxCache() : myCount(-1) {}
-    void clear() { myCount = -1; }
-
-    void set(OBox3dProperty prop, const Box3d &box)
-    {
-	if((myCount >= 0) && (myBox == box))
-	    ++myCount;
-	else
-	{
-	    for(exint i = 0; i < myCount; ++i)
-		prop.set(myBox);
-	    myCount = 0;
-	    myBox = box;
-	    prop.set(box);
-	}
-    }
-
-private:
-    Box3d myBox;
-    exint myCount;
-};
-
 class ROP_AbcArchive
 {
     class rop_OOptions : public GABC_OOptions
@@ -145,7 +120,6 @@ private:
     exint mySampleCount;
     fpreal myCookTime;
     OBox3dProperty myBoxProperty;
-    ROP_AbcBBoxCache myBBoxCache;
 
     rop_OOptions myOOptions;
     GABC_OError &myOError;
