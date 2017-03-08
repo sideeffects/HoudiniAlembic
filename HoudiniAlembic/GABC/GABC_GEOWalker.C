@@ -929,9 +929,7 @@ namespace {
             exint nprim)
     {
         if (!arb)
-        {
             return;
-        }
 
         ArraySamplePtr              asample;
         CompoundPropertyReaderPtr   cpr_ptr = GetCompoundPropertyReaderPtr(arb);
@@ -954,21 +952,19 @@ namespace {
             }
             UT_ASSERT(head.isArray());
 
-            GA_AttributeOwner       owner = arbitraryGAOwner(head);
-            UT_String               name(head.getName());
-            IArrayProperty          in_property(cpr_ptr->getArrayProperty(i),
-                                            gabcWrapExisting);
+            IArrayProperty in_property(cpr_ptr->getArrayProperty(i),
+				       gabcWrapExisting);
+	    if (in_property.getNumSamples() == 0)
+		continue;
 
             in_property.get(asample, iss);
             if (!asample)
-            {
-                continue;
-            }
-
-	    if (!walk.translateAttributeName(owner, name))
-	    {
 		continue;
-            }
+
+            GA_AttributeOwner owner = arbitraryGAOwner(head);
+            UT_String name(head.getName());
+            if (!walk.translateAttributeName(owner, name))
+		continue;
 
             setAttribute(walk,
                     obj,
