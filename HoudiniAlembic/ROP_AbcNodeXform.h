@@ -31,7 +31,6 @@
 #include "ROP_AbcNode.h"
 
 #include <Alembic/AbcGeom/All.h>
-
 #include <GABC/GABC_OGTGeometry.h>
 #include <UT/UT_Matrix4.h>
 
@@ -41,8 +40,6 @@ typedef Alembic::AbcGeom::OVisibilityProperty OVisibilityProperty;
 typedef Alembic::AbcGeom::OXform OXform;
 typedef Alembic::AbcGeom::XformSample XformSample;
 typedef Alembic::AbcGeom::OXformSchema OXformSchema;
-
-typedef GABC_NAMESPACE::GABC_Util GABC_Util;
 
 /// Class describing a transform exported to an Alembic archive.
 class ROP_AbcNodeXform : public ROP_AbcNode

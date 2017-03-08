@@ -27,11 +27,7 @@
 
 #include "ROP_AbcNode.h"
 
-#include <GABC/GABC_Util.h>
 #include <UT/UT_WorkBuffer.h>
-
-typedef Alembic::AbcGeom::XformSample XformSample;
-typedef GABC_NAMESPACE::GABC_Util GABC_Util;
 
 void
 ROP_AbcNode::makeCollisionFreeName(std::string &name) const

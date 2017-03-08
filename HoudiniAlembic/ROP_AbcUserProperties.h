@@ -31,12 +31,12 @@
 #include "ROP_AbcNode.h"
 
 #include <Alembic/Abc/All.h>
-
 #include <GABC/GABC_Util.h>
 
 typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
 
-typedef GABC_NAMESPACE::GABC_Util::PropertyMap PropertyMap;
+typedef GABC_NAMESPACE::GABC_Util GABC_Util;
+typedef GABC_Util::PropertyMap PropertyMap;
 
 /// utility class to simplify writing user properties
 class ROP_AbcUserProperties

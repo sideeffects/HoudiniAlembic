@@ -27,8 +27,6 @@
 
 #include "ROP_AbcUserProperties.h"
 
-typedef GABC_NAMESPACE::GABC_Util GABC_Util;
-
 void
 ROP_AbcUserProperties::clear()
 {

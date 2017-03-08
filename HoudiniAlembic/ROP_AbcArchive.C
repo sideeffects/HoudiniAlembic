@@ -38,13 +38,13 @@
 #include <SYS/SYS_Version.h>
 #include <UT/UT_Date.h>
 
-typedef GABC_NAMESPACE::GABC_Util GABC_Util;
-
 typedef Alembic::Abc::chrono_t chrono_t;
 typedef Alembic::Abc::MetaData MetaData;
 typedef Alembic::Abc::OArchive OArchive;
 typedef Alembic::Abc::TimeSampling TimeSampling;
 typedef Alembic::Abc::TimeSamplingType TimeSamplingType;
+
+typedef GABC_NAMESPACE::GABC_Util GABC_Util;
 
 ROP_AbcArchive::ROP_AbcArchive(
     const char *filename, bool ogawa, GABC_OError &err)

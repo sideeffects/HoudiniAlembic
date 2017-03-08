@@ -27,8 +27,6 @@
 
 #include "ROP_AbcNodeCamera.h"
 
-#include <GABC/GABC_Util.h>
-
 typedef Alembic::Abc::Box3d Box3d;
 typedef Alembic::Abc::CompoundPropertyWriterPtr CompoundPropertyWriterPtr;
 typedef Alembic::Abc::DataType DataType;
@@ -38,7 +36,6 @@ typedef Alembic::AbcGeom::CameraSample CameraSample;
 typedef Alembic::AbcGeom::FilmBackXformOp FilmBackXformOp;
 typedef Alembic::AbcGeom::OCamera OCamera;
 
-typedef GABC_NAMESPACE::GABC_Util GABC_Util;
 void
 ROP_AbcNodeCamera::setArchive(const ROP_AbcArchivePtr &archive)
 {
