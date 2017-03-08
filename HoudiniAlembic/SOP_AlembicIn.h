@@ -170,6 +170,7 @@ private:
 
     void	evaluateParms(Parms &parms, OP_Context &context);
     void	setPathAttributes(GABC_GEOWalker &walk, const Parms &parms);
+    void	setPointMode(GABC_GEOWalker &walk, const Parms &parms);
 
     ArchiveEventHandlerPtr	myEventHandler;
     Parms			myLastParms;

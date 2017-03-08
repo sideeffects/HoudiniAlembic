@@ -1031,6 +1031,29 @@ SOP_AlembicIn2::setPathAttributes(GABC_GEOWalker &walk, const Parms &parms)
     }
 }
 
+void
+SOP_AlembicIn2::setPointMode(GABC_GEOWalker &walk, const Parms &parms)
+{
+    auto &walkgdp = walk.detail();
+
+    if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_PRIMITIVES ||
+	parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_UNPACKED)
+    {
+	GA_Offset	shared = GA_INVALID_OFFSET;
+	if (parms.myPointMode == GABC_GEOWalker::ABCPRIM_SHARED_POINT)
+	{
+	    UT_ASSERT(walkgdp.getNumPoints() == 0 ||
+		      walkgdp.getNumPoints() == 1);
+	    if (walkgdp.getNumPoints() == 0)
+		shared = walkgdp.appendPointOffset();
+	    else
+		shared = walkgdp.pointOffset(GA_Index(0));
+	}
+	walk.setPointMode(parms.myPointMode, shared);
+    }
+}
+
+
 static const char	*theHoudiniGeometryWarning =
     "Loading Houdini Geometry isn't always as accurate as unpacking Alembic primitives.";
 
@@ -1174,11 +1197,14 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     {
 	walkgdp->clearAndDestroy();
 	setPathAttributes(walk, parms);
+	setPointMode(walk, parms);
     }
     else
     {
 	walkgdp->destroyInternalNormalAttribute();
 	setPathAttributes(walk, parms);
+	setPointMode(walk, parms);
+	
 	if (walk.buildAbcPrim())
 	{
 	    walk.updateAbcPrims();
@@ -1198,20 +1224,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	    g = walkgdp->newPrimitiveGroup(parms.mySubdGroupName);
 	walk.setSubdGroup(g);
     }
-    if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_PRIMITIVES
-	    || parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_UNPACKED)
-    {
-	GA_Offset	shared = GA_INVALID_OFFSET;
-	if (parms.myPointMode == GABC_GEOWalker::ABCPRIM_SHARED_POINT)
-	{
-	    UT_ASSERT(walkgdp->getNumPoints() == 0 || walkgdp->getNumPoints() == 1);
-	    if (walkgdp->getNumPoints() == 0)
-		shared = walkgdp->appendPointOffset();
-	    else
-		shared = walkgdp->pointOffset(GA_Index(0));
-	}
-	walk.setPointMode(parms.myPointMode, shared);
-    }
+    
 
     if (needwalk)
     {
