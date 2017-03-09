@@ -105,18 +105,22 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
     , myReader(NULL)
     , myStreamBuf(NULL)
     , myStream(NULL)
+    , myIsOgawa(false)
 {
     UT_INC_COUNTER(theCount);
     if (UTisstring(path.c_str()))
     {
 #if defined(GABC_OGAWA)
 	IFactory	factory;
+	
 	// Try to open using standard Ogawa file access
 	if (UTaccess(path.c_str(), R_OK) >= 0)
 	{
 	    try
 	    {
-		myArchive = factory.getArchive(path);
+		IFactory::CoreType	archive_type;
+		myArchive = factory.getArchive(path, archive_type);
+		myIsOgawa = (archive_type == IFactory::kOgawa);
 	    }
 	    catch (const std::exception &e)
 	    {
@@ -134,18 +138,21 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
 	    {
 		myArchive = factory.getArchive(stream_list, archive_type);
 		myError.clear();
+		myIsOgawa = (archive_type == IFactory::kOgawa);
 	    }
 	    catch (const std::exception &)
 	    {
 		// It may still be an HDF5 archive
 		clearStream();
 		myArchive = IArchive();
+		myIsOgawa = false;
 	    }
 	}
 #else
 	// Try HDF5 -- the stream interface only works with Ogawa
 	if (!myArchive.valid() && UTaccess(path.c_str(), R_OK) == 0)
 	{
+	    myIsOgawa =false;
 	    try
 	    {
 		myArchive = IArchive(Alembic::AbcCoreHDF5::ReadArchive(), path);

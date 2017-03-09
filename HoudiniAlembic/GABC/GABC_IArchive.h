@@ -85,6 +85,8 @@ public:
     /// Access to the underlying archive
     const IArchive	&archive() const	{ return myArchive; }
 
+    bool		isOgawa() const		{ return myIsOgawa; }
+
     /// Purge all objects references
     void		purgeObjects();
 
@@ -142,6 +144,7 @@ private:
     IArchive		 myArchive;
     SetType		 myObjects;
     bool		 myPurged;
+    bool		 myIsOgawa;
 };
 
 static inline void intrusive_ptr_add_ref(GABC_IArchive *i) { i->incref(); }

@@ -99,7 +99,8 @@ class GABC_API GABC_PackedArchive : public GT_Primitive
 {
 public:
     GABC_PackedArchive(const UT_StringHolder &archive_name,
-		       const GT_GEODetailListHandle &source_list);
+		       const GT_GEODetailListHandle &source_list,
+		       bool is_ogawa);
 
     const UT_StringHolder &archiveName() const { return myName; }
     
@@ -119,6 +120,8 @@ public:
 		    { return myTransformShapes; }
     const UT_Array<GT_PrimitiveHandle> &deformShapes() const
 		    { return myDeformShapes; }
+    const UT_Array<GT_PrimitiveHandle> &combinedShapes() const
+		    { return myCombinedShapes; }
     
     virtual void	enlargeBounds(UT_BoundingBox boxes[],
 				      int nsegments) const;
@@ -136,6 +139,8 @@ private:
     UT_Array<GT_PrimitiveHandle> myConstShapes;
     UT_Array<GT_PrimitiveHandle> myTransformShapes;
     UT_Array<GT_PrimitiveHandle> myDeformShapes;
+    UT_Array<GT_PrimitiveHandle> myCombinedShapes;
+    bool			 myAmOgawaArchive;
 };
 
 
@@ -181,11 +186,16 @@ public:
     
     void			cacheTransform(const GT_TransformHandle &ph);
     bool	 		getCachedTransform(GT_TransformHandle &ph) const;
+    void			setTransformIndex(int index)
+				{ myTransIndex = index;}
+    int				transformIndex() const
+				{ return myTransIndex;}
     
 private:
     int64	      myID;
     GEO_AnimationType myAnimType;
     GABC_AlembicCache myCache;
+    int		      myTransIndex;
 };
 
 /// Alembic mesh which contains multiple alembic primitives merged together.
@@ -193,6 +203,8 @@ class GABC_API GABC_PackedAlembicMesh : public GT_Primitive
 {
 public:
     GABC_PackedAlembicMesh(const GT_PrimitiveHandle &packed_geo, int64 id);
+    GABC_PackedAlembicMesh(const GT_PrimitiveHandle &packed_geo, int64 id,
+			   UT_Array<GT_PrimitiveHandle> &individual_meshes);
     GABC_PackedAlembicMesh(const GABC_PackedAlembicMesh &mesh);
     
     virtual int		 getPrimitiveType() const
@@ -209,9 +221,17 @@ public:
     virtual int64	getMemoryUsage() const;
     virtual bool	getUniqueID(int64 &id) const
 			{ id = myID; return true; }
+
+    void		update(bool initial_update);
+    bool		hasAnimatedTransforms() const
+			    { return myTransformArray.get() != NULL; }
+    
 private:
     GT_PrimitiveHandle myMeshGeo;
+    GT_DataArrayHandle myTransformArray;
+    UT_Array<GT_PrimitiveHandle> myPrims;
     int64	       myID;
+    int64	       myTransID;
 };
 
 /// Packed instance with alembic extensions

@@ -19,6 +19,8 @@
 #include "GABC_PackedImpl.h"
 #include <UT/UT_StackBuffer.h>
 #include <GT/GT_CatPolygonMesh.h>
+#include <GT/GT_DAConstantValue.h>
+#include <GT/GT_DANumeric.h>
 #include <GT/GT_GEOPrimPacked.h>
 #include <GT/GT_GEOPrimCollectBoxes.h>
 #include <GT/GT_GEOAttributeFilter.h>
@@ -250,7 +252,8 @@ public:
 	    auto entry = myViewportArchives.find( archname );
 	    if(entry == myViewportArchives.end())
 	    {
-		archive = new GABC_PackedArchive(archname, myGeometry);
+		bool is_ogawa = impl->object().archive()->isOgawa();
+		archive = new GABC_PackedArchive(archname, myGeometry,is_ogawa);
 		myViewportArchives[ archname] = archive;
 	    }
 	    else
@@ -413,7 +416,8 @@ GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
 				       const GU_PrimPacked *prim)
     : GT_GEOPrimPacked(prim_gdh, prim),
       myID(0),
-      myAnimType(GEO_ANIMATION_INVALID)
+      myAnimType(GEO_ANIMATION_INVALID),
+      myTransIndex(0)
 {
     if(prim)
     {
@@ -832,34 +836,163 @@ private:
 void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 		   UT_IntArray &combined,
 		   UT_Array<GT_PrimitiveHandle> &shapes,
-		   GT_PrimitiveHandle &mesh)
+		   GT_PrimitiveHandle &mesh,
+		   int max_faces, int max_meshes)
 {
     if(combined.entries() > 1)
     {
-	SYS_HashType id  =0;
-	GT_CatPolygonMesh merge_meshes;
+	UT_Array< GT_CatPolygonMesh > const_merge_meshes;
+	UT_Array< GT_CatPolygonMesh > anim_merge_meshes;
+	UT_Array<UT_Array<GT_PrimitiveHandle> > anim_merge_packs;
+	UT_Array<SYS_HashType> const_merge_ids;
+	UT_Array<SYS_HashType> anim_merge_ids;
+	
 	for(auto idx : combined)
 	{
 	    auto pack = UTverify_cast<GABC_PackedAlembic *>(meshes(idx).get());
-	    GT_PrimitiveHandle mesh;
 	    if(pack->getCachedGeometry(mesh))
 	    {
-		if(!merge_meshes.append(mesh, pack->getInstanceTransform()))
+		if(mesh->getPrimitiveType() != GT_PRIM_POLYGON_MESH)
 		{
-		    int64 pid = 0;
-		    if(pack->getUniqueID(pid))
-			SYShashCombine<int64>(id, pid);
 		    shapes.append(meshes(idx));
+		    continue;
+		}
+		
+		int64 pid = 0;
+		pack->getUniqueID(pid);
+		
+		if(pack->animationType() == GEO_ANIMATION_TRANSFORM)
+		{
+		    const GT_PrimPolygonMesh *cmesh =
+			UTverify_cast<GT_PrimPolygonMesh *>(mesh.get());
+
+		    auto trans_index =
+ 		     new GT_DAConstantValue<uint8,GT_STORE_UINT8>(1,uint8(0),1);
+		    
+		    GT_AttributeListHandle detail_attribs =
+			cmesh->getDetailAttributes();
+		    if(detail_attribs)
+		    {
+			GT_DataArrayHandle ptidx = trans_index;
+			detail_attribs = detail_attribs->addAttribute(
+			    "PrimTransformIndex", ptidx, true);
+		    }
+		    else
+		    {
+			detail_attribs = GT_AttributeList::createAttributeList(
+			    "PrimTransformIndex", trans_index, NULL);
+		    }
+		    GT_PrimitiveHandle pmesh =
+			new GT_PrimPolygonMesh(*cmesh,
+					       cmesh->getPointAttributes(),
+					       cmesh->getVertexAttributes(),
+					       cmesh->getUniformAttributes(),
+					       detail_attribs);
+		     
+		    bool found_match = false;
+		    for(int i=0; i<anim_merge_meshes.entries(); i++)
+			if(anim_merge_meshes(i).canAppend(pmesh))
+			{
+			    const int tidx = anim_merge_packs(i).entries();
+			    trans_index->set(uint8(tidx));
+			    
+			    anim_merge_packs(i).append(meshes(idx));
+
+			    SYShashCombine<int64>(anim_merge_ids(i), pid);
+			    
+			    anim_merge_meshes(i).append(pmesh);
+			    
+			    found_match = true;
+			    break;
+			}
+
+		    if(!found_match)
+		    {
+			anim_merge_meshes.append();
+			anim_merge_meshes.last().setMaxFaceCount(max_faces);
+			anim_merge_meshes.last().setMaxMeshCount(max_meshes);
+			anim_merge_meshes.last().append(pmesh);
+			anim_merge_packs.append();
+			anim_merge_packs.last().append(meshes(idx));
+			anim_merge_ids.append(SYS_HashType(pid));
+		    }
+		}
+		else // no animation
+		{
+		    GT_TransformHandle trh = pack->getInstanceTransform();
+		    bool found_match = false;
+		    for(int i=0; i<const_merge_meshes.entries(); i++)
+			if(const_merge_meshes(i).append(mesh, trh))
+			{
+			    SYShashCombine<int64>(const_merge_ids(i), pid);
+			    found_match = true;
+			    break;
+			}
+
+		    if(!found_match)
+		    {
+			const_merge_meshes.append();
+			const_merge_meshes.last().setMaxFaceCount(max_faces);
+			const_merge_meshes.last().setMaxMeshCount(max_meshes);
+			const_merge_meshes.last().append(mesh, trh);
+			const_merge_ids.append(SYS_HashType(pid));
+		    }
 		}
 	    }
 	}
 
-	GT_PrimitiveHandle merged_mesh =  merge_meshes.result();
-	if(merged_mesh)
+	for(int i=0; i<anim_merge_meshes.entries(); i++)
 	{
-	    // UTdebugPrint("Mesh size",UTverify_cast<GT_PrimPolygonMesh*>
-	    // 		 (merged_mesh.get())->getFaceCount());
-	    shapes.append(new GABC_PackedAlembicMesh(merged_mesh, id));
+	    GT_PrimitiveHandle merged_mesh =  anim_merge_meshes(i).result();
+	    if(merged_mesh)
+	    {
+		const int64 id = anim_merge_ids(i);
+
+		// build a scratch array for the matrices
+		const int prim_count=anim_merge_meshes(i).getNumSourceMeshes();
+		GT_DataArrayHandle trans_array =
+		  new GT_DANumeric<fpreal32, GT_STORE_REAL32>(prim_count*4,4);
+
+		auto mesh =
+		    UTverify_cast<GT_PrimPolygonMesh *>(merged_mesh.get());
+		GT_AttributeListHandle detail;
+
+		if(merged_mesh->getDetailAttributes())
+		{
+		    detail = merged_mesh->getDetailAttributes()->
+			addAttribute("PrimTransform",trans_array, true);
+		}
+		else
+		{
+		    detail =
+			GT_AttributeList::createAttributeList("PrimTransform",
+							      trans_array.get(),
+							      NULL);
+		}
+		
+		merged_mesh = new GT_PrimPolygonMesh(*mesh,
+						 mesh->getPointAttributes(),
+						 mesh->getVertexAttributes(),
+						 mesh->getUniformAttributes(),
+						 detail);
+		
+		// UTdebugPrint("Mesh size",UTverify_cast<GT_PrimPolygonMesh*>
+		// 		 (merged_mesh.get())->getFaceCount());
+		shapes.append(new GABC_PackedAlembicMesh(merged_mesh, id,
+							 anim_merge_packs(i)));
+	    }
+	}
+	
+	for(int i=0; i<const_merge_meshes.entries(); i++)
+	{
+	    GT_PrimitiveHandle merged_mesh =  const_merge_meshes(i).result();
+	    if(merged_mesh)
+	    {
+		const int64 id = const_merge_ids(i);
+		// UTdebugPrint("Mesh size",UTverify_cast<GT_PrimPolygonMesh*>
+		// 		 (merged_mesh.get())->getFaceCount());
+		shapes.append(new GABC_PackedAlembicMesh(merged_mesh, id));
+	    }
 	}
     }
     else if(combined.entries() == 1)
@@ -874,12 +1007,14 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 
 
 GABC_PackedArchive::GABC_PackedArchive(const UT_StringHolder &arch,
-				       const GT_GEODetailListHandle &dlist)
+				       const GT_GEODetailListHandle &dlist,
+				       bool is_ogawa)
     : myName(arch),
-      myDetailList(dlist)
+      myDetailList(dlist),
+      myAmOgawaArchive(is_ogawa)
 {
 }
-    
+
 bool
 GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 				const GT_RefineParms *parms)
@@ -922,15 +1057,16 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	    type = inst->animationType();
 	}
 
-	if(type == GEO_ANIMATION_CONSTANT)
+	
+	if(type <= GEO_ANIMATION_TRANSFORM)
 	{
 	    if(single && gabcExprUseArchivePrims() == 3)
 		alem_meshes.append(p);
-	    else
+	    else if(type == GEO_ANIMATION_CONSTANT)
 		myConstShapes.append(p);
+	    else
+		myTransformShapes.append(p);
 	}
-	else if(type <= GEO_ANIMATION_TRANSFORM)
-	    myTransformShapes.append(p);
 	else
 	    myDeformShapes.append(p);
     }
@@ -938,44 +1074,61 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
     if(alem_meshes.entries())
     {
 	gabc_GenerateMeshes task(alem_meshes, parms);
+	UT_BlockedRange<exint> range(0,alem_meshes.entries());
+	// UT_StopWatch timer;
+	// timer.start();
 
-	UTparallelReduce(UT_BlockedRange<exint>(0,alem_meshes.entries()), task);
+#if 0
+	// Currently this is slower for Ogawa. Will need to
+	// open the archive with multiple handles to be fast.
+	// HDF5 is not threadsafe and should always be single threaded.
+	if(myAmOgawaArchive)
+	{
+	    int max_proc = SYSmin(4, SYSgetProcessorCount());
+	    int grain_size = alem_meshes.entries() / max_proc;
+	    
+	    UTparallelReduce(range, task, 1, grain_size);
+	}
+	else
+#endif
+	{
+	    UTserialReduce(range, task);
+	}
+
+	//UTdebugPrint("Geometry load time", timer.getTime()*1000.0, "ms");
 
 	myConstShapes.concat(task.prims());
 
 	UT_Array<GT_PrimitiveHandle> &meshes = task.meshes();
 	if(meshes.entries() > 1)
 	{
-	    UTdebugPrint("#meshes = ", meshes.entries());
 	    int index = 0;
-	    int total = 0;
 	    UT_IntArray combined;
 	    const int max_faces = parms? parms->getMaxPolyMeshSize() :1000000;
+	    const int max_prims = 255;
 	    
 	    for(auto mesh : meshes)
 	    {
 		auto pack = UTverify_cast<GABC_PackedAlembic *>(mesh.get());
 		GT_PrimitiveHandle meshh;
-
 		if(pack->getCachedGeometry(meshh))
-		{
-		    auto pmesh=UTverify_cast<GT_PrimPolygonMesh*>(meshh.get());
-		    int num = pmesh->getFaceCount();
-		    if(num + total > max_faces)
-			combineMeshes(meshes, combined, myConstShapes, mesh);
-		    else
-			combined.append(index);
-		}
+		    combined.append(index);
 		else
-		    myConstShapes.append(pack);
+		{
+		    if(pack->animationType() == GEO_ANIMATION_CONSTANT)
+			myConstShapes.append(pack);
+		    else
+			myTransformShapes.append(pack);
+		}
 
 		index++;
 	    }
-
+		    
 	    if(combined.entries() > 0)
 	    {
 		GT_PrimitiveHandle null_shape;
-		combineMeshes(meshes, combined, myConstShapes, null_shape);
+		combineMeshes(meshes, combined, myCombinedShapes, null_shape,
+			      max_faces, max_prims);
 		ccount++;
 	    }
 	}
@@ -983,9 +1136,10 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	    myConstShapes.concat(meshes);
     }
 
-    UTdebugPrint("# const  = ", myConstShapes.entries(), ccount, "combined");
-    UTdebugPrint("# anim   = ", myTransformShapes.entries());
-    UTdebugPrint("# deform = ", myDeformShapes.entries());
+    UTdebugPrint("# const    = ", myConstShapes.entries());
+    UTdebugPrint("# combined = ", myCombinedShapes.entries());
+    UTdebugPrint("# anim     = ", myTransformShapes.entries());
+    UTdebugPrint("# deform   = ", myDeformShapes.entries());
 		  
     return true;
 }
@@ -1080,8 +1234,20 @@ GABC_PackedInstance::~GABC_PackedInstance()
 GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GT_PrimitiveHandle &geo,
 					       int64 id)
     : myMeshGeo(geo),
-      myID(id)
+      myID(id),
+      myTransID(0)
 {
+}
+
+GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GT_PrimitiveHandle &geo,
+					       int64 id,
+					       UT_Array<GT_PrimitiveHandle> &pa)
+    : myMeshGeo(geo),
+      myID(id),
+      myPrims(pa)
+{
+    if(geo->getDetailAttributes())
+	myTransformArray =  geo->getDetailAttributes()->get("PrimTransform");
 }
 
 GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GABC_PackedAlembicMesh &m)
@@ -1090,6 +1256,7 @@ GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GABC_PackedAlembicMesh &m)
       myID(m.myID)
 {
 }
+
 
 bool
 GABC_PackedAlembicMesh::refine(GT_Refine &refiner,
@@ -1114,7 +1281,61 @@ GABC_PackedAlembicMesh::enlargeBounds(UT_BoundingBox boxes[],
 int64
 GABC_PackedAlembicMesh::getMemoryUsage() const
 {
-    return sizeof(*this) + (myMeshGeo ? myMeshGeo->getMemoryUsage() : 0);
+    int64 size = sizeof(*this);
+    
+    if(myMeshGeo)
+	size += myMeshGeo->getMemoryUsage();
+    for(auto p : myPrims)
+	size += p->getMemoryUsage();
+    
+    return size;
+}
+
+void
+GABC_PackedAlembicMesh::update(bool initial)
+{
+    if(!myTransformArray || myPrims.entries() == 0)
+	return;
+
+    auto transform_array =
+	UTverify_cast<GT_DANumeric<fpreal32,GT_STORE_FPREAL32> *>
+	(myTransformArray.get());
+
+    UT_ASSERT(myTransformArray->entries() == myPrims.entries() * 4);
+
+    bool      changed = initial;
+    fpreal32 *dest = transform_array->data();
+
+    for(auto p : myPrims)
+    {
+	auto pack = UTverify_cast<GABC_PackedAlembic *>(p.get());
+	GT_TransformHandle tr;
+	UT_Matrix4F mat;
+
+	if(pack->getCachedTransform(tr))
+	    tr->getMatrix(mat);
+	else
+	{
+	    tr= pack->getInstanceTransform();
+	    if(tr)
+	    {
+		pack->cacheTransform(tr);
+		tr->getMatrix(mat);
+	    }
+	    else
+		mat = UT_Matrix4F::getIdentityMatrix();
+	}
+
+	if(changed || memcmp(dest, mat.data(),sizeof(UT_Matrix4F)) != 0)
+	{
+	    memcpy(dest, mat.data(), sizeof(UT_Matrix4F));
+	    changed = true;
+	}
+	dest+=16;
+    }
+    
+    if(changed)
+	transform_array->setDataId( myTransID++ );
 }
 
 // -------------------------------------------------------------------------
