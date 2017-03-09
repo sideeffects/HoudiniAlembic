@@ -316,16 +316,19 @@ namespace
             const GABC_OOptions &ctx,
             const IgnoreList &skips)
     {
-        GABC_OProperty     *prop;
         const IgnoreList   &default_skips = GABC_OGTGeometry::getDefaultSkip();
 
         if (!attribs)
-        {
             return true;
-        }
 
+	// create properties in sorted order
+	UT_SortedMap<std::string, exint> ordering;
         for (exint i = 0; i < attribs->entries(); ++i)
-        {
+	    ordering.emplace(attribs->getName(i), i);
+
+	for (auto it = ordering.begin(); it != ordering.end(); ++it)
+	{
+	    exint	 i = it->second;
 	    auto	 name = attribs->getName(i);
 	    auto	 exp_name = attribs->getExportName(i);
 	    auto	&data = attribs->get(i);
@@ -342,16 +345,13 @@ namespace
                 continue;
             }
 
-            prop = new GABC_OArrayProperty(scope);
+	    GABC_OProperty *prop = new GABC_OArrayProperty(scope);
             if (!prop->start(cp, exp_name, data, err, ctx))
             {
                 delete prop;
                 return false;
             }
-            else
-            {
-                arb_map.insert(PropertyMapInsert(name, prop));
-            }
+	    arb_map.insert(PropertyMapInsert(name, prop));
         }
 
         return true;
