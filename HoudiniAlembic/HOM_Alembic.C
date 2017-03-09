@@ -67,8 +67,6 @@
 // This file contains functions that will run arbitrary Python code
 #include <PY/PY_Python.h>
 #include <PY/PY_InterpreterAutoLock.h>
-#include <GABC/GABC_IArchive.h>
-#include <GABC/GABC_GEOWalker.h>
 #include <GABC/GABC_Util.h>
 #include <Alembic/AbcGeom/All.h>
 #include <HOM/HOM_Module.h>
@@ -93,12 +91,6 @@ namespace
     typedef Alembic::Abc::CompoundPropertyReaderPtr CompoundPropertyReaderPtr;
     typedef Alembic::Abc::ScalarPropertyReaderPtr   ScalarPropertyReaderPtr;
     typedef Alembic::Abc::ICompoundProperty         ICompoundProperty;
-    typedef Alembic::Abc::IArrayProperty            IArrayProperty;
-    typedef Alembic::Abc::IScalarProperty           IScalarProperty;
-
-    // Headers
-    typedef Alembic::Abc::PropertyHeader            PropertyHeader;
-    typedef Alembic::Abc::ObjectHeader		    ObjectHeader;
 
     // Sampling
     typedef Alembic::Abc::ISampleSelector	    ISampleSelector;
