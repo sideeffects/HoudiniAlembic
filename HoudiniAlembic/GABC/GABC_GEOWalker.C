@@ -28,22 +28,16 @@
 #include "GABC_GEOWalker.h"
 #include "GABC_PackedImpl.h"
 #include <Alembic/AbcGeom/All.h>
-#include <GA/GA_Handle.h>
-#include <GEO/GEO_PackedNameMap.h>
 #include <GEO/GEO_PrimNURBCurve.h>
 #include <GEO/GEO_PrimRBezCurve.h>
-#include <GT/GT_DataArray.h>
-#include <GT/GT_Util.h>
 #include <GU/GU_PrimPacked.h>
 #include <GU/GU_PrimPoly.h>
 #include <GU/GU_PrimPolySoup.h>
 #include <GU/GU_PrimPart.h>
 #include <GU/GU_PrimNURBCurve.h>
 #include <GU/GU_PrimNURBSurf.h>
-#include <GU/GU_PrimRBezCurve.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_StackBuffer.h>
-#include <UT/UT_StringArray.h>
 #include <UT/UT_WorkArgs.h>
 #include <algorithm>
 
@@ -74,7 +68,6 @@ namespace {
     using ObjectHeader = Alembic::Abc::ObjectHeader;
     using PropertyHeader = Alembic::Abc::PropertyHeader;
     using WrapExistingFlag = Alembic::Abc::WrapExistingFlag;
-    using TimeSamplingPtr = Alembic::Abc::TimeSamplingPtr;
 
     using CompoundPropertyReaderPtr = Alembic::Abc::CompoundPropertyReaderPtr;
     using ICompoundProperty = Alembic::Abc::ICompoundProperty;
@@ -103,7 +96,6 @@ namespace {
 
     using IXform = Alembic::AbcGeom::IXform;
     using IXformSchema = Alembic::AbcGeom::IXformSchema;
-    using XformSample = Alembic::AbcGeom::XformSample;
     using IFaceSet = Alembic::AbcGeom::IFaceSet;
     using IFaceSetSchema = Alembic::AbcGeom::IFaceSetSchema;
     using IPolyMesh = Alembic::AbcGeom::IPolyMesh;
@@ -118,8 +110,6 @@ namespace {
     using INuPatch = Alembic::AbcGeom::INuPatch;
     using INuPatchSchema = Alembic::AbcGeom::INuPatchSchema;
     using INuPatchSample = INuPatchSchema::Sample;
-
-    using PlainOldDataType = Alembic::Util::PlainOldDataType;
 
     // Types used for NURBS rationalization, but undefined by Alembic
     using P4fTPTraits = Alembic::Abc::P4fTPTraits;
@@ -244,9 +234,7 @@ namespace {
     getDefaults(const char *name, int tsize, const char *interp)
     {
 	if (!strcmp(name, "width") && tsize == 1)
-	{
 	    return theWidthDefaults;
-	}
 	if (!strcmp(interp, "color")
 		|| !strcmp(interp, "rgb")
 		|| !strcmp(interp, "rgba"))
@@ -388,9 +376,7 @@ namespace {
             exint npts = 0)
     {
 	if (!array_data)
-	{
 	    return;
-        }
 
 	GA_RWHandleT<GA_T>  h(attrib.getAttribute());
 	int                 tsize = SYSmin(extent, attrib.getTupleSize());
@@ -420,9 +406,7 @@ namespace {
                                 j);
                     }
                     else
-                    {
                         h.set(GA_Offset(i), j, data[j]);
-                    }
                 }
             }
 	}
@@ -441,14 +425,10 @@ namespace {
                                 j);
                     }
                     else
-                    {
                         h.set(GA_Offset(i), j, array_data[j]);
-                    }
                 }
                 if ((i - start) < entries)
-                {
                     array_data += tsize;
-                }
             }
 	}
     }
@@ -480,9 +460,7 @@ namespace {
                 data = (array_data + ((pos - npts) * tsize));
 
                 for (int j = 0; j < tsize; ++j)
-                {
                     h.set(GA_Offset(i), j, data[j].c_str());
-                }
             }
         }
         else
@@ -490,14 +468,10 @@ namespace {
             for (exint i = start; i < end; ++i)
             {
                 for (int j = 0; j < tsize; ++j)
-                {
                     h.set(GA_Offset(i), j, array_data[j].c_str());
-                }
 
                 if ((i - start) < entries)
-                {
                     array_data += tsize;
-                }
             }
         }
     }
@@ -531,9 +505,7 @@ namespace {
 	UT_ASSERT(array_extent == 1 || (entries % array_extent) == 0);
 
 	if (array_extent > 1)
-	{
 	    entries = entries / array_extent;
-	}
         if (!entries)
 	{
 	    // Valid attribute but no entries, likely a corrupt Alembic file.
@@ -577,9 +549,7 @@ namespace {
 	    {
 		GA_TypeInfo tinfo = getGATypeInfo(interp.c_str(), tsize);
 		if (tinfo == GA_TYPE_VECTOR)
-		{
 		    tinfo = isReallyVector(name, tsize);
-                }
 		attrib.getAttribute()->setTypeInfo(tinfo);
 	    }
 
@@ -774,9 +744,7 @@ namespace {
 	bool                    promote_points = false;
 
 	if (!indices.valid() || !vals.valid())
-	{
             return;
-	}
 
 	indices.get(isample, iss);
 	vals.get(vsample, iss);
@@ -813,9 +781,7 @@ namespace {
         end = start + len;
 
         if (!walk.translateAttributeName(owner, name))
-        {
             return;
-        }
 
         attrib = findAttribute(gdp,
                 owner,
@@ -825,9 +791,7 @@ namespace {
                 GA_STORE_STRING,
                 "");
         if (!attrib.isValid())
-        {
             return;
-        }
 
         handle = GA_RWHandleS(attrib.getAttribute());
         vals_data = (const std::string *)vsample->getData();
@@ -851,9 +815,7 @@ namespace {
                 data = (indices_data + ((pos - npoint) * tsize));
 
                 for (int j = 0; j < tsize; ++j)
-                {
                     handle.set(GA_Offset(i), j, vals_data[data[j]].c_str());
-                }
             }
         }
         else
@@ -868,9 +830,7 @@ namespace {
                 }
 
                 if ((i - start) < entries)
-                {
                     indices_data += tsize;
-                }
             }
         }
     }
@@ -890,9 +850,7 @@ namespace {
             exint nprim)
     {
 	if (!param.valid())
-	{
 	    return;
-        }
 
 	typename T::sample_type     psample;
 	ArraySample                *asample;
@@ -901,9 +859,7 @@ namespace {
 	param.getExpanded(psample, iss);
 	asample = psample.getVals().get();
 	if (!asample)
-	{
 	    return;
-	}
 
         setAttribute(walk,
                 obj,
@@ -1077,15 +1033,10 @@ namespace {
         }
 
         if (success)
-        {
             walk.setNonConstant();
-        }
 
         delete data_writer;
-        if (meta_writer)
-        {
-            delete meta_writer;
-        }
+	delete meta_writer;
     }
 
     static void
@@ -1190,9 +1141,7 @@ namespace {
 	GEO_PolyCounts	 pcounts;
 
 	for (exint i = 0; i < nfaces; ++i)
-	{
 	    pcounts.append((*counts)[i]);
-        }
 
 	if (!polysoup)
 	{
@@ -1227,17 +1176,13 @@ namespace {
         }
 
         if (!closed)
-        {
             --nvertices;
-        }
 
         // Currently we only load NURBS and bezier curves, everything else
         // falls through to linear. Thus, only need further basis checks
         // if loading Bezier curves.
         if (type == Alembic::AbcGeom::kBezierBasis)
-        {
             return nvertices % (order - 1) == 0;
-        }
 
         return true;
     }
@@ -1287,9 +1232,7 @@ namespace {
                 o_val = (*orders)[i];
 
                 if (o_val > 2 && o_val < GA_MAXORDER)
-                {
                     porders.append(o_val);
-                }
                 else
                 {
                     if (err_flag)
@@ -1398,9 +1341,7 @@ namespace {
 	GEO_AnimationType	atype;
 	atype = obj.getAnimationType(false);
 	if (atype == GEO_ANIMATION_TOPOLOGY)
-	{
 	    walk.setNonConstantTopology();
-	}
 	return atype;
     }
 
@@ -1520,9 +1461,7 @@ namespace {
 	packed->setViewportLOD(walk.viewportLOD());
 	abc->setUseTransform(walk.includeXform());
 	if (!abc->isConstant())
-	{
 	    walk.setNonConstant();
-	}
 	if (walk.staticTimeZero()
 		&& obj.getAnimationType(false) == GEO_ANIMATION_CONSTANT
 		&& walk.transformConstant())
@@ -1532,9 +1471,7 @@ namespace {
 	walk.setPointLocation(packed, pt);
 
 	if (walk.loadUserProps())
-	{
 	    abcFillUserProperties(walk, obj, walk.primitiveCount());
-        }
 
 	walk.trackPtVtxPrim(obj, 0, 0, 1, false);
     }
@@ -1569,9 +1506,7 @@ namespace {
 
 	GEO_AnimationType	atype = getAnimationType(walk, obj);
 	if (atype != GEO_ANIMATION_CONSTANT)
-	{
 	    walk.setNonConstant();
-	}
 	else if (walk.reusePrimitives())
 	{
 	    if (!walk.includeXform() || walk.transformConstant())
@@ -1660,15 +1595,11 @@ namespace {
 
 	GEO_AnimationType	atype = getAnimationType(walk, obj);
 	if (atype != GEO_ANIMATION_CONSTANT)
-	{
 	    walk.setNonConstant();
-	}
 	else if (walk.reusePrimitives())
 	{
 	    if (reusePolySoup(walk))
-	    {
 		nprim = 1;
-            }
 
 	    if (!walk.includeXform() || walk.transformConstant())
 	    {
@@ -1771,9 +1702,7 @@ namespace {
 
 	GEO_AnimationType	atype = getAnimationType(walk, obj);
 	if (atype != GEO_ANIMATION_CONSTANT)
-	{
 	    walk.setNonConstant();
-	}
 	else if (walk.reusePrimitives())
 	{
 	    if (reusePolySoup(walk))
@@ -1846,9 +1775,7 @@ namespace {
 	}
 	fillArb(walk, obj, ss.getArbGeomParams(), iss, npoint, nvertex, nprim);
 	if (walk.loadUserProps())
-	{
             fillUserProperties(walk, obj, ss.getUserProperties(), walk.primitiveCount());
-        }
 
 	walk.trackLastFace(nprim);
 	walk.trackSubd(nprim);
@@ -1872,9 +1799,7 @@ namespace {
 
 	GEO_AnimationType	atype = getAnimationType(walk, obj);
 	if (atype != GEO_ANIMATION_CONSTANT)
-	{
 	    walk.setNonConstant();
-	}
 	else if (walk.reusePrimitives())
 	{
 	    if (!walk.includeXform() || walk.transformConstant())
@@ -1943,9 +1868,7 @@ namespace {
 	}
 	fillArb(walk, obj, ps.getArbGeomParams(), iss, npoint, nvertex, nprim);
 	if (walk.loadUserProps())
-	{
             fillUserProperties(walk, obj, ps.getUserProperties(), walk.primitiveCount());
-        }
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
@@ -2022,9 +1945,7 @@ namespace {
 
 	GEO_AnimationType	atype = getAnimationType(walk, obj);
 	if (atype != GEO_ANIMATION_CONSTANT)
-	{
 	    walk.setNonConstant();
-	}
 	else if (walk.reusePrimitives())
 	{
 	    if (!walk.includeXform() || walk.transformConstant())
@@ -2134,9 +2055,7 @@ namespace {
 	}
 	fillArb(walk, obj, cs.getArbGeomParams(), iss, npoint, nvertex, nprim);
 	if (walk.loadUserProps())
-	{
             fillUserProperties(walk, obj, cs.getUserProperties(), walk.primitiveCount());
-        }
 
 	walk.trackLastFace(nprim);
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
@@ -2168,9 +2087,7 @@ namespace {
 
 	GEO_AnimationType	atype = getAnimationType(walk, obj);
 	if (atype != GEO_ANIMATION_CONSTANT)
-	{
 	    walk.setNonConstant();
-	}
 	else if (walk.reusePrimitives())
 	{
 	    if (!walk.includeXform() || walk.transformConstant())
@@ -2254,9 +2171,7 @@ namespace {
 	}
 	fillArb(walk, obj, ns.getArbGeomParams(), iss, npoint, nvertex, nprim);
 	if (walk.loadUserProps())
-	{
             fillUserProperties(walk, obj, ns.getUserProperties(), walk.primitiveCount());
-        }
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
@@ -2276,9 +2191,7 @@ namespace {
 	const Imath::V3f	*Pdata = P->get();
 
 	if (!walk.reusePrimitives())
-	{
 	    UT_VERIFY(gdp.appendPointBlock(npoint) == GA_Offset(startpoint));
-	}
 	for (exint i = 0; i < npoint; ++i)
 	{
 	    GA_Offset	pt = GA_Offset(startpoint+i);
@@ -2292,9 +2205,7 @@ namespace {
 		g->addOffset(GA_Offset(startpoint+i));
 	}
 	if (getAnimationType(walk, obj) != GEO_ANIMATION_CONSTANT)
-	{
 	    walk.setNonConstant();
-	}
 	walk.trackPtVtxPrim(obj, npoint, 0, 0, true);
     }
 
@@ -2372,9 +2283,7 @@ namespace {
 	    makeBox(gdp);
 	setBoxPositions(gdp, box, walk.pointCount());
 	if (getAnimationType(walk, obj) != GEO_ANIMATION_CONSTANT)
-	{
 	    walk.setNonConstant();
-	}
 	walk.trackPtVtxPrim(obj, 8, 8, 1, true);
     }
 }
@@ -2436,14 +2345,10 @@ GABC_GEOWalker::~GABC_GEOWalker()
 {
     // In theory, this should be true even if we were interrupted.
     if (myBoss)
-    {
 	myBoss->opEnd(myBossId);
-    }
 
     while (!myVisibilityStack.empty())
-    {
         myVisibilityStack.pop();
-    }
 }
 
 void
@@ -2510,19 +2415,13 @@ GABC_GEOWalker::updateAbcPrims()
 	    setNonConstant();
         }
 	else
-	{
 	    abc->setFrame(staticTimeZero() ? 0 : time());
-	}
 	if (setPath)
-	{
 	    myPathAttribute.set(prim->getMapOffset(), abc->objectPath().c_str());
-        }
 	setPointLocation(pack, pack->getPointOffset(0));
 
 	if (loadUserProps())
-        {
             abcFillUserProperties(*this, obj, userpropsIndex);
-        }
 
         userpropsIndex++;
     }
@@ -2537,12 +2436,12 @@ GABC_GEOWalker::preProcess(const GABC_IObject &root)
 	UT_Matrix4D	m;
 	bool		c, i;
 	if (!GABC_Util::getWorldTransform(parent, time(), m, c, i))
-	{
 	    m.identity();
-	}
 	for (int r = 0; r < 4; ++r)
+	{
 	    for (int c = 0; c < 4; ++c)
 		myMatrix.x[r][c] = m(r,c);
+	}
 
         do
         {
@@ -2558,9 +2457,7 @@ GABC_GEOWalker::preProcess(const GABC_IObject &root)
         } while (parent.valid());
     }
     else
-    {
 	myMatrix = identity44d;
-    }
 
     return true;
 }
@@ -2592,9 +2489,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	}
 
 	if (vtype != GABC_VISIBLE_DEFER)
-	{
 	    myVisibilityStack.push(vtype);
-        }
     }
 
     if (IXform::matches(ohead))
@@ -2607,13 +2502,9 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	        && (!vis || (myVisibilityStack.top() == GABC_VISIBLE_VISIBLE)))
 	{
             if (buildAbcPrim())
-            {
                 makeAbcPrim(*this, obj, ohead);
-            }
             else
-            {
                 makeLocator(*this, xform, obj);
-            }
 	}
 	else if (buildAbcPrim()
 	        && buildAbcXform()
@@ -2741,9 +2632,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
     }
 
     if (vtype != GABC_VISIBLE_DEFER)
-    {
         myVisibilityStack.pop();
-    }
 
     return process_children;
 }
@@ -2943,13 +2832,9 @@ GABC_GEOWalker::pushTransform(const M44d &xform, bool const_xform,
     }
 
     if (inheritXforms && includeXform())
-    {
         myMatrix = xform * myMatrix;
-    }
     else
-    {
         myMatrix = xform;
-    }
 }
 
 void
@@ -3069,9 +2954,7 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
 	std::string	 pathStr = obj.getFullName();
 	const char	*path = pathStr.c_str();
 	for (exint i = 0; i < nprim; ++i)
-	{
 	    myPathAttribute.set(GA_Offset(myPrimitiveCount+i), path);
-	}
     }
     UT_String		 gname;
     GA_PrimitiveGroup	*g = NULL;
@@ -3079,9 +2962,7 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
     {
 	g = findOrCreatePrimitiveGroup(myDetail, gname);
 	for (exint i = 0; i < nprim; ++i)
-	{
 	    g->addOffset(GA_Offset(myPrimitiveCount+i));
-	}
     }
     if (do_transform && !buildAbcPrim() &&
 	    includeXform() && myMatrix != identity44d)
