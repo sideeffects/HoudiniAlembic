@@ -872,7 +872,6 @@ ROP_AlembicOut::updateParmsFlags()
     changed |= enableParm("objects", !sop_mode);
     changed |= enableParm("collapse", !sop_mode);
     changed |= enableParm("save_hidden", !sop_mode);
-    changed |= enableParm("displaysop", !sop_mode);
     changed |= enableParm("partition_mode", partition_mode);
     changed |= enableParm("partition_attribute", partition_attrib);
     changed |= enableParm("save_attributes", shape_nodes);
@@ -1067,6 +1066,7 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 
     bool shape_nodes = SHAPE_NODES(time);
     bool use_instancing = USE_INSTANCING(time);
+    bool displaysop = DISPLAYSOP(time);
 
     exint n = myArchive->getSamplesPerFrame();
     for(exint i = 0; i < n; ++i)
@@ -1077,10 +1077,10 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	// update tree
 	if(sop)
 	{
-	    if(!updateFromSop(geo, sop, packedtransform, facesetmode, use_instancing, shape_nodes))
+	    if(!updateFromSop(geo, sop, packedtransform, facesetmode, use_instancing, shape_nodes, displaysop))
 		return ROP_ABORT_RENDER;
 	}
-	else if(!updateFromHierarchy(packedtransform, facesetmode, use_instancing, shape_nodes))
+	else if(!updateFromHierarchy(packedtransform, facesetmode, use_instancing, shape_nodes, displaysop))
 	    return ROP_ABORT_RENDER;
 
 	myRoot->update();
@@ -1309,6 +1309,25 @@ ROP_AlembicOut::getSubdGroup(
     return grp;
 }
 
+static GU_ConstDetailHandle
+ropGetCookedGeoHandle(SOP_Node *sop, OP_Context &context, bool displaysop)
+{
+    if(!sop)
+	return GU_ConstDetailHandle();
+
+    int val;
+    OBJ_Node *creator = CAST_OBJNODE(sop->getCreator());
+    if(creator)
+    {
+	val = creator->isCookingRender();
+	creator->setCookingRender(displaysop ? 0 : 1);
+    }
+    GU_ConstDetailHandle gdh(sop->getCookedGeoHandle(context));
+    if(creator)
+	creator->setCookingRender(val);
+    return gdh;
+}
+
 void
 ROP_AlembicOut::refineSop(
     rop_RefinedGeoAssignments &assignments,
@@ -1316,6 +1335,7 @@ ROP_AlembicOut::refineSop(
     exint facesetmode,
     bool use_instancing,
     bool shape_nodes,
+    bool displaysop,
     OBJ_Geometry *geo,
     SOP_Node *sop,
     fpreal time)
@@ -1337,7 +1357,7 @@ ROP_AlembicOut::refineSop(
     }
 
     OP_Context context(time);
-    GU_ConstDetailHandle gdh(sop->getCookedGeoHandle(context));
+    GU_ConstDetailHandle gdh(ropGetCookedGeoHandle(sop, context, displaysop));
     GU_DetailHandleAutoReadLock rlock(gdh);
     const GU_Detail *gdp = rlock.getGdp();
     if(!gdp)
@@ -1479,7 +1499,8 @@ ROP_AlembicOut::updateFromSop(
     PackedTransform packedtransform,
     exint facesetmode,
     bool use_instancing,
-    bool shape_nodes)
+    bool shape_nodes,
+    bool displaysop)
 {
     fpreal time = myArchive->getCookTime();
     OP_Context context(time);
@@ -1521,14 +1542,14 @@ ROP_AlembicOut::updateFromSop(
 	    static_cast<ROP_AbcNodeXform *>(node)->setData(m, true);
 	}
 	refineSop(*mySopAssignments, packedtransform, facesetmode,
-		  use_instancing, shape_nodes, geo, sop, time);
+		  use_instancing, shape_nodes, displaysop, geo, sop, time);
 	return true;
     }
 
     if(!mySopAssignments)
 	mySopAssignments.reset(new rop_SopAssignments(myRoot.get()));
 
-    GU_ConstDetailHandle gdh(sop->getCookedGeoHandle(context));
+    GU_ConstDetailHandle gdh(ropGetCookedGeoHandle(sop, context, displaysop));
     GU_DetailHandleAutoReadLock rlock(gdh);
     const GU_Detail *gdp = rlock.getGdp();
     if(!gdp)
@@ -1886,7 +1907,8 @@ ROP_AlembicOut::updateFromHierarchy(
     PackedTransform packedtransform,
     exint facesetmode,
     bool use_instancing,
-    bool shape_nodes)
+    bool shape_nodes,
+    bool displaysop)
 {
     fpreal time = myArchive->getCookTime();
 
@@ -2072,7 +2094,6 @@ ROP_AlembicOut::updateFromHierarchy(
     }
 
     // add data sources for the geometry
-    bool displaysop = DISPLAYSOP(time);
     for(exint i = 0; i < myGeos.entries(); ++i)
     {
 	OBJ_Geometry *geo = myGeos(i);
@@ -2084,7 +2105,8 @@ ROP_AlembicOut::updateFromHierarchy(
 	    if(it != myGeoAssignments.end())
 	    {
 		refineSop(it->second, packedtransform, facesetmode,
-			  use_instancing, shape_nodes, geo, sop, time);
+			  use_instancing, shape_nodes, displaysop, geo, sop,
+			  time);
 	    }
 	    else
 	    {
