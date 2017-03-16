@@ -249,14 +249,15 @@ private:
 					  const GU_Detail *gdp, fpreal time);
     void refineSop(rop_RefinedGeoAssignments &refinement,
 		   PackedTransform packedtransform, exint facesetmode,
-		   bool use_instancing, bool shape_nodes, OBJ_Geometry *geo,
-		   SOP_Node *sop, fpreal time);
+		   bool use_instancing, bool shape_nodes, bool displaysop,
+		   OBJ_Geometry *geo, SOP_Node *sop, fpreal time);
 
     bool updateFromSop(OBJ_Geometry *geo, SOP_Node *sop,
 		       PackedTransform packedtransform, exint facesetmode,
-		       bool use_instancing, bool shape_nodes);
+		       bool use_instancing, bool shape_nodes, bool displaysop);
     bool updateFromHierarchy(PackedTransform packedtransform, exint facesetmode,
-			     bool use_instancing, bool shape_nodes);
+			     bool use_instancing, bool shape_nodes,
+			     bool displaysop);
 
     // temporary storage when exporting to an Alembic archive
     ROP_AbcArchivePtr myArchive;
