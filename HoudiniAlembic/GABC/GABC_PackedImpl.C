@@ -753,7 +753,7 @@ fetchVisibility(GABC_IObject &iobj, gabc_ObjectCacheItem *obj)
 #endif
 
 bool
-GABC_PackedImpl::visibleGT() const
+GABC_PackedImpl::visibleGT(bool *is_animated) const
 {
     if (!object().valid())
 	return false;
@@ -779,6 +779,9 @@ GABC_PackedImpl::visibleGT() const
 	{
 	    if(obj->vis_anim_type == GEO_ANIMATION_CONSTANT)
 		myConstVisibility = obj->vis_type;
+
+	    if(is_animated)
+		*is_animated = (obj->vis_anim_type != GEO_ANIMATION_CONSTANT);
 	    
 	    return (obj->vis_type != GABC_VISIBLE_HIDDEN);
 	}
@@ -796,10 +799,13 @@ GABC_PackedImpl::visibleGT() const
 	    return (vis_it->second != GABC_VISIBLE_HIDDEN);
     }
 
+    if(is_animated)
+	*is_animated = (obj->vis_anim_type != GEO_ANIMATION_CONSTANT);
+
     return (obj->vis_type != GABC_VISIBLE_HIDDEN);
    
 #else
-    return myCache.visible(this);
+    return myCache.visible(this, is_animated);
 #endif
 }
 
@@ -858,7 +864,7 @@ GABC_PackedImpl::fullGT(int load_style) const
 }
 
 GT_PrimitiveHandle
-GABC_PackedImpl::instanceGT() const
+GABC_PackedImpl::instanceGT(bool ignore_visibility) const
 {
     UT_AutoLock	lock(myLock);
     int		loadstyle = GABC_IObject::GABC_LOAD_FULL;
@@ -866,6 +872,10 @@ GABC_PackedImpl::instanceGT() const
     loadstyle &= ~(GABC_IObject::GABC_LOAD_HOUDINI);
     // We don't want to transform into world space
     loadstyle |=  (GABC_IObject::GABC_LOAD_FORCE_UNTRANSFORMED);
+
+    if(ignore_visibility)
+	loadstyle |= (GABC_IObject::GABC_LOAD_IGNORE_VISIBILITY);
+	
     return fullGT(loadstyle);
 }
 
@@ -1042,9 +1052,11 @@ GABC_PackedImpl::GTCache::updateFrame(fpreal frame)
 }
 
 const GT_PrimitiveHandle &
-GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc, int load_style)
+GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
+			       int load_style)
 {
-    if (!visible(abc))
+    if(!(load_style&GABC_IObject::GABC_LOAD_IGNORE_VISIBILITY) &&
+       !visible(abc))
     {
 	return theNullPrimitive;
     }
@@ -1193,13 +1205,22 @@ GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
 }
 
 bool
-GABC_PackedImpl::GTCache::visible(const GABC_PackedImpl *abc)
+GABC_PackedImpl::GTCache::visible(const GABC_PackedImpl *abc,
+				  bool *is_animated )
 {
     if (!abc->useVisibility())
+    {
+	if(is_animated)
+	    *is_animated = false;
 	return true;
+    }
 
     bool animated;
-    bool vis = (GABC_Util::getVisibility(abc->object(), abc->frame(), animated, true) != GABC_VISIBLE_HIDDEN);
+    bool vis = (GABC_Util::getVisibility(abc->object(), abc->frame(), animated,
+					 true) != GABC_VISIBLE_HIDDEN);
+
+    if(is_animated)
+	*is_animated = animated;
 
     if (myAnimationType <= GEO_ANIMATION_CONSTANT && animated)
 	myAnimationType = GEO_ANIMATION_TRANSFORM;

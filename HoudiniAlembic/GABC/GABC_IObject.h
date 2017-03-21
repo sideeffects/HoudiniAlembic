@@ -157,6 +157,8 @@ public:
 
 	// Forcibly load geometry untransformed
 	GABC_LOAD_FORCE_UNTRANSFORMED	= 0x1000,
+	// Load regardless of visibility
+	GABC_LOAD_IGNORE_VISIBILITY	= 0x2000,
     };
 
     UT_StringHolder getAttributes(const GEO_PackedNameMapPtr &namemap,

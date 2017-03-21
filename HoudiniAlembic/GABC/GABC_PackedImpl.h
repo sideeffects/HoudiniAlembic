@@ -140,7 +140,7 @@ public:
 
     /// @{
     /// Return GT representations of geometry
-    bool		visibleGT() const;
+    bool		visibleGT(bool *is_animated = NULL) const;
     GT_PrimitiveHandle	fullGT(int load_style=GABC_IObject::GABC_LOAD_FULL) const;
     GT_PrimitiveHandle	pointGT() const;
     GT_PrimitiveHandle	boxGT() const;
@@ -150,7 +150,7 @@ public:
     /// Get the geometry for "instancing".  This geometry doesn't have the
     /// transform to world space, nor does it have the Houdini attributes from
     /// the primitive.
-    GT_PrimitiveHandle	instanceGT() const;
+    GT_PrimitiveHandle	instanceGT(bool ignore_visibility = false) const;
 
     /// The xformGT will return the transform for the primitive, regardless of
     /// whether the load_style for full geometry was set to force untransformed
@@ -246,9 +246,10 @@ protected:
 	void	clear();		// Clear all values
 	void	updateFrame(fpreal frame);
 
-	bool				 visible(const GABC_PackedImpl *abc);
+	bool				 visible(const GABC_PackedImpl *abc,
+						 bool *is_animated = NULL);
 	const GT_PrimitiveHandle	&full(const GABC_PackedImpl *abc,
-						int load_style);
+					      int load_style);
 	const GT_PrimitiveHandle	&points(const GABC_PackedImpl *abc);
 	const GT_PrimitiveHandle	&box(const GABC_PackedImpl *abc);
 	const GT_PrimitiveHandle	&centroid(const GABC_PackedImpl *abc);

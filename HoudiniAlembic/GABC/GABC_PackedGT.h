@@ -75,11 +75,11 @@ public:
     void	setGeometryAnimated(bool anim)	 { myGeometryAnimated = anim;}
 
     void	cacheVisibility(fpreal t, bool visible)
-		    { myVisibility[t] = visible; }
+		    { myVisibility[ myVisibilityAnimated ? t : 0.0] = visible; }
     void	cacheTransform(fpreal t, const UT_Matrix4F &transform)
-		    { myTransform[t] = transform; }
+		    { myTransform[ myTransformAnimated ? t : 0.0] = transform; }
     void	cacheGeometry(fpreal t, const GT_PrimitiveHandle &geo)
-		    { myGeometry[t] = geo; }
+		    { myGeometry[ myGeometryAnimated ? t : 0.0] = geo; }
     
 private:
     UT_Map<fpreal, bool>	myVisibility;
@@ -181,21 +181,23 @@ public:
 				{ myAnimType = t; }
     GEO_AnimationType		animationType() const { return myAnimType; }
 
+    void			setVisibilityAnimated(bool anim)
+				    { myAnimVis = anim; }
+    bool			visibilityAnimated() const { return myAnimVis; }
+
     void			cacheGeometry(const GT_PrimitiveHandle &ph);
     bool	 		getCachedGeometry(GT_PrimitiveHandle &ph) const;
     
     void			cacheTransform(const GT_TransformHandle &ph);
     bool	 		getCachedTransform(GT_TransformHandle &ph) const;
-    void			setTransformIndex(int index)
-				{ myTransIndex = index;}
-    int				transformIndex() const
-				{ return myTransIndex;}
-    
+    void			cacheVisibility(bool visible);
+    bool	 		getCachedVisibility(bool &visible) const;
 private:
     int64	      myID;
     GEO_AnimationType myAnimType;
     GABC_AlembicCache myCache;
-    int		      myTransIndex;
+    bool	      myAnimVis;
+    bool	      myVisibleConst; // only valid when myAnimVis is false.
 };
 
 /// Alembic mesh which contains multiple alembic primitives merged together.
@@ -225,13 +227,17 @@ public:
     void		update(bool initial_update);
     bool		hasAnimatedTransforms() const
 			    { return myTransformArray.get() != NULL; }
+    bool		hasAnimatedVisibility() const
+			    { return myTransformArray.get() != NULL; }
     
 private:
     GT_PrimitiveHandle myMeshGeo;
     GT_DataArrayHandle myTransformArray;
+    GT_DataArrayHandle myVisibilityArray;
     UT_Array<GT_PrimitiveHandle> myPrims;
     int64	       myID;
     int64	       myTransID;
+    int64	       myVisID;
 };
 
 /// Packed instance with alembic extensions
