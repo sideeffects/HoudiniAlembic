@@ -94,7 +94,7 @@ protected:
 private:
     void	setupEventHandler(const std::string &filename);
     void	clearEventHandler();
-    void	unpack(GU_Detail &dest, const GU_Detail &src);
+    void	unpack(GU_Detail &dest, const GU_Detail &src, bool polysoup);
 
     GABC_GEOWalker::BoxCullMode	getCullingBox(UT_BoundingBox &box,
 						OP_Context &context);
