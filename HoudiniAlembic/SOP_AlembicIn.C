@@ -1278,7 +1278,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     }
 
     if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_UNPACKED)
-	unpack(*gdp, *unpack_gdp, parms.myPolySoup);
+	unpack(*gdp, *unpack_gdp, parms.myPolySoup != GABC_GEOWalker::ABC_POLYSOUP_NONE);
 
     myLastParms = parms;
 
