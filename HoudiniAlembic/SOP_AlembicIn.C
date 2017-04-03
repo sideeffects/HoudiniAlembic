@@ -801,7 +801,7 @@ SOP_AlembicIn2::updateParmsFlags()
     changed |= enableParm("pointmode", loadmode == 0);
     changed |= enableParm("subdgroup", loadmode == 1);
     changed |= enableParm("viewportlod", loadmode == 0);
-    changed |= enableParm("polysoup", loadmode == 1);
+    changed |= enableParm("polysoup", (loadmode == 1 || loadmode == 2));
     changed |= enableParm("boxsource", hasbox && boxcull != "none");
     changed |= enableParm("boxsize", enablebox);
     changed |= enableParm("boxcenter", enablebox);
@@ -1278,7 +1278,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     }
 
     if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_UNPACKED)
-	unpack(*gdp, *unpack_gdp);
+	unpack(*gdp, *unpack_gdp, parms.myPolySoup);
 
     myLastParms = parms;
 
@@ -1376,9 +1376,10 @@ namespace
     class unpackTask
     {
     public:
-	unpackTask(UT_Array<GU_Detail *> &unpacked, const GU_Detail &src)
+	unpackTask(UT_Array<GU_Detail *> &unpacked, const GU_Detail &src, bool polysoup)
 	    : myUnpacked(unpacked)
 	    , mySrc(src)
+	    , myPolySoup(polysoup)
 	{
 	}
 
@@ -1390,18 +1391,27 @@ namespace
 		auto	off = mySrc.primitiveOffset(i);
 		auto	prim = mySrc.getGEOPrimitive(off);
 		auto	pack = UTverify_cast<const GU_PrimPacked *>(prim);
-		if (!pack->unpack(*myUnpacked(i)))
-		    myUnpacked(i)->clear();
+		if(myPolySoup)
+		{
+		    if (!pack->unpack(*myUnpacked(i)))
+			myUnpacked(i)->clear();
+		}
+		else
+		{
+		    if (!pack->unpackUsingPolygons(*myUnpacked(i)))
+			myUnpacked(i)->clear();
+		}
 	    }
 	}
 
 	UT_Array<GU_Detail *>	 myUnpacked;
 	const GU_Detail		&mySrc;
+	bool			 myPolySoup;
     };
 }
 
 void
-SOP_AlembicIn2::unpack(GU_Detail &dest, const GU_Detail &src)
+SOP_AlembicIn2::unpack(GU_Detail &dest, const GU_Detail &src, bool polysoup)
 {
     dest.stashAll();
     UT_ASSERT(dest.getNumPoints() == 0);
@@ -1413,7 +1423,7 @@ SOP_AlembicIn2::unpack(GU_Detail &dest, const GU_Detail &src)
     }
     // Currently, parallel unpacking is slower than serial unpacking
     UTserialFor(UT_BlockedRange<GA_Size>(0, unpacked.entries()),
-		    unpackTask(unpacked, src));
+		    unpackTask(unpacked, src, polysoup));
     GUmatchAttributesAndMerge(dest, unpacked);
     for (auto g : unpacked)
 	delete g;
