@@ -1075,7 +1075,7 @@ GABC_PackedArchive::GABC_PackedArchive(const UT_StringHolder &arch,
 {
 }
 
-//#define TIME_BUCKETTING
+#define TIME_BUCKETTING
 #ifdef TIME_BUCKETTING
 #include <UT/UT_StopWatch.h>
 #define START_TIMER()	timer.start()
@@ -1085,8 +1085,8 @@ GABC_PackedArchive::GABC_PackedArchive(const UT_StringHolder &arch,
 #define PRINT_TIMER(x)  
 #endif
 
-//#define USE_PRELOAD_STREAMS
-#define NUM_STREAMS 4
+#define USE_PRELOAD_STREAMS
+#define DEFAULT_NUM_STREAMS 4
 
 bool
 GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
@@ -1095,9 +1095,34 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
     if(prev_archive && archiveMatch(prev_archive))
 	return false;
 
+    int num_streams = 1; 
 #ifdef USE_PRELOAD_STREAMS
     if(myArchive->isOgawa())
-	myArchive->reopenStream(NUM_STREAMS);
+    {
+	num_streams = DEFAULT_NUM_STREAMS;
+	int env = UT_EnvControl::getInt(ENV_HOUDINI_ALEMBIC_OGAWA_STREAMS);
+	if(env > 0)
+	{
+	    num_streams = env;
+	    if(num_streams > 1)
+	    {
+		if(num_streams > myAlembicOffsets.entries())
+		    num_streams = myAlembicOffsets.entries();
+		else if(num_streams*2 > myAlembicOffsets.entries())
+		    num_streams = myAlembicOffsets.entries()/2;
+	    }
+	}
+	else
+	{
+	    int nprocs = SYSgetProcessorCount();
+	    int chunks = SYSmax(1, myAlembicOffsets.entries() / nprocs);
+	    num_streams = SYSmin(myAlembicOffsets.entries() / chunks,
+				 nprocs);
+	}
+	// UTdebugPrint("Loading OGAWA using ",
+	// 	     num_streams, myAlembicOffsets.entries());
+	myArchive->reopenStream(num_streams);
+    }
 #endif
 
 #ifdef TIME_BUCKETTING
@@ -1170,11 +1195,12 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	// Will need to
 	// open the archive with multiple handles to be fast.
 	// HDF5 is not threadsafe and should always be single threaded.
-	if(myArchive->isOgawa())
+	if(num_streams > 1)
 	{
-	    int max_proc = SYSmin(NUM_STREAMS, SYSgetProcessorCount());
-	    int grain_size = SYSmax(alem_meshes.entries() / max_proc, 1);
+	    UT_ASSERT(myArchive->isOgawa());
+	    int grain_size = SYSmax(alem_meshes.entries() /num_streams, 1);
 
+	    //UTdebugPrint("Threaded load", grain_size, alem_meshes.entries());
 	    UTparallelReduce(range, task, 1, grain_size);
 	}
 	else
@@ -1225,8 +1251,8 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
     }
     
 #ifdef USE_PRELOAD_STREAMS
-    if(myArchive->isOgawa())
-	myArchive->reopenStream();
+    if(num_streams != 1)
+	myArchive->reopenStream(1);
 #endif
     
     UTdebugPrint("# const    = ", myConstShapes.entries());

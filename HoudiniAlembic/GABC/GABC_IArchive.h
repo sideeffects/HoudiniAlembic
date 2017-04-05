@@ -139,15 +139,27 @@ private:
     static UT_Lock	*theLock;
 
     bool		 openStream(const std::string &path,
-				const UT_Options *options=NULL);
+				    int num_streams = -1);
     void		 clearStream();
 
     SYS_AtomicInt32	 myRefCount;
     std::string		 myFilename;
     std::string		 myError;
-    gabc_istream	*myReader;
-    gabc_streambuf	*myStreamBuf;
-    std::istream	*myStream;
+    struct gabc_streamentry
+    {
+	gabc_streamentry()
+	    : myReader(nullptr), myStreamBuf(nullptr), myStream(nullptr) {}
+	~gabc_streamentry()
+	    {
+		delete myReader;
+		delete myStreamBuf;
+		delete myStream;
+	    }
+	gabc_istream	*myReader;
+	gabc_streambuf	*myStreamBuf;
+	std::istream	*myStream;
+    };
+    UT_Array<gabc_streamentry> myStreams;
     IArchive		 myArchive;
     SetType		 myObjects;
     bool		 myPurged;

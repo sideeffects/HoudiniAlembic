@@ -102,9 +102,6 @@ GABC_IArchive::closeAndDelete()
 GABC_IArchive::GABC_IArchive(const std::string &path, int num_streams)
     : myFilename(path)
     , myPurged(false)
-    , myReader(NULL)
-    , myStreamBuf(NULL)
-    , myStream(NULL)
     , myIsOgawa(false)
 {
     UT_INC_COUNTER(theCount);
@@ -130,14 +127,10 @@ GABC_IArchive::openArchive(const std::string &path, int num_streams)
     {
 #if defined(GABC_OGAWA)
 	IFactory	factory;
-	int prev_num = -1;
-	
-	if(num_streams != -1)
-	{
-	    prev_num = factory.getOgawaNumStreams();
-	    factory.setOgawaNumStreams(SYSmax(1, num_streams));
-	}
 
+	if(num_streams != -1)
+	    factory.setOgawaNumStreams(num_streams);
+	
 	// Try to open using standard Ogawa file access
 	if (UTaccess(path.c_str(), R_OK) >= 0)
 	{
@@ -154,10 +147,11 @@ GABC_IArchive::openArchive(const std::string &path, int num_streams)
 	    }
 	}
 
-	if (!myArchive.valid() && openStream(path, NULL))
+	if (!myArchive.valid() && openStream(path, num_streams))
 	{
 	    std::vector<std::istream *> stream_list;
-	    stream_list.push_back(myStream);
+	    for(auto &e : myStreams)
+		stream_list.push_back(e.myStream);
 	    IFactory::CoreType	archive_type;
 	    try
 	    {
@@ -173,8 +167,6 @@ GABC_IArchive::openArchive(const std::string &path, int num_streams)
 		myIsOgawa = false;
 	    }
 	}
-	if(prev_num != -1)
-	    factory.setOgawaNumStreams(prev_num);
 #else
 	// Try HDF5 -- the stream interface only works with Ogawa
 	if (!myArchive.valid() && UTaccess(path.c_str(), R_OK) == 0)
@@ -201,35 +193,43 @@ GABC_IArchive::reopenStream(int num_streams)
     {
 	clearStream();
 	openArchive(myFilename, num_streams);
+
+        for (SetType::iterator it=myObjects.begin(); it!=myObjects.end(); ++it)
+	{
+	    GABC_IObject *object = dynamic_cast<GABC_IObject *>(*it);
+	    if(object)
+		resolveObject(*object);
+	}
     }
 }
 
 bool
-GABC_IArchive::openStream(const std::string &path, const UT_Options *opts)
+GABC_IArchive::openStream(const std::string &path, int num_streams)
 {
-    myReader = new gabc_istream(path.c_str(), NULL);
-    if (!myReader->isValid())
+    num_streams = SYSmax(1, num_streams);
+
+    myStreams.entries(num_streams);
+    for(int i=0; i<num_streams; i++)
     {
-	UT_WorkBuffer	wbuf;
-	wbuf.sprintf("Unable to open '%s'", path.c_str());
-	myError = wbuf.toStdString();
-	clearStream();
-	return false;
+	myStreams(i).myReader = new gabc_istream(path.c_str(), NULL);
+	if (!myStreams(i).myReader->isValid())
+	{
+	    UT_WorkBuffer	wbuf;
+	    wbuf.sprintf("Unable to open '%s'", path.c_str());
+	    myError = wbuf.toStdString();
+	    clearStream();
+	    return false;
+	}
+	myStreams(i).myStreamBuf = new gabc_streambuf(*myStreams(i).myReader);
+	myStreams(i).myStream = new std::istream(myStreams(i).myStreamBuf);
     }
-    myStreamBuf = new gabc_streambuf(*myReader);
-    myStream = new std::istream(myStreamBuf);
     return true;
 }
 
 void
 GABC_IArchive::clearStream()
 {
-    delete myReader;
-    delete myStreamBuf;
-    delete myStream;
-    myReader = NULL;
-    myStreamBuf = NULL;
-    myStream = NULL;
+    myStreams.clear();
 }
 
 void
