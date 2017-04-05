@@ -24,11 +24,6 @@
 #include <GT/GT_Primitive.h>
 #include <UT/UT_Lock.h>
 
-//#define USE_FAST_CACHE
-#ifdef USE_FAST_CACHE
-class gabc_ObjectCacheItem;
-#endif
-
 namespace GABC_NAMESPACE
 {
 
@@ -301,12 +296,6 @@ private:
     mutable GABC_VisibilityType myConstVisibility;
     mutable bool		myHasConstBounds;
     mutable UT_BoundingBox	myConstBounds;
-
-#ifdef USE_FAST_CACHE
-    gabc_ObjectCacheItem	 *getObjectCacheItem() const;
-    
-    mutable gabc_ObjectCacheItem *myObjectCacheItem;
-#endif
 
     static GA_PrimitiveTypeId theTypeId;
 };
