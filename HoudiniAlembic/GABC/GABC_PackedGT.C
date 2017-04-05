@@ -17,6 +17,7 @@
 
 #include "GABC_PackedGT.h"
 #include "GABC_PackedImpl.h"
+#include "GABC_IArchive.h"
 #include <UT/UT_StackBuffer.h>
 #include <GT/GT_CatPolygonMesh.h>
 #include <GT/GT_DAConstantValue.h>
@@ -36,6 +37,8 @@
 
 
 using namespace GABC_NAMESPACE;
+
+static UT_StringMap<int> theInstanceCounts;
 
 namespace
 {
@@ -105,6 +108,7 @@ public:
 		    myPrims(index) = packgt;
 		    continue;
 		}
+		
 
 		// Instanced geometry
 		GT_PrimitiveHandle geo = impl->instanceGT(true);
@@ -160,7 +164,7 @@ public:
 
 		GT_AttributeListHandle detail_attribs =
 		    myGeometry->getDetailAttributes(filter, false);
-		
+
 		myPrims(index) = new GABC_PackedInstance(geo, xformh, anim_type,
 							 offsets, prim_attribs,
 							 detail_attribs,
@@ -260,8 +264,8 @@ public:
 	    auto entry = myViewportArchives.find( archname );
 	    if(entry == myViewportArchives.end())
 	    {
-		bool is_ogawa = impl->object().archive()->isOgawa();
-		archive = new GABC_PackedArchive(archname, myGeometry,is_ogawa);
+		archive = new GABC_PackedArchive(archname, myGeometry,
+						 impl->object().archive());
 		myViewportArchives[ archname ] = archive;
 	    }
 	    else
@@ -1064,12 +1068,25 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 
 GABC_PackedArchive::GABC_PackedArchive(const UT_StringHolder &arch,
 				       const GT_GEODetailListHandle &dlist,
-				       bool is_ogawa)
+				       const GABC_IArchivePtr &archive)
     : myName(arch),
       myDetailList(dlist),
-      myAmOgawaArchive(is_ogawa)
+      myArchive(archive)
 {
 }
+
+//#define TIME_BUCKETTING
+#ifdef TIME_BUCKETTING
+#include <UT/UT_StopWatch.h>
+#define START_TIMER()	timer.start()
+#define PRINT_TIMER(x)  UTdebugPrint(x, timer.getTime())
+#else
+#define START_TIMER()	
+#define PRINT_TIMER(x)  
+#endif
+
+//#define USE_PRELOAD_STREAMS
+#define NUM_STREAMS 4
 
 bool
 GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
@@ -1078,20 +1095,34 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
     if(prev_archive && archiveMatch(prev_archive))
 	return false;
 
+#ifdef USE_PRELOAD_STREAMS
+    if(myArchive->isOgawa())
+	myArchive->reopenStream(NUM_STREAMS);
+#endif
+
+#ifdef TIME_BUCKETTING
+    UT_StopWatch timer;
+    timer.start();
+#endif
     // Sort the collected Alembic primitives into buckets for instancing.
     GU_DetailHandleAutoReadLock gdplock(myDetailList->getGeometry(0));
     gabc_BucketAlembics btask(gdplock.getGdp(), myAlembicOffsets);
 
     UTparallelReduce(UT_BlockedRange<exint>(0, myAlembicOffsets.entries()),
 		     btask);
+    
+    PRINT_TIMER("bucket primitives");
+    START_TIMER();
 
     // Create GT primitives for the buckets
     UT_Array<GT_PrimitiveHandle> prims;
     prims.entries(btask.buckets().size());
     gabc_CreateInstanceGeos gttask(btask.buckets(), myDetailList, parms, prims,
 				   true);
-    
+
     UTparallelFor(UT_BlockedRange<exint>(0, btask.buckets().size()), gttask);
+
+    PRINT_TIMER("Create primitives");
 
     UT_Array<GT_PrimitiveHandle> alem_meshes;
     int ccount = 0;
@@ -1131,18 +1162,19 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
     {
 	gabc_GenerateMeshes task(alem_meshes, parms);
 	UT_BlockedRange<exint> range(0,alem_meshes.entries());
-	// UT_StopWatch timer;
-	// timer.start();
 
-#if 0
-	// Currently this is slower for Ogawa. Will need to
+	START_TIMER();
+	
+#ifdef USE_PRELOAD_STREAMS
+	// Currently this is slower for Ogawa unless multiple streams are used.
+	// Will need to
 	// open the archive with multiple handles to be fast.
 	// HDF5 is not threadsafe and should always be single threaded.
-	if(myAmOgawaArchive)
+	if(myArchive->isOgawa())
 	{
-	    int max_proc = SYSmin(4, SYSgetProcessorCount());
-	    int grain_size = alem_meshes.entries() / max_proc;
-	    
+	    int max_proc = SYSmin(NUM_STREAMS, SYSgetProcessorCount());
+	    int grain_size = SYSmax(alem_meshes.entries() / max_proc, 1);
+
 	    UTparallelReduce(range, task, 1, grain_size);
 	}
 	else
@@ -1151,7 +1183,7 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	    UTserialReduce(range, task);
 	}
 
-	//UTdebugPrint("Geometry load time", timer.getTime()*1000.0, "ms");
+	PRINT_TIMER("Geometry load time");
 
 	myConstShapes.concat(task.prims());
 
@@ -1191,7 +1223,12 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	else
 	    myConstShapes.concat(meshes);
     }
-
+    
+#ifdef USE_PRELOAD_STREAMS
+    if(myArchive->isOgawa())
+	myArchive->reopenStream();
+#endif
+    
     UTdebugPrint("# const    = ", myConstShapes.entries());
     UTdebugPrint("# combined = ", myCombinedShapes.entries());
     UTdebugPrint("# anim     = ", myTransformShapes.entries());

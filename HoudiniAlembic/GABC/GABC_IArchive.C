@@ -59,7 +59,7 @@ namespace
 UT_Lock	*GABC_IArchive::theLock = NULL;
 
 GABC_IArchivePtr
-GABC_IArchive::open(const std::string &path)
+GABC_IArchive::open(const std::string &path, int num_streams)
 {
     if (!theLock)
     {
@@ -76,7 +76,7 @@ GABC_IArchive::open(const std::string &path)
     }
     else
     {
-	arch = new GABC_IArchive(path);
+	arch = new GABC_IArchive(path, num_streams);
 	theArchiveCache[path] = arch;
     }
     return GABC_IArchivePtr(arch);
@@ -99,7 +99,7 @@ GABC_IArchive::closeAndDelete()
     delete this;
 }
 
-GABC_IArchive::GABC_IArchive(const std::string &path)
+GABC_IArchive::GABC_IArchive(const std::string &path, int num_streams)
     : myFilename(path)
     , myPurged(false)
     , myReader(NULL)
@@ -108,11 +108,36 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
     , myIsOgawa(false)
 {
     UT_INC_COUNTER(theCount);
+
+    openArchive(path, num_streams);
+}
+
+GABC_IArchive::~GABC_IArchive()
+{
+    UT_DEC_COUNTER(theCount);
+    GABC_AlembicLock	lock(*this);	// Lock for member data deletion
+    if (!purged())
+	purgeObjects();	// Clear all my objects out
+    clearStream();
+}
+
+void
+GABC_IArchive::openArchive(const std::string &path, int num_streams)
+{
+    myArchive.reset();
+    
     if (UTisstring(path.c_str()))
     {
 #if defined(GABC_OGAWA)
 	IFactory	factory;
+	int prev_num = -1;
 	
+	if(num_streams != -1)
+	{
+	    prev_num = factory.getOgawaNumStreams();
+	    factory.setOgawaNumStreams(SYSmax(1, num_streams));
+	}
+
 	// Try to open using standard Ogawa file access
 	if (UTaccess(path.c_str(), R_OK) >= 0)
 	{
@@ -148,6 +173,8 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
 		myIsOgawa = false;
 	    }
 	}
+	if(prev_num != -1)
+	    factory.setOgawaNumStreams(prev_num);
 #else
 	// Try HDF5 -- the stream interface only works with Ogawa
 	if (!myArchive.valid() && UTaccess(path.c_str(), R_OK) == 0)
@@ -167,13 +194,14 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
     }
 }
 
-GABC_IArchive::~GABC_IArchive()
+void
+GABC_IArchive::reopenStream(int num_streams)
 {
-    UT_DEC_COUNTER(theCount);
-    GABC_AlembicLock	lock(*this);	// Lock for member data deletion
-    if (!purged())
-	purgeObjects();	// Clear all my objects out
-    clearStream();
+    if(myArchive)
+    {
+	clearStream();
+	openArchive(myFilename, num_streams);
+    }
 }
 
 bool

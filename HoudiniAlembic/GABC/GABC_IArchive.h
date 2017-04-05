@@ -90,6 +90,10 @@ public:
     /// Purge all objects references
     void		purgeObjects();
 
+    /// Close and reopen the archive with the given number of file streams
+    /// (-1 is to use the default)
+    void		reopenStream(int num_ogawa_streams = -1);
+	
     /// @{
     /// @private
     /// Called by GABC_IObject to resolve the object
@@ -116,16 +120,19 @@ public:
     /// Open an archive.  Please use GABC_Util::open instead
     /// This method is @b not thread-safe.  You must lock around it.
     /// @private
-    static GABC_IArchivePtr	open(const std::string &filename);
+    static GABC_IArchivePtr	open(const std::string &filename,
+				     int num_ogawa_streams = -1);
     /// @}
 
 private:
+    void		 openArchive(const std::string &path, int num_streams);
     void		 closeAndDelete();
     /// Access to the file lock - required for non-thread safe HDF5
     UT_Lock		&getLock() const	{ return *theLock; }
     friend class	 GABC_AutoLock;
 
-    GABC_IArchive(const std::string &filename);
+    GABC_IArchive(const std::string &filename,
+		  int num_streams = -1);
 
     // At the current time, HDF5 requires a *global* lock across all files.
     // Wouldn't it be nice if it could have a per-file lock?

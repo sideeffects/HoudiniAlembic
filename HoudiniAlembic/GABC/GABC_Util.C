@@ -1000,19 +1000,18 @@ namespace
 	UT_AutoLock	lock(theFileLock);
 
         ArchiveCache::iterator  I = g_archiveCache->find(path);
-        ArchiveCacheEntryPtr    entry;
-	UT_String               spath(path.c_str());
-
         if (I != g_archiveCache->end())
         {
             return (*I).second;
         }
+	UT_String               spath(path.c_str());
 	if (!pathMap(spath))
 	{
 	    badFileWarning(path);
 	    return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
 	}
 
+        ArchiveCacheEntryPtr    entry;
         entry = ArchiveCacheEntryPtr(new ArchiveCacheEntry);
 	entry->setArchive(GABC_IArchive::open(spath.buffer()));
         while (g_archiveCache->size() >= g_maxCache)

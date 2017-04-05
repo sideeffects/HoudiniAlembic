@@ -19,6 +19,7 @@
 #define __GABC_PackedGT__
 
 #include "GABC_API.h"
+#include "GABC_Types.h"
 #include <GT/GT_GEOPrimCollectPacked.h>
 #include <GT/GT_PrimInstance.h>
 #include <GT/GT_GEOPrimPacked.h>
@@ -52,7 +53,7 @@ public:
     /// @}
 private:
 };
-    
+
 }; // GABC_NAMESPACE
 
 class GABC_API GABC_AlembicCache
@@ -100,7 +101,7 @@ class GABC_API GABC_PackedArchive : public GT_Primitive
 public:
     GABC_PackedArchive(const UT_StringHolder &archive_name,
 		       const GT_GEODetailListHandle &source_list,
-		       bool is_ogawa);
+		       const GABC_NAMESPACE::GABC_IArchivePtr &archive);
 
     const UT_StringHolder &archiveName() const { return myName; }
     
@@ -135,12 +136,12 @@ private:
     UT_StringHolder		 myName;
     GT_GEODetailListHandle	 myDetailList;
     GA_OffsetArray		 myAlembicOffsets;
+    GABC_NAMESPACE::GABC_IArchivePtr myArchive;
     
     UT_Array<GT_PrimitiveHandle> myConstShapes;
     UT_Array<GT_PrimitiveHandle> myTransformShapes;
     UT_Array<GT_PrimitiveHandle> myDeformShapes;
     UT_Array<GT_PrimitiveHandle> myCombinedShapes;
-    bool			 myAmOgawaArchive;
 };
 
 
@@ -263,5 +264,6 @@ private:
     GEO_AnimationType myAnimType;
     UT_Array<GABC_AlembicCache> myCache;
 };
+    
 
 #endif
