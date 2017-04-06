@@ -1482,7 +1482,7 @@ GABC_PackedAlembicMesh::update(bool initial)
 		visible = impl->visibleGT();
 		pack->cacheVisibility(visible);
 	    }
-	    if(*vis != visible)
+	    if(bool(*vis) != visible)
 		changed = true;
 	    
 	    *vis++ = visible;
