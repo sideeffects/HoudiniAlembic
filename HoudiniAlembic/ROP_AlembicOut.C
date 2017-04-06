@@ -38,7 +38,6 @@
 #include <GT/GT_GEOPrimPacked.h>
 #include <GT/GT_PrimCollect.h>
 #include <GT/GT_PrimInstance.h>
-#include <GU/GU_PackedFragment.h>
 #include <OBJ/OBJ_Camera.h>
 #include <OBJ/OBJ_Geometry.h>
 #include <OBJ/OBJ_Node.h>
@@ -168,16 +167,15 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		UT_Matrix4D prim_xform;
 		packed->getPrimitiveTransform()->getMatrix(prim_xform, 0);
 		const GU_PrimPacked *p = packed->getPrim();
-		UT_Vector3 pivot;
-		p->getPivot(pivot);
+		UT_Vector4 pivot = p->getPos4(0);
+		UT_Matrix4D packed_xform;
+		p->getFullTransform4(packed_xform);
 		UT_Matrix4D m(1);
-		m.setTranslates(pivot);
-		if(p->getTypeId() == GU_PackedFragment::typeId())
-		{
-		    UT_Matrix4D packed_xform;
-		    p->getFullTransform4(packed_xform);
-		    m *= packed_xform;
-		}
+		if(packed->transformed())
+		    m = packed_xform;
+		packed_xform.invert();
+		pivot *= packed_xform;
+		m.pretranslate(-pivot.x(), -pivot.y(), -pivot.z());
 		m *= prim_xform;
 
 		GT_TransformArrayHandle xforms_copy =
@@ -304,21 +302,21 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	    UT_Matrix4D prim_xform;
 	    packed->getPrimitiveTransform()->getMatrix(prim_xform, 0);
 	    const GU_PrimPacked *p = packed->getPrim();
-	    UT_Vector3 pivot;
-	    p->getPivot(pivot);
+	    UT_Vector4 pivot = p->getPos4(0);
+	    UT_Matrix4D packed_xform;
+	    p->getFullTransform4(packed_xform);
 	    UT_Matrix4D m(1);
-	    m.setTranslates(pivot);
-	    if(p->getTypeId() == GU_PackedFragment::typeId())
-	    {
-		UT_Matrix4D packed_xform;
-		p->getFullTransform4(packed_xform);
-		m *= packed_xform;
-	    }
+	    if(packed->transformed())
+		m = packed_xform;
+	    packed_xform.invert();
+	    pivot *= packed_xform;
+	    m.pretranslate(-pivot.x(), -pivot.y(), -pivot.z());
 	    prim_xform = m * prim_xform;
 
 	    m.invert();
 	    GT_PrimitiveHandle copy = prim->doSoftCopy();
 	    copy->setPrimitiveTransform(new GT_Transform(&m, 1));
+	    auto assignment = &myAssignments;
 	    if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM_GEOMETRY)
 	    {
 		auto &rop_i = myAssignments.myTransformAndShapes[std::make_pair(myName, mySubd)];
@@ -343,12 +341,9 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 			rop_RefinedGeoAssignments(xform_and_shape.myXform));
 		}
 
-		auto &assignment = children[xform_and_shape.myChildIndex];
-		ROP_AbcNode *parent = assignment.myParent;
+		assignment = &children[xform_and_shape.myChildIndex];
+		ROP_AbcNode *parent = assignment->myParent;
 		static_cast<ROP_AbcNodeXform *>(parent)->setData(prim_xform, true);
-		assignment.refine(copy, myPackedTransform, myFacesetMode,
-				  mySubd, myUseInstancing, myShapeNodes, myName,
-				  myArchive);
 	    }
 	    else // if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM)
 	    {
@@ -359,8 +354,10 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		{
 		    myAssignments.warnChildren(myArchive);
 		}
-		copy->refine(*this, &myParms);
 	    }
+	    assignment->refine(copy, myPackedTransform, myFacesetMode, mySubd,
+			       myUseInstancing, myShapeNodes, myName,
+			       myArchive);
 	    return true;
 	}
 
@@ -886,32 +883,6 @@ ROP_AlembicOut::updateParmsFlags()
     changed |= enableParm("shutter", motionblur);
     changed |= enableParm("samples", motionblur);
     return changed;
-}
-
-void
-ROP_AlembicOut::resolveObsoleteParms(PRM_ParmList *obsolete_parms)
-{
-    if(!obsolete_parms)
-	return;
-
-    UT_String packed;
-    obsolete_parms->evalStringRaw(packed, thePackedModeName.getToken(), 0, 0.0f);
-    if(packed.isstring())
-    {
-	if(packed == "transformedshape")
-	    setString("deform", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
-	else if(packed == "transformedparent")
-	{
-	    setString("transformparent", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
-	    setInt("shape_nodes", 0, 0.0f, false);
-	}
-	else if(packed == "transformedparentandshape")
-	    setString("transformparent", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
-	else if(packed == "transformandshape")
-	    setString("transform", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
-    }
-
-    ROP_Node::resolveObsoleteParms(obsolete_parms);
 }
 
 void
@@ -1869,6 +1840,7 @@ ROP_AlembicOut::updateFromSop(
 
 	    GA_Range r(gdp->getPrimitiveMap(), it.second);
 
+	    UT_Matrix4D m(1);
 	    std::string name = buf.buffer();
 	    GT_PrimitiveHandle prim = GT_GEODetail::makeDetail(gdh, &r);
 	    ancestors.clear();
@@ -1885,11 +1857,15 @@ ROP_AlembicOut::updateFromSop(
 		    UT_Matrix4D m2 = it2->second;
 		    for(exint i = ancestors.entries() - 1; i >= 0; --i)
 			xforms.emplace(ancestors(i), m2);
-		    m2.invert();
-		    prim = prim->copyTransformed(new GT_Transform(&m2, 1));
+		    m = m2 * m;
 		    break;
 		}
 		ancestors.append(node);
+	    }
+	    if(!m.isIdentity())
+	    {
+		m.invert();
+		prim = prim->copyTransformed(new GT_Transform(&m, 1));
 	    }
 
 	    assignments->refine(prim, packedtransform, facesetmode, subd,
