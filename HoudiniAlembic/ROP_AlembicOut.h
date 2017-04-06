@@ -56,7 +56,6 @@ public:
 			{ str = "filename"; }
     /// We need to hint to the merge ROP that we can't be called one frame at a
     /// time.
-    virtual void resolveObsoleteParms(PRM_ParmList *obsolete_parms);
     virtual void buildRenderDependencies(const ROP_RenderDepParms &p);
 
     SOP_Node *getSopNode(fpreal time) const;
