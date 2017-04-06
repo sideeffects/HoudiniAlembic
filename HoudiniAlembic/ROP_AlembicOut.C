@@ -151,7 +151,8 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 
 	    const GT_PrimInstance *inst = static_cast<const GT_PrimInstance *>(prim.get());
 	    GT_PrimitiveHandle geo = inst->geometry();
-	    if(geo->getPrimitiveType() == GT_GEO_PACKED)
+	    if(geo->getPrimitiveType() == GT_GEO_PACKED
+		|| geo->getPrimitiveType() == GT_PRIM_ALEMBIC_SHAPE)
 	    {
 		if(!myUseInstancing)
 		{
@@ -290,7 +291,8 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	bool processPacked(const GT_PrimitiveHandle &prim)
 	{
 	    if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_DEFORM_GEOMETRY
-		|| prim->getPrimitiveType() != GT_GEO_PACKED)
+		|| (prim->getPrimitiveType() != GT_GEO_PACKED
+		    && prim->getPrimitiveType() != GT_PRIM_ALEMBIC_SHAPE))
 	    {
 		return false;
 	    }
