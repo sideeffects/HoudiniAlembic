@@ -176,7 +176,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		    m = packed_xform;
 		packed_xform.invert();
 		pivot *= packed_xform;
-		m.pretranslate(-pivot.x(), -pivot.y(), -pivot.z());
+		m.pretranslate(pivot.x(), pivot.y(), pivot.z());
 		m *= prim_xform;
 
 		GT_TransformArrayHandle xforms_copy =
@@ -312,7 +312,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		m = packed_xform;
 	    packed_xform.invert();
 	    pivot *= packed_xform;
-	    m.pretranslate(-pivot.x(), -pivot.y(), -pivot.z());
+	    m.pretranslate(pivot.x(), pivot.y(), pivot.z());
 	    prim_xform = m * prim_xform;
 
 	    m.invert();
