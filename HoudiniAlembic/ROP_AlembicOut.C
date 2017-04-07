@@ -886,6 +886,32 @@ ROP_AlembicOut::updateParmsFlags()
 }
 
 void
+ROP_AlembicOut::resolveObsoleteParms(PRM_ParmList *obsolete_parms)
+{
+    if(!obsolete_parms)
+	return;
+
+    int mode = obsolete_parms->evalInt(thePackedModeName.getToken(), 0, 0.0f);
+    switch(mode)
+    {
+	case 1:
+	    setString("transform", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
+	    break;
+
+	case 2:
+	    setString("transformparent", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
+	    setInt("shape_nodes", 0, 0.0f, false);
+	    break;
+
+	case 3:
+	    setString("transformparent", CH_STRING_LITERAL, thePackedTransformName.getToken(), 0, 0.0f);
+	    break;
+    }
+
+    ROP_Node::resolveObsoleteParms(obsolete_parms);
+}
+
+void
 ROP_AlembicOut::buildRenderDependencies(const ROP_RenderDepParms &p)
 {
     if(RENDER_FULL_RANGE())
