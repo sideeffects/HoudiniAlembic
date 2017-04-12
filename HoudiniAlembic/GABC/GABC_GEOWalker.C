@@ -944,7 +944,6 @@ namespace {
     static void
     fillUserProperties(GABC_GEOWalker &walk,
             const GABC_IObject &obj,
-            ICompoundProperty uprops,
             int userpropsIndex)
     {
         GA_RWAttributeRef   attrib;
@@ -969,7 +968,6 @@ namespace {
         if (!GABC_Util::importUserPropertyDictionary(data_writer,
                 meta_writer,
                 obj,
-                uprops,
                 walk.time()))
         {
             walk.errorHandler().warning("Error reading user properties. "
@@ -1037,64 +1035,6 @@ namespace {
 
         delete data_writer;
 	delete meta_writer;
-    }
-
-    static void
-    abcFillUserProperties(GABC_GEOWalker &walk, const GABC_IObject &obj, int userpropsIndex)
-    {
-        switch (obj.nodeType())
-        {
-            case GABC_POLYMESH:
-                fillUserProperties(walk,
-                        obj,
-                        IPolyMesh(obj.object(), gabcWrapExisting)
-                                .getSchema().getUserProperties(),
-                        userpropsIndex);
-                break;
-
-            case GABC_SUBD:
-                fillUserProperties(walk,
-                        obj,
-                        ISubD(obj.object(), gabcWrapExisting)
-                                .getSchema().getUserProperties(),
-                        userpropsIndex);
-                break;
-
-            case GABC_CURVES:
-                fillUserProperties(walk,
-                        obj,
-                        ICurves(obj.object(), gabcWrapExisting)
-                                .getSchema().getUserProperties(),
-                        userpropsIndex);
-                break;
-
-            case GABC_POINTS:
-                fillUserProperties(walk,
-                        obj,
-                        IPoints(obj.object(), gabcWrapExisting)
-                                .getSchema().getUserProperties(),
-                        userpropsIndex);
-                break;
-
-            case GABC_NUPATCH:
-                fillUserProperties(walk,
-                        obj,
-                        INuPatch(obj.object(), gabcWrapExisting)
-                                .getSchema().getUserProperties(),
-                        userpropsIndex);
-                break;
-
-            case GABC_XFORM:
-                fillUserProperties(walk,
-                        obj,
-                        IXform(obj.object(), gabcWrapExisting)
-                                .getSchema().getUserProperties(),
-                        userpropsIndex);
-                break;
-
-            default:
-                UT_ASSERT(0 && "Alembic object type error");
-        }
     }
 
     static GA_PrimitiveGroup *
@@ -1471,7 +1411,7 @@ namespace {
 	walk.setPointLocation(packed, pt);
 
 	if (walk.loadUserProps())
-	    abcFillUserProperties(walk, obj, walk.primitiveCount());
+	    fillUserProperties(walk, obj, walk.primitiveCount());
 
 	walk.trackPtVtxPrim(obj, 0, 0, 1, false);
     }
@@ -1675,9 +1615,7 @@ namespace {
 	}
 	fillArb(walk, obj, ps.getArbGeomParams(), iss, npoint, nvertex, nprim);
 	if (walk.loadUserProps())
-	{
-            fillUserProperties(walk, obj, ps.getUserProperties(), walk.primitiveCount());
-        }
+            fillUserProperties(walk, obj, walk.primitiveCount());
 
 	walk.trackLastFace(nprim);
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
@@ -1775,7 +1713,7 @@ namespace {
 	}
 	fillArb(walk, obj, ss.getArbGeomParams(), iss, npoint, nvertex, nprim);
 	if (walk.loadUserProps())
-            fillUserProperties(walk, obj, ss.getUserProperties(), walk.primitiveCount());
+            fillUserProperties(walk, obj, walk.primitiveCount());
 
 	walk.trackLastFace(nprim);
 	walk.trackSubd(nprim);
@@ -1868,7 +1806,7 @@ namespace {
 	}
 	fillArb(walk, obj, ps.getArbGeomParams(), iss, npoint, nvertex, nprim);
 	if (walk.loadUserProps())
-            fillUserProperties(walk, obj, ps.getUserProperties(), walk.primitiveCount());
+            fillUserProperties(walk, obj, walk.primitiveCount());
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
@@ -2055,7 +1993,7 @@ namespace {
 	}
 	fillArb(walk, obj, cs.getArbGeomParams(), iss, npoint, nvertex, nprim);
 	if (walk.loadUserProps())
-            fillUserProperties(walk, obj, cs.getUserProperties(), walk.primitiveCount());
+            fillUserProperties(walk, obj, walk.primitiveCount());
 
 	walk.trackLastFace(nprim);
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
@@ -2171,7 +2109,7 @@ namespace {
 	}
 	fillArb(walk, obj, ns.getArbGeomParams(), iss, npoint, nvertex, nprim);
 	if (walk.loadUserProps())
-            fillUserProperties(walk, obj, ns.getUserProperties(), walk.primitiveCount());
+            fillUserProperties(walk, obj, walk.primitiveCount());
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
     }
@@ -2421,7 +2359,7 @@ GABC_GEOWalker::updateAbcPrims()
 	setPointLocation(pack, pack->getPointOffset(0));
 
 	if (loadUserProps())
-            abcFillUserProperties(*this, obj, userpropsIndex);
+            fillUserProperties(*this, obj, userpropsIndex);
 
         userpropsIndex++;
     }

@@ -1622,7 +1622,7 @@ namespace
     }
 
     static bool
-    writeUserPropertyHelper(UT_JSONWriter *data_writer,
+    importUserPropertyHelper(UT_JSONWriter *data_writer,
             UT_JSONWriter *meta_writer,
             const GABC_IObject &obj,
             ICompoundProperty &uprops,
@@ -1674,7 +1674,7 @@ namespace
                 ICompoundProperty   child(cprp->getCompoundProperty(it->first),
                                             gabcWrapExisting);
 
-                success = writeUserPropertyHelper(data_writer,
+                success = importUserPropertyHelper(data_writer,
                         meta_writer,
                         obj,
                         child,
@@ -2241,7 +2241,6 @@ bool
 GABC_Util::importUserPropertyDictionary(UT_JSONWriter *data_writer,
         UT_JSONWriter *meta_writer,
         const GABC_IObject &obj,
-        ICompoundProperty &uprops,
         fpreal time)
 {
     std::string base;
@@ -2264,7 +2263,8 @@ GABC_Util::importUserPropertyDictionary(UT_JSONWriter *data_writer,
     if (!success)
         return false;
 
-    success = writeUserPropertyHelper(data_writer,
+    auto uprops = obj.getUserProperties();
+    success = importUserPropertyHelper(data_writer,
             meta_writer,
             obj,
             uprops,

@@ -332,7 +332,6 @@ public:
     static bool         importUserPropertyDictionary(UT_JSONWriter *data_writer,
                                 UT_JSONWriter *meta_writer,
                                 const GABC_IObject &obj,
-                                ICompoundProperty &uprops,
                                 fpreal time);
 
     /// Export user properties from two JSON dictionaries (one containing

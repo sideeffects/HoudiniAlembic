@@ -441,52 +441,6 @@ namespace
 	return rcode;
     }
 
-    static ICompoundProperty
-    homGetUserProperties(const GABC_IObject &obj)
-    {
-        switch (obj.nodeType())
-        {
-            case GABC_XFORM:
-                return IXform(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-            case GABC_POLYMESH:
-                return IPolyMesh(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-            case GABC_SUBD:
-                return ISubD(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-            case GABC_CAMERA:
-                return ICamera(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-            case GABC_FACESET:
-                return IFaceSet(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-            case GABC_CURVES:
-                return ICurves(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-            case GABC_POINTS:
-                return IPoints(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-            case GABC_NUPATCH:
-                return INuPatch(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-            case GABC_LIGHT:
-                return ILight(obj.object(), gabcWrapExisting)
-                        .getSchema()
-                        .getUserProperties();
-            default:
-                return ICompoundProperty();
-        }
-    }
-
     static const char   *Doc_AlembicHasUserProperties =
         "alembicHasUserProperties(abcPath, objectPath)\n"
         "\n"
@@ -505,7 +459,7 @@ namespace
         }
 
         GABC_IObject obj = GABC_Util::findObject(filename, objectPath);
-	ICompoundProperty uprops = homGetUserProperties(obj);
+	ICompoundProperty uprops = obj.getUserProperties();
         if (!uprops || uprops.getNumProperties() == 0)
         {
             PY_Py_RETURN_NONE;
@@ -581,7 +535,7 @@ namespace
             PY_Py_RETURN_NONE;
         }
 
-        ICompoundProperty uprops = homGetUserProperties(obj);
+        ICompoundProperty uprops = obj.getUserProperties();
         if (!uprops || uprops.getNumProperties() == 0)
         {
             PY_Py_RETURN_NONE;
@@ -591,7 +545,6 @@ namespace
         if (!GABC_Util::importUserPropertyDictionary(data_writer,
                 NULL,
                 obj,
-                uprops,
                 sampleTime))
         {
             delete data_writer;
@@ -635,7 +588,7 @@ namespace
             PY_Py_RETURN_NONE;
         }
 
-	ICompoundProperty uprops = homGetUserProperties(obj);
+	ICompoundProperty uprops = obj.getUserProperties();
         if (!uprops || uprops.getNumProperties() == 0)
         {
             PY_Py_RETURN_NONE;
@@ -645,7 +598,6 @@ namespace
         if (!GABC_Util::importUserPropertyDictionary(NULL,
                 meta_writer,
                 obj,
-                uprops,
                 sampleTime))
         {
             delete meta_writer;
@@ -693,7 +645,7 @@ namespace
             PY_Py_RETURN_NONE;
         }
 
-	ICompoundProperty uprops = homGetUserProperties(obj);
+	ICompoundProperty uprops = obj.getUserProperties();
         if (!uprops || uprops.getNumProperties() == 0)
         {
             PY_Py_RETURN_NONE;
@@ -704,7 +656,6 @@ namespace
         if (!GABC_Util::importUserPropertyDictionary(data_writer,
                 meta_writer,
                 obj,
-                uprops,
                 sampleTime))
         {
             delete data_writer;

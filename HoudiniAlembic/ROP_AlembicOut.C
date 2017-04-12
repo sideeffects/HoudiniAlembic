@@ -1160,6 +1160,20 @@ ropIsToggleEnabled(OP_Node *node, const char *name, fpreal time)
     return false;
 }
 
+static bool
+ropGetUserProperties(
+    UT_WorkBuffer &vals,
+    UT_WorkBuffer &meta,
+    const GABC_IObject &obj,
+    fpreal time)
+{
+    vals.clear();
+    meta.clear();
+    UT_UniquePtr<UT_JSONWriter> vals_writer(UT_JSONWriter::allocWriter(vals));
+    UT_UniquePtr<UT_JSONWriter> meta_writer(UT_JSONWriter::allocWriter(meta));
+    return GABC_Util::importUserPropertyDictionary(vals_writer.get(), meta_writer.get(), obj, time);
+}
+
 void
 ROP_AlembicOut::exportUserProperties(
     rop_RefinedGeoAssignments &r,
@@ -1197,19 +1211,12 @@ ROP_AlembicOut::exportUserProperties(
 		const GABC_PackedImpl *impl = static_cast<const GABC_PackedImpl *>(packed->implementation());
 		const GABC_IObject &obj = impl->object();
 
-		UT_WorkBuffer data_dictionary;
-		UT_WorkBuffer meta_dictionary;
+		UT_WorkBuffer vals_buffer;
+		UT_WorkBuffer meta_buffer;
+		ropGetUserProperties(vals_buffer, meta_buffer, obj, impl->frame());
 
-		UT_JSONWriter *data_writer = UT_JSONWriter::allocWriter(data_dictionary);
-		UT_JSONWriter *meta_writer = UT_JSONWriter::allocWriter(meta_dictionary);
-		auto props = obj.getUserProperties();
-		GABC_Util::importUserPropertyDictionary(data_writer, meta_writer, obj, props, impl->frame());
-
-		v.harden(data_dictionary.buffer());
-		m.harden(meta_dictionary.buffer());
-
-		delete meta_writer;
-		delete data_writer;
+		v.harden(vals_buffer.buffer());
+		m.harden(meta_buffer.buffer());
 	    }
 	}
     }
@@ -1640,9 +1647,8 @@ ROP_AlembicOut::updateFromSop(
 			 GABC_Util::theUserPropsValsAttrib);
     GA_ROHandleS up_meta(gdp, GA_ATTRIB_PRIMITIVE,
 			 GABC_Util::theUserPropsMetaAttrib);
-
-    UT_WorkBuffer data_dictionary;
-    UT_WorkBuffer meta_dictionary;
+    UT_WorkBuffer vals_buffer;
+    UT_WorkBuffer meta_buffer;
 
     // handle transforms
     UT_Array<ROP_AbcNodeXform *> ancestors;
@@ -1724,19 +1730,11 @@ ROP_AlembicOut::updateFromSop(
 		xforms.emplace(node, m);
 
 		UT_String upv, upm;
-		data_dictionary.clear();
-		meta_dictionary.clear();
-		UT_JSONWriter *data_writer = UT_JSONWriter::allocWriter(data_dictionary);
-		UT_JSONWriter *meta_writer = UT_JSONWriter::allocWriter(meta_dictionary);
-		auto props = iobj.getUserProperties();
-		if(GABC_Util::importUserPropertyDictionary(data_writer, meta_writer, obj, props, time))
+		if(ropGetUserProperties(vals_buffer, meta_buffer, iobj, time))
 		{
-		    upv = data_dictionary.buffer();
-		    upm = meta_dictionary.buffer();
+		    upv = vals_buffer.buffer();
+		    upm = meta_buffer.buffer();
 		}
-
-		delete meta_writer;
-		delete data_writer;
 
 		node->setUserProperties(upv, upm);
 	    }
@@ -1773,20 +1771,12 @@ ROP_AlembicOut::updateFromSop(
 
 	    if(!upv.isstring() && !upm.isstring())
 	    {
-		data_dictionary.clear();
-		meta_dictionary.clear();
-		UT_JSONWriter *data_writer = UT_JSONWriter::allocWriter(data_dictionary);
-		UT_JSONWriter *meta_writer = UT_JSONWriter::allocWriter(meta_dictionary);
 		GABC_IObject iobj = impl->object();
-		auto props = iobj.getUserProperties();
-		if(GABC_Util::importUserPropertyDictionary(data_writer, meta_writer, iobj, props, time))
+		if(ropGetUserProperties(vals_buffer, meta_buffer, iobj, time))
 		{
-		    upv = data_dictionary.buffer();
-		    upm = meta_dictionary.buffer();
+		    upv = vals_buffer.buffer();
+		    upm = meta_buffer.buffer();
 		}
-
-		delete meta_writer;
-		delete data_writer;
 	    }
 
 	    node->setUserProperties(upv, upm);
