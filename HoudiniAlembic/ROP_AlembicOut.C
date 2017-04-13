@@ -167,7 +167,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		UT_Matrix4D prim_xform;
 		packed->getPrimitiveTransform()->getMatrix(prim_xform, 0);
 		const GU_PrimPacked *p = packed->getPrim();
-		UT_Vector4 pivot = p->getPos4(0);
+		UT_Vector3 pivot = p->getPos3(0);
 		UT_Matrix4D packed_xform;
 		p->getFullTransform4(packed_xform);
 		UT_Matrix4D m(1);
@@ -302,7 +302,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	    UT_Matrix4D prim_xform;
 	    packed->getPrimitiveTransform()->getMatrix(prim_xform, 0);
 	    const GU_PrimPacked *p = packed->getPrim();
-	    UT_Vector4 pivot = p->getPos4(0);
+	    UT_Vector3 pivot = p->getPos3(0);
 	    UT_Matrix4D packed_xform;
 	    p->getFullTransform4(packed_xform);
 	    UT_Matrix4D m(1);
