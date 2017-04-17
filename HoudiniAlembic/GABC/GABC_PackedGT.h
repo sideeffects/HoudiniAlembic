@@ -129,6 +129,15 @@ public:
     virtual int		getMotionSegments() const  { return 1; }
     virtual int64	getMemoryUsage() const;
     virtual GT_PrimitiveHandle	doSoftCopy() const;
+
+    void		setRefinedSubset(bool reduced_consts,
+					 UT_IntArray &const_prims,
+					 bool reduced_transforms,
+					 UT_IntArray &trans_prims);
+    bool		hasConstantSubset() const { return myHasConstSubset; }
+    const UT_IntArray  &getConstantSubset() const { return myConstSubset; }
+    bool		hasTransformSubset() const { return myHasTransSubset; }
+    const UT_IntArray  &getTransformSubset() const { return myTransSubset; }
     
 private:
     bool		archiveMatch(const GABC_PackedArchive *archive) const;
@@ -142,6 +151,10 @@ private:
     UT_Array<GT_PrimitiveHandle> myTransformShapes;
     UT_Array<GT_PrimitiveHandle> myDeformShapes;
     UT_Array<GT_PrimitiveHandle> myCombinedShapes;
+    UT_IntArray			 myConstSubset;
+    UT_IntArray			 myTransSubset;
+    bool			 myHasConstSubset;
+    bool			 myHasTransSubset;
 };
 
 
@@ -170,7 +183,8 @@ public:
 
     virtual bool		canInstance() const	{ return true; }
     virtual bool		getInstanceKey(UT_Options &options) const;
-    virtual GT_PrimitiveHandle	getInstanceGeometry(const GT_RefineParms *p) const;
+    virtual GT_PrimitiveHandle	getInstanceGeometry(const GT_RefineParms *p,
+					bool ignore_visibility=false) const;
     virtual GT_TransformHandle	getInstanceTransform() const;
 
     virtual bool		refine(GT_Refine &refiner,

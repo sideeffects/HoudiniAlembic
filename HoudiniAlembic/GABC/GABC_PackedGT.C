@@ -623,11 +623,12 @@ GABC_PackedAlembic::getInstanceKey(UT_Options &options) const
 }
 
 GT_PrimitiveHandle
-GABC_PackedAlembic::getInstanceGeometry(const GT_RefineParms *p) const
+GABC_PackedAlembic::getInstanceGeometry(const GT_RefineParms *p,
+					bool ignore_visibility) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    return impl->instanceGT();
+    return impl->instanceGT(ignore_visibility);
 }
 
 GT_TransformHandle
@@ -837,8 +838,12 @@ public:
 		auto pack =
 		    UTverify_cast<GABC_PackedAlembic *>(myAlembics(i).get());
 
+		// ignore visibility if visibility is animated, we want the mesh
+		bool ignore_vis = pack->visibilityAnimated();
+		
 		// This is the expensive part, the reason this is threaded.
-		GT_PrimitiveHandle geoh = pack->getInstanceGeometry(myParms);
+		GT_PrimitiveHandle geoh = pack->getInstanceGeometry(myParms,
+								    ignore_vis);
 		if(geoh)
 		{
 		    pack->cacheGeometry(geoh);
@@ -873,8 +878,10 @@ private:
 void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 		   UT_IntArray &combined,
 		   UT_Array<GT_PrimitiveHandle> &shapes,
+		   UT_Array<GT_PrimitiveHandle> &const_shapes,
+		   UT_Array<GT_PrimitiveHandle> &transform_shapes,
 		   GT_PrimitiveHandle &mesh,
-		   int max_faces, int max_meshes)
+		   int max_faces, int max_meshes, int max_mesh_faces)
 {
     if(combined.entries() > 1)
     {
@@ -886,7 +893,7 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 	
 	for(auto idx : combined)
 	{
-	    auto pack = UTverify_cast<GABC_PackedAlembic *>(meshes(idx).get());
+	    auto pack = UTverify_cast<GABC_PackedAlembic *>(meshes(idx).get());	
 	    if(pack->getCachedGeometry(mesh))
 	    {
 		if(mesh->getPrimitiveType() != GT_PRIM_POLYGON_MESH &&
@@ -911,7 +918,7 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 
 		    GT_DataArrayHandle ptidx;
 		    auto trans_index =
-		     new GT_DAConstantValue<uint8,GT_STORE_UINT8>(1,uint8(0),1);
+		     new GT_DAConstantValue<uint8,GT_STORE_UINT8>(1,uint8(1),1);
 		    ptidx = trans_index;
 
 		    if(detail_attribs)
@@ -927,7 +934,7 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 		    }
 
 		    auto vis_index = 
-		     new GT_DAConstantValue<uint8,GT_STORE_UINT8>(1,uint8(0),1);
+		     new GT_DAConstantValue<uint8,GT_STORE_UINT8>(1,uint8(1),1);
 		    ptidx = vis_index;
 		    detail_attribs = detail_attribs->addAttribute(
 			"PrimVisibilityIndex", ptidx, true);
@@ -940,8 +947,10 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 					       detail_attribs);
 		     
 		    bool found_match = false;
+		    GT_CatPolygonMesh::gt_CatAppendReason reason =
+			GT_CatPolygonMesh::APPEND_OK;
 		    for(int i=0; i<anim_merge_meshes.entries(); i++)
-			if(anim_merge_meshes(i).canAppend(pmesh))
+			if(anim_merge_meshes(i).canAppend(pmesh, &reason))
 			{
 			    const int tidx = anim_merge_packs(i).entries();
 
@@ -962,22 +971,35 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 
 		    if(!found_match)
 		    {
-			anim_merge_meshes.append();
-			anim_merge_meshes.last().setMaxFaceCount(max_faces);
-			anim_merge_meshes.last().setMaxMeshCount(max_meshes);
-			anim_merge_meshes.last().append(pmesh);
-			anim_merge_packs.append();
-			anim_merge_packs.last().append(meshes(idx));
-			anim_merge_ids.append(SYS_HashType(pid));
+			if(reason == GT_CatPolygonMesh::APPEND_MESH_TOO_LARGE ||
+			   reason == GT_CatPolygonMesh::APPEND_UNSUPPORTED_TYPE)
+			{
+			    transform_shapes.append(meshes(idx));
+			}
+			else if(reason != GT_CatPolygonMesh::APPEND_NO_FACES)
+			{
+			    anim_merge_meshes.append();
+			    auto &cm = anim_merge_meshes.last();
+			    cm.setTotalFaceCount(max_faces);
+			    cm.setMaxMeshCount(max_meshes);
+			    cm.setMaxMeshFaceCount(max_mesh_faces);
+			    cm.append(pmesh);
+			    anim_merge_packs.append();
+			    anim_merge_packs.last().append(meshes(idx));
+			    anim_merge_ids.append(SYS_HashType(pid));
+			}
 		    }
 		}
 		else // no animation
 		{
 		    GT_TransformHandle trh = pack->getInstanceTransform();
+		    GT_CatPolygonMesh::gt_CatAppendReason reason =
+			GT_CatPolygonMesh::APPEND_OK;
 		    bool found_match = false;
 		    for(int i=0; i<const_merge_meshes.entries(); i++)
-			if(const_merge_meshes(i).append(mesh, trh))
+			if(const_merge_meshes(i).canAppend(mesh, &reason))
 			{
+			    const_merge_meshes(i).append(mesh, trh);
 			    SYShashCombine<int64>(const_merge_ids(i), pid);
 			    found_match = true;
 			    break;
@@ -985,11 +1007,21 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 
 		    if(!found_match)
 		    {
-			const_merge_meshes.append();
-			const_merge_meshes.last().setMaxFaceCount(max_faces);
-			const_merge_meshes.last().setMaxMeshCount(max_meshes);
-			const_merge_meshes.last().append(mesh, trh);
-			const_merge_ids.append(SYS_HashType(pid));
+			if(reason == GT_CatPolygonMesh::APPEND_MESH_TOO_LARGE ||
+			   reason == GT_CatPolygonMesh::APPEND_UNSUPPORTED_TYPE)
+			{
+			    const_shapes.append(meshes(idx));
+			}
+			else if(reason != GT_CatPolygonMesh::APPEND_NO_FACES)
+			{
+			    const_merge_meshes.append();
+			    auto &cm = const_merge_meshes.last();
+			    cm.setTotalFaceCount(max_faces);
+			    cm.setMaxMeshCount(max_meshes);
+			    cm.setMaxMeshFaceCount(max_mesh_faces);
+			    cm.append(mesh, trh);
+			    const_merge_ids.append(SYS_HashType(pid));
+			}
 		    }
 		}
 	    }
@@ -1056,10 +1088,28 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 	}
     }
     else if(combined.entries() == 1)
-	shapes.append(meshes(combined(0)));
+    {
+	GT_PrimitiveHandle mesh = meshes(combined(0));
+	auto pack = UTverify_cast<GABC_PackedAlembic *>(mesh.get());
+	if(pack->animationType() == GEO_ANIMATION_TRANSFORM ||
+	   pack->visibilityAnimated())
+	{
+	    transform_shapes.append(mesh);
+	}
+	else
+	    const_shapes.append(mesh);
+    }
     else if(combined.entries() == 0 && mesh)
-	shapes.append(mesh);
-    
+    {
+	auto pack = UTverify_cast<GABC_PackedAlembic *>(mesh.get());
+	if(pack->animationType() == GEO_ANIMATION_TRANSFORM ||
+	   pack->visibilityAnimated())
+	{
+	    transform_shapes.append(mesh);
+	}
+	else
+	    const_shapes.append(mesh);
+    }
     combined.entries(0);
 }
 
@@ -1071,10 +1121,30 @@ GABC_PackedArchive::GABC_PackedArchive(const UT_StringHolder &arch,
 				       const GABC_IArchivePtr &archive)
     : myName(arch),
       myDetailList(dlist),
-      myArchive(archive)
+      myArchive(archive),
+      myHasConstSubset(false),
+      myHasTransSubset(false)
 {
 }
 
+void
+GABC_PackedArchive::setRefinedSubset(bool has_const,
+				     UT_IntArray &const_indices,
+				     bool has_trans,
+				     UT_IntArray &trans_indices)
+{
+    myHasConstSubset = has_const;
+    myHasTransSubset = has_trans;
+    if(has_const)
+	myConstSubset = std::move(const_indices);
+    else
+	myConstSubset.entries(0);
+    if(has_trans)
+	myTransSubset = std::move(trans_indices);
+    else
+	myTransSubset.entries(0);
+}
+    
 #define TIME_BUCKETTING
 #ifdef TIME_BUCKETTING
 #include <UT/UT_StopWatch.h>
@@ -1087,6 +1157,9 @@ GABC_PackedArchive::GABC_PackedArchive(const UT_StringHolder &arch,
 
 #define USE_PRELOAD_STREAMS
 #define DEFAULT_NUM_STREAMS 4
+
+// uncomment to debug a specific combined mesh, and set to the mesh index (0-N).
+//#define DEBUG_COMBINED_SHAPES 0
 
 bool
 GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
@@ -1119,8 +1192,8 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	    num_streams = SYSmin(myAlembicOffsets.entries() / chunks,
 				 nprocs);
 	}
-	// UTdebugPrint("Loading OGAWA using ",
-	// 	     num_streams, myAlembicOffsets.entries());
+	UTdebugPrint("Loading OGAWA using ",
+	 	     num_streams, myAlembicOffsets.entries());
 	myArchive->reopenStream(num_streams);
     }
 #endif
@@ -1218,8 +1291,9 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	{
 	    int index = 0;
 	    UT_IntArray combined;
-	    const int max_faces = parms? parms->getMaxPolyMeshSize() :1000000;
+	    const int max_mesh_size = parms?parms->getMaxPolyMeshSize():1000000;
 	    const int max_prims = 255;
+	    const int max_faces = 50000;
 
 	    for(auto mesh : meshes)
 	    {
@@ -1241,8 +1315,9 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	    if(combined.entries() > 0)
 	    {
 		GT_PrimitiveHandle null_shape;
-		combineMeshes(meshes, combined, myCombinedShapes, null_shape,
-			      max_faces, max_prims);
+		combineMeshes(meshes, combined, myCombinedShapes, myConstShapes,
+			      myTransformShapes, null_shape,
+			      max_mesh_size, max_prims, max_faces);
 		ccount++;
 	    }
 	}
@@ -1250,11 +1325,20 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	    myConstShapes.concat(meshes);
     }
     
-#ifdef USE_PRELOAD_STREAMS
     if(num_streams != 1)
 	myArchive->reopenStream(1);
+
+#ifdef DEBUG_COMBINED_SHAPES
+    if(myCombinedShapes.isValidIndex(DEBUG_COMBINED_SHAPES))
+    {
+	GT_PrimitiveHandle comb = myCombinedShapes(DEBUG_COMBINED_SHAPES);
+	myCombinedShapes.clear();
+	myCombinedShapes.append(comb);
+    }
+    else
+	myCombinedShapes.clear();
 #endif
-    
+
     UTdebugPrint("# const    = ", myConstShapes.entries());
     UTdebugPrint("# combined = ", myCombinedShapes.entries());
     UTdebugPrint("# anim     = ", myTransformShapes.entries());
@@ -1458,6 +1542,7 @@ GABC_PackedAlembicMesh::update(bool initial)
 	    }
 	    dest+=16;
 	}
+	UT_ASSERT(dest == (transform_array->data() + myPrims.entries()*16));
     
 	if(changed)
 	    transform_array->setDataId( myTransID++ );
@@ -1482,10 +1567,14 @@ GABC_PackedAlembicMesh::update(bool initial)
 		visible = impl->visibleGT();
 		pack->cacheVisibility(visible);
 	    }
-	    if(bool(*vis) != visible)
-		changed = true;
 	    
-	    *vis++ = visible;
+	    if(bool(*vis) != visible)
+	    {
+		*vis = visible;
+		changed = true;
+	    }
+	    
+	    vis++;
 	}
 	if(changed)
 	    vis_array->setDataId( myVisID++ );
@@ -1512,7 +1601,7 @@ bool
 GABC_AlembicCache::getTransform(fpreal t, UT_Matrix4F &transform) const
 {
     if(!myTransformAnimated)
-	t = 0.0;
+     	t = 0.0;
     
     auto entry = myTransform.find(t);
     if(entry != myTransform.end())
