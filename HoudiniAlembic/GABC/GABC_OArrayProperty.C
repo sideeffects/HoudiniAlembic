@@ -200,17 +200,17 @@ namespace
 
     // Cast the GT_DataArray to the correct numeric type and pass
     // the data to Alembic.
-    template <typename POD_T, GT_Storage GT_STORE>
+    template <typename POD_T>
     static void
     writeProperty(OArrayProperty &prop,
 	    const GT_DataArrayHandle &src,
 	    int tuple_size)
     {
-        DataType                        dt = prop.getDataType();
-        GT_DANumeric<POD_T, GT_STORE>  *numeric;
-	int	                        array_size;
+	DataType		 dt = prop.getDataType();
+	GT_DANumeric<POD_T>	*numeric;
+	int			 array_size;
 
-        numeric = dynamic_cast<GT_DANumeric<POD_T, GT_STORE> *>(src.get());
+        numeric = dynamic_cast<GT_DANumeric<POD_T> *>(src.get());
 
         // Sometimes the data GT_DataArray will be a little wonky (usually
         // happens with attribute data), so it will need to be converted
@@ -971,39 +971,27 @@ GABC_OArrayProperty::update(const GT_DataArrayHandle &array,
             switch (myStorage)
             {
                 case GT_STORE_UINT8:
-                    writeProperty<uint8, GT_STORE_UINT8>(myProperty,
-                            array,
-                            myTupleSize);
+                    writeProperty<uint8>(myProperty, array, myTupleSize);
                     break;
 
                 case GT_STORE_INT32:
-                    writeProperty<int32, GT_STORE_INT32>(myProperty,
-                            array,
-                            myTupleSize);
+                    writeProperty<int32>(myProperty, array, myTupleSize);
                     break;
 
                 case GT_STORE_INT64:
-                    writeProperty<int64, GT_STORE_INT64>(myProperty,
-                            array,
-                            myTupleSize);
+                    writeProperty<int64>(myProperty, array, myTupleSize);
                     break;
 
                 case GT_STORE_REAL16:
-                    writeProperty<fpreal16, GT_STORE_REAL16>(myProperty,
-                            array,
-                            myTupleSize);
+                    writeProperty<fpreal16>(myProperty, array, myTupleSize);
                     break;
 
                 case GT_STORE_REAL32:
-                    writeProperty<fpreal32, GT_STORE_REAL32>(myProperty,
-                            array,
-                            myTupleSize);
+                    writeProperty<fpreal32>(myProperty, array, myTupleSize);
                     break;
 
                 case GT_STORE_REAL64:
-                    writeProperty<fpreal64, GT_STORE_REAL64>(myProperty,
-                            array,
-                            myTupleSize);
+                    writeProperty<fpreal64>(myProperty, array, myTupleSize);
                     break;
 
                 case GT_STORE_STRING:
@@ -1057,51 +1045,35 @@ GABC_OArrayProperty::update(const GT_DataArrayHandle &array,
             break;
 
         case Alembic::Util::kBooleanPOD:
-            writeProperty<uint8, GT_STORE_UINT8>(myProperty,
-                    array,
-                    myTupleSize);
+            writeProperty<uint8>(myProperty, array, myTupleSize);
             break;
 
         case Alembic::Util::kUint8POD:
-            writeProperty<uint8, GT_STORE_UINT8>(myProperty,
-                    array,
-                    myTupleSize);
+            writeProperty<uint8>(myProperty, array, myTupleSize);
             break;
 
         case Alembic::Util::kInt32POD:
-            writeProperty<int32, GT_STORE_INT32>(myProperty,
-                    array,
-                    myTupleSize);
+            writeProperty<int32>(myProperty, array, myTupleSize);
             break;
 
         case Alembic::Util::kInt64POD:
-            writeProperty<int64, GT_STORE_INT64>(myProperty,
-                    array,
-                    myTupleSize);
+            writeProperty<int64>(myProperty, array, myTupleSize);
             break;
 
         case Alembic::Util::kUint64POD:
-            writeProperty<int64, GT_STORE_INT64>(myProperty,
-                    array,
-                    myTupleSize);
+            writeProperty<int64>(myProperty, array, myTupleSize);
             break;
 
         case Alembic::Util::kFloat16POD:
-            writeProperty<fpreal16, GT_STORE_REAL16>(myProperty,
-                    array,
-                    myTupleSize);
+            writeProperty<fpreal16>(myProperty, array, myTupleSize);
             break;
 
         case Alembic::Util::kFloat32POD:
-            writeProperty<fpreal32, GT_STORE_REAL32>(myProperty,
-                    array,
-                    myTupleSize);
+            writeProperty<fpreal32>(myProperty, array, myTupleSize);
             break;
 
         case Alembic::Util::kFloat64POD:
-            writeProperty<fpreal64, GT_STORE_REAL64>(myProperty,
-                    array,
-                    myTupleSize);
+            writeProperty<fpreal64>(myProperty, array, myTupleSize);
             break;
 
         case Alembic::Util::kWstringPOD:

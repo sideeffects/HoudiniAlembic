@@ -918,7 +918,7 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 
 		    GT_DataArrayHandle ptidx;
 		    auto trans_index =
-		     new GT_DAConstantValue<uint8,GT_STORE_UINT8>(1,uint8(1),1);
+		     new GT_DAConstantValue<uint8>(1,uint8(1),1);
 		    ptidx = trans_index;
 
 		    if(detail_attribs)
@@ -934,7 +934,7 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 		    }
 
 		    auto vis_index = 
-		     new GT_DAConstantValue<uint8,GT_STORE_UINT8>(1,uint8(1),1);
+		     new GT_DAConstantValue<uint8>(1,uint8(1),1);
 		    ptidx = vis_index;
 		    detail_attribs = detail_attribs->addAttribute(
 			"PrimVisibilityIndex", ptidx, true);
@@ -1037,9 +1037,9 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 		// build a scratch array for the matrices
 		const int prim_count=anim_merge_meshes(i).getNumSourceMeshes();
 		GT_DataArrayHandle trans_array =
-		  new GT_DANumeric<fpreal32, GT_STORE_REAL32>(prim_count*4,4);
+		  new GT_Real32Array(prim_count*4,4);
 		GT_DataArrayHandle vis_array = 
-		  new GT_DANumeric<uint8, GT_STORE_UINT8>(prim_count,1);
+		  new GT_UInt8Array(prim_count,1);
 
 		auto mesh =
 		    UTverify_cast<GT_PrimPolygonMesh *>(merged_mesh.get());
@@ -1507,8 +1507,7 @@ GABC_PackedAlembicMesh::update(bool initial)
     if(myTransformArray)
     {
 	auto transform_array =
-	    UTverify_cast<GT_DANumeric<fpreal32,GT_STORE_FPREAL32> *>
-	    (myTransformArray.get());
+	    UTverify_cast<GT_Real32Array *> (myTransformArray.get());
 
 	UT_ASSERT(myTransformArray->entries() == myPrims.entries() * 4);
 
@@ -1551,7 +1550,7 @@ GABC_PackedAlembicMesh::update(bool initial)
     if(myVisibilityArray)
     {
 	auto vis_array =
-	    UTverify_cast<GT_DANumeric<uint8,GT_STORE_UINT8> *>
+	    UTverify_cast<GT_UInt8Array *>
 	    (myVisibilityArray.get());
 
 	bool changed = false;

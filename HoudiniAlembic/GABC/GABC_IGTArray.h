@@ -35,7 +35,7 @@
 
 namespace GABC_NAMESPACE
 {
-template <typename POD_T, GT_Storage STORE_T>
+template <typename POD_T>
 class GABC_API GABC_IGTArray : public GT_DataArray
 {
 public:
@@ -57,7 +57,7 @@ public:
     /// @{
     /// Methods defined on GT_DataArray
     virtual const char	*className() const	{ return "GABC_IGTArray"; }
-    virtual GT_Storage	getStorage() const	{ return STORE_T; }
+    virtual GT_Storage	getStorage() const	{ return GTstorage<POD_T>(); }
     virtual GT_Type	getTypeInfo() const	{ return myArray.gtType(); }
     virtual GT_Size	getTupleSize() const	{ return myArray.tupleSize(); }
     virtual GT_Size	entries() const		{ return myArray.entries(); }
@@ -301,12 +301,12 @@ public:
 private:
 };
 
-using GABC_GTUnsigned8Array = GABC_IGTArray<uint8, GT_STORE_UINT8>;
-using GABC_GTInt32Array = GABC_IGTArray<int32, GT_STORE_INT32>;
-using GABC_GTInt64Array = GABC_IGTArray<int64, GT_STORE_INT64>;
-using GABC_GTReal16Array = GABC_IGTArray<fpreal16, GT_STORE_REAL16>;
-using GABC_GTReal32Array = GABC_IGTArray<fpreal32, GT_STORE_REAL32>;
-using GABC_GTReal64Array = GABC_IGTArray<fpreal64, GT_STORE_REAL64>;
+using GABC_GTUnsigned8Array = GABC_IGTArray<uint8>;
+using GABC_GTInt32Array = GABC_IGTArray<int32>;
+using GABC_GTInt64Array = GABC_IGTArray<int64>;
+using GABC_GTReal16Array = GABC_IGTArray<fpreal16>;
+using GABC_GTReal32Array = GABC_IGTArray<fpreal32>;
+using GABC_GTReal64Array = GABC_IGTArray<fpreal64>;
 
 GABC_API extern GT_DataArrayHandle GABCarray(const GABC_IArray &iarray);
 }

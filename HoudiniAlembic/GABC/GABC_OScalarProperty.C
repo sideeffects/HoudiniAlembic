@@ -138,13 +138,13 @@ namespace
 
     // Cast the GT_DataArray to the correct numeric type and pass
     // the data to Alembic.
-    template <typename POD_T, GT_Storage GT_STORE>
+    template <typename POD_T>
     static void
     writeProperty(OScalarProperty &prop,
             const GT_DataArrayHandle &src)
     {
-        GT_DANumeric<POD_T, GT_STORE>  *numeric;
-        numeric = dynamic_cast<GT_DANumeric<POD_T, GT_STORE> *>(src.get());
+        GT_DANumeric<POD_T>  *numeric;
+        numeric = dynamic_cast<GT_DANumeric<POD_T> *>(src.get());
 
         if (numeric)
         {
@@ -761,27 +761,27 @@ GABC_OScalarProperty::update(const GT_DataArrayHandle &array,
             switch (myStorage)
             {
                 case GT_STORE_UINT8:
-                    writeProperty<uint8, GT_STORE_UINT8>(myProperty, array);
+                    writeProperty<uint8>(myProperty, array);
                     break;
 
                 case GT_STORE_INT32:
-                    writeProperty<int32, GT_STORE_INT32>(myProperty, array);
+                    writeProperty<int32>(myProperty, array);
                     break;
 
                 case GT_STORE_INT64:
-                    writeProperty<int64, GT_STORE_INT64>(myProperty, array);
+                    writeProperty<int64>(myProperty, array);
                     break;
 
                 case GT_STORE_REAL16:
-                    writeProperty<fpreal16, GT_STORE_REAL16>(myProperty, array);
+                    writeProperty<fpreal16>(myProperty, array);
                     break;
 
                 case GT_STORE_REAL32:
-                    writeProperty<fpreal32, GT_STORE_REAL32>(myProperty, array);
+                    writeProperty<fpreal32>(myProperty, array);
                     break;
 
                 case GT_STORE_REAL64:
-                    writeProperty<fpreal64, GT_STORE_REAL64>(myProperty, array);
+                    writeProperty<fpreal64>(myProperty, array);
                     break;
 
                 case GT_STORE_STRING:
@@ -819,35 +819,35 @@ GABC_OScalarProperty::update(const GT_DataArrayHandle &array,
             break;
 
         case Alembic::Util::kBooleanPOD:
-            writeProperty<uint8, GT_STORE_UINT8>(myProperty, array);
+            writeProperty<uint8>(myProperty, array);
             break;
 
         case Alembic::Util::kUint8POD:
-            writeProperty<uint8, GT_STORE_UINT8>(myProperty, array);
+            writeProperty<uint8>(myProperty, array);
             break;
 
         case Alembic::Util::kInt32POD:
-            writeProperty<int32, GT_STORE_INT32>(myProperty, array);
+            writeProperty<int32>(myProperty, array);
             break;
 
         case Alembic::Util::kInt64POD:
-            writeProperty<int64, GT_STORE_INT64>(myProperty, array);
+            writeProperty<int64>(myProperty, array);
             break;
 
         case Alembic::Util::kUint64POD:
-            writeProperty<int64, GT_STORE_INT64>(myProperty, array);
+            writeProperty<int64>(myProperty, array);
             break;
 
         case Alembic::Util::kFloat16POD:
-            writeProperty<fpreal16, GT_STORE_REAL16>(myProperty, array);
+            writeProperty<fpreal16>(myProperty, array);
             break;
 
         case Alembic::Util::kFloat32POD:
-            writeProperty<fpreal32, GT_STORE_REAL32>(myProperty, array);
+            writeProperty<fpreal32>(myProperty, array);
             break;
 
         case Alembic::Util::kFloat64POD:
-            writeProperty<fpreal64, GT_STORE_REAL64>(myProperty, array);
+            writeProperty<fpreal64>(myProperty, array);
             break;
 
         case Alembic::Util::kWstringPOD:

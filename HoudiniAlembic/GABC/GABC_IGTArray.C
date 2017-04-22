@@ -37,19 +37,18 @@ namespace
     SYS_STATIC_ASSERT(sizeof(bool) == sizeof(uint8));
 
     // Copy out of ABC array into a GT array
-    template <typename ABC_TYPE, typename GT_TYPE, GT_Storage GT_STORAGE>
+    template <typename ABC_TYPE, typename GT_TYPE>
     GT_DataArray *
     translateStorage(const GABC_IArray &iarray)
     {
-	GT_DANumeric<GT_TYPE, GT_STORAGE>	*array;
+	GT_DANumeric<GT_TYPE>	*array;
 	const ABC_TYPE	*src = (const ABC_TYPE *)(iarray.data());
 	GT_TYPE		*dest;
 	exint		 asize = iarray.entries();
 	int		 tsize = iarray.tupleSize();
 	exint		 npod = asize * tsize;
 
-	array = new GT_DANumeric<GT_TYPE, GT_STORAGE>(asize, tsize,
-				iarray.gtType());
+	array = new GT_DANumeric<GT_TYPE>(asize, tsize, iarray.gtType());
 	dest = array->data();
 	for (exint i = 0; i < npod; ++i)
 	    dest[i] = src[i];
@@ -82,41 +81,41 @@ GABC_NAMESPACE::GABCarray(const GABC_IArray &iarray)
     {
 	// Compatible storage types between Alembic & GT
 	case Alembic::Abc::kUint8POD:
-	    data = new GABC_IGTArray<uint8, GT_STORE_UINT8>(iarray);
+	    data = new GABC_IGTArray<uint8>(iarray);
 	    break;
 	case Alembic::Abc::kInt32POD:
-	    data = new GABC_IGTArray<int32, GT_STORE_INT32>(iarray);
+	    data = new GABC_IGTArray<int32>(iarray);
 	    break;
 	case Alembic::Abc::kInt64POD:
 	case Alembic::Abc::kUint64POD:	// Store uint64 in int64 too
-	    data = new GABC_IGTArray<int64, GT_STORE_INT64>(iarray);
+	    data = new GABC_IGTArray<int64>(iarray);
 	    break;
 	case Alembic::Abc::kFloat16POD:
-	    data = new GABC_IGTArray<fpreal16, GT_STORE_REAL16>(iarray);
+	    data = new GABC_IGTArray<fpreal16>(iarray);
 	    break;
 	case Alembic::Abc::kFloat32POD:
-	    data = new GABC_IGTArray<fpreal32, GT_STORE_REAL32>(iarray);
+	    data = new GABC_IGTArray<fpreal32>(iarray);
 	    break;
 	case Alembic::Abc::kFloat64POD:
-	    data = new GABC_IGTArray<fpreal64, GT_STORE_REAL64>(iarray);
+	    data = new GABC_IGTArray<fpreal64>(iarray);
 	    break;
 	case Alembic::Abc::kStringPOD:
 	    data = new GABC_IGTStringArray(iarray);
 	    break;
 	case Alembic::Abc::kBooleanPOD:
-	    data = translateStorage<bool, uint8, GT_STORE_UINT8>(iarray);
+	    data = translateStorage<bool, uint8>(iarray);
 	    break;
 	case Alembic::Abc::kInt8POD:
-	    data = translateStorage<int8, int32, GT_STORE_INT32>(iarray);
+	    data = translateStorage<int8, int32>(iarray);
 	    break;
 	case Alembic::Abc::kUint16POD:
-	    data = translateStorage<uint16, int32, GT_STORE_INT32>(iarray);
+	    data = translateStorage<uint16, int32>(iarray);
 	    break;
 	case Alembic::Abc::kInt16POD:
-	    data = translateStorage<int16, int32, GT_STORE_INT32>(iarray);
+	    data = translateStorage<int16, int32>(iarray);
 	    break;
 	case Alembic::Abc::kUint32POD:
-	    data = translateStorage<uint32, int64, GT_STORE_INT64>(iarray);
+	    data = translateStorage<uint32, int64>(iarray);
 	    break;
 
 	case Alembic::Abc::kWstringPOD:

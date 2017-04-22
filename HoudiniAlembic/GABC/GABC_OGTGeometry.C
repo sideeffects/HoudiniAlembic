@@ -438,7 +438,7 @@ namespace
     EXTRACT_ARRAY(fpreal64, getF64Array);
     SYS_PRAGMA_POP_WARN()
 
-    template <typename POD_T, GT_Storage T_STORAGE>
+    template <typename POD_T>
     static const POD_T *
     fillArray(const GT_DataArrayHandle &gt, GT_DataArrayHandle &store, int tsize)
     {
@@ -451,8 +451,8 @@ namespace
 	}
 
 	// Compact the array by trimming off extra tuple entries
-	GT_DANumeric<POD_T, T_STORAGE>	*num;
-	num = new GT_DANumeric<POD_T, T_STORAGE>(gt->entries(), tsize,
+	GT_DANumeric<POD_T>	*num;
+	num = new GT_DANumeric<POD_T>(gt->entries(), tsize,
 			    gt->getTypeInfo());
 	store.reset(num);
 	POD_T	*values = num->data();
@@ -484,8 +484,7 @@ namespace
 	using ValueType = typename TRAITS::value_type;
 	int tsize = TRAITS::dataType().getExtent();
 	int n = data->entries();
-	const fpreal32 *flatarray =
-		fillArray<fpreal32, GT_STORE_REAL32>(data, store, tsize);
+	const fpreal32 *flatarray = fillArray<fpreal32>(data, store, tsize);
 	if(!flatarray)
 	    return false;
 

@@ -295,7 +295,7 @@ namespace
 	return GABC_NAMESPACE::GABCarray(iarray);
     }
 
-    template <typename ABC_POD, typename GT_POD, GT_Storage GT_STORAGE>
+    template <typename ABC_POD, typename GT_POD>
     static GT_DataArrayHandle
     extractScalarProp(const IScalarProperty &prop, index_t idx)
     {
@@ -309,7 +309,7 @@ namespace
 	prop.get(src, ISampleSelector(idx));
 	for (int i = 0; i < tsize; ++i)
 	    dest[i] = src[i];
-	return new GT_DAConstantValue<GT_POD, GT_STORAGE>(1, dest, tsize, tinfo);
+	return new GT_DAConstantValue<GT_POD>(1, dest, tsize, tinfo);
     }
 
     static GT_DataArrayHandle
@@ -329,29 +329,29 @@ namespace
 	switch (prop.getDataType().getPod())
 	{
 	    case Alembic::Abc::kBooleanPOD:
-		return extractScalarProp<bool, uint8, GT_STORE_UINT8>(prop, idx);
+		return extractScalarProp<bool, uint8>(prop, idx);
 	    case Alembic::Abc::kInt8POD:
-		return extractScalarProp<int8, int32, GT_STORE_INT32>(prop, idx);
+		return extractScalarProp<int8, int32>(prop, idx);
 	    case Alembic::Abc::kUint8POD:
-		return extractScalarProp<uint8, uint8, GT_STORE_UINT8>(prop, idx);
+		return extractScalarProp<uint8, uint8>(prop, idx);
 	    case Alembic::Abc::kUint16POD:
-		return extractScalarProp<uint16, int32, GT_STORE_INT32>(prop, idx);
+		return extractScalarProp<uint16, int32>(prop, idx);
 	    case Alembic::Abc::kInt16POD:
-		return extractScalarProp<int16, int32, GT_STORE_INT32>(prop, idx);
+		return extractScalarProp<int16, int32>(prop, idx);
 	    case Alembic::Abc::kUint32POD:
-		return extractScalarProp<uint32, int64, GT_STORE_INT64>(prop, idx);
+		return extractScalarProp<uint32, int64>(prop, idx);
 	    case Alembic::Abc::kInt32POD:
-		return extractScalarProp<int32, int32, GT_STORE_INT32>(prop, idx);
+		return extractScalarProp<int32, int32>(prop, idx);
 	    case Alembic::Abc::kInt64POD:
-		return extractScalarProp<int64, int64, GT_STORE_INT64>(prop, idx);
+		return extractScalarProp<int64, int64>(prop, idx);
 	    case Alembic::Abc::kUint64POD:	// Store uint64 in int64 too
-		return extractScalarProp<uint64, int64, GT_STORE_INT64>(prop, idx);
+		return extractScalarProp<uint64, int64>(prop, idx);
 	    case Alembic::Abc::kFloat16POD:
-		return extractScalarProp<fpreal16, fpreal16, GT_STORE_REAL16>(prop, idx);
+		return extractScalarProp<fpreal16, fpreal16>(prop, idx);
 	    case Alembic::Abc::kFloat32POD:
-		return extractScalarProp<fpreal32, fpreal32, GT_STORE_REAL32>(prop, idx);
+		return extractScalarProp<fpreal32, fpreal32>(prop, idx);
 	    case Alembic::Abc::kFloat64POD:
-		return extractScalarProp<fpreal64, fpreal64, GT_STORE_REAL64>(prop, idx);
+		return extractScalarProp<fpreal64, fpreal64>(prop, idx);
 	    case Alembic::Abc::kStringPOD:
 		return extractScalarString(prop, idx);
 
@@ -554,7 +554,7 @@ namespace
     }
 
 
-    template <typename T, GT_Storage T_STORAGE>
+    template <typename T>
     static GT_DataArrayHandle
     rationalize(const GT_DataArrayHandle &p, const T *p_data,
                 const GT_DataArrayHandle &pw, const T *pw_data)
@@ -571,7 +571,7 @@ namespace
         GT_Size                     p_tuple = p->getTupleSize();
         // GT_DANumeric holds own copy of data,
         // frees memory during destruction
-        GT_DANumeric<T, T_STORAGE>  *gtarray = new GT_DANumeric<T, T_STORAGE> (
+        GT_DANumeric<T>  *gtarray = new GT_DANumeric<T> (
                 p_entries,
                 p_tuple,
                 p->getTypeInfo());
@@ -592,14 +592,14 @@ namespace
         return GT_DataArrayHandle(gtarray);
     }
 
-    template <typename T, GT_Storage T_STORAGE>
+    template <typename T>
     static GT_DataArrayHandle
     blendArrays(const GT_DataArrayHandle &s0, const T *f0,
 		const GT_DataArrayHandle &s1, const T *f1,
 		fpreal bias)
     {
-	GT_DANumeric<T, T_STORAGE>	*gtarray;
-	gtarray = new GT_DANumeric<T, T_STORAGE>(s0->entries(),
+	GT_DANumeric<T>	*gtarray;
+	gtarray = new GT_DANumeric<T>(s0->entries(),
 				s0->getTupleSize(), s0->getTypeInfo());
 	T	*dest = gtarray->data();
 	GT_Size	 fullsize = s0->entries() * s0->getTupleSize();
@@ -628,15 +628,15 @@ namespace
 	switch (s0->getStorage())
 	{
 	    case GT_STORE_REAL16:
-		return blendArrays<fpreal16, GT_STORE_REAL16>(
+		return blendArrays<fpreal16>(
 			s0, s0->getF16Array(buf0),
 			s1, s1->getF16Array(buf1), bias);
 	    case GT_STORE_REAL32:
-		return blendArrays<fpreal32, GT_STORE_REAL32>(
+		return blendArrays<fpreal32>(
 			s0, s0->getF32Array(buf0),
 			s1, s1->getF32Array(buf1), bias);
 	    case GT_STORE_REAL64:
-		return blendArrays<fpreal64, GT_STORE_REAL64>(
+		return blendArrays<fpreal64>(
 			s0, s0->getF64Array(buf0),
 			s1, s1->getF64Array(buf1), bias);
 	    default:
@@ -990,21 +990,21 @@ namespace
                     switch (p_data->getStorage())
                     {
                         case GT_STORE_REAL16:
-                            p_data = rationalize<fpreal16, GT_STORE_REAL16>(p_data,
+                            p_data = rationalize<fpreal16>(p_data,
                                     p_data->getF16Array(buf_p),
                                     pw_data,
                                     pw_data->getF16Array(buf_pw));
                             break;
 
                 	case GT_STORE_REAL32:
-                            p_data = rationalize<fpreal32, GT_STORE_REAL32>(p_data,
+                            p_data = rationalize<fpreal32>(p_data,
                                     p_data->getF32Array(buf_p),
                                     pw_data,
                                     pw_data->getF32Array(buf_pw));
                             break;
 
                         case GT_STORE_REAL64:
-                            p_data = rationalize<fpreal64, GT_STORE_REAL64>(p_data,
+                            p_data = rationalize<fpreal64>(p_data,
                                     p_data->getF64Array(buf_p),
                                     pw_data,
                                     pw_data->getF64Array(buf_pw));
