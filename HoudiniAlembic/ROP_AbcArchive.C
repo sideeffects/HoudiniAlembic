@@ -76,8 +76,25 @@ ROP_AbcArchive::ROP_AbcArchive(
     md.set(Alembic::Abc::kDateWrittenKey, datebuf);
 
     // set the description
-    UT_String hipfile;
-    OPgetDirector()->getCommandManager()->getVariable("HIPFILE", hipfile);
+    UT_WorkBuffer hipfile;
+    {
+	UT_String tmp;
+	OPgetDirector()->getCommandManager()->getVariable("HIPFILE", tmp);
+	// escape characters Alembic dislikes
+	for(const char *s = tmp.c_str(); *s; ++s)
+	{
+	    switch(*s)
+	    {
+		case '%':
+		case ';':
+		case '=':
+		    hipfile.appendSprintf("%%%02X", *s);
+		    break;
+		default:
+		    hipfile.append(*s);
+	    }
+	}
+    }
 
     UT_WorkBuffer timestamp;
     UT_Date::dprintf(timestamp, "%Y-%m-%d %H:%M:%S", time(0));
