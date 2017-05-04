@@ -52,8 +52,6 @@ class ROP_AlembicOut : public ROP_Node
 public:
     static OP_Node *myConstructor(OP_Network *net, const char *name, OP_Operator *op);
     virtual bool updateParmsFlags();
-    virtual void getDescriptiveParmName(UT_String &str) const
-			{ str = "filename"; }
     /// We need to hint to the merge ROP that we can't be called one frame at a
     /// time.
     virtual void resolveObsoleteParms(PRM_ParmList *obsolete_parms);
@@ -65,6 +63,8 @@ protected:
     ROP_AlembicOut(OP_Network *net, const char *name, OP_Operator *entry);
     virtual ~ROP_AlembicOut();
 
+    virtual void getDescriptiveParmName(UT_String &str) const
+			{ str = "filename"; }
     virtual int startRender(int nframes, fpreal s, fpreal e);
     virtual ROP_RENDER_CODE renderFrame(fpreal time, UT_Interrupt *boss);
     virtual ROP_RENDER_CODE endRender();
