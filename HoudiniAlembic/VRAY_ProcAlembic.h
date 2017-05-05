@@ -35,8 +35,10 @@
 #include <UT/UT_StringArray.h>
 #include <UT/UT_SymbolTable.h>
 #include <UT/UT_SharedPtr.h>
+#include <UT/UT_UniquePtr.h>
 
 class GU_Detail;
+class GSTY_SubjectPrimGroup;
 
 class VRAY_ProcAlembic : public VRAY_Procedural
 {
@@ -107,6 +109,7 @@ private:
     VRAY_ProceduralGeo		myAttribDetail;
     vray_MergePatternPtr	myMergeInfo;
     vray_PropertyMapPtr		myUserProperties;
+    UT_UniquePtr<GSTY_SubjectPrimGroup> myGroupSharingHolder;
     fpreal			myPreBlur, myPostBlur;
     bool			myNonAlembic;
     bool			myVelocityBlur;
