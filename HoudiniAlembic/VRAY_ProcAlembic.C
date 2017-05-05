@@ -33,6 +33,7 @@
 #include <GT/GT_Primitive.h>
 #include <GU/GU_PrimPacked.h>
 #include <GSTY/GSTY_SubjectPrim.h>
+#include <GSTY/GSTY_SubjectPrimGroup.h>
 #include <STY/STY_Styler.h>
 #include <UT/UT_EnvControl.h>
 #include <UT/UT_Interrupt.h>
@@ -100,13 +101,15 @@ namespace
 		fpreal preblur, fpreal postblur,
 		const GU_PrimPacked *aprim,
 		const vray_MergePatternPtr &merge,
-		const vray_PropertyMapPtr &propertymap)
+		const vray_PropertyMapPtr &propertymap,
+                GSTY_SubjectPrimGroup *group_sharing_holder)
 	    : myList(list)
 	    , myPreBlur(preblur)
 	    , myPostBlur(postblur)
 	    , myMergePrim(aprim)
 	    , myMergeInfo(merge)
 	    , myPropertyMap(propertymap)
+            , myGroupSharingHolder(group_sharing_holder)
 	{
 	}
 	virtual ~vray_ProcAlembicPrim()
@@ -269,7 +272,7 @@ namespace
 
 	    // Build a new styler for this alembic prim.
 	    void *handle = queryObject(nullptr);
-	    STY_SubjectHandle subject(new GSTY_SubjectPrim(myList(0)));
+	    STY_SubjectHandle subject(new GSTY_SubjectPrim(myList(0), 0, 0, myGroupSharingHolder));
 
 	    {
 		auto	kid = createChild();
@@ -298,6 +301,7 @@ namespace
 	const GU_PrimPacked		*myMergePrim;
 	vray_MergePatternPtr		 myMergeInfo;
 	vray_PropertyMapPtr		 myPropertyMap;
+        GSTY_SubjectPrimGroup           *myGroupSharingHolder;
 	fpreal				 myPreBlur, myPostBlur;
     };
 
@@ -856,6 +860,11 @@ VRAY_ProcAlembic::render()
     {
 	UT_Array<const GU_PrimPacked *>	abclist(nsegments, nsegments);
 
+        if (!myGroupSharingHolder)
+        {
+            myGroupSharingHolder.reset(new GSTY_SubjectPrimGroup(*gdp, 0, 0));
+        }
+
 	for (GA_Iterator it(baserange); !it.atEnd(); ++it)
 	{
 	    const GEO_Primitive	*prim = gdp->getGEOPrimitive(*it);
@@ -874,8 +883,9 @@ VRAY_ProcAlembic::render()
 		    abclist(i) = UTverify_cast<const GU_PrimPacked *>(seg);
 		}
 		VRAY_Procedural *p = new vray_ProcAlembicPrim(abclist,
-					myPreBlur, myPostBlur, abc_attrib,
-					myMergeInfo, myUserProperties);
+		    myPreBlur, myPostBlur, abc_attrib,
+		    myMergeInfo, myUserProperties,
+                    myGroupSharingHolder.get());
 		if (p->initialize(nullptr))
 		{
 		    auto obj = createChild();
