@@ -985,7 +985,7 @@ namespace
 	        GT_DataArrayHandle  buf_pw;
                 GT_DataArrayHandle  pw_data = readArrayProperty(arch, *Pw, t, GT_TYPE_NONE, expected_size);
 
-                if (p_data)
+                if (p_data && pw_data)
                 {
                     switch (p_data->getStorage())
                     {
@@ -1015,7 +1015,8 @@ namespace
                     }
                 }
 
-                setAttributeData(alist, obj, "Pw", pw_data, filled);
+		if(pw_data)
+		    setAttributeData(alist, obj, "Pw", pw_data, filled);
             }
         }
         if (p_data)
