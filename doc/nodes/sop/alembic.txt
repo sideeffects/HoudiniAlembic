@@ -16,7 +16,7 @@ Reload Geometry:
     Clears the Alembic cache and reloads fresh geometry.
 
 File name:
-        #id: fileName
+    #id: fileName
         
     Path to the Alembic archive (`.abc`) file.
 
@@ -36,11 +36,11 @@ Frames per second:
     different FPS, you will need to enter it here.
 
 Missing File:
-	What should be done if the specified file does not exist on disk.
-	By default, if there's a missing or invalid Alembic archive,
-	the SOP will error.  This can be troublesome in a network that can
-	recover from the error.  In these cases the behavior can be set to No
-	Geometry so only a warning is posted.
+    What should be done if the specified file does not exist on disk.
+    By default, if there's a missing or invalid Alembic archive,
+    the SOP will error.  This can be troublesome in a network that can
+    recover from the error.  In these cases the behavior can be set to No
+    Geometry so only a warning is posted.
 
 == Geometry ==
 
@@ -77,19 +77,19 @@ Display As:
     How the Alembic geometry is displayed in the viewport.
     
     Full Geometry:
-	    The Alembic geometry is fully displayed.
+        The Alembic geometry is fully displayed.
 	
-	Point Cloud:
-	    Only the points are displayed.
+    Point Cloud:
+        Only the points are displayed.
 	
-	Bounding Box:
-	    Only the geometry bounding boxes are displayed.
+    Bounding Box:
+        Only the geometry bounding boxes are displayed.
 	
-	Centroid:
-	    Only the geometry centroid is displayed.
+    Centroid:
+        Only the geometry centroid is displayed.
 	    
-	Hidden:
-	    No geometry is displayed.
+    Hidden:
+        No geometry is displayed.
 
 Points:
     #id: pointmode
@@ -99,30 +99,31 @@ Points:
 Create Primitives For:
     #id: abcxform
     
-    When loading Alembic primitives, create separate primitives for:
+    Packed primitives can be created for shapes, transforms, or both. By default
+    packed primitives are only created for shapes.
 
-	Shape Nodes Only:
-		Geometry in the Alembic scene only.
+    Shape Nodes Only:
+        Geometry in the Alembic scene only.
         
-	Shapes and Transforms:
-		Geometry and transforms in the Alembic scene.
+    Shapes and Transforms:
+        Geometry and transforms in the Alembic scene.
         
-	Transform Nodes Only:
-		Transforms in the Alembic scene only.
+    Transform Nodes Only:
+        Transforms in the Alembic scene only.
 
 Poly Soup Primitives:
     #id: polysoup
 
-	When loading Houdini geometry, this option determines whether Alembic Polygon Meshes will be converted to Houdini Poly Soup primitives.  Houdini Poly Soup primitives use less resources to store and render.  At the current time Poly Soups cannot be rendered as subdivision surfaces by Mantra.
+    When loading Houdini geometry, this option determines whether Alembic Polygon Meshes will be converted to Houdini Poly Soup primitives.  Houdini Poly Soup primitives use less resources to store and render.  At the current time Poly Soups cannot be rendered as subdivision surfaces by Mantra.
 
-	No Poly Soup Primitives:
-		No polygon soup primitives will be created.  Each face in a mesh will have a unique Houdini polygon primitive.
+    No Poly Soup Primitives:
+        No polygon soup primitives will be created.  Each face in a mesh will have a unique Houdini polygon primitive.
         
-	Use Poly Soups For Polygon Meshes:
-		Create polygon soup primitives for Alembic Polygon Meshes where possible.  This will currently not be done if there are uniform attributes on the mesh or if there are face sets.
+    Use Poly Soups For Polygon Meshes:
+        Create polygon soup primitives for Alembic Polygon Meshes where possible.  This will currently not be done if there are uniform attributes on the mesh or if there are face sets.
         
-	Use Poly Soups Wherever Possible:
-		Create Poly Soup primitives for both Alembic Polygon Meshes and Alembic Subdivision Surface primitives.  If there are uniform attributes (per-face attributes) these will be lost.
+    Use Poly Soups Wherever Possible:
+        Create Poly Soup primitives for both Alembic Polygon Meshes and Alembic Subdivision Surface primitives.  If there are uniform attributes (per-face attributes) these will be lost.
 
 Transform Geometry To World Space:
     #id: includeXform
@@ -133,19 +134,19 @@ Transform Geometry To World Space:
 Use Visibility:
     #id: usevisibility
         
-	Use the visibility settings defined in the Alembic file to determine
-	whether to load geometry.  When loading Alembic Delayed Load
-	primitives, hidden primitives will still be loaded, but will not create
-	any visible geometry.  There may be additional cost to using visibility
-	with Alembic Delayed Load primitives.
+    Use the visibility settings defined in the Alembic file to determine
+    whether to load geometry.  When loading Alembic Delayed Load
+    primitives, hidden primitives will still be loaded, but will not create
+    any visible geometry.  There may be additional cost to using visibility
+    with Alembic Delayed Load primitives.
 
 Set Zero Time for Static Geometry:
     #id: statictimezero
         
-	Set the time/frame for static geometry to 0 regardless of the frame
-	specified.  This is an optimization that lets mantra load static
-	geometry slightly faster when there are multiple instances of the same
-	shape node.
+    Set the time/frame for static geometry to 0 regardless of the frame
+    specified.  This is an optimization that lets mantra load static
+    geometry slightly faster when there are multiple instances of the same
+    shape node.
 
 Primitive Groups:
     #id: groupnames
