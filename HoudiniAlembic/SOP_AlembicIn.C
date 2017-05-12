@@ -697,7 +697,10 @@ int
 SOP_AlembicIn2::reloadGeo(void *data, int index, float time, const PRM_Template *tplate)
 {
     SOP_AlembicIn2 *me = (SOP_AlembicIn2 *) data;
-    GABC_Util::clearCache();
+
+    UT_String fileName;
+    me->evalString(fileName, "fileName", 0, time);
+    GABC_Util::clearCache(fileName);
     me->unloadData();
     return 1;
 }
