@@ -1182,13 +1182,10 @@ namespace
             PY_Py_RETURN_NONE;
         }
 
-	const TimeSamplingPtr &itime = schema.getTimeSampling();
-	index_t idx = itime->getNearIndex(sampleTime, schema.getNumSamples()).first;
-
         Alembic::Util::float32_t resx = 0;
         Alembic::Util::float32_t resy = 0;
-        resxPtr->getSample(idx, &resx);
-        resyPtr->getSample(idx, &resy);
+        resxPtr->getSample(resxPtr->getNearIndex(sampleTime).first, &resx);
+        resyPtr->getSample(resyPtr->getNearIndex(sampleTime).first, &resy);
 
         PY_PyObject    *result = PY_PyTuple_New(2);
         PY_PyTuple_SetItem(result, 0, PY_PyFloat_FromDouble(resx));
