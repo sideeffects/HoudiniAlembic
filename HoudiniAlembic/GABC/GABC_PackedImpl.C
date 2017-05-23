@@ -925,6 +925,7 @@ GABC_PackedImpl::setFilename(const UT_StringHolder &v)
     {
 	myFilename = v;
 	myCache.clear();
+	myObject.purge();
 	markDirty();
     }
 }
@@ -936,6 +937,7 @@ GABC_PackedImpl::setObjectPath(const UT_StringHolder &v)
     {
 	myObjectPath = v;
 	myCache.clear();
+	myObject.purge();
 	markDirty();
     }
 }
