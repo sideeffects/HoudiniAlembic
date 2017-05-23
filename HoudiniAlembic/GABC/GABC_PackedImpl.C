@@ -541,6 +541,7 @@ GABC_PackedImpl::setFilename(const UT_StringHolder &v)
     {
 	myFilename = v;
 	myCache.clear();
+	myObject.purge();
 	markDirty();
     }
 }
@@ -552,6 +553,7 @@ GABC_PackedImpl::setObjectPath(const UT_StringHolder &v)
     {
 	myObjectPath = v;
 	myCache.clear();
+	myObject.purge();
 	markDirty();
     }
 }
@@ -618,6 +620,7 @@ GABC_PackedImpl::GTCache::getMemoryUsage(bool inclusive) const
 
     return mem;
 }
+
 
 void
 GABC_PackedImpl::GTCache::updateFrame(fpreal frame)
