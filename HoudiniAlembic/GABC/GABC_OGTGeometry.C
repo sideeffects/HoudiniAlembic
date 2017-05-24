@@ -1700,7 +1700,7 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
     bool all_groups = (ctx.faceSetMode() == GABC_OOptions::FACESET_ALL_GROUPS);
     for (GT_FaceSetMap::iterator it = facesets->begin(); !it.atEnd(); ++it)
     {
-	std::string		 name = it.name();
+	auto	&&name = it.name();
 	// skip the group used to specific subdivision surfaces
 	if (subd && strcmp(subd, name.c_str()) == 0)
 	    continue;
@@ -1713,7 +1713,7 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
 		case GT_PRIM_POLYGON_MESH:
 		    {
 			OPolyMeshSchema	&ss = myShape.myPolyMesh->getSchema();
-			OFaceSet &fset = ss.createFaceSet(name);
+			OFaceSet &fset = ss.createFaceSet(name.toStdString());
 			OFaceSetSchema	&fss = fset.getSchema();
 			fss.setTimeSampling(ctx.timeSampling());
 		    }
@@ -1721,7 +1721,7 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
 		case GT_PRIM_SUBDIVISION_MESH:
 		    {
 			OSubDSchema	&ss = myShape.mySubD->getSchema();
-			OFaceSet &fset = ss.createFaceSet(name);
+			OFaceSet &fset = ss.createFaceSet(name.toStdString());
 			OFaceSetSchema	&fss = fset.getSchema();
 			fss.setTimeSampling(ctx.timeSampling());
 		    }
