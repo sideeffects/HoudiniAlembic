@@ -272,7 +272,9 @@ namespace
 
 	    // Build a new styler for this alembic prim.
 	    void *handle = queryObject(nullptr);
-	    STY_SubjectHandle subject(new GSTY_SubjectPrim(myList(0), 0, 0, myGroupSharingHolder));
+	    // TODO: This can be slow since we lookup the styler attribute on
+	    // every call.  It might be faster to cache the handles.
+	    STY_SubjectHandle subject(new GSTY_SubjectPrim(myList(0), myGroupSharingHolder));
 
 	    {
 		auto	kid = createChild();
