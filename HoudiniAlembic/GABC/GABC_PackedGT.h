@@ -163,7 +163,8 @@ class GABC_API GABC_PackedAlembic : public GT_GEOPrimPacked
 {
 public:
 	     GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
-				const GU_PrimPacked *prim);
+				const GU_PrimPacked *prim,
+				bool tmp_new_scheme = false);
     
 	     GABC_PackedAlembic(const GABC_PackedAlembic &src);
     virtual ~GABC_PackedAlembic();
@@ -207,12 +208,16 @@ public:
     bool	 		getCachedTransform(GT_TransformHandle &ph) const;
     void			cacheVisibility(bool visible);
     bool	 		getCachedVisibility(bool &visible) const;
+
+    /// Temporary until switchover
+    bool			tmpIsNewScheme() const {return myTmpNewScheme;}
 private:
     int64	      myID;
     GEO_AnimationType myAnimType;
     GABC_AlembicCache myCache;
     bool	      myAnimVis;
     bool	      myVisibleConst; // only valid when myAnimVis is false.
+    bool	      myTmpNewScheme;
 };
 
 /// Alembic mesh which contains multiple alembic primitives merged together.

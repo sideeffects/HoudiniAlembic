@@ -94,7 +94,7 @@ public:
 		{
 		    GABC_PackedAlembic *packgt =
 			new GABC_PackedAlembic(myGeometry->getGeometry(0),
-					  itr->second(0));
+					       itr->second(0), true);
 	    
 		    if(myCollectAnimInfo)
 		    {
@@ -425,14 +425,16 @@ private:
 
 
 GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
-				       const GU_PrimPacked *prim)
+				       const GU_PrimPacked *prim,
+				       bool tmp_is_new_scheme)
     : GT_GEOPrimPacked(prim_gdh, prim),
       myID(0),
       myAnimType(GEO_ANIMATION_INVALID),
       myAnimVis(false),
-      myVisibleConst(true)
+      myVisibleConst(true),
+      myTmpNewScheme(tmp_is_new_scheme)
 {
-    if(prim)
+    if(prim && tmp_is_new_scheme)
     {
 	const GABC_PackedImpl *impl =
 	    UTverify_cast<const GABC_PackedImpl *>(prim->implementation());
