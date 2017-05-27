@@ -45,7 +45,7 @@
 #include <UT/UT_SysClone.h>
 #include <UT/UT_WorkBuffer.h>
 #include <FS/FS_Info.h>
-#include <boost/tokenizer.hpp>
+#include <hboost/tokenizer.hpp>
 
 using namespace GABC_NAMESPACE;
 
@@ -811,8 +811,8 @@ namespace
         void
         tokenizeObjectPath(const std::string & objectPath, PathList & pathList)
         {
-            using Separator = boost::char_separator<char>;
-            using Tokenizer = boost::tokenizer<Separator>;
+            using Separator = hboost::char_separator<char>;
+            using Tokenizer = hboost::tokenizer<Separator>;
 
             Tokenizer   tokenizer(objectPath, Separator( "/" ));
             for (auto iter = tokenizer.begin();
