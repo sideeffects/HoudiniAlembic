@@ -485,7 +485,7 @@ namespace
 	int tsize = TRAITS::dataType().getExtent();
 	int n = data->entries();
 	const fpreal32 *flatarray = fillArray<fpreal32>(data, store, tsize);
-	if(!flatarray)
+	if(n && !flatarray)
 	    return false;
 
 	sample.setScope(rixlate.getScope(name, owner));
