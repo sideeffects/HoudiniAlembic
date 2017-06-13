@@ -92,20 +92,23 @@ class CollectData : public GT_GEOPrimCollectData
 {
 public:
     CollectData(const GT_GEODetailListHandle &geometry,
-	    bool useViewportLOD)
+	    const GT_RefineParms *parms)
 	: GT_GEOPrimCollectData()
 	, myGeometry(geometry)
-	, myUseViewportLOD(useViewportLOD)
+	, mySkipInvisible(GT_RefineParms::getAlembicSkipInvisible(parms))
+	, myUseViewportLOD(GT_GEOPrimPacked::useViewportLOD(parms))
     {
     }
     virtual ~CollectData() {}
 
     bool	append(const GU_PrimPacked &prim)
     {
-	const GABC_PackedImpl	*impl;
-	impl = UTverify_cast<const GABC_PackedImpl *>(prim.implementation());
-	if (!impl->visibleGT())
+	auto impl= UTverify_cast<const GABC_PackedImpl*>(prim.implementation());
+	if (mySkipInvisible
+		&& !impl->visibleGT())
+	{
 	    return true;	// Handled
+	}
 	if (myUseViewportLOD)
 	{
 	    switch (prim.viewportLOD())
@@ -201,6 +204,7 @@ public:
 
 private:
     const GT_GEODetailListHandle	myGeometry;
+    const bool				mySkipInvisible;
     UT_Array<const GU_PrimPacked *>	myBoxPrims;
     UT_Array<const GU_PrimPacked *>	myCentroidPrims;
     bool				myUseViewportLOD;
@@ -395,8 +399,7 @@ GT_GEOPrimCollectData *
 GABC_CollectPacked::beginCollecting(const GT_GEODetailListHandle &geometry,
 				const GT_RefineParms *parms) const
 {
-    return new CollectData(geometry,
-	    GT_GEOPrimPacked::useViewportLOD(parms));
+    return new CollectData(geometry, parms);
 }
 
 GT_PrimitiveHandle
