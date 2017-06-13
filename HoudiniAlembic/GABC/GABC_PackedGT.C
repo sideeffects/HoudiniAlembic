@@ -189,7 +189,8 @@ public:
 	: GT_GEOPrimCollectData()
 	, myGeometry(geometry)
 	, myUseViewportLOD(GT_GEOPrimPacked::useViewportLOD(parms))
-	, myAlembicInstancing(parms ? parms->getAlembicInstancing() : false)
+	, mySkipInvisible(GT_RefineParms::getAlembicSkipInvisible(parms))
+	, myAlembicInstancing(GT_RefineParms::getAlembicInstancing(parms))
 	, myRefineParms(parms)
     { }
     virtual ~CollectData() {}
@@ -197,8 +198,12 @@ public:
     bool	append(const GU_PrimPacked &prim)
     {
 	auto impl= UTverify_cast<const GABC_PackedImpl*>(prim.implementation());
-	if (!impl->visibleGT()&& gabcExprUseArchivePrims() <= 1)
+	if (mySkipInvisible
+		&& !impl->visibleGT()
+		&& gabcExprUseArchivePrims() <= 1)
+	{
 	    return true;	// Handled
+	}
 	if (myUseViewportLOD)
 	{
 	    switch (prim.viewportLOD())
@@ -410,6 +415,7 @@ private:
     
     // Viewport
     const bool				myUseViewportLOD;
+    const bool				mySkipInvisible;
     const bool				myAlembicInstancing;
     UT_Array<const GU_PrimPacked *>	myBoxPrims;
     UT_Array<const GU_PrimPacked *>	myCentroidPrims;
