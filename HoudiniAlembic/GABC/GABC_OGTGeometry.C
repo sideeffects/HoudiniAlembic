@@ -347,8 +347,11 @@ namespace
             }
 
 	    GABC_OProperty *prop;
-	    if(scope == Alembic::AbcGeom::kConstantScope && data->getTupleSize() == 1)
+	    if(scope == Alembic::AbcGeom::kConstantScope
+		&& GABC_OScalarProperty::isValidScalarData(data))
+	    {
 		prop = new GABC_OScalarProperty();
+	    }
 	    else
 		prop = new GABC_OArrayProperty(scope);
             if (!prop->start(cp, exp_name, data, err, ctx))

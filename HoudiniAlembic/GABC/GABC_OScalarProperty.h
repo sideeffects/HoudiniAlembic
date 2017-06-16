@@ -57,6 +57,9 @@ public:
     GABC_OScalarProperty() {}
     ~GABC_OScalarProperty();
 
+    /// true if 'array' can be represented as an Alembic scalar
+    static bool isValidScalarData(const GT_DataArrayHandle &array);
+
     /// See GABC_OProperty for information about methods.
     bool    start(OCompoundProperty &parent,
                     const char *name,

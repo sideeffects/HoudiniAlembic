@@ -256,6 +256,112 @@ do \
 } while(false)
 
 bool
+GABC_OScalarProperty::isValidScalarData(const GT_DataArrayHandle &array)
+{
+    if (!array)
+	return false;
+
+    auto storage = array->getStorage();
+    auto tuplesize = array->getTupleSize();
+    switch (array->getTypeInfo())
+    {
+	case GT_TYPE_POINT:
+	case GT_TYPE_HPOINT:
+	case GT_TYPE_VECTOR:
+	    if(tuplesize >= 2
+		&& (storage == GT_STORE_INT32
+			|| storage == GT_STORE_REAL16
+			|| storage == GT_STORE_REAL32
+			|| storage == GT_STORE_REAL64))
+		return true;
+            break;
+
+	case GT_TYPE_NORMAL:
+	    if(tuplesize >= 2
+		&& (storage == GT_STORE_REAL16
+			|| storage == GT_STORE_REAL32
+			|| storage == GT_STORE_REAL64))
+		return true;
+	    break;
+
+	case GT_TYPE_COLOR:
+	    if(tuplesize >= 3
+		&& (storage == GT_STORE_UINT8
+			|| storage == GT_STORE_REAL16
+			|| storage == GT_STORE_REAL32
+			|| storage == GT_STORE_REAL64))
+		return true;
+	    break;
+
+	case GT_TYPE_QUATERNION:
+	    if(tuplesize >= 4
+		&& (storage == GT_STORE_REAL16
+			|| storage == GT_STORE_REAL32
+			|| storage == GT_STORE_REAL64))
+		return true;
+	    break;
+
+	case GT_TYPE_MATRIX3:
+	    if(tuplesize >= 9
+		&& (storage == GT_STORE_REAL16
+			|| storage == GT_STORE_REAL32
+			|| storage == GT_STORE_REAL64))
+		return true;
+	    break;
+
+	case GT_TYPE_MATRIX:
+	    if(tuplesize >= 16
+		&& (storage == GT_STORE_REAL16
+			|| storage == GT_STORE_REAL32
+			|| storage == GT_STORE_REAL64))
+		return true;
+	    break;
+
+        case GT_TYPE_BOX2:
+	    if(tuplesize >= 4
+		&& (storage == GT_STORE_INT32
+			|| storage == GT_STORE_REAL16
+			|| storage == GT_STORE_REAL32
+			|| storage == GT_STORE_REAL64))
+		return true;
+	    break;
+
+        case GT_TYPE_BOX:
+	    if(tuplesize >= 6
+		&& (storage == GT_STORE_INT32
+			|| storage == GT_STORE_REAL16
+			|| storage == GT_STORE_REAL32
+			|| storage == GT_STORE_REAL64))
+		return true;
+	    break;
+
+	case GT_TYPE_ST:
+	default:
+	    break;
+    }
+
+    if(tuplesize == 1)
+    {
+	switch (storage)
+	{
+	    case GT_STORE_UINT8:
+	    case GT_STORE_INT32:
+	    case GT_STORE_INT64:
+	    case GT_STORE_REAL16:
+	    case GT_STORE_REAL32:
+	    case GT_STORE_REAL64:
+	    case GT_STORE_STRING:
+		return true;
+
+	    default:
+		break;
+	}
+    }
+
+    return false;
+}
+
+bool
 GABC_OScalarProperty::start(OCompoundProperty &parent,
         const char *name,
         const GT_DataArrayHandle &array,
