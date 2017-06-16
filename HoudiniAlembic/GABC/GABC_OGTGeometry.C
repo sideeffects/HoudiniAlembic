@@ -26,6 +26,7 @@
  */
 
 #include "GABC_OArrayProperty.h"
+#include "GABC_OScalarProperty.h"
 #include "GABC_OError.h"
 #include "GABC_OGTGeometry.h"
 #include "GABC_OOptions.h"
@@ -345,7 +346,11 @@ namespace
                 continue;
             }
 
-	    GABC_OProperty *prop = new GABC_OArrayProperty(scope);
+	    GABC_OProperty *prop;
+	    if(scope == Alembic::AbcGeom::kConstantScope && data->getTupleSize() == 1)
+		prop = new GABC_OScalarProperty();
+	    else
+		prop = new GABC_OArrayProperty(scope);
             if (!prop->start(cp, exp_name, data, err, ctx))
             {
                 delete prop;
