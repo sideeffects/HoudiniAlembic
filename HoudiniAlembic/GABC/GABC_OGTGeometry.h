@@ -64,7 +64,7 @@ public:
 
     typedef GABC_Util::PropertyMap                  PropertyMap;
     typedef GABC_Util::PropertyMapInsert            PropertyMapInsert;
-
+    typedef GABC_Util::CollisionResolver	    CollisionResolver;
     /// A simple set of strings
     class IgnoreList
 	: public UT_StringSet
@@ -332,6 +332,7 @@ private:
 
     IntrinsicCache          myCache; // Cache for space optimization
     OVisibilityProperty     myVisibility;
+    CollisionResolver	    myKnownArbCollisionResolver;
     UT_Set<std::string>	    myKnownArbProperties;
     PropertyMap             myArbProperties[MAX_PROPERTIES];
     SecondaryCache         *mySecondaryCache;

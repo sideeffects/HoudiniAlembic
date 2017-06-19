@@ -347,6 +347,21 @@ public:
     static const UT_StringHolder	theLockGeometryParameter;
     static const UT_StringHolder	theUserPropsValsAttrib;
     static const UT_StringHolder	theUserPropsMetaAttrib;
+
+    /// Class to efficiently find a new name when a collision is detected.
+    class CollisionResolver
+    {
+    public:
+	/// Updates 'name' to avoid collisions.
+	void resolve(std::string &name) const;
+	/// Adds 'name' to set of known names.
+	void add(const std::string &name);
+
+    private:
+	// For names ending with "_number", a mapping from the prefix to the
+	// largest used number.
+	UT_Map<std::string, exint> myMaxId;
+    };
 };
 
 } // GABC_NAMESPACE

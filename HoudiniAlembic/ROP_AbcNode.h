@@ -31,6 +31,9 @@
 #include "ROP_AbcArchive.h"
 
 #include <UT/UT_Map.h>
+#include <GABC/GABC_Util.h>
+
+typedef GABC_NAMESPACE::GABC_Util::CollisionResolver CollisionResolver;
 
 /// Class describing a node of data exported to an Alembic archive.  This
 /// is subclassed for the various types of nodes found in an Alembic archive.
@@ -96,10 +99,7 @@ protected:
     UT_SortedMap<std::string, ROP_AbcNode *> myChildren;
 
 private:
-    // for nodes ending with "_number", a mapping from the prefix to the
-    // largest used number.  This can be used to efficiently find a new name
-    // when a collision is detected.
-    UT_Map<std::string, exint> myMaxUsedId;
+    CollisionResolver myResolver;
 };
 
 /// Class describing the root node of data exported to an Alembic archive.

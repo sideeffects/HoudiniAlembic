@@ -316,6 +316,7 @@ namespace
             GABC_OError &err,
             const GABC_OOptions &ctx,
             const IgnoreList &skips,
+	    GABC_Util::CollisionResolver &collision_resolver,
 	    UT_Set<std::string> &known_attribs)
     {
         const IgnoreList   &default_skips = GABC_OGTGeometry::getDefaultSkip();
@@ -332,26 +333,26 @@ namespace
 	{
 	    exint	 i = it->second;
 	    auto	 name = attribs->getName(i);
-	    auto	 exp_name = attribs->getExportName(i);
-	    if(known_attribs.find(exp_name) != known_attribs.end())
-	    {
-		err.warning("Cannot export multiple attributes as %s.", exp_name);
-		continue;
-	    }
-
+	    std::string	 exp_name = attribs->getExportName(i);
 	    auto	&data = attribs->get(i);
 	    auto	 scope = rixlate.getScope(name, owner);
 
             if (!data
                     || skips.contains(exp_name)
-                    || default_skips.contains(exp_name)
-                    || !ctx.matchAttribute(scope, exp_name)
+                    || default_skips.contains(exp_name.c_str())
+                    || !ctx.matchAttribute(scope, exp_name.c_str())
                     || data->getTupleSize() < 1
                     || data->getTypeInfo() == GT_TYPE_HIDDEN
-                    || arb_map.count(exp_name))
+                    || arb_map.count(exp_name.c_str()))
             {
                 continue;
             }
+
+	    if(known_attribs.find(exp_name) != known_attribs.end())
+	    {
+		collision_resolver.resolve(exp_name);
+		err.warning("Renaming property to %s to resolve collision.", exp_name.c_str());
+	    }
 
 	    GABC_OProperty *prop;
 	    if(scope == Alembic::AbcGeom::kConstantScope
@@ -361,12 +362,13 @@ namespace
 	    }
 	    else
 		prop = new GABC_OArrayProperty(scope);
-            if (!prop->start(cp, exp_name, data, err, ctx))
+            if (!prop->start(cp, exp_name.c_str(), data, err, ctx))
             {
                 delete prop;
                 return false;
             }
 	    arb_map.insert(PropertyMapInsert(name, prop));
+	    collision_resolver.add(exp_name);
 	    known_attribs.insert(exp_name);
         }
 
@@ -1799,6 +1801,7 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
                 err,
                 ctx,
                 *skip,
+		myKnownArbCollisionResolver,
 		myKnownArbProperties);
     result = result && makeGeomParams(myArbProperties[VERTEX_PROPERTIES],
                 prim->getVertexAttributes(),
@@ -1808,6 +1811,7 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
                 err,
                 ctx,
                 *skip,
+		myKnownArbCollisionResolver,
 		myKnownArbProperties);
     result = result && makeGeomParams(myArbProperties[UNIFORM_PROPERTIES],
 		prim->getUniformAttributes(),
@@ -1817,6 +1821,7 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 		err,
 		ctx,
 		*skip,
+		myKnownArbCollisionResolver,
 		myKnownArbProperties);
     result = result && makeGeomParams(myArbProperties[DETAIL_PROPERTIES],
 		prim->getDetailAttributes(),
@@ -1826,6 +1831,7 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 		err,
 		ctx,
 		*skip,
+		myKnownArbCollisionResolver,
 		myKnownArbProperties);
 
     return result;
