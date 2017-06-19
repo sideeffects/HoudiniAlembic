@@ -114,6 +114,13 @@ namespace
     typedef Alembic::Util::Dimensions               Dimensions;
     typedef Alembic::Util::PlainOldDataType         PlainOldDataType;
 
+#define REINTERPRET_DATA(FUNC) \
+    do \
+    { \
+	for (int i = 0; i < tuple_size; ++i) \
+	    buffer[i] = src->FUNC(0, i); \
+    } while(false)
+
     // Alembic 8-bit integers, 16-bit integers, and unsigned 16-bit integers
     // are stored as 32-bit integers in the GT_DataArray. Similarly,
     // unsigned 32-bit integers are stored as 64-bit integers.
@@ -130,10 +137,37 @@ namespace
 	    const GT_DataArrayHandle &src,
 	    int tuple_size)
     {
-        for (int i = 0; i < tuple_size; ++i)
-        {
-            buffer[i] = src->getI32(0, i);
-        }
+	switch(src->getStorage())
+	{
+	    case GT_STORE_UINT8:
+		REINTERPRET_DATA(getU8);
+		break;
+
+	    case GT_STORE_INT32:
+		REINTERPRET_DATA(getI32);
+		break;
+
+	    case GT_STORE_INT64:
+		REINTERPRET_DATA(getI64);
+		break;
+
+	    case GT_STORE_REAL16:
+		REINTERPRET_DATA(getF16);
+		break;
+
+	    case GT_STORE_REAL32:
+		REINTERPRET_DATA(getF32);
+		break;
+
+	    case GT_STORE_REAL64:
+		REINTERPRET_DATA(getF64);
+		break;
+
+	    default:
+		UT_ASSERT(0 && "Invalid Storage Type.");
+		for (int i = 0; i < tuple_size; ++i)
+		    buffer[i] = 0;
+	}
     }
 
     // Cast the GT_DataArray to the correct numeric type and pass
