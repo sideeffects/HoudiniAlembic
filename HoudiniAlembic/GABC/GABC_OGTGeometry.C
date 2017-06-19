@@ -26,6 +26,7 @@
  */
 
 #include "GABC_OArrayProperty.h"
+#include "GABC_OScalarProperty.h"
 #include "GABC_OError.h"
 #include "GABC_OGTGeometry.h"
 #include "GABC_OOptions.h"
@@ -314,7 +315,8 @@ namespace
 	    const RiXlate &rixlate,
             GABC_OError &err,
             const GABC_OOptions &ctx,
-            const IgnoreList &skips)
+            const IgnoreList &skips,
+	    UT_Set<std::string> &known_attribs)
     {
         const IgnoreList   &default_skips = GABC_OGTGeometry::getDefaultSkip();
 
@@ -331,6 +333,12 @@ namespace
 	    exint	 i = it->second;
 	    auto	 name = attribs->getName(i);
 	    auto	 exp_name = attribs->getExportName(i);
+	    if(known_attribs.find(exp_name) != known_attribs.end())
+	    {
+		err.warning("Cannot export multiple attributes as %s.", exp_name);
+		continue;
+	    }
+
 	    auto	&data = attribs->get(i);
 	    auto	 scope = rixlate.getScope(name, owner);
 
@@ -345,13 +353,19 @@ namespace
                 continue;
             }
 
-	    GABC_OProperty *prop = new GABC_OArrayProperty(scope);
+	    // FIXME: should this check scope too?
+	    GABC_OProperty *prop;
+	    if(data->getTupleSize() == 1)
+		prop = new GABC_OScalarProperty();
+	    else
+		prop = new GABC_OArrayProperty(scope);
             if (!prop->start(cp, exp_name, data, err, ctx))
             {
                 delete prop;
                 return false;
             }
 	    arb_map.insert(PropertyMapInsert(name, prop));
+	    known_attribs.insert(exp_name);
         }
 
         return true;
@@ -1783,7 +1797,8 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 		rixlate,
                 err,
                 ctx,
-                *skip);
+                *skip,
+		myKnownArbProperties);
     result = result && makeGeomParams(myArbProperties[VERTEX_PROPERTIES],
                 prim->getVertexAttributes(),
                 cp,
@@ -1791,7 +1806,8 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 		rixlate,
                 err,
                 ctx,
-                *skip);
+                *skip,
+		myKnownArbProperties);
     result = result && makeGeomParams(myArbProperties[UNIFORM_PROPERTIES],
 		prim->getUniformAttributes(),
 		cp,
@@ -1799,7 +1815,8 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 		rixlate,
 		err,
 		ctx,
-		*skip);
+		*skip,
+		myKnownArbProperties);
     result = result && makeGeomParams(myArbProperties[DETAIL_PROPERTIES],
 		prim->getDetailAttributes(),
 		cp,
@@ -1807,7 +1824,8 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 		rixlate,
 		err,
 		ctx,
-		*skip);
+		*skip,
+		myKnownArbProperties);
 
     return result;
 }

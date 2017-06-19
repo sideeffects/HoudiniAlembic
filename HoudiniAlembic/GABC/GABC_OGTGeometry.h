@@ -332,6 +332,7 @@ private:
 
     IntrinsicCache          myCache; // Cache for space optimization
     OVisibilityProperty     myVisibility;
+    UT_Set<std::string>	    myKnownArbProperties;
     PropertyMap             myArbProperties[MAX_PROPERTIES];
     SecondaryCache         *mySecondaryCache;
     UT_StringArray          myFaceSetNames;
