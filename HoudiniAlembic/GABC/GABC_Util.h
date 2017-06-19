@@ -349,7 +349,7 @@ public:
     static const UT_StringHolder	theUserPropsMetaAttrib;
 
     /// Class to efficiently find a new name when a collision is detected.
-    class CollisionResolver
+    class GABC_API CollisionResolver
     {
     public:
 	/// Updates 'name' to avoid collisions.
