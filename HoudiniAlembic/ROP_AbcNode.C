@@ -39,19 +39,12 @@ ROP_AbcNode::makeCollisionFreeName(std::string &name) const
     if(myChildren.find(name) == myChildren.end())
 	return;
 
-    auto it = myMaxUsedId.find(name);
-    exint val = (it != myMaxUsedId.end()) ? it->second + 1 : 1;
-
-    UT_WorkBuffer buf;
-    buf.append(name.c_str());
-    buf.appendSprintf("_%" SYS_PRId64, val);
-    name = buf.buffer();
-
+    myResolver.resolve(name);
     UT_Array<const ROP_AbcNode *> ancestors;
     for(const ROP_AbcNode *node = this; node; node = node->getParent())
 	ancestors.append(node);
 
-    buf.clear();
+    UT_WorkBuffer buf;
     for(exint i = ancestors.entries() - 2; i >= 0; --i)
     {
 	buf.append('/');
@@ -71,35 +64,5 @@ ROP_AbcNode::addChild(ROP_AbcNode *child)
     UT_ASSERT(!child->myParent);
     child->myParent = this;
     myChildren.emplace(name, child);
-
-    exint n = name.length();
-
-    const char *s = name.c_str();
-    for(exint i = n; i > 0; --i)
-    {
-	char c = s[i - 1];
-	if(c < '0' || c > '9')
-	{
-	    if(c == '_' && i < n)
-	    {
-		UT_WorkBuffer buf;
-		buf.strncpy(s, i - 1);
-		std::string base_name(buf.buffer());
-		exint val = 0;
-		const char *si = &s[i];
-		while(*si)
-		    val = 10 * val + *(si++) - '0';
-
-		auto it = myMaxUsedId.find(base_name);
-		if(it != myMaxUsedId.end())
-		{
-		    if(val > it->second)
-			it->second = val;
-		}
-		else
-		    myMaxUsedId.emplace(base_name, val);
-	    }
-	    break;
-	}
-    }
+    myResolver.add(name);
 }

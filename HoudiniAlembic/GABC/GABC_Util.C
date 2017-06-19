@@ -2710,3 +2710,48 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
 
     return true;
 }
+
+void
+GABC_Util::CollisionResolver::resolve(std::string &name) const
+{
+    auto it = myMaxId.find(name);
+    exint val = (it != myMaxId.end()) ? it->second + 1 : 1;
+    UT_WorkBuffer buf;
+    buf.append(name.c_str());
+    buf.appendSprintf("_%" SYS_PRId64, val);
+    name = buf.buffer();
+}
+
+void
+GABC_Util::CollisionResolver::add(const std::string &name)
+{
+    exint n = name.length();
+    const char *s = name.c_str();
+    for(exint i = n; i > 0; --i)
+    {
+	char c = s[i - 1];
+	if(c < '0' || c > '9')
+	{
+	    if(c == '_' && i < n)
+	    {
+		UT_WorkBuffer buf;
+		buf.strncpy(s, i - 1);
+		std::string base_name(buf.buffer());
+		exint val = 0;
+		const char *si = &s[i];
+		while(*si)
+		    val = 10 * val + *(si++) - '0';
+
+		auto it = myMaxId.find(base_name);
+		if(it != myMaxId.end())
+		{
+		    if(val > it->second)
+			it->second = val;
+		}
+		else
+		    myMaxId.emplace(base_name, val);
+	    }
+	    break;
+	}
+    }
+}
