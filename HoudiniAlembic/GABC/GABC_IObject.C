@@ -1556,10 +1556,10 @@ namespace
 
         switch (owner)
         {
-            case GT_OWNER_POINT:
-                return emptyString;
             case GT_OWNER_VERTEX:
-                return getAttributeNames(namemap, GA_ATTRIB_VERTEX,
+                return emptyString;
+            case GT_OWNER_POINT:
+                return getAttributeNames(namemap, GA_ATTRIB_POINT,
 					 vertex_scope, 3, arb, &P, &v, nullptr,
 					 nullptr, &ids, &widths);
             case GT_OWNER_PRIMITIVE:
