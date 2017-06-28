@@ -1624,7 +1624,7 @@ namespace
 	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 
-	point = acreate.build(maxArrayValue(counts), prim, obj, namemap,
+	point = acreate.build(maxArrayValue(indices), prim, obj, namemap,
 			      load_style, t, GA_ATTRIB_POINT, point_scope, 2,
 			      arb, &P, &v, nullptr, &uvs);
 	vertex = acreate.build(indices->entries(), prim, obj, namemap,
@@ -1787,7 +1787,7 @@ namespace
 	const IN3fGeomParam	&N = ss.getNormalsParam();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 
-	point = acreate.build(maxArrayValue(counts), prim, obj, namemap,
+	point = acreate.build(maxArrayValue(indices), prim, obj, namemap,
 			      load_style, t, GA_ATTRIB_POINT, point_scope, 2,
 			      arb, &P, &v, &N, &uvs);
 	vertex = acreate.build(indices->entries(), prim, obj, namemap,
