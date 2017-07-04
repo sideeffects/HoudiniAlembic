@@ -1171,9 +1171,10 @@ GABC_PackedArchive::setRefinedSubset(bool has_const,
 
 bool
 GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
-				const GT_RefineParms *parms)
+				const GT_RefineParms *parms,
+				bool force_update)
 {
-    if(prev_archive && archiveMatch(prev_archive))
+    if(!force_update && prev_archive && archiveMatch(prev_archive))
 	return false;
 
     int num_streams = 1; 

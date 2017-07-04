@@ -113,7 +113,14 @@ public:
 			    { myAlembicOffsets.append(alembic_prim_offset); }
 
     bool	bucketPrims(const GABC_PackedArchive *prev_archive,
-			    const GT_RefineParms *ref_parms);
+			    const GT_RefineParms *ref_parms,
+			    bool force_update);
+
+    int		getNumChildPrims() const
+		    {  return (myConstShapes.entries() +
+			       myTransformShapes.entries() +
+			       myDeformShapes.entries() +
+			       myCombinedShapes.entries()); }
 
     const UT_Array<GT_PrimitiveHandle> &constantShapes() const
 		    { return myConstShapes; }
