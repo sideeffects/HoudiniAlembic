@@ -196,14 +196,14 @@ SOP_AlembicPrimitive::setProperties(GU_PrimPacked *pack,
     fpreal	t = ctx.getTime();
     fpreal	fps = SYSmax(1e-6, FPS(t));
     UT_String	lod;
-    prim->setFrame(FRAME(t)/fps);
+    prim->setFrame(pack, FRAME(t)/fps);
     switch (VISIBILITY(t))
     {
 	case 0:
-	    prim->setUseVisibility(false);
+	    prim->setUseVisibility(pack, false);
 	    break;
 	case 1:
-	    prim->setUseVisibility(true);
+	    prim->setUseVisibility(pack, true);
 	    break;
 	// case 2: unchanged
     }
@@ -219,7 +219,7 @@ SOP_AlembicPrimitive::setProperties(GU_PrimPacked *pack,
 OP_ERROR
 SOP_AlembicPrimitive::cookInputGroups(OP_Context &context, int alone)
 {
-    return cookInputPrimitiveGroups(context, myGroup, myDetailGroupPair, alone);
+    return cookInputPrimitiveGroups(context, myGroup, alone);
 }
 
 OP_ERROR

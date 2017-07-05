@@ -446,7 +446,7 @@ moveAlembicTime(GU_Detail &gdp, fpreal finc)
 	GU_PrimPacked	*packed = UTverify_cast<GU_PrimPacked *>(prim);
 	GABC_PackedImpl	*abcprim = UTverify_cast<GABC_PackedImpl *>(packed->implementation());
 	if (abcprim)
-	    abcprim->setFrame(abcprim->frame() + finc);
+	    abcprim->setFrame(packed, abcprim->frame() + finc);
     }
 }
 

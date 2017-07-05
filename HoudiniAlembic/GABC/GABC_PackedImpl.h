@@ -77,19 +77,19 @@ public:
     virtual void	clearData();
 
     /// Give a UT_Options of load data, create resolver data for the primitive
-    virtual bool	load(const UT_Options &options,
+    virtual bool	load(GU_PrimPacked *prim, const UT_Options &options,
 				const GA_LoadMap &map)
-			    { return loadFrom(options, map); }
+			    { return loadFrom(prim, options, map); }
     virtual bool	supportsJSONLoad() const	{ return true; }
-    virtual bool	loadFromJSON(const UT_JSONValueMap &options,
+    virtual bool	loadFromJSON(GU_PrimPacked *prim, const UT_JSONValueMap &options,
 				const GA_LoadMap &map)
-			    { return loadFrom(options, map); }
+			    { return loadFrom(prim, options, map); }
 
     /// Depending on the update, the procedural should call one of:
-    ///	- transformDirty()
-    ///	- attributeDirty()
-    ///	- topologyDirty()
-    virtual void	update(const UT_Options &options);
+    /// - prim->transformDirty()
+    /// - prim->attributeDirty()
+    /// - prim->topologyDirty()
+    virtual void	update(GU_PrimPacked *prim, const UT_Options &options);
 
     /// Copy the resolver data into the UT_Options for saving
     virtual bool	save(UT_Options &options,
@@ -117,8 +117,8 @@ public:
 
     /// Return the primitive's "description".  This should be a unique
     /// identifier for the primitive and defaults to:
-    ///	  <tt>"%s.%d" % (getFactory()->name(), getPrim()->getNum()) </tt>
-    virtual void	getPrimitiveName(UT_WorkBuffer &wbuf) const;
+    ///	  <tt>"%s.%d" % (getFactory()->name(), prim->getMapIndex()) </tt>
+    virtual void	getPrimitiveName(const GU_PrimPacked *prim, UT_WorkBuffer &wbuf) const;
 
     /// Some procedurals have an "intrinsic" transform.  These are combined
     /// with the local transform on the geometry primitive.
@@ -154,37 +154,40 @@ public:
 
     const GABC_IObject	&object() const;
     const UT_StringHolder &filename() const { return myFilename; }
-    UT_StringHolder	  intrinsicFilename() const { return myFilename; }
+    UT_StringHolder	  intrinsicFilename(const GU_PrimPacked *prim) const { return myFilename; }
     const UT_StringHolder &objectPath() const	{ return myObjectPath; }
-    UT_StringHolder	 intrinsicObjectPath() const { return myObjectPath; }
-    UT_StringHolder	 intrinsicSourcePath() const { return object().getSourcePath(); }
+    UT_StringHolder	 intrinsicObjectPath(const GU_PrimPacked *prim) const { return myObjectPath; }
+    UT_StringHolder	 intrinsicSourcePath(const GU_PrimPacked *prim) const { return object().getSourcePath(); }
     fpreal		 frame() const		{ return myFrame; }
+    fpreal               intrinsicFrame(const GU_PrimPacked *prim) const { return myFrame; }
     bool		 useTransform() const	{ return myUseTransform; }
+    bool                 intrinsicUseTransform(const GU_PrimPacked *prim) const { return myUseTransform; }
     bool		 useVisibility() const	{ return myUseVisibility; }
+    bool                 intrinsicUseVisibility(const GU_PrimPacked *prim) const { return myUseVisibility; }
     GABC_NodeType	 nodeType() const	{ return object().nodeType(); }
     GEO_AnimationType	 animationType() const;
     bool		 isConstant() const
 			 {
 			     return animationType() == GEO_ANIMATION_CONSTANT;
 			 }
-    const char		*intrinsicAnimation() const
+    const char		*intrinsicAnimation(const GU_PrimPacked *prim) const
 			    { return GEOanimationType(animationType()); }
-    const char		*intrinsicNodeType() const
+    const char		*intrinsicNodeType(const GU_PrimPacked *prim) const
 			    { return GABCnodeType(nodeType()); }
-    int64		 intrinsicVisibility() const
+    int64		 intrinsicVisibility(const GU_PrimPacked *prim) const
 			    { return computeVisibility(false); }
-    int64		 intrinsicFullVisibility() const
+    int64		 intrinsicFullVisibility(const GU_PrimPacked *prim) const
 			    { return computeVisibility(true); }
     
-    UT_StringHolder      intrinsicPoint() const 
+    UT_StringHolder      intrinsicPoint(const GU_PrimPacked *prim) const 
                             { return getAttributeNames(GT_OWNER_POINT); }
-    UT_StringHolder      intrinsicVertex() const 
+    UT_StringHolder      intrinsicVertex(const GU_PrimPacked *prim) const 
                             { return getAttributeNames(GT_OWNER_VERTEX); }
-    UT_StringHolder      intrinsicPrimitive() const 
+    UT_StringHolder      intrinsicPrimitive(const GU_PrimPacked *prim) const 
                             { return getAttributeNames(GT_OWNER_PRIMITIVE); }
-    UT_StringHolder      intrinsicDetail() const 
+    UT_StringHolder      intrinsicDetail(const GU_PrimPacked *prim) const 
                             { return getAttributeNames(GT_OWNER_DETAIL); }
-    UT_StringHolder      intrinsicFaceSet() const
+    UT_StringHolder      intrinsicFaceSet(const GU_PrimPacked *prim) const
                             { return getFaceSetNames(); }
 
     /// Returns a sys_wang64 hash of the sum of 64B values making up the Alembic
@@ -192,11 +195,11 @@ public:
     int64		 getPropertiesHash() const;
 
     void	setObject(const GABC_IObject &v);
-    void	setFilename(const UT_StringHolder &v);
-    void	setObjectPath(const UT_StringHolder &v);
-    void	setFrame(fpreal f);
-    void	setUseTransform(bool v);
-    void	setUseVisibility(bool v);
+    void	setFilename(GU_PrimPacked *prim, const UT_StringHolder &v);
+    void	setObjectPath(GU_PrimPacked *prim, const UT_StringHolder &v);
+    void	setFrame(GU_PrimPacked *prim, fpreal f);
+    void	setUseTransform(GU_PrimPacked *prim, bool v);
+    void	setUseVisibility(GU_PrimPacked *prim, bool v);
 protected:
 #if 0
     /// Optional method to compute centroid (default uses bounding box)
@@ -211,7 +214,7 @@ protected:
 
     /// Method to load from either UT_Options or UT_JSONValueMap
     template <typename T>
-    bool	loadFrom(const T &options, const GA_LoadMap &map);
+    bool	loadFrom(GU_PrimPacked *prim, const T &options, const GA_LoadMap &map);
 
     class GTCache
     {
@@ -272,7 +275,7 @@ protected:
     };
 
 private:
-    void	markDirty();
+    void markDirty(GU_PrimPacked *prim);
 
     GABC_VisibilityType computeVisibility(bool include_parent) const;
 

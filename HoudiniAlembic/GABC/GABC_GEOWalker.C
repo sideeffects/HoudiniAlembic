@@ -1399,14 +1399,14 @@ namespace {
 	packed->setAttributeNameMap(walk.nameMapPtr());
         packed->setFacesetAttribute(walk.facesetAttribute());
 	packed->setViewportLOD(walk.viewportLOD());
-	abc->setUseTransform(walk.includeXform());
+	abc->setUseTransform(packed, walk.includeXform());
 	if (!abc->isConstant())
 	    walk.setNonConstant();
 	if (walk.staticTimeZero()
 		&& obj.getAnimationType(false) == GEO_ANIMATION_CONSTANT
 		&& walk.transformConstant())
 	{
-	    abc->setFrame(0);
+	    abc->setFrame(packed, 0);
 	}
 	walk.setPointLocation(packed, pt);
 
@@ -2349,11 +2349,11 @@ GABC_GEOWalker::updateAbcPrims()
 
 	if (!abc->isConstant())
 	{
-	    abc->setFrame(time());
+	    abc->setFrame(pack, time());
 	    setNonConstant();
         }
 	else
-	    abc->setFrame(staticTimeZero() ? 0 : time());
+	    abc->setFrame(pack, staticTimeZero() ? 0 : time());
 	if (setPath)
 	    myPathAttribute.set(prim->getMapOffset(), abc->objectPath().c_str());
 	setPointLocation(pack, pack->getPointOffset(0));

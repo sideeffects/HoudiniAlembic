@@ -71,7 +71,6 @@ protected:
 		    { evalString(str, "viewportlod", 0, t); }
 
 private:
-    GU_DetailGroupPair		 myDetailGroupPair;
     const GA_PrimitiveGroup	*myGroup;
     GU_PrimPacked		*myCurrPrim;
     GABC_PackedImpl		*myCurrAbc;

@@ -59,19 +59,19 @@ public:
 	registerIntrinsic("abcsourcepath",
 	    StringHolderGetterCast(&GABC_PackedImpl::intrinsicSourcePath));
 	registerIntrinsic("abcframe",
-	    FloatGetterCast(&GABC_PackedImpl::frame),
+	    FloatGetterCast(&GABC_PackedImpl::intrinsicFrame),
 	    FloatSetterCast(&GABC_PackedImpl::setFrame));
 	registerIntrinsic("abcanimation",
 	    StringGetterCast(&GABC_PackedImpl::intrinsicAnimation));
 	registerIntrinsic("abcusevisibility",
-	    BoolGetterCast(&GABC_PackedImpl::useVisibility),
+	    BoolGetterCast(&GABC_PackedImpl::intrinsicUseVisibility),
 	    BoolSetterCast(&GABC_PackedImpl::setUseVisibility));
 	registerIntrinsic("abcvisibility",
 	    IntGetterCast(&GABC_PackedImpl::intrinsicVisibility));
 	registerIntrinsic("abcfullvisibility",
 	    IntGetterCast(&GABC_PackedImpl::intrinsicFullVisibility));
 	registerIntrinsic("abcusetransform",
-	    BoolGetterCast(&GABC_PackedImpl::useTransform),
+	    BoolGetterCast(&GABC_PackedImpl::intrinsicUseTransform),
 	    BoolSetterCast(&GABC_PackedImpl::setUseTransform));
         registerIntrinsic("abcpoint", 
             StringHolderGetterCast(&GABC_PackedImpl::intrinsicPoint));
@@ -115,11 +115,11 @@ GABC_PackedImpl::build(GU_Detail &gdp,
     // Alembic primitives, so this is handled separately.
     GU_PrimPacked *pack = UTverify_cast<GU_PrimPacked *>(prim);
     GABC_PackedImpl *abc = UTverify_cast<GABC_PackedImpl *>(pack->implementation());
-    abc->setFilename(filename);
+    abc->setFilename(pack, filename);
     abc->setObject(obj);
-    abc->setFrame(frame);
-    abc->setUseTransform(useTransform);
-    abc->setUseVisibility(useVisibility);
+    abc->setFrame(pack, frame);
+    abc->setUseTransform(pack, useTransform);
+    abc->setUseVisibility(pack, useVisibility);
     return pack;
 }
 
@@ -204,8 +204,8 @@ GABC_PackedImpl::getMemoryUsage(bool inclusive) const
     //       playback noticably. 
     // mem += myCache.getMemoryUsage(false);
     
-    mem += myFilename.getMemoryUsage(inclusive);
-    mem += myObjectPath.getMemoryUsage(inclusive);
+    mem += myFilename.getMemoryUsage(false);
+    mem += myObjectPath.getMemoryUsage(false);
     return mem;
 }
 
@@ -240,10 +240,10 @@ GABC_PackedImpl::clearData()
 
 template <typename T>
 bool
-GABC_PackedImpl::loadFrom(const T &options, const GA_LoadMap &map)
+GABC_PackedImpl::loadFrom(GU_PrimPacked *prim, const T &options, const GA_LoadMap &map)
 {
     clearData();
-    bool	bval;
+    bool bval;
     if (!import(options, "filename", myFilename))
 	myFilename = "";
     if (!import(options, "object", myObjectPath))
@@ -252,15 +252,15 @@ GABC_PackedImpl::loadFrom(const T &options, const GA_LoadMap &map)
 	myFrame = 0;
     if (!import(options, "usetransform", bval))
 	bval = true;
-    setUseTransform(bval);
+    setUseTransform(prim, bval);
     if (!import(options, "usevisibility", bval))
 	bval = true;
-    setUseVisibility(bval);
+    setUseVisibility(prim, bval);
     return true;
 }
 
 void
-GABC_PackedImpl::update(const UT_Options &options)
+GABC_PackedImpl::update(GU_PrimPacked *prim, const UT_Options &options)
 {
     bool	changed = false;
     bool	bval;
@@ -268,9 +268,9 @@ GABC_PackedImpl::update(const UT_Options &options)
     changed |= options.importOption("object", myObjectPath);
     changed |= options.importOption("frame", myFrame);
     changed |= options.importOption("usetransform", bval);
-    setUseTransform(bval);
+    setUseTransform(prim, bval);
     changed |= options.importOption("usevisibility", bval);
-    setUseVisibility(bval);
+    setUseVisibility(prim, bval);
 }
 
 bool
@@ -389,12 +389,12 @@ GABC_PackedImpl::getWidthRange(fpreal &wmin, fpreal &wmax) const
 }
 
 void
-GABC_PackedImpl::getPrimitiveName(UT_WorkBuffer &wbuf) const
+GABC_PackedImpl::getPrimitiveName(const GU_PrimPacked *prim, UT_WorkBuffer &wbuf) const
 {
     if (UTisstring(objectPath().c_str()))
 	wbuf.strcpy(objectPath().c_str());
     else
-	GU_PackedImpl::getPrimitiveName(wbuf);
+	GU_PackedImpl::getPrimitiveName(prim, wbuf);
 }
 
 bool
@@ -535,58 +535,58 @@ GABC_PackedImpl::setObject(const GABC_IObject &v)
 }
 
 void
-GABC_PackedImpl::setFilename(const UT_StringHolder &v)
+GABC_PackedImpl::setFilename(GU_PrimPacked *prim, const UT_StringHolder &v)
 {
     if (myFilename != v)
     {
 	myFilename = v;
 	myCache.clear();
 	myObject.purge();
-	markDirty();
+	markDirty(prim);
     }
 }
 
 void
-GABC_PackedImpl::setObjectPath(const UT_StringHolder &v)
+GABC_PackedImpl::setObjectPath(GU_PrimPacked *prim, const UT_StringHolder &v)
 {
     if (myObjectPath != v)
     {
 	myObjectPath = v;
 	myCache.clear();
 	myObject.purge();
-	markDirty();
+	markDirty(prim);
     }
 }
 
 void
-GABC_PackedImpl::setFrame(fpreal f)
+GABC_PackedImpl::setFrame(GU_PrimPacked *prim, fpreal f)
 {
     myFrame = f;
     myCache.updateFrame(f);
-    markDirty();
+    markDirty(prim);
 }
 
 void
-GABC_PackedImpl::setUseTransform(bool v)
+GABC_PackedImpl::setUseTransform(GU_PrimPacked *prim, bool v)
 {
     if (v != myUseTransform)
     {
 	myUseTransform = v;
 	// This can affect animation type
 	myCache.clear();
-	markDirty();
+	markDirty(prim);
     }
 }
 
 void
-GABC_PackedImpl::setUseVisibility(bool v)
+GABC_PackedImpl::setUseVisibility(GU_PrimPacked *prim, bool v)
 {
     if (v != myUseVisibility)
     {
 	myUseVisibility = v;
 	// This can affect animation type
 	myCache.clear();
-	markDirty();
+	markDirty(prim);
     }
 }
 
@@ -889,22 +889,25 @@ GABC_PackedImpl::GTCache::updateTransform(const GABC_PackedImpl *abc)
 }
 
 void
-GABC_PackedImpl::markDirty()
+GABC_PackedImpl::markDirty(GU_PrimPacked *prim)
 {
+    if (!prim)
+        return;
+
     // Don't compute the animation type
     switch (myCache.animationType())
     {
 	case GEO_ANIMATION_CONSTANT:
 	    break;
 	case GEO_ANIMATION_TRANSFORM:
-	    transformDirty();
+            prim->transformDirty();
 	    break;
 	case GEO_ANIMATION_INVALID:
 	case GEO_ANIMATION_ATTRIBUTE:
-	    attributeDirty();
+            prim->attributeDirty();
 	    break;
 	default:
-	    topologyDirty();
+            prim->topologyDirty();
 	    break;
     }
 }
