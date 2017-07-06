@@ -124,12 +124,11 @@ Subdivision Group:
 	saved as subdivision primitives in the Alembic file.  Other polygons
 	will be saved as polygon mesh nodes.
 
-	If no group is specified on the output driver, object level parameters
-	will be used to control whether polygons are output as subdivision or
-	polygon mesh primitives.  Enabling the `vm_rendersubd` or
-	`ri_rendersubd` will cause polygons to be saved as subdivision
-	primitives.  If specified, the `vm_subdgroup` will be used to select
-	which polygons will be rendered as subdivision surfaces.
+	The subdivision group can be specified per object with the object
+	level parameters `vm_rendersubd` or `ri_rendersubd`.  If present,
+	they will be used to control whether polygons will be saved as
+	subdivision primitives and the `vm_subdgroup` parameter will be used
+	to select which polygons will be rendered as subdivision surfaces.
 
 Build Hierarchy From Attribute:
 	Use a primitive string attribute to directly specify the path of a primitive in the output archive.
