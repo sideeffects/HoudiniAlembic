@@ -29,6 +29,7 @@
 #include <GT/GT_Refine.h>
 #include <GT/GT_RefineParms.h>
 #include <GT/GT_TransformArray.h>
+#include <GT/GT_PackedGeoCache.h>
 #include <GT/GT_PrimInstance.h>
 #include <GT/GT_PrimPolygonMesh.h>
 #include <SYS/SYS_Hash.h>
@@ -199,8 +200,8 @@ public:
     {
 	auto impl= UTverify_cast<const GABC_PackedImpl*>(prim.implementation());
 	if (mySkipInvisible
-		&& !impl->visibleGT()
-		&& gabcExprUseArchivePrims() <= 1)
+	    && !(myAlembicInstancing && myUseViewportLOD) 
+	    && !impl->visibleGT())
 	{
 	    return true;	// Handled
 	}
@@ -217,7 +218,7 @@ public:
 		    myBoxPrims.append(&prim);
 		    return true;
 	        default:
-		    if(gabcExprUseArchivePrims() >= 2)
+		    if(myAlembicInstancing || gabcExprUseArchivePrims() >= 2)
 		    {
 			assignToArchive(prim, impl);
 			return true;
@@ -606,7 +607,7 @@ GABC_PackedAlembic::getInstanceKey(UT_Options &options) const
 	    else if (GTisInteger(data->getStorage()))
 	    {
 		if (!strcmp(aname, "__primitive_id") ||
-			!strcmp(aname, "__vertex_id"))
+		    !strcmp(aname, "__vertex_id"))
 		{
 		    continue;
 		}
@@ -615,9 +616,9 @@ GABC_PackedAlembic::getInstanceKey(UT_Options &options) const
 	    else if (GTisString(data->getStorage()))
 	    {
 		if (!strcmp(aname, "shop_materialpath") ||
-			!strcmp(aname, "material_override") ||
-			!strcmp(aname, "varmap") ||
-			!strcmp(aname, "property_map"))
+		    !strcmp(aname, "material_override") ||
+		    !strcmp(aname, "varmap") ||
+		    !strcmp(aname, "property_map"))
 		{
 		    continue;
 		}
@@ -628,6 +629,44 @@ GABC_PackedAlembic::getInstanceKey(UT_Options &options) const
     }
 #endif
     return true;
+}
+
+GT_TransformHandle
+GABC_PackedAlembic::fullCachedTransform()
+{
+    GT_TransformHandle th; 
+    if(!getCachedTransform(th))
+    {
+	th = getLocalTransform();
+	cacheTransform(th);
+    }
+
+    return applyPrimTransform(th);
+}
+
+GT_TransformHandle 
+GABC_PackedAlembic::applyPrimTransform(const GT_TransformHandle &th) const
+{
+    UT_Matrix4D xform;
+    if(th)
+	th->getMatrix(xform);
+    else
+	xform.identity();
+	    
+    getPrim()->multiplyByPrimTransform(xform);
+
+    return new GT_Transform(&xform, 1);
+}
+
+GT_TransformHandle
+GABC_PackedAlembic::getLocalTransform() const
+{
+    UT_Matrix4D m;
+    auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+    if(impl->getLocalTransform(m))
+	return new GT_Transform(&m, 1);
+
+    return GT_TransformHandle();
 }
 
 GT_PrimitiveHandle
@@ -1131,7 +1170,8 @@ GABC_PackedArchive::GABC_PackedArchive(const UT_StringHolder &arch,
       myDetailList(dlist),
       myArchive(archive),
       myHasConstSubset(false),
-      myHasTransSubset(false)
+      myHasTransSubset(false),
+      myAlembicVersion(0)
 {
 }
 
@@ -1153,7 +1193,7 @@ GABC_PackedArchive::setRefinedSubset(bool has_const,
 	myTransSubset.entries(0);
 }
     
-#define TIME_BUCKETTING
+//#define TIME_BUCKETTING
 #ifdef TIME_BUCKETTING
 #include <UT/UT_StopWatch.h>
 #define START_TIMER()	timer.start()
@@ -1174,6 +1214,8 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 				const GT_RefineParms *parms,
 				bool force_update)
 {
+    myAlembicVersion = GT_PackedGeoCache::getAlembicVersion(myName.c_str());
+    
     if(!force_update && prev_archive && archiveMatch(prev_archive))
 	return false;
 
@@ -1201,8 +1243,8 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	    num_streams = SYSmin(myAlembicOffsets.entries() / chunks,
 				 nprocs);
 	}
-	UTdebugPrint("Loading OGAWA using ",
-	 	     num_streams, myAlembicOffsets.entries());
+	// UTdebugPrint("Loading OGAWA using ",
+	//  	     num_streams, myAlembicOffsets.entries());
 	myArchive->reopenStream(num_streams);
     }
 #endif
@@ -1242,6 +1284,7 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	if(single)
 	{
 	    type = single->animationType();
+	    single->setAlembicVersion(myAlembicVersion);
 	}
 	else
 	{
@@ -1249,6 +1292,7 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	    GABC_PackedInstance *inst =
 		UTverify_cast<GABC_PackedInstance *>(p.get());
 	    type = inst->animationType();
+	    inst->setAlembicVersion(myAlembicVersion);
 	}
 
 	
@@ -1348,11 +1392,12 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	myCombinedShapes.clear();
 #endif
 
+#if 0
     UTdebugPrint("# const    = ", myConstShapes.entries());
     UTdebugPrint("# combined = ", myCombinedShapes.entries());
     UTdebugPrint("# anim     = ", myTransformShapes.entries());
     UTdebugPrint("# deform   = ", myDeformShapes.entries());
-		  
+#endif		  
     return true;
 }
 
@@ -1361,6 +1406,9 @@ GABC_PackedArchive::archiveMatch(const GABC_PackedArchive *archive) const
 {
     if(myName != archive->archiveName() ||
        myAlembicOffsets.entries() != archive->myAlembicOffsets.entries())
+	return false;
+
+    if(archive && archive->myAlembicVersion != myAlembicVersion)
 	return false;
 
     GU_DetailHandleAutoReadLock this_lock(myDetailList->getGeometry(0));
@@ -1448,7 +1496,8 @@ GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GT_PrimitiveHandle &geo,
     : myMeshGeo(geo),
       myID(id),
       myTransID(0),
-      myVisID(0)
+      myVisID(0),
+      myAlembicVersion(0)
 {
 }
 
@@ -1457,7 +1506,8 @@ GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GT_PrimitiveHandle &geo,
 					       UT_Array<GT_PrimitiveHandle> &pa)
     : myMeshGeo(geo),
       myID(id),
-      myPrims(pa)
+      myPrims(pa),
+      myAlembicVersion(0)
 {
     if(geo->getDetailAttributes())
     {
@@ -1469,7 +1519,8 @@ GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GT_PrimitiveHandle &geo,
 GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GABC_PackedAlembicMesh &m)
     : GT_Primitive(m),
       myMeshGeo(m.myMeshGeo),
-      myID(m.myID)
+      myID(m.myID),
+      myAlembicVersion(m.myAlembicVersion)
 {
 }
 

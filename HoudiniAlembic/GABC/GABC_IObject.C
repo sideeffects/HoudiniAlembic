@@ -1430,6 +1430,39 @@ namespace
 	const GT_PrimitiveHandle	&myPrim;
     };
 
+    static GT_AttributeListHandle
+    addFileObjectAttribs(const GT_AttributeListHandle &list,
+			 const GABC_IObject &obj,
+			 fpreal t)
+    {
+	auto file_da = new GT_DAIndexedString(1);
+	auto obj_da = new GT_DAIndexedString(1);
+	auto time_da = new GT_DANumeric<fpreal32>(1,1);
+	file_da->setString(0,0, obj.archive()->filename().c_str());
+	obj_da->setString(0,0, obj.getName().c_str());
+	time_da->set(t, 0);
+
+	GT_AttributeListHandle rlist;
+	if(list)
+	{
+	    rlist = list->addAttribute("__filename",
+					  GT_DataArrayHandle(file_da),  true);
+	    rlist = rlist->addAttribute("__object_name",
+					  GT_DataArrayHandle(obj_da),  true);
+	    rlist = rlist->addAttribute("__time",
+					  GT_DataArrayHandle(time_da), true);
+	}
+	else
+	{
+	    rlist = GT_AttributeList::createAttributeList(
+		"__filename",	 file_da,
+		"__object_name", obj_da,
+		"__time",	 time_da,
+		nullptr);
+	}
+	return rlist;
+    }
+
     static bool
     loadFaceSet(GT_FaceSetPtr &set, const GABC_IObject &obj,
 	    const ISampleSelector &iss)
@@ -1638,6 +1671,8 @@ namespace
 			       GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
 				arb);
 
+	detail = addFileObjectAttribs(detail, obj, t);
+
 	GT_PrimSubdivisionMesh	*gt = new GT_PrimSubdivisionMesh(counts,
 					indices,
 					point,
@@ -1796,11 +1831,14 @@ namespace
 			       &uvs);
 	uniform = acreate.build(counts->entries(),
 				prim, obj, namemap,
-				load_style, t, GA_ATTRIB_PRIMITIVE, gabcUniformScope, arb);
+				load_style, t, GA_ATTRIB_PRIMITIVE,
+				gabcUniformScope, arb);
 	detail = acreate.build(1, prim, obj, namemap,
 				load_style, t,
 				GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
 				arb);
+
+	detail = addFileObjectAttribs(detail, obj, t);
 
 	GT_PrimPolygonMesh	*gt = new GT_PrimPolygonMesh(counts,
 					indices,
@@ -2022,6 +2060,8 @@ namespace
 	detail = acreate.build(1, prim, obj, namemap, load_style, t,
 			       GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
 			       arb);
+	
+	detail = addFileObjectAttribs(detail, obj, t);
 
 	GT_Basis basis = getGTBasis(sample.getBasis());
 	bool	 periodic = (sample.getWrap() == Alembic::AbcGeom::kPeriodic);
@@ -2306,6 +2346,8 @@ namespace
 	detail = acreate.build(1, prim, obj, namemap, load_style, t,
 			       GA_ATTRIB_DETAIL, detail_scope, 3, arb);
 
+	detail = addFileObjectAttribs(detail, obj, t);
+	
 	GT_PrimNuPatch	*gt = new GT_PrimNuPatch(uorder, uknots,
 				    vorder, vknots, vertex, detail);
 

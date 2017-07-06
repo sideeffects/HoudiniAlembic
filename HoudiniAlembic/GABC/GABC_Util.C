@@ -30,6 +30,7 @@
 #include "GABC_OScalarProperty.h"
 #include <Alembic/AbcGeom/All.h>
 #include <Alembic/AbcCoreHDF5/All.h>
+#include <GT/GT_PackedGeoCache.h>
 #include <GT/GT_AttributeList.h>
 #include <GT/GT_DAIndexedString.h>
 #include <GT/GT_DANumeric.h>
@@ -1949,13 +1950,11 @@ void
 GABC_Util::clearCache(const char *filename)
 {
     if (filename)
-    {
         ClearArchiveFile(filename);
-    }
     else
-    {
         ClearArchiveCache();
-    }
+    
+    GT_PackedGeoCache::clearAlembics(filename);
 }
 
 void

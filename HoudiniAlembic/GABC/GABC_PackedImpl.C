@@ -28,6 +28,7 @@
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_PrimPointMesh.h>
 #include <GT/GT_PrimitiveBuilder.h>
+#include <GT/GT_PackedGeoCache.h>
 
 #if !defined(GABC_PRIMITIVE_TOKEN)
     #define GABC_PRIMITIVE_TOKEN	"AlembicRef"
@@ -641,6 +642,7 @@ GABC_PackedImpl::GTCache::updateFrame(fpreal frame)
     }
 }
 
+
 const GT_PrimitiveHandle &
 GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 			       int load_style)
@@ -658,21 +660,54 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 	const GABC_IObject	&o = abc->object();
 	if (o.valid())
 	{
-	    GEO_AnimationType	atype;
+	    UT_StringHolder cache_name;
+	    const int64 version = 0;
+	    bool cached = false;
+	    GEO_AnimationType	atype = GEO_ANIMATION_INVALID;
+	    
 	    myFrame = abc->frame();
 	    myRep = GEO_VIEWPORT_FULL;
 	    myLoadStyle = load_style;
-	    myPrim = o.getPrimitive(abc->getPrim(), 
-                                    myFrame, 
-                                    atype,
-		                    abc->getPrim()->attributeNameMap(),
-                                    abc->getPrim()->facesetAttribute(), 
-                                    myLoadStyle);
-
-	    if (atype > myAnimationType)
+	    
+	    if(GT_PackedGeoCache::isCachingAvailable())
 	    {
-		myAnimationType = atype;
-            }
+		GT_PackedGeoCache::buildAlembicName(
+					    cache_name,
+					    o.getSourcePath().c_str(),
+					    o.archive()->filename().c_str(),
+					    abc->frame());
+		myPrim = GT_PackedGeoCache::findInstance(cache_name, version,
+							 load_style, &atype);
+		if(myPrim)
+		{
+		    //UTdebugPrint("got cached for", cache_name);
+		    cached = true;
+
+		    if (atype > myAnimationType)
+			myAnimationType = atype;
+		}
+	    }
+
+	    if(!cached)
+	    {
+		myPrim = o.getPrimitive(abc->getPrim(), 
+					myFrame, 
+					atype,
+					abc->getPrim()->attributeNameMap(),
+					abc->getPrim()->facesetAttribute(), 
+					myLoadStyle);
+
+		if (atype > myAnimationType)
+		    myAnimationType = atype;
+
+		if(GT_PackedGeoCache::isCachingAvailable())
+		{
+		    GT_PackedGeoCache::cacheInstance(cache_name, myPrim,
+						     version, load_style,
+						     atype);
+		}
+	    }
+	    
 	}
     }
 

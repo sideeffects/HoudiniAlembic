@@ -145,6 +145,8 @@ public:
     const UT_IntArray  &getConstantSubset() const { return myConstSubset; }
     bool		hasTransformSubset() const { return myHasTransSubset; }
     const UT_IntArray  &getTransformSubset() const { return myTransSubset; }
+
+    int64		getAlembicVersion() const { return myAlembicVersion; }
     
 private:
     bool		archiveMatch(const GABC_PackedArchive *archive) const;
@@ -162,6 +164,7 @@ private:
     UT_IntArray			 myTransSubset;
     bool			 myHasConstSubset;
     bool			 myHasTransSubset;
+    int64			 myAlembicVersion;
 };
 
 
@@ -195,6 +198,8 @@ public:
 					bool ignore_visibility=false) const;
     virtual GT_TransformHandle	getInstanceTransform() const;
 
+    GT_TransformHandle		fullCachedTransform();
+
     virtual bool		refine(GT_Refine &refiner,
 				       const GT_RefineParms *parms=NULL) const;
     virtual bool		getUniqueID(int64 &id) const
@@ -216,6 +221,13 @@ public:
     void			cacheVisibility(bool visible);
     bool	 		getCachedVisibility(bool &visible) const;
 
+    GT_TransformHandle		applyPrimTransform(const GT_TransformHandle &th)
+					const;
+    GT_TransformHandle		getLocalTransform() const;
+
+    int64	      alembicVersion() const { return myAlembicVersion; }
+    void	      setAlembicVersion(int64 v) { myAlembicVersion = v; }
+    
     /// Temporary until switchover
     bool			tmpIsNewScheme() const {return myTmpNewScheme;}
 private:
@@ -225,6 +237,7 @@ private:
     bool	      myAnimVis;
     bool	      myVisibleConst; // only valid when myAnimVis is false.
     bool	      myTmpNewScheme;
+    int64	      myAlembicVersion;
 };
 
 /// Alembic mesh which contains multiple alembic primitives merged together.
@@ -257,6 +270,9 @@ public:
     bool		hasAnimatedVisibility() const
 			    { return myTransformArray.get() != NULL; }
     
+    int64	      alembicVersion() const { return myAlembicVersion; }
+    void	      setAlembicVersion(int64 v) { myAlembicVersion = v; }
+    
 private:
     GT_PrimitiveHandle myMeshGeo;
     GT_DataArrayHandle myTransformArray;
@@ -265,6 +281,7 @@ private:
     int64	       myID;
     int64	       myTransID;
     int64	       myVisID;
+    int64	       myAlembicVersion;
 };
 
 /// Packed instance with alembic extensions
@@ -286,9 +303,13 @@ public:
     
     GEO_AnimationType animationType() const { return myAnimType; }
     
+    int64	      alembicVersion() const { return myAlembicVersion; }
+    void	      setAlembicVersion(int64 v) { myAlembicVersion = v; }
+    
 private:
     GEO_AnimationType myAnimType;
     UT_Array<GABC_AlembicCache> myCache;
+    int64	      myAlembicVersion;
 };
     
 
