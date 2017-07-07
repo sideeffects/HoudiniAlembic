@@ -30,8 +30,7 @@
 using namespace GABC_NAMESPACE;
 
 GABC_OOptions::GABC_OOptions()
-    : myFaceSetMode(FACESET_DEFAULT)
-    , mySubdGroup()
+    : mySubdGroup()
     , myPrimToDetailPattern()
     , myFullBounds(false)
     , myForcePrimToDetail(false)

@@ -47,27 +47,11 @@ class GABC_API GABC_OOptions
 public:
     typedef Alembic::AbcCoreAbstract::TimeSamplingPtr	TimeSamplingPtr;
 
-    /// Face set creation
-    enum FaceSetMode
-    {
-	FACESET_NONE,		// Don't create face sets
-	FACESET_NON_EMPTY,	// Only create face sets for non-empty groups
-	FACESET_ALL_GROUPS,	// Create face sets for all primitive groups
-
-	FACESET_DEFAULT = FACESET_NON_EMPTY,
-    };
-
     GABC_OOptions();
     virtual ~GABC_OOptions() {};
 
     /// Method to return the time sampling pointer for output
     virtual const TimeSamplingPtr	&timeSampling() const = 0;
-
-    /// @{
-    /// Whether or not to create face sets, and if so for which groups.
-    FaceSetMode	faceSetMode() const	{ return myFaceSetMode; }
-    void	setFaceSetMode(FaceSetMode m)	{ myFaceSetMode = m; }
-    /// @}
 
     /// @{
     /// The first frame of output
@@ -128,7 +112,6 @@ public:
     /// @}
 
 private:
-    FaceSetMode		myFaceSetMode;
     UT_String		mySubdGroup;
     UT_String		myPathAttribute;
     UT_String		myAttributePatterns[GA_ATTRIB_OWNER_N];

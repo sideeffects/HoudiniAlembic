@@ -1699,16 +1699,11 @@ void
 GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
 	const GABC_OOptions &ctx)
 {
-    if (ctx.faceSetMode() == GABC_OOptions::FACESET_NONE)
-	return;
-
-    GT_DataArrayHandle	ids;
     GT_FaceSetMapPtr	facesets = getFaceSetMap(prim);
     if (!facesets)
 	return;
 
     const char *subd = ctx.subdGroup();
-    bool all_groups = (ctx.faceSetMode() == GABC_OOptions::FACESET_ALL_GROUPS);
     for (GT_FaceSetMap::iterator it = facesets->begin(); !it.atEnd(); ++it)
     {
 	std::string		 name = it.name();
@@ -1716,28 +1711,25 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
 	if (subd && strcmp(subd, name.c_str()) == 0)
 	    continue;
 
-	if (all_groups || it.faceSet()->entries() != 0)
+	myFaceSetNames.append(name);
+	switch (myType)
 	{
-	    myFaceSetNames.append(name);
-	    switch (myType)
-	    {
-		case GT_PRIM_POLYGON_MESH:
-		    {
-			OPolyMeshSchema	&ss = myShape.myPolyMesh->getSchema();
-			OFaceSet &fset = ss.createFaceSet(name);
-			OFaceSetSchema	&fss = fset.getSchema();
-			fss.setTimeSampling(ctx.timeSampling());
-		    }
-		    break;
-		case GT_PRIM_SUBDIVISION_MESH:
-		    {
-			OSubDSchema	&ss = myShape.mySubD->getSchema();
-			OFaceSet &fset = ss.createFaceSet(name);
-			OFaceSetSchema	&fss = fset.getSchema();
-			fss.setTimeSampling(ctx.timeSampling());
-		    }
-		    break;
-	    }
+	    case GT_PRIM_POLYGON_MESH:
+		{
+		    OPolyMeshSchema	&ss = myShape.myPolyMesh->getSchema();
+		    OFaceSet &fset = ss.createFaceSet(name);
+		    OFaceSetSchema	&fss = fset.getSchema();
+		    fss.setTimeSampling(ctx.timeSampling());
+		}
+		break;
+	    case GT_PRIM_SUBDIVISION_MESH:
+		{
+		    OSubDSchema	&ss = myShape.mySubD->getSchema();
+		    OFaceSet &fset = ss.createFaceSet(name);
+		    OFaceSetSchema	&fss = fset.getSchema();
+		    fss.setTimeSampling(ctx.timeSampling());
+		}
+		break;
 	}
     }
 }
