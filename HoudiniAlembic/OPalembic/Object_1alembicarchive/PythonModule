@@ -123,14 +123,14 @@ def _checkAnimatedVisibility(filename, objectpath):
     vis = _abc.alembicVisibility(filename, objectpath, 0, 1)
     return not vis[1] and vis[0] != -1
 
-def _setUserProperties(currentNode, name, fileName, userPropsLoadMode):
+def _setUserProperties(currentNode, currentPath, fileName, userPropsLoadMode):
     # Exit quick if user properties shouldn't be loaded
     if userPropsLoadMode == 0:
         return False
 
     # Check for user properties on node. Returns None if no user properties,
     # true if properties are static, and false if properties are animated.
-    props = _abc.alembicHasUserProperties(fileName, name)
+    props = _abc.alembicHasUserProperties(fileName, currentPath)
 
     if props is not None:
         # Add spare parameter(s) for user properties
@@ -139,17 +139,17 @@ def _setUserProperties(currentNode, name, fileName, userPropsLoadMode):
             currentNode.addSpareParmTuple(hou.StringParmTemplate('userPropsMeta', 'User Properties Metadata', 1, ['']))
 
         if props and (userPropsLoadMode == 2):
-            values, metadata = _abc.alembicUserPropertyValuesAndMetadata(fileName, name, 0)
+            values, metadata = _abc.alembicUserPropertyValuesAndMetadata(fileName, currentPath, 0)
             currentNode.parm('userProps').set(values)
             currentNode.parm('userPropsMeta').set(metadata)
         elif props:
-            currentNode.parm('userProps').set(_abc.alembicUserPropertyValues(fileName, name, 0))
+            currentNode.parm('userProps').set(_abc.alembicUserPropertyValues(fileName, currentPath, 0))
         else:
             if (userPropsLoadMode == 2):
-                expr = '%s.alembicUserPropertyMetadata("%s", "%s", ch("frame")/ch("fps"))' % (_AbcModule, fileName, name)
+                expr = '%s.alembicUserPropertyMetadata("%s", "%s", ch("frame")/ch("fps"))' % (_AbcModule, fileName, currentPath)
                 currentNode.parm('userPropsMeta').setExpression(expr, hou.exprLanguage.Python)
 
-            expr = '%s.alembicUserPropertyValues("%s", "%s", ch("frame")/ch("fps"))' % (_AbcModule, fileName, name)
+            expr = '%s.alembicUserPropertyValues("%s", "%s", ch("frame")/ch("fps"))' % (_AbcModule, fileName, currentPath)
             currentNode.parm('userProps').setExpression(expr, hou.exprLanguage.Python)
             return True
     return False
@@ -233,7 +233,7 @@ def ScanHierarchy(parentPath, childEntry, cameraPathList, createGeoNode, pathLis
             return
         pathList = pathList[1:]
 
-    currentPath = parentPath + '/' + name
+    currentPath = '%s/%s' % (parentPath, name)
     if typeName == 'camera':
         cameraPathList.append(currentPath)
     elif typeName == 'xform' or typeName == 'cxform':
@@ -306,7 +306,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
             return
         pathList = pathList[1:]
 
-    currentPath = parentPath + '/' + name
+    currentPath = '%s/%s' % (parentPath, name)
     if typeName in _primitiveTypes:
         currentNode = _newAlembicNode(rootNode, parentNode, 'geo', buildSubnet, run_init_scripts=False)
         #currentNode = parentNode.createNode('geo', run_init_scripts=False)
@@ -361,7 +361,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
             _setNodeName(currentNode, name)
 
             animated = typeName != 'cxform'
-            if _setUserProperties(currentNode, name, fileName, userPropsLoadMode):
+            if _setUserProperties(currentNode, currentPath, fileName, userPropsLoadMode):
                 animated = True
 
             if flatVisibility:
