@@ -638,7 +638,8 @@ GABC_PackedAlembic::fullCachedTransform()
     if(!getCachedTransform(th))
     {
 	th = getLocalTransform();
-	cacheTransform(th);
+	if(th)
+	    cacheTransform(th);
     }
 
     return applyPrimTransform(th);
