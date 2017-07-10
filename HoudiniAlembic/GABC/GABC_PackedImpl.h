@@ -166,6 +166,7 @@ public:
     bool                 intrinsicUseVisibility(const GU_PrimPacked *prim) const { return myUseVisibility; }
     GABC_NodeType	 nodeType() const	{ return object().nodeType(); }
     GEO_AnimationType	 animationType() const;
+    int			 currentLoadStyle() const { return myCache.loadStyle();}
     bool		 isConstant() const
 			 {
 			     return animationType() == GEO_ANIMATION_CONSTANT;
@@ -261,6 +262,8 @@ protected:
 	    refreshTransform(abc);
 	    return myTransform;
 	}
+
+	int	loadStyle() const { return myLoadStyle; }
 
     private:
 	void	refreshTransform(const GABC_PackedImpl *abc);

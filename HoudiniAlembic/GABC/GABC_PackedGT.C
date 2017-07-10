@@ -452,7 +452,7 @@ GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
 	    if(myAnimType > GEO_ANIMATION_TRANSFORM)
 	    {
 		frame = impl->frame();
-		myCache.setGeometryAnimated(true);
+		//myCache.setGeometryAnimated(true);
 	    }
 	    else if(myAnimType != GEO_ANIMATION_CONSTANT)
 		myCache.setTransformAnimated(true);
@@ -750,19 +750,21 @@ GABC_PackedAlembic::refine(GT_Refine &refiner,
     return true;
 }
 
-void
-GABC_PackedAlembic::cacheGeometry(const GT_PrimitiveHandle &ph)
-{
-    auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-
-    myCache.cacheGeometry(impl->frame(), ph );
-}
-
 bool 
 GABC_PackedAlembic::getCachedGeometry(GT_PrimitiveHandle &ph) const
 {
     auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    return myCache.getGeometry(impl->frame(), ph);
+    const GABC_IObject	&o = impl->object();
+    const int64 version = 0;
+    UT_StringHolder cache_name;
+    
+    GT_PackedGeoCache::buildAlembicName(cache_name,
+					o.getSourcePath().c_str(),
+					o.archive()->filename().c_str(),
+					impl->frame());
+    ph = GT_PackedGeoCache::findInstance(cache_name, version,
+					   impl->currentLoadStyle(), nullptr);
+    return ph != nullptr;
 }
 
 
@@ -894,7 +896,6 @@ public:
 								    ignore_vis);
 		if(geoh)
 		{
-		    pack->cacheGeometry(geoh);
 		    if(geoh->getPrimitiveType() == GT_PRIM_POLYGON_MESH ||
 		       geoh->getPrimitiveType() == GT_PRIM_SUBDIVISION_MESH ||
 		       geoh->getPrimitiveType() == GT_PRIM_POLYGON)
@@ -1671,23 +1672,6 @@ GABC_AlembicCache::getTransform(fpreal t, UT_Matrix4F &transform) const
     }
     return false;
 }
-
-bool
-GABC_AlembicCache::getGeometry(fpreal t,  GT_PrimitiveHandle &geo) const
-{
-    if(!myGeometryAnimated)
-	t = 0.0;
-    
-    auto entry = myGeometry.find(t);
-    if(entry != myGeometry.end())
-    {
-	geo = entry->second;
-	return true;
-    }
-    return false;
-}
-
-
 
 // -------------------------------------------------------------------------
 

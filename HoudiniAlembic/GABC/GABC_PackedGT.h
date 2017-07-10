@@ -63,34 +63,26 @@ public:
     {
 	myVisibilityAnimated = false;
 	myTransformAnimated = false;
-	myGeometryAnimated = false;
     }
     
     bool	getVisibility(fpreal t, bool &visible) const;
     bool	getTransform(fpreal t, UT_Matrix4F &transform) const;
-    bool	getGeometry(fpreal t,  GT_PrimitiveHandle &geo) const;
 
     
     void	setVisibilityAnimated(bool anim) { myVisibilityAnimated = anim;}
     void	setTransformAnimated(bool anim)  { myTransformAnimated = anim; }
-    void	setGeometryAnimated(bool anim)	 { myGeometryAnimated = anim;}
 
     void	cacheVisibility(fpreal t, bool visible)
 		    { myVisibility[ myVisibilityAnimated ? t : 0.0] = visible; }
     void	cacheTransform(fpreal t, const UT_Matrix4F &transform)
 		    { myTransform[ myTransformAnimated ? t : 0.0] = transform; }
-    void	cacheGeometry(fpreal t, const GT_PrimitiveHandle &geo)
-		    { myGeometry[ myGeometryAnimated ? t : 0.0] = geo; }
     
 private:
     UT_Map<fpreal, bool>	myVisibility;
     UT_Map<fpreal, UT_Matrix4F>	myTransform;
-    UT_Map<fpreal, GT_PrimitiveHandle> myGeometry;
     
-    unsigned int
-	myVisibilityAnimated : 1,
-	myTransformAnimated : 1,
-	myGeometryAnimated : 1;
+    unsigned int	myVisibilityAnimated : 1,
+			myTransformAnimated : 1;
 
 };
 
@@ -213,7 +205,6 @@ public:
 				    { myAnimVis = anim; }
     bool			visibilityAnimated() const { return myAnimVis; }
 
-    void			cacheGeometry(const GT_PrimitiveHandle &ph);
     bool	 		getCachedGeometry(GT_PrimitiveHandle &ph) const;
     
     void			cacheTransform(const GT_TransformHandle &ph);
