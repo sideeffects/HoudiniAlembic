@@ -1416,7 +1416,7 @@ namespace
 		    if(a.isValid())
 		    {
 			auto abc_impl = UTverify_cast<const GABC_PackedImpl *>(pack->implementation());
-			auto path = abc_impl->intrinsicObjectPath();
+			auto path = abc_impl->objectPath();
 			for (auto it = GA_Iterator(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
 			    a->setString(*it, path);
 		    }
