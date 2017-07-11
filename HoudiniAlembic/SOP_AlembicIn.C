@@ -27,6 +27,7 @@
 
 #include "SOP_AlembicIn.h"
 #include <GABC/GABC_GEOWalker.h>
+#include <GABC/GABC_PackedImpl.h>
 
 #include <UT/UT_DSOVersion.h>
 #include <UT/UT_StringStream.h>
@@ -1294,7 +1295,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     }
 
     if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_UNPACKED)
-	unpack(*gdp, *unpack_gdp, parms.myPolySoup != GABC_GEOWalker::ABC_POLYSOUP_NONE);
+	unpack(*gdp, *unpack_gdp, parms);
 
     myLastParms = parms;
 
@@ -1392,10 +1393,12 @@ namespace
     class unpackTask
     {
     public:
-	unpackTask(UT_Array<GU_Detail *> &unpacked, const GU_Detail &src, bool polysoup)
+	unpackTask(UT_Array<GU_Detail *> &unpacked, const GU_Detail &src,
+		   bool polysoup, const UT_String &path)
 	    : myUnpacked(unpacked)
 	    , mySrc(src)
 	    , myPolySoup(polysoup)
+	    , myPath(path)
 	{
 	}
 
@@ -1407,15 +1410,29 @@ namespace
 		auto	off = mySrc.primitiveOffset(i);
 		auto	prim = mySrc.getGEOPrimitive(off);
 		auto	pack = UTverify_cast<const GU_PrimPacked *>(prim);
+		GU_Detail *gdp = myUnpacked(i);
 		if(myPolySoup)
 		{
-		    if (!pack->unpack(*myUnpacked(i)))
-			myUnpacked(i)->clear();
+		    if (!pack->unpack(*gdp))
+			gdp->clear();
 		}
 		else
 		{
-		    if (!pack->unpackUsingPolygons(*myUnpacked(i)))
-			myUnpacked(i)->clear();
+		    if (!pack->unpackUsingPolygons(*gdp))
+			gdp->clear();
+		}
+
+		if (myPath.isstring())
+		{
+		    GA_RWHandleS a = gdp->addStringTuple(
+					    GA_ATTRIB_PRIMITIVE, myPath, 1);
+		    if(a.isValid())
+		    {
+			auto abc_impl = UTverify_cast<const GABC_PackedImpl *>(pack->implementation());
+			auto path = abc_impl->intrinsicObjectPath(pack);
+			for (auto it = GA_Iterator(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
+			    a->setString(*it, path);
+		    }
 		}
 	    }
 	}
@@ -1423,11 +1440,13 @@ namespace
 	UT_Array<GU_Detail *>	 myUnpacked;
 	const GU_Detail		&mySrc;
 	bool			 myPolySoup;
+	const UT_String		&myPath;
     };
 }
 
 void
-SOP_AlembicIn2::unpack(GU_Detail &dest, const GU_Detail &src, bool polysoup)
+SOP_AlembicIn2::unpack(
+    GU_Detail &dest, const GU_Detail &src, const Parms &parms)
 {
     dest.stashAll();
     UT_ASSERT(dest.getNumPoints() == 0);
@@ -1438,8 +1457,9 @@ SOP_AlembicIn2::unpack(GU_Detail &dest, const GU_Detail &src, bool polysoup)
 	unpacked.append(new GU_Detail);
     }
     // Currently, parallel unpacking is slower than serial unpacking
+    bool polysoup = (parms.myPolySoup != GABC_GEOWalker::ABC_POLYSOUP_NONE);
     UTserialFor(UT_BlockedRange<GA_Size>(0, unpacked.entries()),
-		    unpackTask(unpacked, src, polysoup));
+		    unpackTask(unpacked, src, polysoup, parms.myPathAttribute));
     GUmatchAttributesAndMerge(dest, unpacked);
     for (auto g : unpacked)
 	delete g;
