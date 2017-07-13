@@ -60,7 +60,6 @@ using namespace GABC_NAMESPACE;
 namespace
 {
     using index_t = Alembic::Abc::index_t;
-    using chrono_t = Alembic::Abc::chrono_t;
     using DataType = Alembic::Abc::DataType;
     using M44d = Alembic::Abc::M44d;
     using V3d = Alembic::Abc::V3d;
@@ -203,36 +202,6 @@ namespace
 	    filled[idx] = true;
     }
 
-    static const fpreal	timeBias = 0.0001;
-
-    static fpreal
-    getIndex(fpreal t,
-	    const TimeSamplingPtr &itime,
-	    exint nsamp,
-	    index_t &i0,
-	    index_t &i1)
-    {
-	nsamp  = SYSmax(nsamp, 1);
-	std::pair<index_t, chrono_t> t0 = itime->getFloorIndex(t, nsamp);
-	i0 = i1 = t0.first;
-	if (nsamp == 1 || SYSisEqual(t, t0.second, timeBias))
-	    return 0;
-
-	std::pair<index_t, chrono_t> t1 = itime->getCeilIndex(t, nsamp);
-	i1 = t1.first;
-	if (i0 == i1)
-	    return 0;
-
-	fpreal	bias = (t - t0.second) / (t1.second - t0.second);
-	if (SYSisEqual(bias, 1, timeBias))
-	{
-	    i0 = i1;
-	    return 0;
-	}
-
-	return bias;
-    }
-
     template <typename T_SCHEMA>
     static bool
     isHeterogeneousTopology(const T_SCHEMA &ss)
@@ -262,14 +231,8 @@ namespace
 	if (nsamp < 2)
 	    return;	// Only one sample?
 
-	const TimeSamplingPtr	&itime = ss.getTimeSampling();
-	std::pair<index_t, chrono_t> t0 = itime->getFloorIndex(t, nsamp);
-	std::pair<index_t, chrono_t> t1 = itime->getCeilIndex(t, nsamp);
-	if (t0.first == t1.first)
-	    return;		// Same time index
-
-	fpreal best = ((t-t0.second) > (t1.second-t)) ? t1.second : t0.second;
-	if (!SYSisEqual(best, t, timeBias))
+	fpreal best = ss.getTimeSampling()->getNearIndex(t, nsamp).second;
+	if (!SYSisEqual(best, t, 1e-4))
 	{
 	    UT_ErrorLog::mantraErrorOnce(
 		"Alembic sub-frame interpolation error for dynamic topology %s (%s)",
@@ -652,7 +615,7 @@ namespace
     {
         GT_DataArrayHandle  s0, s1;
 	index_t             i0, i1;
-	fpreal              bias = getIndex(t,
+	fpreal              bias = GABC_Util::getSampleIndex(t,
 	                            prop.getTimeSampling(),
                                     prop.getNumSamples(),
                                     i0,
@@ -680,7 +643,7 @@ namespace
 
         GT_DataArrayHandle  s0, s1;
 	index_t             i0, i1;
-        fpreal              bias = getIndex(t,
+        fpreal              bias = GABC_Util::getSampleIndex(t,
                                     prop.getTimeSampling(),
                                     prop.getNumSamples(),
                                     i0,
@@ -709,7 +672,7 @@ namespace
 	typename T::sample_type v0, v1;
         GT_DataArrayHandle      s0, s1;
 	index_t                 i0, i1;
-	fpreal                  bias = getIndex(t,
+	fpreal                  bias = GABC_Util::getSampleIndex(t,
 	                                gparam.getTimeSampling(),
 	                                gparam.getNumSamples(),
 	                                i0,
@@ -2497,7 +2460,8 @@ namespace
 	const typename ABC_T::schema_type	&ss = prim.getSchema();
 	IBox3dProperty	 bounds = ss.getSelfBoundsProperty();
 	index_t		 i0, i1;
-	fpreal		 bias = getIndex(t, ss.getTimeSampling(),
+	fpreal		 bias = GABC_Util::getSampleIndex(t,
+					ss.getTimeSampling(),
 					ss.getNumSamples(), i0, i1);
 	isconst = bounds.isConstant();
 	box = GABC_Util::getBox(bounds.getValue(ISampleSelector(i0)));
@@ -3641,11 +3605,9 @@ GABC_IObject::localTransform(fpreal t, UT_Matrix4D &mat,
 	index_t             i0, i1;
 	XformSample         s0, s1;
 	M44d                matrix;
-	fpreal              bias = getIndex(t,
+	fpreal              bias = GABC_Util::getSampleIndex(t,
 	                            ss.getTimeSampling(),
-                                    ss.getNumSamples(),
-                                    i0,
-                                    i1);
+                                    ss.getNumSamples(), i0, i1);
 
         isConstant = ss.isConstant();
         inheritsXform = ss.getInheritsXforms();

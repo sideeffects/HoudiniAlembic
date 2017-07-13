@@ -51,6 +51,10 @@ class GABC_API GABC_Util
 public:
     class ArchiveEventHandler;
 
+    typedef Alembic::Abc::index_t			index_t;
+    typedef Alembic::Abc::chrono_t			chrono_t;
+    typedef Alembic::Abc::TimeSamplingPtr		TimeSamplingPtr;
+
     typedef Alembic::Abc::V3d			        V3d;
     typedef Alembic::Abc::Box3d			        Box3d;
     typedef Alembic::Abc::M44d			        M44d;
@@ -347,6 +351,10 @@ public:
     static const UT_StringHolder	theLockGeometryParameter;
     static const UT_StringHolder	theUserPropsValsAttrib;
     static const UT_StringHolder	theUserPropsMetaAttrib;
+
+    ///
+    static fpreal	getSampleIndex(fpreal t, const TimeSamplingPtr &itime,
+				       exint nsamp, index_t &i0, index_t &i1);
 
     /// Class to efficiently find a new name when a collision is detected.
     class GABC_API CollisionResolver
