@@ -2147,7 +2147,7 @@ namespace {
 	    const Imath::V3f *P1data = P1->get();
 	    for (exint i = 0; i < npoint; ++i)
 	    {
-	    GA_Offset	pt = GA_Offset(startpoint+i);
+		GA_Offset	pt = GA_Offset(startpoint+i);
 		gdp.setPos3(pt, SYSlerp(Pdata[i].x, P1data[i].x, bias),
 				SYSlerp(Pdata[i].y, P1data[i].y, bias),
 				SYSlerp(Pdata[i].z, P1data[i].z, bias));
