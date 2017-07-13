@@ -352,7 +352,8 @@ public:
     static const UT_StringHolder	theUserPropsValsAttrib;
     static const UT_StringHolder	theUserPropsMetaAttrib;
 
-    ///
+    /// Gets the samples indices (i0 and i1) corresponding to time 't'.  The
+    /// bias for blending the samples is returned.
     static fpreal	getSampleIndex(fpreal t, const TimeSamplingPtr &itime,
 				       exint nsamp, index_t &i0, index_t &i1);
 
