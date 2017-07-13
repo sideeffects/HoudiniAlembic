@@ -62,6 +62,9 @@ namespace Alembic {
 using namespace GABC_NAMESPACE;
 
 namespace {
+    using chrono_t = Alembic::Abc::chrono_t;
+    using index_t = Alembic::Abc::index_t;
+
     using M44d = Imath::M44d;
     using V3f = Imath::V3f;
     using V3d = Imath::V3d;
@@ -2264,14 +2267,22 @@ namespace {
     //
     //  Create a point cloud from a packed Alembic.
     //
-
+    template <typename ABC_T, typename SCHEMA_T>
     static void
-    buildPointCloud(GABC_GEOWalker &walk,
-            const GABC_IObject &obj,
-            const P3fArraySamplePtr &P)
+    makePointMesh(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
 	GU_Detail		&gdp = walk.detail();
 	exint			 startpoint = walk.pointCount();
+	ABC_T			 prim(obj.object(), gabcWrapExisting);
+	SCHEMA_T		&ps = prim.getSchema();
+	IP3fArrayProperty	 prop = ps.getPositionsProperty();
+        index_t			 i0, i1;
+
+	fpreal bias =
+	    GABC_Util::getSampleIndex(walk.time(), prop.getTimeSampling(),
+				      prop.getNumSamples(), i0, i1);
+
+	P3fArraySamplePtr	 P = prop.getValue(ISampleSelector(i0));
 	exint			 npoint = P->size();
 	const Imath::V3f	*Pdata = P->get();
 
@@ -2279,10 +2290,25 @@ namespace {
 	{
 	    UT_VERIFY(gdp.appendPointBlock(npoint) == GA_Offset(startpoint));
 	}
-	for (exint i = 0; i < npoint; ++i)
+	if(bias)
 	{
-	    GA_Offset	pt = GA_Offset(startpoint+i);
-	    gdp.setPos3(pt, Pdata[i].x, Pdata[i].y, Pdata[i].z);
+	    P3fArraySamplePtr P1 = prop.getValue(ISampleSelector(i1));
+	    const Imath::V3f *P1data = P1->get();
+	    for (exint i = 0; i < npoint; ++i)
+	    {
+		GA_Offset	pt = GA_Offset(startpoint+i);
+		gdp.setPos3(pt, SYSlerp(Pdata[i].x, P1data[i].x, bias),
+				SYSlerp(Pdata[i].y, P1data[i].y, bias),
+				SYSlerp(Pdata[i].z, P1data[i].z, bias));
+	    }
+	}
+	else
+	{
+	    for (exint i = 0; i < npoint; ++i)
+	    {
+		GA_Offset	pt = GA_Offset(startpoint+i);
+		gdp.setPos3(pt, Pdata[i].x, Pdata[i].y, Pdata[i].z);
+	    }
 	}
 	UT_String	groupname;
 	if (walk.getGroupName(groupname, obj))
@@ -2296,17 +2322,6 @@ namespace {
 	    walk.setNonConstant();
 	}
 	walk.trackPtVtxPrim(obj, npoint, 0, 0, true);
-    }
-
-    template <typename ABC_T, typename SCHEMA_T>
-    static void
-    makePointMesh(GABC_GEOWalker &walk, const GABC_IObject &obj)
-    {
-	ISampleSelector		 iss = walk.timeSample();
-	ABC_T			 prim(obj.object(), gabcWrapExisting);
-	SCHEMA_T		&ps = prim.getSchema();
-	P3fArraySamplePtr	 P = ps.getPositionsProperty().getValue(iss);
-	buildPointCloud(walk, obj, P);
     }
 
     //

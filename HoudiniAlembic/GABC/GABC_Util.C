@@ -54,12 +54,9 @@ namespace
     class ArchiveCacheEntry;
     class LocalWorldXform;
 
-    using index_t = Alembic::Abc::index_t;
-    using chrono_t = Alembic::Abc::chrono_t;
     using M44d = Alembic::Abc::M44d;
 
     using ISampleSelector = Alembic::Abc::ISampleSelector;
-    using TimeSamplingPtr = Alembic::Abc::TimeSamplingPtr;
 
     using IObject = Alembic::Abc::IObject;
     using ObjectHeader = Alembic::Abc::ObjectHeader;
@@ -2754,4 +2751,34 @@ GABC_Util::CollisionResolver::add(const std::string &name)
 	    break;
 	}
     }
+}
+
+fpreal
+GABC_Util::getSampleIndex(fpreal t,
+    const TimeSamplingPtr &itime,
+    exint nsamp,
+    index_t &i0,
+    index_t &i1)
+{
+    static const fpreal timeBias = 0.0001;
+
+    nsamp = SYSmax(nsamp, 1);
+    std::pair<index_t, chrono_t> t0 = itime->getFloorIndex(t, nsamp);
+    i0 = i1 = t0.first;
+    if (nsamp == 1 || SYSisEqual(t, t0.second, timeBias))
+	return 0;
+
+    std::pair<index_t, chrono_t> t1 = itime->getCeilIndex(t, nsamp);
+    i1 = t1.first;
+    if (i0 == i1)
+	return 0;
+
+    fpreal bias = (t - t0.second) / (t1.second - t0.second);
+    if (SYSisEqual(bias, 1, timeBias))
+    {
+	i0 = i1;
+	return 0;
+    }
+
+    return bias;
 }
