@@ -145,6 +145,7 @@ private:
     
     UT_StringHolder		 myName;
     GT_GEODetailListHandle	 myDetailList;
+    UT_StringArray		 myAlembicObjects;
     GA_OffsetArray		 myAlembicOffsets;
     GABC_NAMESPACE::GABC_IArchivePtr myArchive;
     
@@ -165,8 +166,7 @@ class GABC_API GABC_PackedAlembic : public GT_GEOPrimPacked
 {
 public:
 	     GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
-				const GU_PrimPacked *prim,
-				bool tmp_new_scheme = false);
+				const GU_PrimPacked *prim);
     
 	     GABC_PackedAlembic(const GABC_PackedAlembic &src);
     virtual ~GABC_PackedAlembic();
@@ -219,15 +219,12 @@ public:
     int64	      alembicVersion() const { return myAlembicVersion; }
     void	      setAlembicVersion(int64 v) { myAlembicVersion = v; }
     
-    /// Temporary until switchover
-    bool			tmpIsNewScheme() const {return myTmpNewScheme;}
 private:
     int64	      myID;
     GEO_AnimationType myAnimType;
     GABC_AlembicCache myCache;
     bool	      myAnimVis;
     bool	      myVisibleConst; // only valid when myAnimVis is false.
-    bool	      myTmpNewScheme;
     int64	      myAlembicVersion;
 };
 

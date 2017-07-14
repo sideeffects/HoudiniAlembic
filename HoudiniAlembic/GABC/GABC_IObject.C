@@ -1411,7 +1411,7 @@ namespace
 	auto obj_da = new GT_DAIndexedString(1);
 	auto time_da = new GT_DANumeric<fpreal32>(1,1);
 	file_da->setString(0,0, obj.archive()->filename().c_str());
-	obj_da->setString(0,0, obj.getName().c_str());
+	obj_da->setString(0,0, obj.getFullName().c_str());
 	time_da->set(t, 0);
 
 	GT_AttributeListHandle rlist;

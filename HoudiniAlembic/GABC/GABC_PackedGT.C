@@ -95,7 +95,7 @@ public:
 		{
 		    GABC_PackedAlembic *packgt =
 			new GABC_PackedAlembic(myGeometry->getGeometry(0),
-					       itr->second(0), true);
+					       itr->second(0));
 	    
 		    if(myCollectAnimInfo)
 		    {
@@ -432,16 +432,14 @@ private:
 
 
 GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
-				       const GU_PrimPacked *prim,
-				       bool tmp_is_new_scheme)
+				       const GU_PrimPacked *prim)
     : GT_GEOPrimPacked(prim_gdh, prim),
       myID(0),
       myAnimType(GEO_ANIMATION_INVALID),
       myAnimVis(false),
-      myVisibleConst(true),
-      myTmpNewScheme(tmp_is_new_scheme)
+      myVisibleConst(true)
 {
-    if(prim && tmp_is_new_scheme)
+    if(prim)
     {
 	const GABC_PackedImpl *impl =
 	    UTverify_cast<const GABC_PackedImpl *>(prim->implementation());
@@ -634,7 +632,7 @@ GABC_PackedAlembic::getInstanceKey(UT_Options &options) const
 GT_TransformHandle
 GABC_PackedAlembic::fullCachedTransform()
 {
-    GT_TransformHandle th; 
+    GT_TransformHandle th;
     if(!getCachedTransform(th))
     {
 	th = getLocalTransform();
@@ -812,14 +810,17 @@ class gabc_BucketAlembics
 {
 public:
     gabc_BucketAlembics(const GU_Detail *dtl,
-			const GA_OffsetArray &offsets)
+			const GA_OffsetArray &offsets,
+			UT_StringArray &objects)
 	: myDetail(dtl),
-	  myOffsets(offsets)
+	  myOffsets(offsets),
+	  myObjects(objects)
 	{}
 
     gabc_BucketAlembics(const gabc_BucketAlembics &src, UT_Split)
 	: myDetail(src.myDetail),
-	  myOffsets(src.myOffsets)
+	  myOffsets(src.myOffsets),
+	  myObjects(src.myObjects)
 	{}
 
     void	operator()(const UT_BlockedRange<exint> &range)
@@ -834,6 +835,7 @@ public:
 		UT_StringHolder path = impl->object().getSourcePath();
 
 		myBuckets[ path ].append(prim);
+		myObjects[i] = impl->object().getFullName();
 	    }
 	}
   
@@ -865,6 +867,7 @@ private:
     const GU_Detail *myDetail;
     const GA_OffsetArray &myOffsets;
     UT_StringMap< UT_Array<const GU_PrimPacked *> > myBuckets;
+    UT_StringArray &myObjects;
 };
 
 class gabc_GenerateMeshes
@@ -1255,9 +1258,12 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
     UT_StopWatch timer;
     timer.start();
 #endif
+    myAlembicObjects.resize( myAlembicOffsets.entries() );
     // Sort the collected Alembic primitives into buckets for instancing.
     GU_DetailHandleAutoReadLock gdplock(myDetailList->getGeometry(0));
-    gabc_BucketAlembics btask(gdplock.getGdp(), myAlembicOffsets);
+    gabc_BucketAlembics btask(gdplock.getGdp(),
+			      myAlembicOffsets,
+			      myAlembicObjects);
 
     UTparallelReduce(UT_BlockedRange<exint>(0, myAlembicOffsets.entries()),
 		     btask);
@@ -1407,7 +1413,8 @@ bool
 GABC_PackedArchive::archiveMatch(const GABC_PackedArchive *archive) const
 {
     if(myName != archive->archiveName() ||
-       myAlembicOffsets.entries() != archive->myAlembicOffsets.entries())
+       myAlembicOffsets.entries() != archive->myAlembicOffsets.entries() ||
+       myAlembicOffsets.entries() != archive->myAlembicObjects.size())
 	return false;
 
     if(archive && archive->myAlembicVersion != myAlembicVersion)
@@ -1416,25 +1423,18 @@ GABC_PackedArchive::archiveMatch(const GABC_PackedArchive *archive) const
     GU_DetailHandleAutoReadLock this_lock(myDetailList->getGeometry(0));
     const GU_Detail *this_dtl = this_lock.getGdp();
     
-    GU_DetailHandleAutoReadLock cmp_lock(archive->myDetailList->getGeometry(0));
-    const GU_Detail *cmp_dtl = cmp_lock.getGdp();
-    
     for(int i=0; i<myAlembicOffsets.entries(); i++)
     {
+	GA_Offset src_off = myAlembicOffsets(i);
 	const GU_PrimPacked *this_prim = static_cast<const GU_PrimPacked *>
-	    (this_dtl->getPrimitive(myAlembicOffsets(i)));
+	    (this_dtl->getPrimitive(src_off));
 	auto this_impl = UTverify_cast<const GABC_PackedImpl*>
 	    (this_prim->implementation());
 
-	const GU_PrimPacked *cmp_prim = static_cast<const GU_PrimPacked *>
-	    (cmp_dtl->getPrimitive(archive->myAlembicOffsets(i)));
-	auto cmp_impl = UTverify_cast<const GABC_PackedImpl*>
-	    (cmp_prim->implementation());
-
-	if(this_impl->object().getFullName()!= cmp_impl->object().getFullName())
+	if(archive->myAlembicObjects(i) !=
+	   this_impl->object().getFullName().c_str())
 	    return false;
     }
-
 
     return true;
 }
