@@ -60,6 +60,7 @@ using namespace GABC_NAMESPACE;
 namespace
 {
     using index_t = Alembic::Abc::index_t;
+    using chrono_t = Alembic::Abc::chrono_t;
     using DataType = Alembic::Abc::DataType;
     using M44d = Alembic::Abc::M44d;
     using V3d = Alembic::Abc::V3d;
@@ -216,6 +217,8 @@ namespace
 	return !ss.getIdsProperty().isConstant();
     }
 
+    static const fpreal	timeBias = 0.0001;
+
     template <typename T_SCHEMA>
     static void
     adjustDeformingTimeSample(fpreal &t, const GABC_IObject &obj,
@@ -231,8 +234,14 @@ namespace
 	if (nsamp < 2)
 	    return;	// Only one sample?
 
-	fpreal best = ss.getTimeSampling()->getNearIndex(t, nsamp).second;
-	if (!SYSisEqual(best, t, 1e-4))
+	const TimeSamplingPtr	&itime = ss.getTimeSampling();
+	std::pair<index_t, chrono_t> t0 = itime->getFloorIndex(t, nsamp);
+	std::pair<index_t, chrono_t> t1 = itime->getCeilIndex(t, nsamp);
+	if (t0.first == t1.first)
+	    return;		// Same time index
+
+	fpreal best = ((t-t0.second) > (t1.second-t)) ? t1.second : t0.second;
+	if (!SYSisEqual(best, t, timeBias))
 	{
 	    UT_ErrorLog::mantraErrorOnce(
 		"Alembic sub-frame interpolation error for dynamic topology %s (%s)",
