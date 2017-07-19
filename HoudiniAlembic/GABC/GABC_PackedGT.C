@@ -446,6 +446,7 @@ GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
 	if(impl)
 	{
 	    fpreal frame = 0.0;
+	    
 	    myAnimType = impl->animationType();
 	    if(myAnimType > GEO_ANIMATION_TRANSFORM)
 	    {
@@ -506,6 +507,9 @@ GABC_PackedAlembic::getFullGeometry(const GT_RefineParms *parms,
 
 	if(visibilityAnimated())
 	    load_style |= GABC_IObject::GABC_LOAD_IGNORE_VISIBILITY;
+
+	if(parms && parms->getAlembicGLOptimize())
+	    load_style |= GABC_IObject::GABC_LOAD_GL_OPTIMIZED;
     }
     else
     {
@@ -1226,7 +1230,8 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 
     int num_streams = 1; 
 #ifdef USE_PRELOAD_STREAMS
-    if(myArchive->isOgawa())
+    if(myArchive->isOgawa() &&
+       !GT_PackedGeoCache::hasAlembicFile(myName.c_str()))
     {
 	num_streams = DEFAULT_NUM_STREAMS;
 	int env = UT_EnvControl::getInt(ENV_HOUDINI_ALEMBIC_OGAWA_STREAMS);

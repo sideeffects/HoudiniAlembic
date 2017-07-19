@@ -159,6 +159,8 @@ public:
 	GABC_LOAD_FORCE_UNTRANSFORMED	= 0x1000,
 	// Load regardless of visibility
 	GABC_LOAD_IGNORE_VISIBILITY	= 0x2000,
+	// Load an optimized version for GL (single attrib freq, triangulated)
+	GABC_LOAD_GL_OPTIMIZED		= 0x4000,
     };
 
     UT_StringHolder getAttributes(const GEO_PackedNameMapPtr &namemap,

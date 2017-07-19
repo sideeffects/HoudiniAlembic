@@ -700,6 +700,15 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 		if (atype > myAnimationType)
 		    myAnimationType = atype;
 
+		if(myPrim &&
+		   (myLoadStyle & GABC_IObject::GABC_LOAD_GL_OPTIMIZED) &&
+		   (myPrim->getPrimitiveType() == GT_PRIM_POLYGON_MESH ||
+		    myPrim->getPrimitiveType() == GT_PRIM_SUBDIVISION_MESH))
+		{
+		    GU_ConstDetailHandle dtl;
+		    myPrim = GT_Util::optimizePolyMeshForGL(myPrim, dtl);
+		}
+
 		if(GT_PackedGeoCache::isCachingAvailable())
 		{
 		    GT_PackedGeoCache::cacheInstance(cache_name, myPrim,
@@ -819,11 +828,34 @@ GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
 {
     if (myAnimationType == GEO_ANIMATION_INVALID && visible(abc))
     {
-	auto atype = abc->object().getAnimationType(true);
-	// The call to visible() might have set the animation type which we
-	// don't want to lose.
-	if (atype > myAnimationType)
-	    myAnimationType = atype;
+	const GABC_IObject	&o = abc->object();
+	if (o.valid())
+	{
+	    if(GT_PackedGeoCache::isCachingAvailable())
+	    {
+		UT_StringHolder cache_name;
+		const int64 version = 0;
+		GEO_AnimationType	atype = GEO_ANIMATION_INVALID;
+		GT_PackedGeoCache::buildAlembicName(
+		    cache_name,
+		    o.getSourcePath().c_str(),
+		    o.archive()->filename().c_str(),
+		    abc->frame());
+
+		if(GT_PackedGeoCache::findAnimation(cache_name, version, atype))
+		{
+		    if (atype > myAnimationType)
+			myAnimationType = atype;
+		    return atype;
+		}
+	    }
+
+	    auto atype = abc->object().getAnimationType(true);
+	    // The call to visible() might have set the animation type which we
+	    // don't want to lose.
+	    if (atype > myAnimationType)
+		myAnimationType = atype;
+	}
     }
 
     return myAnimationType;
