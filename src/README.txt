@@ -11,20 +11,20 @@ This is Alembic source code used to compile this version of Houdini.
     file.
 
 - OPalembic/
-    This is the source to the "Alembic Archive" and "Alembic Xform" OTLs.
+    This is the source to the "Alembic Archive" and "Alembic Xform" HDAs.
 
-- GU_Alembic.C
+- GU/
     This is the primitive .so file which installs the GABC_GUPrim primitive
     into Houdini.
 
-- HOM_Alemibic.C
-    This contains Python extentsion for HOM
+- HOM/
+    This contains Python extentsion for HOM.
 
-- ROP_*
-    These files are used to build the Alembic output driver
+- ROP/
+    This is the source used to build the Alembic output driver.
 
-- SOP_AlembicIn.[Ch]
-    These files are used to build the Alembic SOP
+- SOP/
+    This is the source used to build the Alembic SOP.
 
-- VRAY_ProcAlembic.[Ch]
-    These files are the source to the Alembic procedural for mantra.
+- VRAY/
+    This is the source used to build the Alembic procedural for mantra.
