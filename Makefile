@@ -31,7 +31,7 @@ ifndef CXX
     CXX := g++
 endif
 
-ABCINC = /usr/local/alembic-1.1.5/include
+ABCINC = /usr/local/alembic-1.6.1/include
 ABCINC = $(HFS)/toolkit/include
 ABCDEF = \
     -DGABC_NAMESPACE=$(GABC_NAMESPACE) \
@@ -53,33 +53,33 @@ EXTRALIBS = \
 ABCFLAGS = $(ABCDEF) -I$(ABCINC) -I$(HALFDIR)
 
 GABCCFILES = \
-	HoudiniAlembic/GABC/GABC_GEOWalker.C \
-	HoudiniAlembic/GABC/GABC_IArchive.C \
-	HoudiniAlembic/GABC/GABC_IArray.C \
-	HoudiniAlembic/GABC/GABC_IGTArray.C \
-	HoudiniAlembic/GABC/GABC_IItem.C \
-	HoudiniAlembic/GABC/GABC_IObject.C \
-	HoudiniAlembic/GABC/GABC_Error.C \
-	HoudiniAlembic/GABC/GABC_OGTGeometry.C \
-	HoudiniAlembic/GABC/GABC_OOptions.C \
-	HoudiniAlembic/GABC/GABC_OArrayProperty.C \
-	HoudiniAlembic/GABC/GABC_OScalarProperty.C \
-	HoudiniAlembic/GABC/GABC_PackedGT.C \
-	HoudiniAlembic/GABC/GABC_PackedImpl.C \
-	HoudiniAlembic/GABC/GABC_Types.C \
-	HoudiniAlembic/GABC/GABC_Util.C
+	src/GABC/GABC_Error.C \
+	src/GABC/GABC_GEOWalker.C \
+	src/GABC/GABC_IArchive.C \
+	src/GABC/GABC_IArray.C \
+	src/GABC/GABC_IGTArray.C \
+	src/GABC/GABC_IItem.C \
+	src/GABC/GABC_IObject.C \
+	src/GABC/GABC_OArrayProperty.C \
+	src/GABC/GABC_OGTGeometry.C \
+	src/GABC/GABC_OOptions.C \
+	src/GABC/GABC_OScalarProperty.C \
+	src/GABC/GABC_PackedGT.C \
+	src/GABC/GABC_PackedImpl.C \
+	src/GABC/GABC_Types.C \
+	src/GABC/GABC_Util.C
 GABCOFILES = $(GABCCFILES:.C=.o)
 GABCLIB = libs/libCustomGABC.so
 
-ALEMBIC_IN	= HoudiniAlembic/SOP_AlembicIn.C
+ALEMBIC_IN	= src/SOP/SOP_AlembicIn.C
 ALEMBIC_IN_SO	= $(ALEMBIC_IN:.C=.so)
 ALEMBIC_IN_O	= $(ALEMBIC_IN:.C=.o)
 
-ALEMBIC_GROUP		= HoudiniAlembic/SOP_AlembicGroup.C
+ALEMBIC_GROUP		= src/SOP/SOP_AlembicGroup.C
 ALEMBIC_GROUP_SO	= $(ALEMBIC_GROUP:.C=.so)
 ALEMBIC_GROUP_O		= $(ALEMBIC_GROUP:.C=.o)
 
-GU_ALEMBIC	= HoudiniAlembic/GU_Alembic.C
+GU_ALEMBIC	= src/GU/GU_Alembic.C
 GU_ALEMBIC_SO	= $(GU_ALEMBIC:.C=.so)
 GU_ALEMBIC_O	= $(GU_ALEMBIC:.C=.o)
 
@@ -100,6 +100,7 @@ all:	$(GABCLIB) $(PLUGINS:.C=.so)
 install:	all
 
 $(GABCLIB):	$(GABCOFILES)
+	mkdir -p libs
 	$(CXX) -shared \
 	    -Wl,-soname,$(GABCLIB) \
 	    -Wl,--exclude-libs,ALL  \
@@ -117,14 +118,5 @@ $(GU_ALEMBIC_SO):	$(GU_ALEMBIC_O) $(GABCLIB)
 clean:
 	rm -f $(OFILES)
 
-untar:
-	tar xvf $(HH)/public/Alembic/HoudiniAlembic.tgz
-
-test:	$(GABCOFILES)
-	@echo All objects compiled properly
-
 rmtargets:
 	rm -rf $(TARGETS)
-
-backup:
-	python backup.py
