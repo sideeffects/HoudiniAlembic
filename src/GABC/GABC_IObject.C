@@ -42,6 +42,7 @@
 #include <GT/GT_PrimitiveBuilder.h>
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_Util.h>
+#include <GT/GT_PackedGeoCache.h>
 #include <GT/GT_PrimPointMesh.h>
 #include <GT/GT_PrimCurveMesh.h>
 #include <GT/GT_PrimPolygonMesh.h>
@@ -1410,25 +1411,36 @@ namespace
 	auto file_da = new GT_DAIndexedString(1);
 	auto obj_da = new GT_DAIndexedString(1);
 	auto time_da = new GT_DANumeric<fpreal32>(1,1);
+	auto cache_da = new GT_DAIndexedString(1);
 	file_da->setString(0,0, obj.archive()->filename().c_str());
 	obj_da->setString(0,0, obj.getFullName().c_str());
 	time_da->set(t, 0);
+
+	UT_StringHolder cache;
+	GT_PackedGeoCache::buildAlembicName(cache,
+					    obj.getFullName().c_str(),
+					    obj.archive()->filename().c_str(),
+					    t);
+	cache_da->setString(0,0, cache);
 
 	GT_AttributeListHandle rlist;
 	if(list)
 	{
 	    rlist = list->addAttribute("__filename",
-					  GT_DataArrayHandle(file_da),  true);
+				       GT_DataArrayHandle(file_da), true);
 	    rlist = rlist->addAttribute("__object_name",
-					  GT_DataArrayHandle(obj_da),  true);
+					GT_DataArrayHandle(obj_da), true);
+	    rlist = rlist->addAttribute("__cache_name",
+					GT_DataArrayHandle(cache_da), true);
 	    rlist = rlist->addAttribute("__time",
-					  GT_DataArrayHandle(time_da), true);
+					GT_DataArrayHandle(time_da), true);
 	}
 	else
 	{
 	    rlist = GT_AttributeList::createAttributeList(
 		"__filename",	 file_da,
 		"__object_name", obj_da,
+		"__cache_name",  cache_da,
 		"__time",	 time_da,
 		nullptr);
 	}
