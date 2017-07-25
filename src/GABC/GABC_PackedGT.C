@@ -105,6 +105,8 @@ public:
 			packgt->setAnimationType(impl->animationType());
 			packgt->setVisibilityAnimated(vis_anim);
 		    }
+		    else
+			packgt->initVisAnim();
 		    
 		    myPrims(index) = packgt;
 		    continue;
@@ -439,37 +441,38 @@ GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
       myAnimVis(false),
       myVisibleConst(true)
 {
-    if(prim)
-    {
-	const GABC_PackedImpl *impl =
-	    UTverify_cast<const GABC_PackedImpl *>(prim->implementation());
-	if(impl)
-	{
-	    fpreal frame = 0.0;
-	    
-	    myAnimType = impl->animationType();
-	    if(myAnimType > GEO_ANIMATION_TRANSFORM)
-	    {
-		frame = impl->frame();
-		//myCache.setGeometryAnimated(true);
-	    }
-	    else if(myAnimType != GEO_ANIMATION_CONSTANT)
-		myCache.setTransformAnimated(true);
-		
-	    SYS_HashType hash = impl->getPropertiesHash();
-	    SYShashCombine(hash, SYSreal_hash(frame));
-	    myID = hash;
-
-	    myVisibleConst = impl->visibleGT(&myAnimVis);
-	    myCache.setVisibilityAnimated(myAnimVis);
-	}
-    }
 }
 
 GABC_PackedAlembic::GABC_PackedAlembic(const GABC_PackedAlembic &src)
     : GT_GEOPrimPacked(src),
       myID(src.myID)
 {
+}
+
+void
+GABC_PackedAlembic::initVisAnim()
+{
+    const GABC_PackedImpl *impl =
+	UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+    if(impl)
+    {
+	fpreal frame = 0.0;
+	    
+	myAnimType = impl->animationType();
+	if(myAnimType > GEO_ANIMATION_TRANSFORM)
+	{
+	    frame = impl->frame();
+	}
+	else if(myAnimType != GEO_ANIMATION_CONSTANT)
+	    myCache.setTransformAnimated(true);
+		
+	myVisibleConst = impl->visibleGT(&myAnimVis);
+	myCache.setVisibilityAnimated(myAnimVis);
+
+	SYS_HashType hash = impl->getPropertiesHash();
+	SYShashCombine(hash, SYSreal_hash(frame));
+	myID = hash;
+    }
 }
 
 GABC_PackedAlembic::~GABC_PackedAlembic()

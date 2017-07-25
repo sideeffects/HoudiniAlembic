@@ -171,6 +171,8 @@ public:
 	     GABC_PackedAlembic(const GABC_PackedAlembic &src);
     virtual ~GABC_PackedAlembic();
 
+    void		 initVisAnim();
+    
     virtual int		 getPrimitiveType() const
 				    { return GT_PRIM_ALEMBIC_SHAPE; }
     virtual const char	*className() const	{ return "GABC_PackedAlembic"; }
