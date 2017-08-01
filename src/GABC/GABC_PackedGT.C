@@ -441,12 +441,29 @@ GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
       myAnimVis(false),
       myVisibleConst(true)
 {
+    myOffset = prim ? prim->getMapOffset() : GA_INVALID_OFFSET;
 }
 
 GABC_PackedAlembic::GABC_PackedAlembic(const GABC_PackedAlembic &src)
     : GT_GEOPrimPacked(src),
-      myID(src.myID)
+      myID(src.myID),
+      myOffset(src.myOffset)
 {
+}
+
+bool
+GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
+				  const GT_RefineParms &refine)
+{
+    const GU_PrimPacked *packed = nullptr;
+    if(GAisValid(myOffset))
+    {
+	GU_DetailHandleAutoReadLock lock(dtl);
+	const GU_Detail *gdp = lock.getGdp();
+	packed=dynamic_cast<const GU_PrimPacked *>(gdp->getPrimitive(myOffset));
+    }
+    setDetailPrim(dtl, packed);
+    return true;
 }
 
 void

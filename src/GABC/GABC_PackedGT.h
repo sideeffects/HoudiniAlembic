@@ -220,7 +220,9 @@ public:
 
     int64	      alembicVersion() const { return myAlembicVersion; }
     void	      setAlembicVersion(int64 v) { myAlembicVersion = v; }
-    
+
+    virtual bool	updateGeoPrim(const GU_ConstDetailHandle &dtl,
+				      const GT_RefineParms &refine);
 private:
     int64	      myID;
     GEO_AnimationType myAnimType;
@@ -228,6 +230,7 @@ private:
     bool	      myAnimVis;
     bool	      myVisibleConst; // only valid when myAnimVis is false.
     int64	      myAlembicVersion;
+    GA_Offset	      myOffset;
 };
 
 /// Alembic mesh which contains multiple alembic primitives merged together.
