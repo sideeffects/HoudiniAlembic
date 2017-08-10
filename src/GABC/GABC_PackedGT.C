@@ -267,6 +267,8 @@ public:
     void assignToArchive(const GU_PrimPacked &prim,
 			 const GABC_PackedImpl *impl)
 	{
+	    if(!impl->object().valid())
+		return;
 	    GT_PrimitiveHandle archive;
 	    UT_StringHolder archname = impl->object().archive()->filename();
 	    auto entry = myViewportArchives.find( archname );
