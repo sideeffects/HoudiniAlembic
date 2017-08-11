@@ -258,6 +258,7 @@ private:
     bool updateFromHierarchy(PackedTransform packedtransform, exint facesetmode,
 			     bool use_instancing, bool shape_nodes,
 			     bool displaysop);
+    void reportCookErrors(OP_Node *node, fpreal time);
 
     // temporary storage when exporting to an Alembic archive
     ROP_AbcArchivePtr myArchive;

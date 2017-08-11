@@ -1358,7 +1358,10 @@ ROP_AlembicOut::refineSop(
     GU_DetailHandleAutoReadLock rlock(gdh);
     const GU_Detail *gdp = rlock.getGdp();
     if(!gdp)
+    {
+	reportCookErrors(sop, time);
 	return;
+    }
 
     GA_ROHandleS up_vals(gdp, GA_ATTRIB_PRIMITIVE,
 			 GABC_Util::theUserPropsValsAttrib);
@@ -1551,10 +1554,7 @@ ROP_AlembicOut::updateFromSop(
     const GU_Detail *gdp = rlock.getGdp();
     if(!gdp)
     {
-	UT_WorkBuffer buf;
-	sop->getFullPath(buf);
-	myArchive->getOError().error("Error cooking %s at time %g.",
-				     buf.buffer(), time);
+	reportCookErrors(sop, time);
 	return false;
     }
 
@@ -2119,6 +2119,18 @@ ROP_AlembicOut::updateFromHierarchy(
     }
 
     return true;
+}
+
+void
+ROP_AlembicOut::reportCookErrors(OP_Node *node, fpreal time)
+{
+    UT_WorkBuffer buf;
+    node->getFullPath(buf);
+    myArchive->getOError().error("Error cooking %s at time %g.",
+				 buf.buffer(), time);
+    UT_String errors;
+    node->getErrorMessages(errors);
+    addError(ROP_COOK_ERROR, (const char *)errors);
 }
 
 void
