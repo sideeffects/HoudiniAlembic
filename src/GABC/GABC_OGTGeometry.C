@@ -1712,6 +1712,14 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
 	    continue;
 
 	myFaceSetNames.append(name);
+    }
+
+    // create face sets in sorted order
+    myFaceSetNames.sort();
+    for(exint i = 0; i < myFaceSetNames.entries(); ++i)
+    {
+	std::string name = myFaceSetNames(i).toStdString();
+
 	switch (myType)
 	{
 	    case GT_PRIM_POLYGON_MESH:
