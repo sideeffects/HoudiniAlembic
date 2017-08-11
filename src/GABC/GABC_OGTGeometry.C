@@ -299,12 +299,13 @@ namespace
 	}
     }
 
-    static IgnoreList	thePolyMeshSkip("N", "uv", (void *)NULL);
-    static IgnoreList	theSubDSkip("uv", "creaseweight", (void *)NULL);
-    static IgnoreList	theCurvesSkip("Pw", "N", "uv", "width", (void *)NULL);
-    static IgnoreList	thePointsSkip("id", "width", (void *)NULL);
-    static IgnoreList	theNuPatchSkip("Pw", "N", "uv", (void *)NULL);
-    static IgnoreList	theEmptySkip((const char *)NULL);
+    static IgnoreList	thePolyMeshSkip("N", "uv", nullptr);
+    static IgnoreList	theSubDSkip("uv", "creaseweight", "cornerweight",
+				    nullptr);
+    static IgnoreList	theCurvesSkip("Pw", "N", "uv", "width", nullptr);
+    static IgnoreList	thePointsSkip("id", "width", nullptr);
+    static IgnoreList	theNuPatchSkip("Pw", "N", "uv", nullptr);
+    static IgnoreList	theEmptySkip(nullptr);
 
     /// Create arbGeomParams from an attribute list handle
     static bool
