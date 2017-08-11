@@ -1719,12 +1719,20 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
 	    continue;
 
 	myFaceSetNames.append(name);
+    }
+
+    // create face sets in sorted order
+    myFaceSetNames.sort();
+    for(exint i = 0; i < myFaceSetNames.entries(); ++i)
+    {
+	std::string name = myFaceSetNames(i).toStdString();
+
 	switch (myType)
 	{
 	    case GT_PRIM_POLYGON_MESH:
 		{
 		    OPolyMeshSchema	&ss = myShape.myPolyMesh->getSchema();
-		    OFaceSet &fset = ss.createFaceSet(name.toStdString());
+		    OFaceSet &fset = ss.createFaceSet(name);
 		    OFaceSetSchema	&fss = fset.getSchema();
 		    fss.setTimeSampling(ctx.timeSampling());
 		}
@@ -1732,7 +1740,7 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
 	    case GT_PRIM_SUBDIVISION_MESH:
 		{
 		    OSubDSchema	&ss = myShape.mySubD->getSchema();
-		    OFaceSet &fset = ss.createFaceSet(name.toStdString());
+		    OFaceSet &fset = ss.createFaceSet(name);
 		    OFaceSetSchema	&fss = fset.getSchema();
 		    fss.setTimeSampling(ctx.timeSampling());
 		}
