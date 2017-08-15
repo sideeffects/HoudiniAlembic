@@ -118,5 +118,8 @@ $(GU_ALEMBIC_SO):	$(GU_ALEMBIC_O) $(GABCLIB)
 clean:
 	rm -f $(OFILES)
 
+test:	$(GABCOFILES)
+	@echo All objects compiled properly
+
 rmtargets:
 	rm -rf $(TARGETS)
