@@ -1719,6 +1719,11 @@ namespace
 	    gt->appendIntTag("facevaryingpropagatecorners",
 		    GT_DataArrayHandle(val));
 	}
+	std::string	scheme = sample.getSubdivisionScheme();
+	if (scheme == "loop")
+	    gt->setScheme(GT_LOOP);
+	else if (scheme == "bilinear")
+	    gt->setScheme(GT_BILINEAR);
 
 	if (load_style & GABC_IObject::GABC_LOAD_FACESETS)
 	    loadFaceSets(*gt, obj, facesetAttrib, t);

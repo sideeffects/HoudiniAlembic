@@ -301,6 +301,10 @@ namespace
 
     static IgnoreList	thePolyMeshSkip("N", "uv", nullptr);
     static IgnoreList	theSubDSkip("uv", "creaseweight", "cornerweight",
+				    "osd_scheme",
+				    "interpolateboundary",
+				    "facevaryinginterpolateboundary",
+				    "facevaryingpropagatecorners",
 				    nullptr);
     static IgnoreList	theCurvesSkip("Pw", "N", "uv", "width", nullptr);
     static IgnoreList	thePointsSkip("id", "width", nullptr);
@@ -1024,6 +1028,18 @@ namespace
 			iCreaseIndices, iCreaseLengths, iCreaseSharpnesses,
 			iCornerIndices, iCornerSharpnesses,
 			iHoles);
+
+	switch (src.scheme())
+	{
+	    case GT_LOOP:
+		sample.setSubdivisionScheme("loop");
+		break;
+	    case GT_BILINEAR:
+		sample.setSubdivisionScheme("bilinear");
+		break;
+	    default:
+		break;	// Default is "catmull-clark"
+	}
 	tag = src.findTag("interpolateboundary");
 	if (tag && tag->intCount() == 1)
 	{
