@@ -188,6 +188,8 @@ public:
 
     virtual bool	process(const GABC_IObject &node);
     virtual bool	interrupted() const;
+    /// called on each object added to the resulting geometry
+    virtual void	accepted(const GABC_IObject &node) {}
 
     /// Quickly update ABC primitives with the new time
     void		updateAbcPrims();

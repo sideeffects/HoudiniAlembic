@@ -2424,9 +2424,6 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
     bool                    process_children = true;
     bool                    vis = useVisibility();
 
-    // Recompute the time range bounds for this object
-    computeTimeRange(obj);
-
     // Packed Alembics handle visibility on their own through the
     // GABC_PackedImpl (see: GABC_PackedImpl::build(), called by makeAbcPrim).
     if (vis && myLoadMode != LOAD_ABC_PRIMITIVES)
@@ -2454,6 +2451,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	        && filterObject(obj)
 	        && (!vis || (myVisibilityStack.top() == GABC_VISIBLE_VISIBLE)))
 	{
+	    accepted(obj);
             if (buildAbcPrim())
                 makeAbcPrim(*this, obj, ohead);
             else
@@ -2464,6 +2462,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	        && filterObject(obj)
                 && (!vis || (myVisibilityStack.top() == GABC_VISIBLE_VISIBLE)))
 	{
+	    accepted(obj);
 	    makeAbcPrim(*this, obj, ohead);
 	}
 
@@ -2492,27 +2491,34 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	{
 	    case LOAD_ABC_PRIMITIVES:
 	    case LOAD_ABC_UNPACKED:
+		accepted(obj);
 		makeAbcPrim(*this, obj, ohead);
 		break;
 	    case LOAD_HOUDINI_PRIMITIVES:
 		switch (obj.nodeType())
 		{
 		    case GABC_POLYMESH:
+			accepted(obj);
 			makePolyMesh(*this, obj);
 			break;
 		    case GABC_SUBD:
+			accepted(obj);
 			makeSubD(*this, obj);
 			break;
 		    case GABC_CURVES:
+			accepted(obj);
 			makeCurves(*this, obj);
 			break;
 		    case GABC_POINTS:
+			accepted(obj);
 			makePoints(*this, obj);
 			break;
 		    case GABC_NUPATCH:
+			accepted(obj);
 			makeNuPatch(*this, obj);
 			break;
 		    case GABC_FACESET:
+			accepted(obj);
 			makeFaceSet(*this, obj);
 			break;
 
@@ -2538,18 +2544,23 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 		switch (obj.nodeType())
 		{
 		    case GABC_POLYMESH:
+			accepted(obj);
 			makePointMesh<IPolyMesh, IPolyMeshSchema>(*this, obj);
 			break;
 		    case GABC_SUBD:
+			accepted(obj);
 			makePointMesh<ISubD, ISubDSchema>(*this, obj);
 			break;
 		    case GABC_CURVES:
+			accepted(obj);
 			makePointMesh<ICurves, ICurvesSchema>(*this, obj);
 			break;
 		    case GABC_POINTS:
+			accepted(obj);
 			makePointMesh<IPoints, IPointsSchema>(*this, obj);
 			break;
 		    case GABC_NUPATCH:
+			accepted(obj);
 			makePointMesh<INuPatch, INuPatchSchema>(*this, obj);
 			break;
 
@@ -2576,7 +2587,10 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 		    UT_BoundingBox	box;
 		    bool		isConstant;
 		    if (obj.getBoundingBox(box, myTime, isConstant))
+		    {
+			accepted(obj);
 			makeHoudiniBox(*this, obj, box);
+		    }
 		}
 		break;
 	    default:
