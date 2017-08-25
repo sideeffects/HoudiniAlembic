@@ -1115,7 +1115,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     }
 
     SOP_AlembicInErr    error_handler(*this, UTgetInterrupt());
-    GABC_GEOWalker	walk(*walkgdp, error_handler);
+    GABC_GEOWalker	walk(*walkgdp, error_handler, true);
 
     walk.setObjectPattern(parms.myObjectPattern);
     walk.setExcludeObjects(parms.myExcludeObjectPath);

@@ -2394,7 +2394,8 @@ namespace {
     }
 }
 
-GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err)
+GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
+			       bool record_time_range)
     : myDetail(gdp)
     , myErrorHandler(err)
     , mySubdGroup(NULL)
@@ -2425,6 +2426,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err)
     , myIncludeXform(true)
     , myUseVisibility(true)
     , myStaticTimeZero(true)
+    , myRecordTimeRange(record_time_range)
     , myReusePrimitives(false)
     , myBuildLocator(true)
     , myLoadMode(LOAD_ABC_PRIMITIVES)
@@ -2589,9 +2591,6 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
     bool                    process_children = true;
     bool                    vis = useVisibility();
 
-    // Recompute the time range bounds for this object
-    computeTimeRange(obj);
-
     // Packed Alembics handle visibility on their own through the
     // GABC_PackedImpl (see: GABC_PackedImpl::build(), called by makeAbcPrim).
     if (vis && myLoadMode != LOAD_ABC_PRIMITIVES)
@@ -2621,6 +2620,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	        && filterObject(obj)
 	        && (!vis || (myVisibilityStack.top() == GABC_VISIBLE_VISIBLE)))
 	{
+	    recordTimeRange(obj);
             if (buildAbcPrim())
             {
                 makeAbcPrim(*this, obj, ohead);
@@ -2635,6 +2635,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	        && filterObject(obj)
                 && (!vis || (myVisibilityStack.top() == GABC_VISIBLE_VISIBLE)))
 	{
+	    recordTimeRange(obj);
 	    makeAbcPrim(*this, obj, ohead);
 	}
 
@@ -2663,27 +2664,34 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	{
 	    case LOAD_ABC_PRIMITIVES:
 	    case LOAD_ABC_UNPACKED:
+		recordTimeRange(obj);
 		makeAbcPrim(*this, obj, ohead);
 		break;
 	    case LOAD_HOUDINI_PRIMITIVES:
 		switch (obj.nodeType())
 		{
 		    case GABC_POLYMESH:
+			recordTimeRange(obj);
 			makePolyMesh(*this, obj);
 			break;
 		    case GABC_SUBD:
+			recordTimeRange(obj);
 			makeSubD(*this, obj);
 			break;
 		    case GABC_CURVES:
+			recordTimeRange(obj);
 			makeCurves(*this, obj);
 			break;
 		    case GABC_POINTS:
+			recordTimeRange(obj);
 			makePoints(*this, obj);
 			break;
 		    case GABC_NUPATCH:
+			recordTimeRange(obj);
 			makeNuPatch(*this, obj);
 			break;
 		    case GABC_FACESET:
+			recordTimeRange(obj);
 			makeFaceSet(*this, obj);
 			break;
 
@@ -2709,18 +2717,23 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 		switch (obj.nodeType())
 		{
 		    case GABC_POLYMESH:
+			recordTimeRange(obj);
 			makePointMesh<IPolyMesh, IPolyMeshSchema>(*this, obj);
 			break;
 		    case GABC_SUBD:
+			recordTimeRange(obj);
 			makePointMesh<ISubD, ISubDSchema>(*this, obj);
 			break;
 		    case GABC_CURVES:
+			recordTimeRange(obj);
 			makePointMesh<ICurves, ICurvesSchema>(*this, obj);
 			break;
 		    case GABC_POINTS:
+			recordTimeRange(obj);
 			makePointMesh<IPoints, IPointsSchema>(*this, obj);
 			break;
 		    case GABC_NUPATCH:
+			recordTimeRange(obj);
 			makePointMesh<INuPatch, INuPatchSchema>(*this, obj);
 			break;
 
@@ -2747,7 +2760,10 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 		    UT_BoundingBox	box;
 		    bool		isConstant;
 		    if (obj.getBoundingBox(box, myTime, isConstant))
+		    {
+			recordTimeRange(obj);
 			makeHoudiniBox(*this, obj, box);
+		    }
 		}
 		break;
 	    default:
@@ -3114,6 +3130,23 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
     myPointCount += npoint;
     myVertexCount += nvertex;
     myPrimitiveCount += nprim;
+}
+
+void
+GABC_GEOWalker::recordTimeRange(const GABC_IObject &node)
+{
+    if(myRecordTimeRange)
+    {
+	for(GABC_IObject obj = node; obj.valid(); obj = obj.getParent())
+	{
+	    const std::string &name = obj.getName();
+	    if(myVisited.contains(name))
+		break;
+
+	    myVisited.insert(name);
+	    computeTimeRange(obj);
+	}
+    }
 }
 
 #if 0
