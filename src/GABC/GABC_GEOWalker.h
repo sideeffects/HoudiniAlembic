@@ -181,15 +181,14 @@ public:
 	bool	myC;
     };
 
-    GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err);
+    GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
+		   bool record_time_range=false);
     virtual ~GABC_GEOWalker();
 
     virtual bool	preProcess(const GABC_IObject &node);
 
     virtual bool	process(const GABC_IObject &node);
     virtual bool	interrupted() const;
-    /// called on each object added to the resulting geometry
-    virtual void	accepted(const GABC_IObject &node) {}
 
     /// Quickly update ABC primitives with the new time
     void		updateAbcPrims();
@@ -352,6 +351,7 @@ private:
 				{ return myAbcPrimPointMode; }
     GA_Offset		 abcSharedPoint() const
 				{ return myAbcSharedPoint; }
+    void		 recordTimeRange(const GABC_IObject &node);
 
     // Enum values
     AbcPolySoup             myPolySoup;
@@ -381,6 +381,7 @@ private:
     UT_String               myObjectPattern;
     UT_StringArray	    myExcludeObjects;
     std::stack<GABC_VisibilityType> myVisibilityStack;
+    UT_Set<std::string>	    myVisited;
 
     fpreal	myTime; // Alembic evaluation time
     fpreal	mySize;
@@ -397,6 +398,7 @@ private:
     bool	myReusePrimitives;	// Reuse primitives in input geometry
     bool	myUseVisibility;	// Use visibility
     bool	myStaticTimeZero;	// All static objects have frame=0
+    bool	myRecordTimeRange;
 
     // Modified during traversal
     bool	myIsConstant;		// Whether all objects are constant

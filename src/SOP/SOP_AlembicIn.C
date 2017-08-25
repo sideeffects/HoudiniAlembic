@@ -1137,30 +1137,8 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	walkgdp = unpack_gdp.get();
     }
 
-    class Walker : public GABC_GEOWalker
-    {
-    public:
-	Walker(GU_Detail &gdp, GABC_IError &err) : GABC_GEOWalker(gdp, err) {}
-
-	virtual void	accepted(const GABC_IObject &node)
-	{
-	    for(GABC_IObject obj = node; obj.valid(); obj = obj.getParent())
-	    {
-		const std::string &name = obj.getName();
-		if(myVisited.contains(name))
-		    break;
-
-		myVisited.insert(name);
-		computeTimeRange(obj);
-	    }
-	}
-
-    private:
-	UT_Set<std::string> myVisited;
-    };
-
     SOP_AlembicInErr    error_handler(*this, UTgetInterrupt());
-    Walker	walk(*walkgdp, error_handler);
+    GABC_GEOWalker	walk(*walkgdp, error_handler, true);
 
     walk.setObjectPattern(parms.myObjectPattern);
     walk.setExcludeObjects(parms.myExcludeObjectPath);
