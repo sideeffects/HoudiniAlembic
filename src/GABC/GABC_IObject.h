@@ -113,6 +113,9 @@ public:
     /// returned if the geometry is not instanced.
     std::string		getSourcePath() const;
 
+    /// Get the number of points in the shape
+    exint 		getPointCount(fpreal t) const;
+
     /// @{
     /// Interface from GABC_IItem
     virtual void	purge();

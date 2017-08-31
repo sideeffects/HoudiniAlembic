@@ -157,7 +157,10 @@ public:
     UT_StringHolder	  intrinsicFilename(const GU_PrimPacked *prim) const { return myFilename; }
     const UT_StringHolder &objectPath() const	{ return myObjectPath; }
     UT_StringHolder	 intrinsicObjectPath(const GU_PrimPacked *prim) const { return myObjectPath; }
-    UT_StringHolder	 intrinsicSourcePath(const GU_PrimPacked *prim) const { return object().getSourcePath(); }
+    UT_StringHolder	 intrinsicSourcePath(const GU_PrimPacked *prim) const
+			    { return object().getSourcePath(); }
+    int64		 intrinsicPointCount(const GU_PrimPacked *prim) const
+			    { return object().getPointCount(myFrame); }
     fpreal		 frame() const		{ return myFrame; }
     fpreal               intrinsicFrame(const GU_PrimPacked *prim) const { return myFrame; }
     bool		 useTransform() const	{ return myUseTransform; }

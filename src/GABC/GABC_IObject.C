@@ -83,6 +83,7 @@ namespace
     using UcharArraySamplePtr = Alembic::Abc::UcharArraySamplePtr;
     using Int32ArraySamplePtr = Alembic::Abc::Int32ArraySamplePtr;
     using FloatArraySamplePtr = Alembic::Abc::FloatArraySamplePtr;
+    using P3fArraySamplePtr = Alembic::Abc::P3fArraySamplePtr;
     using WrapExistingFlag = Alembic::Abc::WrapExistingFlag;
     using IXform = Alembic::AbcGeom::IXform;
     using IXformSchema = Alembic::AbcGeom::IXformSchema;
@@ -2566,6 +2567,24 @@ namespace
 	return atype;
     }
 
+    template <typename ABC_T>
+    static exint
+    abcPointCount(const GABC_IObject &obj, fpreal t)
+    {
+	ABC_T				 prim(obj.object(), gabcWrapExisting);
+	typename ABC_T::schema_type	&schema = prim.getSchema();
+
+	exint nsamp = schema.getNumSamples();
+	if(nsamp < 1)
+	    nsamp = 1;
+	index_t i = schema.getTimeSampling()->getNearIndex(t, nsamp).first;
+
+	IP3fArrayProperty prop = schema.getPositionsProperty();
+	P3fArraySamplePtr sample;
+	prop.get(sample, ISampleSelector(i));
+	return sample->size();
+    }
+
     template <>
     GEO_AnimationType
     getAnimation<IXform>(const GABC_IObject &obj)
@@ -2670,6 +2689,38 @@ GABC_IObject::getSourcePath() const
        return IObject(myObject).instanceSourcePath();
 
     return myObjectPath;
+}
+
+exint
+GABC_IObject::getPointCount(fpreal t) const
+{
+    if(!myObject.valid())
+	return 0;
+
+    GABC_AlembicLock	lock(archive());
+    try
+    {
+	switch (nodeType())
+	{
+	    case GABC_POLYMESH:
+		return abcPointCount<IPolyMesh>(*this, t);
+	    case GABC_SUBD:
+		return abcPointCount<ISubD>(*this, t);
+	    case GABC_CURVES:
+		return abcPointCount<ICurves>(*this, t);
+	    case GABC_POINTS:
+		return abcPointCount<IPoints>(*this, t);
+	    case GABC_NUPATCH:
+		return abcPointCount<INuPatch>(*this, t);
+	    default:
+		break;
+	}
+    }
+    catch (const std::exception &)
+    {
+	UT_ASSERT(0 && "Alembic exception");
+    }
+    return 0;
 }
 
 void

@@ -59,6 +59,8 @@ public:
 	    StringHolderSetterCast(&GABC_PackedImpl::setObjectPath));
 	registerIntrinsic("abcsourcepath",
 	    StringHolderGetterCast(&GABC_PackedImpl::intrinsicSourcePath));
+	registerIntrinsic("abcpointcount",
+	    IntGetterCast(&GABC_PackedImpl::intrinsicPointCount));
 	registerIntrinsic("abcframe",
 	    FloatGetterCast(&GABC_PackedImpl::intrinsicFrame),
 	    FloatSetterCast(&GABC_PackedImpl::setFrame));
