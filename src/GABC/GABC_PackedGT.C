@@ -244,7 +244,7 @@ public:
 	    UT_StringHolder path = impl->object().getSourcePath();
 	    UT_StringHolder arch = impl->object().archive()->filename();
 	    
-	    bucket_name.sprintf("%d:%s:%s", arch.length(), arch.c_str(), path.c_str());
+	    bucket_name.sprintf("%" SYS_PRId64 ":%s:%s", arch.length(), arch.c_str(), path.c_str());
 	    
 	    auto entry = myInstanceAnim.find( bucket_name.buffer() );
 	    GEO_AnimationType anim;
