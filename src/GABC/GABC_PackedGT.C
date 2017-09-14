@@ -101,7 +101,8 @@ public:
 		    {
 			bool vis_anim;
 			impl->object().visibility(vis_anim, impl->frame(),true);
-			
+
+			packgt->initVisAnim();
 			packgt->setAnimationType(impl->animationType());
 			packgt->setVisibilityAnimated(vis_anim);
 		    }
@@ -441,7 +442,8 @@ GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
       myID(0),
       myAnimType(GEO_ANIMATION_INVALID),
       myAnimVis(false),
-      myVisibleConst(true)
+      myVisibleConst(true),
+      myFrame(0.0)
 {
     myOffset = prim ? prim->getMapOffset() : GA_INVALID_OFFSET;
 }
@@ -449,7 +451,8 @@ GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
 GABC_PackedAlembic::GABC_PackedAlembic(const GABC_PackedAlembic &src)
     : GT_GEOPrimPacked(src),
       myID(src.myID),
-      myOffset(src.myOffset)
+      myOffset(src.myOffset),
+      myFrame(src.myFrame)
 {
 }
 
@@ -463,6 +466,17 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 	GU_DetailHandleAutoReadLock lock(dtl);
 	const GU_Detail *gdp = lock.getGdp();
 	packed=dynamic_cast<const GU_PrimPacked *>(gdp->getPrimitive(myOffset));
+
+	if(packed)
+	{
+	    GA_LocalIntrinsic fr = packed->findIntrinsic("abcframe");
+	    float frame = 0;
+	    if(packed->getIntrinsic(fr, frame))
+	    {
+		if(!SYSisEqual(myFrame, frame))
+		    myFrame = frame;
+	    }
+	}
     }
     setDetailPrim(dtl, packed);
     return true;
@@ -476,7 +490,7 @@ GABC_PackedAlembic::initVisAnim()
     if(impl)
     {
 	fpreal frame = 0.0;
-	    
+
 	myAnimType = impl->animationType();
 	if(myAnimType > GEO_ANIMATION_TRANSFORM)
 	{
@@ -491,6 +505,8 @@ GABC_PackedAlembic::initVisAnim()
 	SYS_HashType hash = impl->getPropertiesHash();
 	SYShashCombine(hash, SYSreal_hash(frame));
 	myID = hash;
+
+	myFrame = frame;
     }
 }
 
@@ -781,7 +797,7 @@ GABC_PackedAlembic::getCachedGeometry(GT_PrimitiveHandle &ph) const
     const GABC_IObject	&o = impl->object();
     const int64 version = 0;
     UT_StringHolder cache_name;
-    
+
     GT_PackedGeoCache::buildAlembicName(cache_name,
 					o.getSourcePath().c_str(),
 					o.archive()->filename().c_str(),
@@ -1689,8 +1705,8 @@ bool
 GABC_AlembicCache::getTransform(fpreal t, UT_Matrix4F &transform) const
 {
     if(!myTransformAnimated)
-     	t = 0.0;
-    
+      	t = 0.0;
+
     auto entry = myTransform.find(t);
     if(entry != myTransform.end())
     {

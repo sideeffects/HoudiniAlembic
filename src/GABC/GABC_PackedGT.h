@@ -231,6 +231,7 @@ private:
     bool	      myVisibleConst; // only valid when myAnimVis is false.
     int64	      myAlembicVersion;
     GA_Offset	      myOffset;
+    float	      myFrame;
 };
 
 /// Alembic mesh which contains multiple alembic primitives merged together.
