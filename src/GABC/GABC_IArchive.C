@@ -167,7 +167,7 @@ GABC_IArchive::openArchive(const std::string &path, int num_streams)
 		myIsOgawa = false;
 	    }
 	}
-#else
+#endif
 	// Try HDF5 -- the stream interface only works with Ogawa
 	if (!myArchive.valid() && UTaccess(path.c_str(), R_OK) == 0)
 	{
@@ -182,7 +182,6 @@ GABC_IArchive::openArchive(const std::string &path, int num_streams)
 		myArchive = IArchive();
 	    }
 	}
-#endif
     }
 }
 
