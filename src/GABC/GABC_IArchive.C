@@ -142,7 +142,7 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
 		myArchive = IArchive();
 	    }
 	}
-#else
+#endif
 	// Try HDF5 -- the stream interface only works with Ogawa
 	if (!myArchive.valid() && UTaccess(path.c_str(), R_OK) == 0)
 	{
@@ -156,7 +156,6 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
 		myArchive = IArchive();
 	    }
 	}
-#endif
     }
 }
 
