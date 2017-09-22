@@ -32,6 +32,7 @@
 #include <GT/GT_PackedGeoCache.h>
 #include <GT/GT_PrimInstance.h>
 #include <GT/GT_PrimPolygonMesh.h>
+#include <GT/GT_Util.h>
 #include <SYS/SYS_Hash.h>
 #include <tools/henv.h>
 #include <UT/UT_Debug.h>
@@ -435,7 +436,6 @@ private:
 
 // ---------------------------------------------------------- GABC_PackedAlembic
 
-
 GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
 				       const GU_PrimPacked *prim)
     : GT_GEOPrimPacked(prim_gdh, prim),
@@ -452,7 +452,8 @@ GABC_PackedAlembic::GABC_PackedAlembic(const GABC_PackedAlembic &src)
     : GT_GEOPrimPacked(src),
       myID(src.myID),
       myOffset(src.myOffset),
-      myFrame(src.myFrame)
+      myFrame(src.myFrame),
+      myDetailAttribs(src.myDetailAttribs)
 {
 }
 
@@ -507,6 +508,10 @@ GABC_PackedAlembic::initVisAnim()
 	myID = hash;
 
 	myFrame = frame;
+
+	UT_BoundingBox bbox;
+	if(impl->getBounds(bbox))
+	    GT_Util::addBBoxAttrib(bbox, myDetailAttribs);
     }
 }
 

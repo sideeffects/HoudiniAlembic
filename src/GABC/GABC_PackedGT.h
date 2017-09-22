@@ -223,10 +223,14 @@ public:
 
     virtual bool	updateGeoPrim(const GU_ConstDetailHandle &dtl,
 				      const GT_RefineParms &refine);
+    
+    virtual const GT_AttributeListHandle &getDetailAttributes() const
+				  { return myDetailAttribs; }
 private:
     int64	      myID;
     GEO_AnimationType myAnimType;
     GABC_AlembicCache myCache;
+    GT_AttributeListHandle myDetailAttribs;
     bool	      myAnimVis;
     bool	      myVisibleConst; // only valid when myAnimVis is false.
     int64	      myAlembicVersion;
