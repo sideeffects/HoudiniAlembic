@@ -26,7 +26,7 @@
  */
 #include <GABC/GABC_Include.h>	// For Windows linking
 
-#include "VRAY_ProcAlembic.h"
+#include "RAY_ProcAlembic.h"
 #include <GABC/GABC_GEOWalker.h>
 #include <GABC/GABC_PackedImpl.h>
 #include <GABC/GABC_IObject.h>
@@ -41,9 +41,9 @@
 #include <UT/UT_JSONParser.h>
 #include <UT/UT_StringMMPattern.h>
 #include <UT/UT_WorkArgs.h>
-#include "VRAY_ProcGT.h"
-#include "VRAY_StylerInfo.h"
-#include "VRAY_IO.h"
+#include "RAY_ProcGT.h"
+#include "RAY_StylerInfo.h"
+#include "RAY_IO.h"
 
 //#define SHOW_COUNTS
 #include <UT/UT_ShowCounts.h>
@@ -53,9 +53,9 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef UT_SymbolMap<std::string>			vray_PropertyMap;
-    typedef UT_SharedPtr<vray_PropertyMap>		vray_PropertyMapPtr;
-    typedef VRAY_ProcAlembic::vray_MergePatternPtr	vray_MergePatternPtr;
+    typedef UT_SymbolMap<std::string>			ray_PropertyMap;
+    typedef UT_SharedPtr<ray_PropertyMap>		ray_PropertyMapPtr;
+    typedef RAY_ProcAlembic::ray_MergePatternPtr	ray_MergePatternPtr;
 
     inline static GA_PrimitiveTypeId
     alembicTypeId()
@@ -94,14 +94,14 @@ namespace
 	}
     }
 
-    class vray_ProcAlembicPrim : public VRAY_Procedural
+    class ray_ProcAlembicPrim : public RAY_Procedural
     {
     public:
-	vray_ProcAlembicPrim(const UT_Array<const GU_PrimPacked *> &list,
+	ray_ProcAlembicPrim(const UT_Array<const GU_PrimPacked *> &list,
 		fpreal preblur, fpreal postblur,
 		const GU_PrimPacked *aprim,
-		const vray_MergePatternPtr &merge,
-		const vray_PropertyMapPtr &propertymap,
+		const ray_MergePatternPtr &merge,
+		const ray_PropertyMapPtr &propertymap,
                 GSTY_SubjectPrimGroup *group_sharing_holder)
 	    : myList(list)
 	    , myPreBlur(preblur)
@@ -112,11 +112,11 @@ namespace
             , myGroupSharingHolder(group_sharing_holder)
 	{
 	}
-	virtual ~vray_ProcAlembicPrim()
+	virtual ~ray_ProcAlembicPrim()
 	{
 	}
 	virtual const char	*className() const
-				    { return "vray_ProcAlembicPrim"; }
+				    { return "ray_ProcAlembicPrim"; }
 	static bool	isNullPtr(const GU_PrimPacked *p) { return !p; }
 	virtual int	initialize(const UT_BoundingBox *)
 	{
@@ -157,13 +157,13 @@ namespace
 				 box.enlargeBounds(tbox);
 			     }
 			 }
-	void	setIntegerProperty(const VRAY_ProceduralChildPtr &p,
+	void	setIntegerProperty(const RAY_ProceduralChildPtr &p,
 			const char *name, const GT_DataArrayHandle &data)
 	{
 	    GT_DataArrayHandle	storage;
 	    p->changeSetting(name, data->entries(), data->getI32Array(storage));
 	}
-	void	setRealProperty(const VRAY_ProceduralChildPtr &p,
+	void	setRealProperty(const RAY_ProceduralChildPtr &p,
 			const char *name, const GT_DataArrayHandle &data)
 	{
 	    GT_DataArrayHandle	storage;
@@ -174,7 +174,7 @@ namespace
 	    p->changeSetting(name, data->entries(), data->getF64Array(storage));
 #endif
 	}
-	void	changeShader(const VRAY_ProceduralChildPtr &p,
+	void	changeShader(const RAY_ProceduralChildPtr &p,
 			    const char *name, const char *shader)
 	{
 	    // Mantra expects arguments for a shader, not a single string
@@ -191,7 +191,7 @@ namespace
 		    !strcmp(name, "matteshader");
 
 	}
-	void	setStringProperty(const VRAY_ProceduralChildPtr &p,
+	void	setStringProperty(const RAY_ProceduralChildPtr &p,
 			const char *name, const GT_DataArrayHandle &data)
 	{
 	    exint		size = data->entries();
@@ -205,7 +205,7 @@ namespace
 	    else
 		p->changeSetting(name, size*tsize, values);
 	}
-	void	setObjectName(const VRAY_ProceduralChildPtr &p,
+	void	setObjectName(const RAY_ProceduralChildPtr &p,
 			    const GU_PrimPacked *pack)
 	{
 	    const GABC_PackedImpl	*prim = implementation(pack);
@@ -217,7 +217,7 @@ namespace
 	    fullpath.strcat(iobj.getFullName().c_str());
 	    p->changeSetting("name", fullpath.buffer());
 	}
-	void	applyProperties(const VRAY_ProceduralChildPtr &p,
+	void	applyProperties(const RAY_ProceduralChildPtr &p,
 			const GU_PrimPacked *pack)
 	{
 	    const GABC_PackedImpl	*prim = implementation(pack);
@@ -228,7 +228,7 @@ namespace
 	    fpreal		frame = prim->frame();
 	    GEO_AnimationType	atype;
 
-	    for (vray_PropertyMap::iterator it = myPropertyMap->begin();
+	    for (ray_PropertyMap::iterator it = myPropertyMap->begin();
 		    !it.atEnd(); ++it)
 	    {
 		GT_DataArrayHandle	data;
@@ -242,7 +242,7 @@ namespace
 		else if (GTisString(data->getStorage()))
 		    setStringProperty(p, it.thing().c_str(), data);
 		else
-		    VRAYwarning("Alembic Procedural: Bad GT storage %s",
+		    RAYwarning("Alembic Procedural: Bad GT storage %s",
 			    GTstorage(data->getStorage()));
 	    }
 	}
@@ -281,7 +281,7 @@ namespace
 		setObjectName(kid, myList(0));
 		kid->processPrimitiveMaterial(myList(0));
 		kid->setStylerInfo(
-			VRAY_StylerInfo(queryStyler(handle), subject));
+			RAY_StylerInfo(queryStyler(handle), subject));
 		if (myPropertyMap)
 		{
 		    applyProperties(kid, myList(0));
@@ -292,7 +292,7 @@ namespace
 		// geometry already has the shutter built-in (i.e. the frame
 		// associated with the Alembic shape primitive has the sample
 		// time baked in).
-		kid->addProcedural(new VRAY_ProcGT(gtlist, 1.0));
+		kid->addProcedural(new RAY_ProcGT(gtlist, 1.0));
 	    }
 
 	    for (exint i = 0; i < nsegs; ++i)
@@ -301,16 +301,16 @@ namespace
     private:
 	UT_Array<const GU_PrimPacked *>	 myList;
 	const GU_PrimPacked		*myMergePrim;
-	vray_MergePatternPtr		 myMergeInfo;
-	vray_PropertyMapPtr		 myPropertyMap;
+	ray_MergePatternPtr		 myMergeInfo;
+	ray_PropertyMapPtr		 myPropertyMap;
         GSTY_SubjectPrimGroup           *myGroupSharingHolder;
 	fpreal				 myPreBlur, myPostBlur;
     };
 
-    vray_PropertyMapPtr
+    ray_PropertyMapPtr
     parseUserProperties(UT_StringHolder &pattern)
     {
-	vray_PropertyMapPtr	pmap;
+	ray_PropertyMapPtr	pmap;
 	pattern.trimBoundingSpace();
 	if (!pattern.isstring())
 	    return pmap;
@@ -321,7 +321,7 @@ namespace
 	    UT_JSONValue	jval;
 	    if (!jval.parseValue(j))
 	    {
-		VRAYerror("Alembic procedural: error parsing properties: %s",
+		RAYerror("Alembic procedural: error parsing properties: %s",
 			pattern.buffer());
 		return pmap;
 	    }
@@ -330,7 +330,7 @@ namespace
 	    const UT_JSONValueMap	*map = jval.getMap();
 	    if (map)
 	    {
-		pmap.reset(new vray_PropertyMap());
+		pmap.reset(new ray_PropertyMap());
 		UT_StringArray		keys;
 		map->getKeyReferences(keys);
 		for (exint i = 0; i < keys.entries(); ++i)
@@ -342,7 +342,7 @@ namespace
 		    }
 		    else
 		    {
-			VRAYwarning("Alembic procedural: %s '%s'",
+			RAYwarning("Alembic procedural: %s '%s'",
 				"Expected string for JSON user property:",
 				keys(i).buffer());
 		    }
@@ -355,7 +355,7 @@ namespace
 	{
 	    // Assume this is a list of properties which define the map.  This
 	    // assumes the user property names match the mantra property names.
-	    pmap.reset(new vray_PropertyMap());
+	    pmap.reset(new ray_PropertyMap());
 	    UT_WorkArgs	args;
 	    UT_WorkArgs	split;
 	    UT_String	tmp(pattern);
@@ -373,7 +373,7 @@ namespace
 		    }
 		    else
 		    {
-			VRAYwarning("Alembic procedural: %s %s",
+			RAYwarning("Alembic procedural: %s %s",
 				"Unexpected abcproperty:mantraproperty string",
 				args.getArg(i));
 		    }
@@ -388,7 +388,7 @@ namespace
     }
 };
 
-VRAY_ProcAlembic::VRAY_ProcAlembic()
+RAY_ProcAlembic::RAY_ProcAlembic()
     : myLoadDetail()
     , myConstDetail()
     , myAttribDetail()
@@ -400,37 +400,37 @@ VRAY_ProcAlembic::VRAY_ProcAlembic()
 {
 }
 
-VRAY_ProcAlembic::~VRAY_ProcAlembic()
+RAY_ProcAlembic::~RAY_ProcAlembic()
 {
 }
 
-VRAY_ProceduralArg	 VRAY_ProcAlembic::theArgs[] = {
-    VRAY_ProceduralArg("useobjectgeometry",	"int",	"1"),
-    VRAY_ProceduralArg("filename",		"string",	""),
-    VRAY_ProceduralArg("frame",			"float",	"1"),
-    VRAY_ProceduralArg("fps",			"float",	"24"),
-    VRAY_ProceduralArg("objectpath",		"string",	""),
-    VRAY_ProceduralArg("objectpattern",		"string",	"*"),
-    VRAY_ProceduralArg("userpropertymap",	"string", 	""),
-    VRAY_ProceduralArg("nonalembic",		"int",		"1"),
-    VRAY_ProceduralArg("attribfile",		"string",	""),
-    VRAY_ProceduralArg("pointattribs",		"string",	"*,^P,^N,^v"),
-    VRAY_ProceduralArg("vertexattribs",		"string",	"*,^P,^N,^v"),
-    VRAY_ProceduralArg("uniformattribs",	"string",	""),
-    VRAY_ProceduralArg("detailattribs",		"string",	""),
-    VRAY_ProceduralArg()
+RAY_ProceduralArg	 RAY_ProcAlembic::theArgs[] = {
+    RAY_ProceduralArg("useobjectgeometry",	"int",	"1"),
+    RAY_ProceduralArg("filename",		"string",	""),
+    RAY_ProceduralArg("frame",			"float",	"1"),
+    RAY_ProceduralArg("fps",			"float",	"24"),
+    RAY_ProceduralArg("objectpath",		"string",	""),
+    RAY_ProceduralArg("objectpattern",		"string",	"*"),
+    RAY_ProceduralArg("userpropertymap",	"string", 	""),
+    RAY_ProceduralArg("nonalembic",		"int",		"1"),
+    RAY_ProceduralArg("attribfile",		"string",	""),
+    RAY_ProceduralArg("pointattribs",		"string",	"*,^P,^N,^v"),
+    RAY_ProceduralArg("vertexattribs",		"string",	"*,^P,^N,^v"),
+    RAY_ProceduralArg("uniformattribs",	"string",	""),
+    RAY_ProceduralArg("detailattribs",		"string",	""),
+    RAY_ProceduralArg()
 };
 
-VRAY_Procedural *
-VRAY_ProcAlembic::create(const char *)
+RAY_Procedural *
+RAY_ProcAlembic::create(const char *)
 {
-    return new VRAY_ProcAlembic();
+    return new RAY_ProcAlembic();
 }
 
 const char *
-VRAY_ProcAlembic::className() const
+RAY_ProcAlembic::className() const
 {
-    return "VRAY_ProcAlembic";
+    return "RAY_ProcAlembic";
 }
 
 static void
@@ -451,7 +451,7 @@ moveAlembicTime(GU_Detail &gdp, fpreal finc)
 }
 
 static bool
-loadDetail(VRAY_ProceduralGeo &detail,
+loadDetail(RAY_ProceduralGeo &detail,
 	const char *filename,
 	fpreal frame,
 	fpreal fps,
@@ -510,7 +510,7 @@ loadDetail(VRAY_ProceduralGeo &detail,
 }
 
 void
-VRAY_ProcAlembic::vray_MergePatterns::clear()
+RAY_ProcAlembic::ray_MergePatterns::clear()
 {
     delete myVertex;
     delete myPoint;
@@ -523,7 +523,7 @@ VRAY_ProcAlembic::vray_MergePatterns::clear()
 }
 
 void
-VRAY_ProcAlembic::vray_MergePatterns::init(const char *vpattern,
+RAY_ProcAlembic::ray_MergePatterns::init(const char *vpattern,
 	const char *ppattern,
 	const char *upattern,
 	const char *dpattern)
@@ -552,11 +552,11 @@ VRAY_ProcAlembic::vray_MergePatterns::init(const char *vpattern,
 }
 
 int
-VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
+RAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 {
     if (!GABC_PackedImpl::isInstalled())
     {
-	VRAYerror("Alembic primitive support is not installed");
+	RAYerror("Alembic primitive support is not installed");
 	return 0;
     }
     int		ival;
@@ -583,7 +583,7 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
     }
     if (!filename.isstring() && !useobject)
     {
-	VRAYwarning("No geometry specified for Alembic procedural");
+	RAYwarning("No geometry specified for Alembic procedural");
 	return 0;
     }
 
@@ -608,7 +608,7 @@ VRAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 	    uniform= "";
 	if (!import("detailattribs", detail))
 	    detail= "";
-	myMergeInfo.reset(new vray_MergePatterns());
+	myMergeInfo.reset(new ray_MergePatterns());
 	myMergeInfo->init(vertex, point, uniform, detail);
 	if (!myMergeInfo->valid())
 	{
@@ -801,7 +801,7 @@ getBoxForRendering(const GU_Detail &gdp, UT_BoundingBox &box, bool nonalembic,
 }
 
 void
-VRAY_ProcAlembic::getBoundingBox(UT_BoundingBox &box)
+RAY_ProcAlembic::getBoundingBox(UT_BoundingBox &box)
 {
     auto	detail = getDetail();
     box.initBounds();
@@ -829,7 +829,7 @@ dumpPrim(const GU_PrimPacked *pack)
 #endif
 
 void
-VRAY_ProcAlembic::render()
+RAY_ProcAlembic::render()
 {
     auto			 detail = getDetail();
     const GU_Detail		*gdp, *agdp;
@@ -884,7 +884,7 @@ VRAY_ProcAlembic::render()
 		    auto seg = detail.get(i)->getGEOPrimitiveByIndex(primind);
 		    abclist(i) = UTverify_cast<const GU_PrimPacked *>(seg);
 		}
-		VRAY_Procedural *p = new vray_ProcAlembicPrim(abclist,
+		RAY_Procedural *p = new ray_ProcAlembicPrim(abclist,
 		    myPreBlur, myPostBlur, abc_attrib,
 		    myMergeInfo, myUserProperties,
                     myGroupSharingHolder.get());
@@ -907,7 +907,7 @@ VRAY_ProcAlembic::render()
 		{
 		    void		*handle = queryObject(nullptr);
 		    const char	*name = queryObjectName(handle);
-		    VRAYwarning("Object %s has non-alembic primitives", name);
+		    RAYwarning("Object %s has non-alembic primitives", name);
 		    warned = true;
 		}
 	    }

@@ -25,12 +25,12 @@
  *----------------------------------------------------------------------------
  */
 
-#ifndef __VRAY_ProcAlembic__
-#define __VRAY_ProcAlembic__
+#ifndef __RAY_ProcAlembic__
+#define __RAY_ProcAlembic__
 
 #include <GABC/GABC_API.h>
 
-#include "VRAY_Procedural.h"
+#include "RAY_Procedural.h"
 #include <UT/UT_Array.h>
 #include <UT/UT_StringArray.h>
 #include <UT/UT_SymbolTable.h>
@@ -40,24 +40,24 @@
 class GU_Detail;
 class GSTY_SubjectPrimGroup;
 
-class VRAY_ProcAlembic : public VRAY_Procedural
+class RAY_ProcAlembic : public RAY_Procedural
 {
 public:
     // Map between user properties and mantra rendering properties
-    typedef UT_SymbolMap<std::string>		vray_PropertyMap;
-    typedef UT_SharedPtr<vray_PropertyMap>	vray_PropertyMapPtr;
+    typedef UT_SymbolMap<std::string>		ray_PropertyMap;
+    typedef UT_SharedPtr<ray_PropertyMap>	ray_PropertyMapPtr;
 
-    class vray_MergePatterns
+    class ray_MergePatterns
     {
     public:
-	vray_MergePatterns()
+	ray_MergePatterns()
 	    : myVertex(nullptr)
 	    , myPoint(nullptr)
 	    , myUniform(nullptr)
 	    , myDetail(nullptr)
 	{
 	}
-	~vray_MergePatterns()
+	~ray_MergePatterns()
 	{
 	    clear();
 	}
@@ -81,13 +81,13 @@ public:
 	UT_StringMMPattern	*myUniform;
 	UT_StringMMPattern	*myDetail;
     };
-    typedef UT_SharedPtr<vray_MergePatterns>	vray_MergePatternPtr;
+    typedef UT_SharedPtr<ray_MergePatterns>	ray_MergePatternPtr;
 
-    VRAY_ProcAlembic();
-    virtual ~VRAY_ProcAlembic();
+    RAY_ProcAlembic();
+    virtual ~RAY_ProcAlembic();
 
-    static VRAY_Procedural	*create(const char *);
-    static VRAY_ProceduralArg	 theArgs[];
+    static RAY_Procedural	*create(const char *);
+    static RAY_ProceduralArg	 theArgs[];
 
     virtual const char	*className() const;
 
@@ -96,7 +96,7 @@ public:
     virtual void	render();
 
 private:
-    VRAY_ROProceduralGeo	getDetail()
+    RAY_ROProceduralGeo	getDetail()
     {
 	UT_ASSERT(myLoadDetail.isValid() || myConstDetail.isValid());
 	if (myLoadDetail.isValid())
@@ -104,11 +104,11 @@ private:
 	return myConstDetail;
     }
 
-    VRAY_ROProceduralGeo	myConstDetail;
-    VRAY_ProceduralGeo		myLoadDetail;
-    VRAY_ProceduralGeo		myAttribDetail;
-    vray_MergePatternPtr	myMergeInfo;
-    vray_PropertyMapPtr		myUserProperties;
+    RAY_ROProceduralGeo	myConstDetail;
+    RAY_ProceduralGeo		myLoadDetail;
+    RAY_ProceduralGeo		myAttribDetail;
+    ray_MergePatternPtr	myMergeInfo;
+    ray_PropertyMapPtr		myUserProperties;
     UT_UniquePtr<GSTY_SubjectPrimGroup> myGroupSharingHolder;
     fpreal			myPreBlur, myPostBlur;
     bool			myNonAlembic;
