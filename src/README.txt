@@ -26,5 +26,5 @@ This is Alembic source code used to compile this version of Houdini.
 - SOP/
     This is the source used to build the Alembic SOP.
 
-- VRAY/
+- RAY/
     This is the source used to build the Alembic procedural for mantra.
