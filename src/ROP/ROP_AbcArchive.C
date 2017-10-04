@@ -54,7 +54,7 @@ ROP_AbcArchive::ROP_AbcArchive(
 {
     // Since HDF5 doesn't allow writing to a file already opened for reading,
     // clear any IArchives which might be hanging around.
-    GABC_Util::clearCache();
+    GABC_Util::clearCache(filename);
 
     auto md = Alembic::Abc::MetaData();
 
