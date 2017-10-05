@@ -1079,11 +1079,6 @@ namespace {
             }
         }
 
-        if (success)
-        {
-            walk.setNonConstant();
-        }
-
         delete data_writer;
         if (meta_writer)
         {
