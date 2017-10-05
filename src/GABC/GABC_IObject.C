@@ -2515,6 +2515,9 @@ namespace
 	IXformSchema	&schema = prim.getSchema();
 	if (!schema.isConstant())
 	    return GEO_ANIMATION_TRANSFORM;
+	if (GABC_Util::isABCPropertyAnimated(schema.getArbGeomParams())
+	    || GABC_Util::isABCPropertyAnimated(schema.getUserProperties()))
+	    return GEO_ANIMATION_ATTRIBUTE;
 	return GEO_ANIMATION_CONSTANT;
     }
 
@@ -2526,7 +2529,8 @@ namespace
 	IPointsSchema	&schema = prim.getSchema();
 	if (!schema.isConstant())
 	    return GEO_ANIMATION_TOPOLOGY;
-	if (GABC_Util::isABCPropertyAnimated(schema.getArbGeomParams()))
+	if (GABC_Util::isABCPropertyAnimated(schema.getArbGeomParams())
+	    || GABC_Util::isABCPropertyAnimated(schema.getUserProperties()))
 	    return GEO_ANIMATION_ATTRIBUTE;
 	return GEO_ANIMATION_CONSTANT;
     }
@@ -2536,7 +2540,8 @@ namespace
     {
 	IXform		prim(obj.object(), gabcWrapExisting);
 	IXformSchema	&schema = prim.getSchema();
-	if (GABC_Util::isABCPropertyAnimated(schema.getArbGeomParams()))
+	if (GABC_Util::isABCPropertyAnimated(schema.getArbGeomParams())
+	    || GABC_Util::isABCPropertyAnimated(schema.getUserProperties()))
 	    return GEO_ANIMATION_ATTRIBUTE;
 	Alembic::Abc::IScalarProperty	loc(prim.getProperties(), "locator");
 	return loc.isConstant() ? GEO_ANIMATION_CONSTANT
