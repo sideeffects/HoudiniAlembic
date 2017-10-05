@@ -1119,6 +1119,8 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 
     walk.setObjectPattern(parms.myObjectPattern);
     walk.setExcludeObjects(parms.myExcludeObjectPath);
+    bool saved_time_dep = getParmList()->getCookTimeDependent();
+    getParmList()->setCookTimeDependent(false);
     if (parms.myAnimationFilter == GABC_GEOWalker::ABC_AFILTER_STATIC)
     {
 	// When we only load static geometry, we don't need to evaluate the
@@ -1136,6 +1138,9 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	}
 	walk.setFrame(evalFloat("frame", 0, now), fps);
     }
+    bool parm_time_dependent = getParmList()->getCookTimeDependent();
+    getParmList()->setCookTimeDependent(saved_time_dep);
+
     walk.setIncludeXform(parms.myIncludeXform);
     walk.setUseVisibility(parms.myUseVisibility);
     walk.setStaticTimeZero(parms.myStaticTimeZero);
@@ -1285,6 +1290,9 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	unpack(*gdp, *unpack_gdp, parms);
 
     myLastParms = parms;
+
+    if(!myEntireSceneIsConstant && parm_time_dependent)
+	getParmList()->setCookTimeDependent(true);
 
     if (!myEntireSceneIsConstant && walk.computedValidTimeRange())
     {
