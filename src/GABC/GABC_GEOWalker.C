@@ -1033,9 +1033,6 @@ namespace {
             }
         }
 
-        if (success)
-            walk.setNonConstant();
-
         delete data_writer;
 	delete meta_writer;
     }
