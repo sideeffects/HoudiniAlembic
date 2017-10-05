@@ -2868,7 +2868,6 @@ GABC_IObject::getAnimationType(bool include_transform) const
 		atype = getGenericAnimationType<ILight>(*this);
 		break;
 	    default:
-		atype = GEO_ANIMATION_TOPOLOGY;
 		break;
 	}
 	if (atype == GEO_ANIMATION_CONSTANT && include_transform
