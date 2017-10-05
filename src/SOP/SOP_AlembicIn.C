@@ -361,17 +361,23 @@ static PRM_Template prm_AttributeRemapTemplate[] = {
 static PRM_Name prm_reloadbutton("reload", "Reload Geometry");
 static PRM_Name prm_filenameName("fileName", "File Name");
 static PRM_Name prm_frameName("frame", "Frame");
-static PRM_Name prm_missingFileName("missingfile", "Missing File");
 static PRM_Name prm_fpsName("fps", "Frames Per Second");
+static PRM_Name prm_missingFileName("missingfile", "Missing File");
+
+static PRM_Name prm_abcxformName("abcxform", "Create Primitives For");
+static PRM_Name prm_loadmodeName("loadmode", "Load As");
+static PRM_Name prm_viewportlod("viewportlod", "Display As");
+static PRM_Name prm_pointModeName("pointmode", "Points");
+static PRM_Name prm_polysoup("polysoup", "Poly Soup Primitives");
+static PRM_Name prm_includeXformName("includeXform", "Transform Geometry To World Space");
+static PRM_Name prm_useVisibilityName("usevisibility", "Use Visibility");
+static PRM_Name prm_statictimezero("statictimezero", "Set Zero Time for Static Geometry");
+static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
+
 static PRM_Name prm_objectPathName("objectPath", "Object Path");
 static PRM_Name	prm_pickObjectPathName("pickobjectPath", "Pick");
 static PRM_Name prm_objectExcludeName("objectExclude", "Object Exclude");
 static PRM_Name	prm_pickObjectExcludeName("pickobjectExclude", "Pick");
-static PRM_Name prm_includeXformName("includeXform", "Transform Geometry To World Space");
-static PRM_Name prm_useVisibilityName("usevisibility", "Use Visibility");
-static PRM_Name prm_statictimezero("statictimezero", "Set Zero Time for Static Geometry");
-static PRM_Name prm_userPropsName("loadUserProps", "User Properties");
-static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
 static PRM_Name prm_animationfilter("animationfilter", "Animating Objects");
 static PRM_Name prm_geometryfilterPolygon("polygonFilter", "Load Polygons");
 static PRM_Name prm_geometryfilterCurve("curveFilter", "Load Curves");
@@ -379,19 +385,15 @@ static PRM_Name prm_geometryfilterNURBS("NURBSFilter", "Load NURBS");
 static PRM_Name prm_geometryfilterPoints("pointsFilter", "Load Points");
 static PRM_Name prm_geometryfilterSubd("subdFilter", "Load Subdivision Surfaces");
 static PRM_Name prm_loadLocatorName("loadLocator", "Load Maya Locator");
-static PRM_Name prm_polysoup("polysoup", "Poly Soup Primitives");
-static PRM_Name prm_viewportlod("viewportlod", "Display As");
 static PRM_Name prm_boxcull("boxcull", "Box Culling");
-static PRM_Name prm_addfile("addfile", "Add Filename Attribute");
-static PRM_Name prm_fileattrib("fileattrib", "Filename Attribute");
+
+static PRM_Name prm_facesetAttrib("facesetAttributes", "Faceset Attributes");
+static PRM_Name prm_userPropsName("loadUserProps", "User Properties");
 static PRM_Name prm_addpath("addpath", "Add Path Attribute");
 static PRM_Name prm_pathattrib("pathattrib", "Path Attribute");
+static PRM_Name prm_addfile("addfile", "Add Filename Attribute");
+static PRM_Name prm_fileattrib("fileattrib", "Filename Attribute");
 static PRM_Name prm_remapAttribName("remapAttributes", "Remap Attributes");
-static PRM_Name prm_facesetAttrib("facesetAttributes", "Faceset Attributes");
-
-static PRM_Name prm_loadmodeName("loadmode", "Load As");
-static PRM_Name prm_pointModeName("pointmode", "Points");
-static PRM_Name prm_abcxformName("abcxform", "Create Primitives For");
 
 static PRM_Default prm_filenameDefault(0, "$HH/geo/default.abc");
 static PRM_Default prm_frameDefault(1, "$FF");
@@ -594,14 +596,14 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     // Geometry tab 
     // Currently there are 10 elements (10 PRM_Template() calls below) in this tab, 
     // which matches PRM_Default(10, "Geometry") defined in mainSwitcher
+    PRM_Template(PRM_ORD, 1, &prm_abcxformName, &prm_abcxformDefault,
+            &menu_abcxform),
     PRM_Template(PRM_ORD, 1, &prm_loadmodeName, &prm_loadmodeDefault,
 	    &menu_loadmode),
     PRM_Template(PRM_ORD, 1, &prm_viewportlod, &prm_viewportlodDefault,
 	    &PRMviewportLODMenu),
     PRM_Template(PRM_ORD, 1, &prm_pointModeName, &prm_pointModeDefault,
 	    &menu_pointMode),
-    PRM_Template(PRM_ORD, 1, &prm_abcxformName, &prm_abcxformDefault,
-            &menu_abcxform),
     PRM_Template(PRM_ORD, 1, &prm_polysoup, &prm_polysoupDefault,
 	    &menu_polysoup),
     PRM_Template(PRM_TOGGLE, 1, &prm_includeXformName,
@@ -801,7 +803,6 @@ SOP_AlembicIn2::updateParmsFlags()
 
     changed |= enableParm("pathattrib", evalInt("addpath", 0, 0));
     changed |= enableParm("fileattrib", evalInt("addfile", 0, 0));
-    changed |= enableParm("abcxform", loadmode == 0);
     changed |= enableParm("pointmode", loadmode == 0);
     changed |= enableParm("subdgroup", loadmode == 1);
     changed |= enableParm("viewportlod", loadmode == 0);
