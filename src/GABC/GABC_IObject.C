@@ -3327,6 +3327,8 @@ GABC_IObject::convertIProperty(ICompoundProperty &parent,
 	    gtval = convertIProperty(comp, *hval, t, namemap, &atval);
 	    if (gtidx && gtval)
 	    {
+		if(atype)
+		    *atype = (atidx > atval) ? atidx : atval;
 		GT_DataArray	*gt = new GT_DAIndirect(gtidx, gtval);
 		return GT_DataArrayHandle(gt);
 	    }
