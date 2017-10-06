@@ -193,6 +193,7 @@ public:
     virtual GT_TransformHandle	getInstanceTransform() const;
 
     GT_TransformHandle		fullCachedTransform();
+    bool			isVisible();
 
     virtual bool		refine(GT_Refine &refiner,
 				       const GT_RefineParms *parms=NULL) const;

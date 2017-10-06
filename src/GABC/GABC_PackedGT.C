@@ -690,6 +690,26 @@ GABC_PackedAlembic::fullCachedTransform()
     return applyPrimTransform(th);
 }
 
+bool
+GABC_PackedAlembic::isVisible()
+{
+    if(!myAnimVis)
+	return myVisibleConst;
+    
+    bool visible = true;
+    if(!getCachedVisibility(visible))
+    {
+	const GABC_PackedImpl	*impl = 
+	    UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+	
+	visible = impl->visibleGT();
+	cacheVisibility(visible);
+    }
+
+    return visible;
+}
+
+
 GT_TransformHandle 
 GABC_PackedAlembic::applyPrimTransform(const GT_TransformHandle &th) const
 {
