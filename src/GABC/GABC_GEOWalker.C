@@ -958,7 +958,6 @@ namespace {
         UT_WorkBuffer       meta_dictionary;
         bool                load_metadata = (walk.loadUserProps()
                                     == GABC_GEOWalker::UP_LOAD_ALL);
-        bool                success = false;
 
         // One writer for values and one for metadata. If the metadata
         // writer is NULL, metadata will be ignored.
@@ -1001,7 +1000,6 @@ namespace {
                 str_attrib.set(GA_Offset(userpropsIndex),
                         0,
                         data_dictionary.buffer());
-                success = true;
             }
 
             if (load_metadata)
@@ -1028,7 +1026,6 @@ namespace {
                     str_attrib.set(GA_Offset(userpropsIndex),
                             0,
                             meta_dictionary.buffer());
-                    success = true;
                 }
             }
         }
