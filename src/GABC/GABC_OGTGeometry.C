@@ -33,6 +33,7 @@
 #include "GABC_OProperty.h"
 #include "GABC_Util.h"
 #include <stdarg.h>
+#include <GA/GA_Names.h>
 #include <GT/GT_DAConstant.h>
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_DANumeric.h>
@@ -1733,6 +1734,9 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
 	auto	&&name = it.name();
 	// skip the group used to specific subdivision surfaces
 	if (subd && strcmp(subd, name.c_str()) == 0)
+	    continue;
+	// skip hidden group
+	if (GA_Names::_3d_hidden_primitives == name)
 	    continue;
 
 	myFaceSetNames.append(name);
