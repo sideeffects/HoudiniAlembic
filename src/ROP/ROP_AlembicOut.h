@@ -189,8 +189,8 @@ private:
 	void refine(const GT_PrimitiveHandle &prim,
 		    PackedTransform packedtransform, exint facesetmode,
 		    bool subd, bool use_instancing, bool shape_nodes,
-		    bool save_hidden, bool visible, const std::string &name,
-		    const ROP_AbcArchivePtr &abc);
+		    bool save_hidden, bool visible, bool refine_first,
+		    const std::string &name, const ROP_AbcArchivePtr &abc);
 
 	void setUserProperties(const UT_String &vals, const UT_String &meta,
 			       bool subd, const std::string &name);
