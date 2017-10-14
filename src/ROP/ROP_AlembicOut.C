@@ -105,7 +105,6 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
     bool shape_nodes,
     bool save_hidden,
     bool visible,
-    bool refine_first,
     const std::string &name,
     const ROP_AbcArchivePtr &abc)
 {
@@ -497,9 +496,12 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		    myAssignments.warnChildren(myArchive);
 		}
 	    }
-	    assignment->refine(copy, myPackedTransform, myFacesetMode, mySubd,
-			       myUseInstancing, myShapeNodes, mySaveHidden,
-			       myVisible, true, myName, myArchive);
+
+	    rop_AbcRefiner refiner(*assignment, myParms, myPackedTransform,
+				   myFacesetMode, mySubd, myUseInstancing,
+				   myShapeNodes, mySaveHidden, myVisible,
+				   myName, myArchive);
+	    copy->refine(refiner, &myParms);
 	    return true;
 	}
 
@@ -575,10 +577,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
     } refiner(*this, rparms, packedtransform, facesetmode, subd, use_instancing,
 	      shape_nodes, save_hidden, visible, name, abc);
 
-    if(refine_first)
-	prim->refine(refiner, &rparms);
-    else
-	refiner.addPrimitive(prim);
+    refiner.addPrimitive(prim);
 }
 
 void
@@ -1640,7 +1639,7 @@ ROP_AlembicOut::refineSop(
 		bool subd = (idx == 1);
 		assignments.refine(prim, packedtransform, facesetmode, subd,
 				   use_instancing, shape_nodes, save_hidden,
-				   true, false, it.first, myArchive);
+				   true, it.first, myArchive);
 		exportUserProperties(assignments, subd, *gdp, range, it.first,
 				     up_vals, up_meta);
 	    }
@@ -2057,7 +2056,7 @@ ROP_AlembicOut::updateFromSop(
 
 	    assignments->refine(prim, packedtransform, facesetmode, subd,
 				use_instancing, shape_nodes, save_hidden, true,
-				false, name, myArchive);
+				name, myArchive);
 	    exportUserProperties(*assignments, subd, *gdp, r, name,
 				 up_vals, up_meta);
 	}
