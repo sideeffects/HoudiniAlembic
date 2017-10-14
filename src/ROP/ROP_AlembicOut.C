@@ -141,7 +141,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	    {
 		if(prim->getPrimitiveType() != GT_PRIM_DETAIL)
 		{
-		    prim->refine(myRefiner, &myParms);
+		    refine(prim);
 		    return;
 		}
 
