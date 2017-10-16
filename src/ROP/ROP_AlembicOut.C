@@ -242,7 +242,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	};
 
     public:
-	rop_AbcRefiner(ROP_AlembicOut::rop_RefinedGeoAssignments &assignments,
+	rop_AbcRefiner(ROP_AlembicOut::rop_RefinedGeoAssignments *assignments,
 			const GT_RefineParms &rparms,
 			PackedTransform packedtransform,
 			exint facesetmode,
@@ -299,7 +299,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		else
 		    idx = it->second++;
 
-		auto &rop_i = myAssignments.myInstances[std::make_tuple(myName, type, mySubd)];
+		auto &rop_i = myAssignments->myInstances[std::make_tuple(myName, type, mySubd)];
 		while(idx >= rop_i.entries())
 		    rop_i.append(rop_Instance());
 		auto &rop_inst = rop_i(idx);
@@ -319,12 +319,12 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 
 		    if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM)
 		    {
-			ROP_AbcNode *parent = myAssignments.myParent;
+			ROP_AbcNode *parent = myAssignments->myParent;
 			if(!parent->getParent())
-			    myAssignments.warnRoot(myArchive);
+			    myAssignments->warnRoot(myArchive);
 			else if(!static_cast<ROP_AbcNodeXform *>(parent)->setPreMatrix(m))
 			{
-			    myAssignments.warnChildren(myArchive);
+			    myAssignments->warnChildren(myArchive);
 			}
 
 			m.identity();
@@ -337,7 +337,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 			buf.appendSprintf("_instance%" SYS_PRId64, i + 1);
 			std::string name = buf.buffer();
 			rop_xforms.append(
-			    myAssignments.newXformNode(name, myArchive));
+			    myAssignments->newXformNode(name, myArchive));
 		    }
 
 		    ROP_AbcNodeXform *node = rop_xforms(i);
@@ -457,13 +457,13 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	    m.invert();
 	    GT_PrimitiveHandle copy = prim->doSoftCopy();
 	    copy->setPrimitiveTransform(new GT_Transform(&m, 1));
-	    auto assignment = &myAssignments;
+	    auto assignments = myAssignments;
 	    if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM_GEOMETRY)
 	    {
-		auto &rop_i = myAssignments.myTransformAndShapes[std::make_pair(myName, mySubd)];
+		auto &rop_i = myAssignments->myTransformAndShapes[std::make_pair(myName, mySubd)];
 		// create transform node
 		exint idx = myPackedCount++;
-		auto &children = myAssignments.myChildren;
+		auto &children = myAssignments->myChildren;
 		while(idx >= rop_i.entries())
 		    rop_i.append(rop_TransformAndShape());
 
@@ -476,32 +476,31 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 
 		    xform_and_shape.myChildIndex = children.entries();
 		    xform_and_shape.myXform =
-			myAssignments.newXformNode(buf.buffer(), myArchive);
+			myAssignments->newXformNode(buf.buffer(), myArchive);
 
 		    children.append(
 			rop_RefinedGeoAssignments(xform_and_shape.myXform));
 		}
 
-		assignment = &children[xform_and_shape.myChildIndex];
-		ROP_AbcNode *parent = assignment->myParent;
+		assignments = &children[xform_and_shape.myChildIndex];
+		ROP_AbcNode *parent = assignments->myParent;
 		static_cast<ROP_AbcNodeXform *>(parent)->setData(prim_xform, true);
 	    }
 	    else // if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM)
 	    {
-		ROP_AbcNode *parent = myAssignments.myParent;
+		ROP_AbcNode *parent = myAssignments->myParent;
 		if(!parent->getParent())
-		    myAssignments.warnRoot(myArchive);
+		    myAssignments->warnRoot(myArchive);
 		else if(!static_cast<ROP_AbcNodeXform *>(parent)->setPreMatrix(prim_xform))
 		{
-		    myAssignments.warnChildren(myArchive);
+		    myAssignments->warnChildren(myArchive);
 		}
 	    }
 
-	    rop_AbcRefiner refiner(*assignment, myParms, myPackedTransform,
-				   myFacesetMode, mySubd, myUseInstancing,
-				   myShapeNodes, mySaveHidden, myVisible,
-				   myName, myArchive);
-	    copy->refine(refiner, &myParms);
+	    auto saved_assignments = myAssignments;
+	    myAssignments = assignments;
+	    copy->refine(*this, &myParms);
+	    myAssignments = saved_assignments;
 	    return true;
 	}
 
@@ -526,11 +525,11 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 		else
 		    idx = it->second++;
 
-		auto &shapes = myAssignments.myShapes[std::make_tuple(myName, type, mySubd)];
+		auto &shapes = myAssignments->myShapes[std::make_tuple(myName, type, mySubd)];
 		while(idx >= shapes.entries())
 		{
 		    shapes.append(
-			myAssignments.newShapeNode(myName, myArchive));
+			myAssignments->newShapeNode(myName, myArchive));
 		}
 
 		shapes[idx]->setData(prim, myVisible);
@@ -560,7 +559,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	}
 
     private:
-	ROP_AlembicOut::rop_RefinedGeoAssignments &myAssignments;
+	ROP_AlembicOut::rop_RefinedGeoAssignments *myAssignments;
 	const GT_RefineParms &myParms;
 	const std::string &myName;
 	const ROP_AbcArchivePtr &myArchive;
@@ -574,7 +573,7 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	bool myShapeNodes;
 	bool mySaveHidden;
 	bool myVisible;
-    } refiner(*this, rparms, packedtransform, facesetmode, subd, use_instancing,
+    } refiner(this, rparms, packedtransform, facesetmode, subd, use_instancing,
 	      shape_nodes, save_hidden, visible, name, abc);
 
     refiner.addPrimitive(prim);
