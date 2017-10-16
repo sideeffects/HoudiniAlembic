@@ -2807,7 +2807,7 @@ GABC_IObject::nodeType() const
 	return GABC_LIGHT;
     if (IMaterial::matches(ohead))
 	return GABC_MATERIAL;
-    UT_ASSERT(!strcmp(myObject.getFullName().c_str(), "/"));
+    UT_ASSERT(!myObject.getParent().valid());
     return GABC_UNKNOWN;
 }
 
