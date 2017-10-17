@@ -245,7 +245,6 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	rop_AbcRefiner(ROP_AlembicOut::rop_RefinedGeoAssignments *assignments,
 			const GT_RefineParms &rparms,
 			PackedTransform packedtransform,
-			exint facesetmode,
 			bool subd,
 			bool use_instancing,
 			bool shape_nodes,
@@ -259,7 +258,6 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	    , myArchive(abc)
 	    , myPackedCount(0)
 	    , myPackedTransform(packedtransform)
-	    , myFacesetMode(facesetmode)
 	    , mySubd(subd)
 	    , myUseInstancing(use_instancing)
 	    , myShapeNodes(shape_nodes)
@@ -567,14 +565,13 @@ ROP_AlembicOut::rop_RefinedGeoAssignments::refine(
 	UT_Map<int, exint> myInstanceCount;
 	exint myPackedCount;
 	PackedTransform myPackedTransform;
-	exint myFacesetMode;
 	bool mySubd;
 	bool myUseInstancing;
 	bool myShapeNodes;
 	bool mySaveHidden;
 	bool myVisible;
-    } refiner(this, rparms, packedtransform, facesetmode, subd, use_instancing,
-	      shape_nodes, save_hidden, visible, name, abc);
+    } refiner(this, rparms, packedtransform, subd, use_instancing, shape_nodes,
+	      save_hidden, visible, name, abc);
 
     refiner.addPrimitive(prim);
 }
