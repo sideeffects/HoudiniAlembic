@@ -297,6 +297,8 @@ public:
 	    const GT_AttributeListHandle &detail=GT_AttributeListHandle(),
 	    const GT_GEODetailListHandle &source=GT_GEODetailListHandle());
     virtual ~GABC_PackedInstance();
+    virtual int		 getPrimitiveType() const
+				    { return GT_PRIM_ALEMBIC_INSTANCE; }
 
     virtual const char	*className() const { return "GABC_PackedInstance"; }
     
@@ -304,7 +306,9 @@ public:
     
     int64	      alembicVersion() const { return myAlembicVersion; }
     void	      setAlembicVersion(int64 v) { myAlembicVersion = v; }
-    
+    bool	      updateGeoPrim(const GU_ConstDetailHandle &dtl,
+				    const GT_RefineParms &refine);
+
 private:
     GEO_AnimationType myAnimType;
     UT_Array<GABC_AlembicCache> myCache;
