@@ -2673,6 +2673,8 @@ GABC_IObject::GABC_IObject(const GABC_IArchivePtr &arch, const IObject &obj)
     , myObjectPath(obj.getFullName())
     , myObject(obj)
 {
+    if(myObjectPath == "")
+	myObjectPath = "/";
 }
 
 void
