@@ -690,6 +690,26 @@ GABC_PackedAlembic::fullCachedTransform()
     return applyPrimTransform(th);
 }
 
+bool
+GABC_PackedAlembic::isVisible()
+{
+    if(!myAnimVis)
+	return myVisibleConst;
+    
+    bool visible = true;
+    if(!getCachedVisibility(visible))
+    {
+	const GABC_PackedImpl	*impl = 
+	    UTverify_cast<const GABC_PackedImpl *>(getImplementation());
+	
+	visible = impl->visibleGT();
+	cacheVisibility(visible);
+    }
+
+    return visible;
+}
+
+
 GT_TransformHandle 
 GABC_PackedAlembic::applyPrimTransform(const GT_TransformHandle &th) const
 {
@@ -1537,6 +1557,37 @@ GABC_PackedInstance::GABC_PackedInstance(
 
 GABC_PackedInstance::~GABC_PackedInstance()
 {
+}
+
+bool
+GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
+				   const GT_RefineParms &refine)
+{
+    bool updated = GT_PrimInstance::updateGeoPrim(dtl, refine);
+
+    if(myUniform)
+    {
+	const GT_DataArrayHandle &prim = myUniform->get("__primitive_id");
+	if(prim)
+	{
+	    GU_DetailHandleAutoReadLock	gdp(dtl);
+	    GA_Offset off = GA_Offset(prim->getI64(0));
+	    auto pprim = UTverify_cast<const GU_PrimPacked *>
+		(gdp->getPrimitive(off));
+	    if(pprim)
+	    {
+		GT_PrimitiveHandle geo =
+		    UTverify_cast<const GABC_PackedImpl *>(
+			pprim->implementation())->instanceGT(true);
+		if(geo != myGeometry)
+		{
+		    myGeometry = geo;
+		    updated = true;
+		}
+	    }
+	}
+    }
+    return updated;
 }
 
 // -------------------------------------------------------------------------
