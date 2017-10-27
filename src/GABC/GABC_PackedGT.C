@@ -560,7 +560,9 @@ GABC_PackedAlembic::getFullGeometry(const GT_RefineParms *parms,
 	if (!GT_RefineParms::getAlembicHoudiniAttribs(parms))
 	    load_style &= ~GABC_IObject::GABC_LOAD_HOUDINI;
     }
-    
+    if(!parms->getAlembicSkipInvisible())
+	load_style |= GABC_IObject::GABC_LOAD_IGNORE_VISIBILITY;
+
     return impl->fullGT(load_style);
 }
 

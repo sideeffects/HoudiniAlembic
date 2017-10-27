@@ -33,7 +33,10 @@ void
 ROP_AbcNodeShape::clearData()
 {
     if(!myLocked)
+    {
 	myPrim = nullptr;
+	myVisible = false;
+    }
     ROP_AbcNode::clearData();
 }
 
@@ -85,7 +88,7 @@ ROP_AbcNodeShape::update()
 	myWriter.reset(new GABC_OGTGeometry(myName));
 	myWriter->start(myPrim, myParent->getOObject(),
 			myArchive->getOOptions(), myArchive->getOError(),
-			(nsamples == 1) ?
+			(nsamples == 1 && myVisible) ?
 			    Alembic::AbcGeom::kVisibilityDeferred :
 			    Alembic::AbcGeom::kVisibilityHidden);
 	ropEnlargeBounds(myBox, myPrim);
@@ -114,13 +117,17 @@ ROP_AbcNodeShape::update()
 	    if(myLocked)
 	    {
 		myWriter->updateFromPrevious(myArchive->getOError(),
-					Alembic::AbcGeom::kVisibilityDeferred);
+					myVisible ?
+					Alembic::AbcGeom::kVisibilityDeferred :
+					Alembic::AbcGeom::kVisibilityHidden);
 	    }
 	    else
 	    {
 		myWriter->update(myPrim, myArchive->getOOptions(),
 				 myArchive->getOError(),
-				 Alembic::AbcGeom::kVisibilityDeferred);
+				 myVisible ?
+				 Alembic::AbcGeom::kVisibilityDeferred :
+				 Alembic::AbcGeom::kVisibilityHidden);
 		ropEnlargeBounds(myBox, myPrim);
 	    }
 	}
@@ -145,4 +152,5 @@ ROP_AbcNodeShape::setLocked(bool locked)
     myUserPropVals.clear();
     myUserPropMeta.clear();
     myPrim = nullptr;
+    myVisible = false;
 }

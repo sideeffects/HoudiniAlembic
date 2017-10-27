@@ -189,7 +189,8 @@ private:
 	void refine(const GT_PrimitiveHandle &prim,
 		    PackedTransform packedtransform, exint facesetmode,
 		    bool subd, bool use_instancing, bool shape_nodes,
-		    const std::string &name, const ROP_AbcArchivePtr &abc);
+		    bool save_hidden, const std::string &name,
+		    const ROP_AbcArchivePtr &abc);
 
 	void setUserProperties(const UT_String &vals, const UT_String &meta,
 			       bool subd, const std::string &name);
@@ -250,14 +251,16 @@ private:
     void refineSop(rop_RefinedGeoAssignments &refinement,
 		   PackedTransform packedtransform, exint facesetmode,
 		   bool use_instancing, bool shape_nodes, bool displaysop,
-		   OBJ_Geometry *geo, SOP_Node *sop, fpreal time);
+		   bool save_hidden, OBJ_Geometry *geo, SOP_Node *sop,
+		   fpreal time);
 
     bool updateFromSop(OBJ_Geometry *geo, SOP_Node *sop,
 		       PackedTransform packedtransform, exint facesetmode,
-		       bool use_instancing, bool shape_nodes, bool displaysop);
+		       bool use_instancing, bool shape_nodes, bool displaysop,
+		       bool save_hidden);
     bool updateFromHierarchy(PackedTransform packedtransform, exint facesetmode,
 			     bool use_instancing, bool shape_nodes,
-			     bool displaysop);
+			     bool displaysop, bool save_hidden);
     void reportCookErrors(OP_Node *node, fpreal time);
 
     // temporary storage when exporting to an Alembic archive
