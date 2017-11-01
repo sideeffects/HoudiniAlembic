@@ -30,7 +30,7 @@
 #include <UT/UT_Map.h>
 #include <UT/UT_SysClone.h>
 #include <UT/UT_String.h>
-#include <UT/UT_Access.h>
+#include <UT/UT_FileStat.h>
 #include <UT/UT_WorkArgs.h>
 
 #if defined(GABC_OGAWA)
@@ -125,6 +125,12 @@ GABC_IArchive::openArchive(const std::string &path, int num_streams)
     
     if (UTisstring(path.c_str()))
     {
+	UT_FileStat file_stat;
+	bool is_readable_file =
+		(UTfileStat(path.c_str(), &file_stat) == 0
+		&& file_stat.isFile()
+		&& (file_stat.myPermissions & R_OK));
+
 #if defined(GABC_OGAWA)
 	IFactory	factory;
 
@@ -132,7 +138,7 @@ GABC_IArchive::openArchive(const std::string &path, int num_streams)
 	    factory.setOgawaNumStreams(num_streams);
 	
 	// Try to open using standard Ogawa file access
-	if (UTaccess(path.c_str(), R_OK) >= 0)
+	if (is_readable_file)
 	{
 	    try
 	    {
@@ -169,7 +175,7 @@ GABC_IArchive::openArchive(const std::string &path, int num_streams)
 	}
 #endif
 	// Try HDF5 -- the stream interface only works with Ogawa
-	if (!myArchive.valid() && UTaccess(path.c_str(), R_OK) == 0)
+	if (!myArchive.valid() && is_readable_file)
 	{
 	    myIsOgawa =false;
 	    try
