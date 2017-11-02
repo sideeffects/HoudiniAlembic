@@ -31,6 +31,7 @@
 #include <UT/UT_SysClone.h>
 #include <UT/UT_String.h>
 #include <UT/UT_FileStat.h>
+#include <UT/UT_PathSearch.h>
 #include <UT/UT_WorkArgs.h>
 
 #if defined(GABC_OGAWA)
@@ -122,12 +123,14 @@ void
 GABC_IArchive::openArchive(const std::string &path, int num_streams)
 {
     myArchive.reset();
-    
+
+    UT_String mapped_path = path.c_str();
+    UT_PathSearch::pathMap(mapped_path);
     if (UTisstring(path.c_str()))
     {
 	UT_FileStat file_stat;
 	bool is_readable_file =
-		(UTfileStat(path.c_str(), &file_stat) == 0
+		(UTfileStat(mapped_path.c_str(), &file_stat) == 0
 		&& file_stat.isFile()
 		&& (file_stat.myPermissions & R_OK));
 
@@ -143,7 +146,7 @@ GABC_IArchive::openArchive(const std::string &path, int num_streams)
 	    try
 	    {
 		IFactory::CoreType	archive_type;
-		myArchive = factory.getArchive(path, archive_type);
+		myArchive = factory.getArchive(mapped_path.c_str(), archive_type);
 		myIsOgawa = (archive_type == IFactory::kOgawa);
 	    }
 	    catch (const std::exception &e)
@@ -177,10 +180,11 @@ GABC_IArchive::openArchive(const std::string &path, int num_streams)
 	// Try HDF5 -- the stream interface only works with Ogawa
 	if (!myArchive.valid() && is_readable_file)
 	{
-	    myIsOgawa =false;
+	    myIsOgawa = false;
 	    try
 	    {
-		myArchive = IArchive(Alembic::AbcCoreHDF5::ReadArchive(), path);
+		myArchive = IArchive(Alembic::AbcCoreHDF5::ReadArchive(),
+				     mapped_path.c_str());
 	    }
 	    catch (const std::exception &e)
 	    {
