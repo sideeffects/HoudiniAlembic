@@ -31,6 +31,7 @@
 #include <UT/UT_SysClone.h>
 #include <UT/UT_String.h>
 #include <UT/UT_FileStat.h>
+#include <UT/UT_PathSearch.h>
 #include <UT/UT_WorkArgs.h>
 
 #if defined(GABC_OGAWA)
@@ -107,11 +108,14 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
     , myStream(NULL)
 {
     UT_INC_COUNTER(theCount);
+
+    UT_String mapped_path = path.c_str();
+    UT_PathSearch::pathMap(mapped_path);
     if (UTisstring(path.c_str()))
     {
 	UT_FileStat file_stat;
 	bool is_readable_file =
-		(UTfileStat(path.c_str(), &file_stat) == 0
+		(UTfileStat(mapped_path.c_str(), &file_stat) == 0
 		&& file_stat.isFile()
 		&& (file_stat.myPermissions & R_OK));
 
@@ -122,7 +126,7 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
 	{
 	    try
 	    {
-		myArchive = factory.getArchive(path);
+		myArchive = factory.getArchive(mapped_path.c_str());
 	    }
 	    catch (const std::exception &e)
 	    {
@@ -154,7 +158,8 @@ GABC_IArchive::GABC_IArchive(const std::string &path)
 	{
 	    try
 	    {
-		myArchive = IArchive(Alembic::AbcCoreHDF5::ReadArchive(), path);
+		myArchive = IArchive(Alembic::AbcCoreHDF5::ReadArchive(),
+				     mapped_path.c_str());
 	    }
 	    catch (const std::exception &e)
 	    {
