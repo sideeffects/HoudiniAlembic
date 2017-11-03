@@ -461,6 +461,8 @@ bool
 GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 				  const GT_RefineParms &refine)
 {
+    bool changed = GT_GEOPrimPacked::updateGeoPrim(dtl, refine);
+    
     const GU_PrimPacked *packed = nullptr;
     if(GAisValid(myOffset))
     {
@@ -475,12 +477,15 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 	    if(packed->getIntrinsic(fr, frame))
 	    {
 		if(!SYSisEqual(myFrame, frame))
+		{
 		    myFrame = frame;
+		    changed = true;
+		}
 	    }
 	}
     }
     setDetailPrim(dtl, packed);
-    return true;
+    return changed;
 }
 
 void
