@@ -54,8 +54,6 @@ public:
 private:
 };
 
-}; // GABC_NAMESPACE
-
 class GABC_API GABC_AlembicCache
 {
 public:
@@ -66,7 +64,7 @@ public:
     }
     
     bool	getVisibility(fpreal t, bool &visible) const;
-    bool	getTransform(fpreal t, UT_Matrix4F &transform) const;
+    bool	getTransform(fpreal t, UT_Matrix4D &transform) const;
 
     
     void	setVisibilityAnimated(bool anim) { myVisibilityAnimated = anim;}
@@ -74,17 +72,19 @@ public:
 
     void	cacheVisibility(fpreal t, bool visible)
 		    { myVisibility[ myVisibilityAnimated ? t : 0.0] = visible; }
-    void	cacheTransform(fpreal t, const UT_Matrix4F &transform)
+    void	cacheTransform(fpreal t, const UT_Matrix4D &transform)
 		    { myTransform[ myTransformAnimated ? t : 0.0] = transform; }
     
 private:
     UT_Map<fpreal, bool>	myVisibility;
-    UT_Map<fpreal, UT_Matrix4F>	myTransform;
+    UT_Map<fpreal, UT_Matrix4D>	myTransform;
     
     unsigned int	myVisibilityAnimated : 1,
 			myTransformAnimated : 1;
 
 };
+}; // GABC_NAMESPACE
+
 
 /// Collection class for a single archive's worth of Alembic primitives.
 /// This is generally only useful for the viewport.
@@ -230,7 +230,7 @@ public:
 private:
     int64	      myID;
     GEO_AnimationType myAnimType;
-    GABC_AlembicCache myCache;
+    GABC_NAMESPACE::GABC_AlembicCache myCache;
     GT_AttributeListHandle myDetailAttribs;
     bool	      myAnimVis;
     bool	      myVisibleConst; // only valid when myAnimVis is false.
@@ -311,7 +311,7 @@ public:
 
 private:
     GEO_AnimationType myAnimType;
-    UT_Array<GABC_AlembicCache> myCache;
+    UT_Array<GABC_NAMESPACE::GABC_AlembicCache> myCache;
     int64	      myAlembicVersion;
 };
     

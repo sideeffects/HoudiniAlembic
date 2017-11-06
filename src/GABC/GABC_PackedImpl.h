@@ -26,7 +26,8 @@
 
 namespace GABC_NAMESPACE
 {
-
+class GABC_AlembicCache;
+    
 class GABC_API GABC_PackedImpl : public GU_PackedImpl
 {
 public:
@@ -204,6 +205,8 @@ public:
     void	setFrame(GU_PrimPacked *prim, fpreal f);
     void	setUseTransform(GU_PrimPacked *prim, bool v);
     void	setUseVisibility(GU_PrimPacked *prim, bool v);
+
+    void	setViewportCache(GABC_AlembicCache *cache) const;
 protected:
 #if 0
     /// Optional method to compute centroid (default uses bounding box)
@@ -305,6 +308,7 @@ private:
     mutable GABC_VisibilityType myConstVisibility;
     mutable bool		myHasConstBounds;
     mutable UT_BoundingBox	myConstBounds;
+    mutable GABC_AlembicCache  *myViewportCache;
 
     static GA_PrimitiveTypeId theTypeId;
 };

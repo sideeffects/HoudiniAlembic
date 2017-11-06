@@ -17,6 +17,7 @@
 
 #include "GABC_PackedImpl.h"
 #include "GABC_PackedGT.h"
+
 #include <UT/UT_JSONParser.h>
 #include <UT/UT_Debug.h>
 #include <UT/UT_MemoryCounter.h>
@@ -162,6 +163,7 @@ GABC_PackedImpl::GABC_PackedImpl()
     , myUniqueID(0)
     , myConstVisibility(GABC_VISIBLE_DEFER)
     , myHasConstBounds(false)
+    , myViewportCache(nullptr)
 {
 }
 
@@ -179,6 +181,7 @@ GABC_PackedImpl::GABC_PackedImpl(const GABC_PackedImpl &src)
     , myConstVisibility(src.myConstVisibility)
     , myHasConstBounds(src.myHasConstBounds)
     , myConstBounds(src.myConstBounds)
+    , myViewportCache(src.myViewportCache)
 {
 }
 
@@ -407,7 +410,20 @@ GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
 	return false;
 
     GEO_AnimationType	atype;
-    myObject.getWorldTransform(m, myFrame, atype);
+    if(myViewportCache)
+    {
+	if(!myViewportCache->getTransform(myFrame, m))
+	{
+	    myObject.getWorldTransform(m, myFrame, atype);
+
+	    bool animated = (atype!=GEO_ANIMATION_CONSTANT);
+	    
+	    myViewportCache->setTransformAnimated(animated);
+	    myViewportCache->cacheTransform(myFrame, m);
+	}
+    }
+    else
+	myObject.getWorldTransform(m, myFrame, atype);
     
     return true;
 }
@@ -998,4 +1014,10 @@ GABC_PackedImpl::getPropertiesHash() const
     }
     
     return myUniqueID;
+}
+
+void
+GABC_PackedImpl::setViewportCache(GABC_AlembicCache *cache) const
+{
+    myViewportCache = cache;
 }
