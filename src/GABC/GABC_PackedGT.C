@@ -122,6 +122,7 @@ public:
 		GT_GEOOffsetList offsets, voffsets;
 		bool use_vertex = true;
 
+		UT_Array<GEO_ViewportLOD> lod;
 		GEO_AnimationType anim_type = GEO_ANIMATION_INVALID;
 		if(myCollectAnimInfo)
 		    anim_type = impl->animationType();
@@ -137,17 +138,24 @@ public:
 		    else
 			use_vertex = false; // avoid if one instance has 0 verts
 
+		    auto impl= UTverify_cast<const GABC_PackedImpl*>
+			(pi->implementation());
+			
 		    // check for an animated transform.
 		    if(myCollectAnimInfo &&
 		       anim_type < GEO_ANIMATION_TRANSFORM)
 		    {
-			auto impl= UTverify_cast<const GABC_PackedImpl*>
-			    (pi->implementation());
 			bool vis_anim;
 			impl->object().visibility(vis_anim, impl->frame(),true);
 			if(impl->object().isTransformAnimated() || vis_anim)
 			    anim_type = GEO_ANIMATION_TRANSFORM;
 		    }
+
+		    GEO_ViewportLOD prim_lod = GEO_VIEWPORT_HIDDEN;
+		    if(impl->visibleGT())
+			prim_lod = pi->viewportLOD();
+
+		    lod.append(prim_lod);
 		}
 
 		// build vertex/prim/point list
@@ -167,9 +175,12 @@ public:
 				       GT_GEODetailList::GEO_SKIP_DETAIL,false);
 		}
 
+
 		GT_AttributeListHandle detail_attribs =
 		    myGeometry->getDetailAttributes(filter, false);
-
+		
+		GT_Util::addViewportLODAttribs(lod,prim_attribs,detail_attribs);
+		
 		myPrims(index) = new GABC_PackedInstance(geo, xformh, anim_type,
 							 offsets, prim_attribs,
 							 detail_attribs,
@@ -246,8 +257,8 @@ public:
 	    UT_StringHolder path = impl->object().getSourcePath();
 	    UT_StringHolder arch = impl->object().archive()->filename();
 	    
-	    bucket_name.sprintf("%" SYS_PRId64 ":%s:%s", arch.length(), arch.c_str(), path.c_str());
-	    
+	    bucket_name.sprintf("%" SYS_PRId64 ":%s:%s",
+				arch.length(), arch.c_str(), path.c_str());
 	    auto entry = myInstanceAnim.find( bucket_name.buffer() );
 	    GEO_AnimationType anim;
 		anim = impl->animationType();
@@ -384,7 +395,6 @@ public:
 	    UTserialFor(UT_BlockedRange<exint>(0, myInstanceGeo.size()),
 			task);
 #endif
-
 	    if(collect)
 	    {
 		for(int i=0; i<prims.entries(); i++)
@@ -844,7 +854,7 @@ void
 GABC_PackedAlembic::cacheTransform(const GT_TransformHandle &th)
 {
     auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    UT_Matrix4F mat;
+    UT_Matrix4D mat;
     th->getMatrix(mat);
     myCache.cacheTransform(impl->frame(), mat );
 }
@@ -853,7 +863,7 @@ bool
 GABC_PackedAlembic::getCachedTransform(GT_TransformHandle &th) const
 {
     auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    UT_Matrix4F mat;
+    UT_Matrix4D mat;
     if(myCache.getTransform(impl->frame(), mat))
     {
 	th = new GT_Transform(&mat, 1);
@@ -1545,6 +1555,15 @@ GABC_PackedInstance::GABC_PackedInstance(const GABC_PackedInstance &src)
       myAnimType(src.myAnimType)
 {
     myCache.entries( entries() );
+    
+    if(myAnimType >= GEO_ANIMATION_TRANSFORM)
+    {
+	for(int i=0; i<myCache.entries(); i++)
+	{
+	    myCache(i).setVisibilityAnimated(true);
+	    myCache(i).setTransformAnimated(true);
+	}
+    }
 }
 
 GABC_PackedInstance::GABC_PackedInstance(
@@ -1560,6 +1579,15 @@ GABC_PackedInstance::GABC_PackedInstance(
       myAnimType(anim)
 {
     myCache.entries( entries() );
+    
+    if(myAnimType >= GEO_ANIMATION_TRANSFORM)
+    {
+	for(int i=0; i<myCache.entries(); i++)
+	{
+	    myCache(i).setVisibilityAnimated(true);
+	    myCache(i).setTransformAnimated(true);
+	}
+    }
 }
 
 GABC_PackedInstance::~GABC_PackedInstance()
@@ -1570,19 +1598,23 @@ bool
 GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 				   const GT_RefineParms &refine)
 {
-    bool updated = GT_PrimInstance::updateGeoPrim(dtl, refine);
+    //static UT_Vector3 theZero(0.0);
+    
+    bool updated = GT_Primitive::updateGeoPrim(dtl, refine);
 
     if(myUniform)
     {
 	const GT_DataArrayHandle &prim = myUniform->get("__primitive_id");
 	if(prim)
 	{
+	    // Geometry
 	    GU_DetailHandleAutoReadLock	gdp(dtl);
 	    GA_Offset off = GA_Offset(prim->getI64(0));
 	    auto pprim = UTverify_cast<const GU_PrimPacked *>
 		(gdp->getPrimitive(off));
 	    if(pprim)
 	    {
+		// Update geometry
 		GT_PrimitiveHandle geo =
 		    UTverify_cast<const GABC_PackedImpl *>(
 			pprim->implementation())->instanceGT(true);
@@ -1590,6 +1622,93 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 		{
 		    myGeometry = geo;
 		    updated = true;
+		}
+	    }
+	    
+	    if(myTransforms)
+	    {
+		const int n = prim->entries();
+		GU_DetailHandleAutoReadLock	gdp(dtl);
+
+		if(n != myTransforms->entries())
+		    updated = true;
+		
+		myTransforms->setEntries(n);
+	    
+		for(int i=0; i<n; i++)
+		{
+		    const GA_Offset off = GA_Offset(prim->getI64(i));
+		    auto pprim = UTverify_cast<const GU_PrimPacked *>
+			(gdp->getPrimitive(off));
+
+		    if(pprim)
+		    {
+			UT_Matrix4D transform;
+			auto pimpl = UTverify_cast<const GABC_PackedImpl *>(
+			    pprim->implementation());
+
+			pimpl->setViewportCache(&myCache(i));
+			pprim->getFullTransform4(transform);
+			pimpl->setViewportCache(nullptr);
+			
+			UT_Matrix4D old;
+			myTransforms->get(i)->getMatrix(old);
+			if(old != transform)
+			{
+			    updated = true;
+			    myTransforms->
+				set(i, new GT_Transform(&transform, 1));
+			}
+		    }
+		}
+	    }
+	    // Update Visibility
+	    GT_DataArrayHandle lod = myUniform->get("__view_lod");
+	    if(lod)
+	    {
+		auto loda = UTverify_cast<GT_DANumeric<int> *>(lod.get());
+		int lod_mask = 0;
+		
+		for(int i=0; i<prim->entries(); i++)
+		{
+		    int lod = GEO_VIEWPORT_HIDDEN;
+
+		    auto pprim = UTverify_cast<const GU_PrimPacked *>
+			(gdp->getPrimitive(off));
+		    if(pprim && pprim->viewportLOD() != GEO_VIEWPORT_HIDDEN)
+		    {
+			bool visible = false;
+			auto pimpl = UTverify_cast<const GABC_PackedImpl *>(
+			    pprim->implementation());
+			const fpreal t = pimpl->frame();
+
+			if(!myCache(i).getVisibility(t, visible))
+			{
+			    visible = pimpl->useVisibility() ? 
+				      pimpl->visibleGT() : true;
+			    
+			    myCache(i).cacheVisibility(t, visible);
+			}
+		    
+			lod = visible ? pprim->viewportLOD()
+				      : GEO_VIEWPORT_HIDDEN;
+			if(lod > GEO_VIEWPORT_FULL ||
+			   lod == GEO_VIEWPORT_INVALID_MODE)
+			    lod = GEO_VIEWPORT_FULL;
+		    }
+
+		    if(loda->getI32(i) != lod)
+			updated = true;
+		    
+		    loda->set(lod, i);
+		    lod_mask |= (1<<lod);
+		}
+		
+		GT_DataArrayHandle lodm = myUniform->get("__view_lod_mask");
+		if(lodm)
+		{
+		    auto lodma = UTverify_cast<GT_DANumeric<int> *>(lodm.get());
+		    lodma->set(lod_mask, 0);
 		}
 	    }
 	}
@@ -1740,7 +1859,7 @@ GABC_PackedAlembicMesh::update(bool initial)
 		*vis = visible;
 		changed = true;
 	    }
-	    
+
 	    vis++;
 	}
 	if(changed)
@@ -1765,7 +1884,7 @@ GABC_AlembicCache::getVisibility(fpreal t, bool &visible) const
 }
 
 bool
-GABC_AlembicCache::getTransform(fpreal t, UT_Matrix4F &transform) const
+GABC_AlembicCache::getTransform(fpreal t, UT_Matrix4D &transform) const
 {
     if(!myTransformAnimated)
       	t = 0.0;
