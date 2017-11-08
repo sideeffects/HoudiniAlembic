@@ -1077,7 +1077,7 @@ ROP_AlembicOut::buildRenderDependencies(const ROP_RenderDepParms &p)
     if(RENDER_FULL_RANGE())
     {
 	ROP_RenderDepParms parms = p;
-	parms.setFullAscendingFrameRange(*this);
+	parms.setFullAscendingFrameRange();
 	ROP_Node::buildRenderDependencies(parms);
     }
     else
