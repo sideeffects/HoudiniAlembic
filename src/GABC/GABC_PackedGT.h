@@ -242,6 +242,7 @@ private:
     GEO_AnimationType myAnimType;
     GABC_NAMESPACE::GABC_AlembicCache myCache;
     GT_AttributeListHandle myDetailAttribs;
+    UT_Matrix4D	      myTransform;
     bool	      myAnimVis;
     bool	      myVisibleConst; // only valid when myAnimVis is false.
     int64	      myAlembicVersion;
