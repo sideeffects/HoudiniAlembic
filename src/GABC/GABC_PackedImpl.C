@@ -737,7 +737,7 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 		    myPrim = GT_Util::optimizePolyMeshForGL(myPrim, dtl);
 		}
 
-		if(GT_PackedGeoCache::isCachingAvailable())
+		if(GT_PackedGeoCache::isCachingAvailable() && myPrim)
 		{
 		    GT_PackedGeoCache::cacheInstance(cache_name, myPrim,
 						     version, load_style,
