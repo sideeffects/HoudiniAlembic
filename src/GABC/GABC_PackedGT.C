@@ -482,7 +482,7 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 				  const GT_RefineParms &refine)
 {
     bool changed = GT_GEOPrimPacked::updateGeoPrim(dtl, refine);
-    
+
     const GU_PrimPacked *packed = nullptr;
     if(GAisValid(myOffset))
     {
@@ -502,9 +502,24 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 		    changed = true;
 		}
 	    }
+	    
+	    UT_Matrix4D transform;
+	    auto pimpl = UTverify_cast<const GABC_PackedImpl *>(
+		packed->implementation());
+
+	    pimpl->setViewportCache(&myCache);
+	    packed->getFullTransform4(transform);
+	    pimpl->setViewportCache(nullptr);
+			
+	    if(myTransform != transform)
+	    {
+		myTransform = transform;
+		changed = true;
+	    }
 	}
     }
     setDetailPrim(dtl, packed);
+    
     return changed;
 }
 
