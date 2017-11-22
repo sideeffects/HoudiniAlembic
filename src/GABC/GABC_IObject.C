@@ -1407,15 +1407,29 @@ namespace
     static GT_AttributeListHandle
     addFileObjectAttribs(const GT_AttributeListHandle &list,
 			 const GABC_IObject &obj,
-			 fpreal t)
+			 fpreal t,
+			 GEO_AnimationType anim)
     {
 	auto file_da = new GT_DAIndexedString(1);
 	auto obj_da = new GT_DAIndexedString(1);
 	auto time_da = new GT_DANumeric<fpreal32>(1,1);
 	auto cache_da = new GT_DAIndexedString(1);
 	file_da->setString(0,0, obj.archive()->filename().c_str());
-	obj_da->setString(0,0, obj.getFullName().c_str());
 	time_da->set(t, 0);
+
+	if(anim > GEO_ANIMATION_TRANSFORM)
+	{
+	    // Append time onto the end - objname[frame]
+	    UT_StringHolder obj_name = obj.getFullName();
+	    UT_WorkBuffer time;
+	    time.sprintf("[%f]", t);
+	    obj_name += time.buffer();
+	    obj_da->setString(0,0, obj_name);
+	}
+	else
+	{
+	    obj_da->setString(0,0, obj.getFullName().c_str());
+	}
 
 	UT_StringHolder cache;
 	GT_PackedGeoCache::buildAlembicName(cache,
@@ -1521,11 +1535,12 @@ namespace
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
     buildPointMesh(const ATTRIB_CREATOR &acreate,
-	    const GEO_Primitive *prim,
-	    const GABC_IObject &obj,
-	    fpreal t,
-	    const GEO_PackedNameMapPtr &namemap,
-	    int load_style)
+		   const GEO_Primitive *prim,
+		   const GABC_IObject &obj,
+		   fpreal t,
+		   const GEO_PackedNameMapPtr &namemap,
+		   int load_style,
+		   GEO_AnimationType anim)
     {
 	IPoints			 shape(obj.object(), gabcWrapExisting);
 	IPointsSchema		&ss = shape.getSchema();
@@ -1548,6 +1563,8 @@ namespace
 		&P, &v, NULL, NULL, &ids, &widths);
 	detail = acreate.build(1, prim, obj, namemap,
 		load_style, t, GA_ATTRIB_DETAIL, detail_scope, 3, arb);
+	
+	detail = addFileObjectAttribs(detail, obj, t, anim);
 
 	GT_Primitive	*gt = new GT_PrimPointMesh(vertex, detail);
 	return GT_PrimitiveHandle(gt);
@@ -1608,12 +1625,13 @@ namespace
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
     buildSubDMesh(const ATTRIB_CREATOR &acreate,
-			const GEO_Primitive *prim,
-			const GABC_IObject &obj,
-			fpreal t,
-			const GEO_PackedNameMapPtr &namemap,
-                        const UT_StringHolder &facesetAttrib,
-			int load_style)
+		  const GEO_Primitive *prim,
+		  const GABC_IObject &obj,
+		  fpreal t,
+		  const GEO_PackedNameMapPtr &namemap,
+		  const UT_StringHolder &facesetAttrib,
+		  int load_style,
+		  GEO_AnimationType anim)
     {
 	ISubD			 shape(obj.object(), gabcWrapExisting);
 	ISubDSchema		&ss = shape.getSchema();
@@ -1656,7 +1674,7 @@ namespace
 			       GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
 				arb);
 
-	detail = addFileObjectAttribs(detail, obj, t);
+	detail = addFileObjectAttribs(detail, obj, t, anim);
 
 	GT_PrimSubdivisionMesh	*gt = new GT_PrimSubdivisionMesh(counts,
 					indices,
@@ -1777,12 +1795,13 @@ namespace
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
     buildPolyMesh(const ATTRIB_CREATOR &acreate,
-			const GEO_Primitive *prim,
-			const GABC_IObject &obj,
-			fpreal t,
-			const GEO_PackedNameMapPtr &namemap,
-                        const UT_StringHolder &facesetAttrib,
-			int load_style)
+		  const GEO_Primitive *prim,
+		  const GABC_IObject &obj,
+		  fpreal t,
+		  const GEO_PackedNameMapPtr &namemap,
+		  const UT_StringHolder &facesetAttrib,
+		  int load_style,
+		  GEO_AnimationType anim)
     {
 	IPolyMesh		 shape(obj.object(), gabcWrapExisting);
 	IPolyMeshSchema		&ss = shape.getSchema();
@@ -1828,7 +1847,7 @@ namespace
 				GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
 				arb);
 
-	detail = addFileObjectAttribs(detail, obj, t);
+	detail = addFileObjectAttribs(detail, obj, t, anim);
 
 	GT_PrimPolygonMesh	*gt = new GT_PrimPolygonMesh(counts,
 					indices,
@@ -2003,11 +2022,12 @@ namespace
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
     buildCurveMesh(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
-			const GABC_IObject &obj,
-			fpreal t,
-			const GEO_PackedNameMapPtr &namemap,
-                        const UT_StringHolder &facesetAttrib,
-			int load_style)
+		   const GABC_IObject &obj,
+		   fpreal t,
+		   const GEO_PackedNameMapPtr &namemap,
+		   const UT_StringHolder &facesetAttrib,
+		   int load_style,
+		   GEO_AnimationType anim)
     {
 	ICurves			 shape(obj.object(), gabcWrapExisting);
 	ICurvesSchema		&ss = shape.getSchema();
@@ -2051,7 +2071,7 @@ namespace
 			       GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
 			       arb);
 	
-	detail = addFileObjectAttribs(detail, obj, t);
+	detail = addFileObjectAttribs(detail, obj, t, anim);
 
 	GT_Basis basis = getGTBasis(sample.getBasis());
 	bool	 periodic = (sample.getWrap() == Alembic::AbcGeom::kPeriodic);
@@ -2299,10 +2319,11 @@ namespace
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
     buildNuPatch(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
-			const GABC_IObject &obj,
-			fpreal t,
-			const GEO_PackedNameMapPtr &namemap,
-			int load_style)
+		 const GABC_IObject &obj,
+		 fpreal t,
+		 const GEO_PackedNameMapPtr &namemap,
+		 int load_style,
+		 GEO_AnimationType anim)
     {
 	INuPatch		 shape(obj.object(), gabcWrapExisting);
 	INuPatchSchema		&ss = shape.getSchema();
@@ -2336,7 +2357,7 @@ namespace
 	detail = acreate.build(1, prim, obj, namemap, load_style, t,
 			       GA_ATTRIB_DETAIL, detail_scope, 3, arb);
 
-	detail = addFileObjectAttribs(detail, obj, t);
+	detail = addFileObjectAttribs(detail, obj, t, anim);
 	
 	GT_PrimNuPatch	*gt = new GT_PrimNuPatch(uorder, uknots,
 				    vorder, vknots, vertex, detail);
@@ -3073,31 +3094,35 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
     GABC_AlembicLock	lock(archive());
     GT_PrimitiveHandle	prim;
 
-    atype = GEO_ANIMATION_CONSTANT;
-
+    atype = GEO_ANIMATION_CONSTANT; // only assigned if prim is non-null
+    
+    GEO_AnimationType anim_type = getAnimationType(false);
     try
     {
 	switch (nodeType())
 	{
 	    case GABC_POLYMESH:
 		prim = buildPolyMesh(CreateAttributeList(), gprim,
-			*this, t, namemap, facesetAttrib, load_style);
+				     *this, t, namemap, facesetAttrib,
+				     load_style, anim_type);
 		break;
 	    case GABC_SUBD:
 		prim = buildSubDMesh(CreateAttributeList(), gprim,
-			*this, t, namemap, facesetAttrib, load_style);
+				     *this, t, namemap, facesetAttrib,
+				     load_style, anim_type);
 		break;
 	    case GABC_POINTS:
 		prim = buildPointMesh(CreateAttributeList(), gprim,
-			*this, t, namemap, load_style);
+				      *this, t, namemap, load_style, anim_type);
 		break;
 	    case GABC_CURVES:
 		prim = buildCurveMesh(CreateAttributeList(), gprim,
-			*this, t, namemap, facesetAttrib, load_style);
+				      *this, t, namemap, facesetAttrib,
+				      load_style, anim_type);
 		break;
 	    case GABC_NUPATCH:
 		prim = buildNuPatch(CreateAttributeList(), gprim,
-			*this, t, namemap, load_style);
+				    *this, t, namemap, load_style, anim_type);
 		break;
 	    case GABC_XFORM:
 		if (isMayaLocator())
@@ -3116,7 +3141,9 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 	UT_ASSERT(0 && "Alembic exception");
 	prim = GT_PrimitiveHandle();
     }
-    atype = (prim) ? getAnimationType(false) : GEO_ANIMATION_CONSTANT;
+
+    if(prim)
+	atype = anim_type;
     return prim;
 }
 
@@ -3132,27 +3159,33 @@ GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
     GT_PrimitiveHandle	prim;
     try
     {
+	GEO_AnimationType anim_type = getAnimationType(false);
 	switch (nodeType())
 	{
 	    case GABC_POLYMESH:
 		prim = buildPolyMesh(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap, facesetAttrib, load_style);
+				     *this, new_time, namemap, facesetAttrib,
+				     load_style, anim_type);
 		break;
 	    case GABC_SUBD:
 		prim = buildSubDMesh(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap, facesetAttrib, load_style);
+				     *this, new_time, namemap, facesetAttrib,
+				     load_style, anim_type);
 		break;
 	    case GABC_POINTS:
 		prim = buildPointMesh(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap, load_style);
+				      *this, new_time, namemap, load_style,
+				      anim_type);
 		break;
 	    case GABC_CURVES:
 		prim = buildCurveMesh(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap, facesetAttrib, load_style);
+				      *this, new_time, namemap, facesetAttrib,
+				      load_style, anim_type);
 		break;
 	    case GABC_NUPATCH:
 		prim = buildNuPatch(UpdateAttributeList(src), gprim,
-			    *this, new_time, namemap, load_style);
+				    *this, new_time, namemap, load_style,
+				    anim_type);
 		break;
 	    default:
 		break;

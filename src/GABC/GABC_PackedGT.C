@@ -270,8 +270,7 @@ public:
 	    bucket_name.sprintf("%" SYS_PRId64 ":%s:%s",
 				arch.length(), arch.c_str(), path.c_str());
 	    auto entry = myInstanceAnim.find( bucket_name.buffer() );
-	    GEO_AnimationType anim;
-		anim = impl->animationType();
+	    GEO_AnimationType anim = impl->animationType();
 	    if(entry == myInstanceAnim.end())
 	    {
 		anim = impl->animationType();
@@ -282,7 +281,7 @@ public:
 	    
 	    if(anim > GEO_ANIMATION_TRANSFORM)
 		bucket_name.appendSprintf("[%f]", impl->frame());
-	    
+
 	    myInstanceGeo[ bucket_name.buffer() ].append(&prim);
 	}
 
@@ -942,6 +941,13 @@ public:
 		    (prim->implementation());
 
 		UT_StringHolder path = impl->object().getSourcePath();
+		GEO_AnimationType anim = impl->animationType();
+		if(anim > GEO_ANIMATION_TRANSFORM)
+		{
+		    UT_WorkBuffer frame; 
+		    frame.sprintf("[%f]", impl->frame());
+		    path += frame.buffer();
+		}
 
 		myBuckets[ path ].append(prim);
 		myObjects[i] = impl->object().getFullName();

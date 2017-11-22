@@ -703,7 +703,7 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 					    cache_name,
 					    o.getSourcePath().c_str(),
 					    o.archive()->filename().c_str(),
-					    abc->frame());
+					    myFrame);
 		myPrim = GT_PackedGeoCache::findInstance(cache_name, version,
 							 load_style, &atype);
 		if(myPrim)
