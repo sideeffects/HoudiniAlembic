@@ -51,6 +51,7 @@
 #include <ROP/ROP_Shared.h>
 #include <SOP/SOP_Node.h>
 #include <UT/UT_DSOVersion.h>
+#include <UT/UT_MakeShared.h>
 
 #if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
     #define CUSTOM_ALEMBIC_TOKEN_PREFIX ""
@@ -1145,7 +1146,7 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	UT_String format;
 	FORMAT(format, time);
 
-	myArchive = new ROP_AbcArchive(filename, format != "hdf5", *myErrors.get());
+	myArchive = UTmakeShared<ROP_AbcArchive>(filename, format != "hdf5", *myErrors.get());
 	if(!myArchive || !myArchive->isValid())
 	{
 	    myArchive.clear();
