@@ -1135,7 +1135,7 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	// close the previous archive
 	const ROP_AbcArchivePtr dummy;
 	myRoot->setArchive(dummy);
-	myArchive.clear();
+	myArchive.reset();
     }
 
     if (!executePreFrameScript(time))
@@ -1149,7 +1149,7 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	myArchive = UTmakeShared<ROP_AbcArchive>(filename, format != "hdf5", *myErrors.get());
 	if(!myArchive || !myArchive->isValid())
 	{
-	    myArchive.clear();
+	    myArchive.reset();
 	    return ROP_ABORT_RENDER;
 	}
 
@@ -1263,7 +1263,7 @@ ROP_AlembicOut::endRender()
     for(exint i = 0; i < err->myWarnings.entries(); ++i)
 	addWarning(ROP_MESSAGE, err->myWarnings(i));
 
-    myArchive.clear();
+    myArchive.reset();
     myRoot.reset(nullptr);
     myErrors.reset(nullptr);
 

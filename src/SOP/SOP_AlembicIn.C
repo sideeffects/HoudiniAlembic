@@ -987,7 +987,7 @@ SOP_AlembicIn2::setupEventHandler(const std::string &filename)
     clearEventHandler();
     myEventHandler.reset(new EventHandler(this));
     if (!GABC_Util::addEventHandler(filename, myEventHandler))
-	myEventHandler.clear();
+	myEventHandler.reset();
 }
 
 void

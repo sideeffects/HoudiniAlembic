@@ -348,7 +348,7 @@ namespace
 		    }
 		}
 		if (!pmap->entries())
-		    pmap.clear();
+		    pmap.reset();
 	    }
 	}
 	else
@@ -612,7 +612,7 @@ RAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 	myMergeInfo->init(vertex, point, uniform, detail);
 	if (!myMergeInfo->valid())
 	{
-	    myMergeInfo.clear();
+	    myMergeInfo.reset();
 	    attribfile = "";
 	}
     }
@@ -684,7 +684,7 @@ RAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 		    objectpath, objectpattern))
 	{
 	    myAttribDetail.clear();
-	    myMergeInfo.clear();
+	    myMergeInfo.reset();
 	}
     }
     return myLoadDetail.isValid() || myConstDetail.isValid();
