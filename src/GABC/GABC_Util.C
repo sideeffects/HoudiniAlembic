@@ -39,6 +39,7 @@
 #include <UT/UT_FSA.h>
 #include <UT/UT_FSATable.h>
 #include <UT/UT_JSONParser.h>
+#include <UT/UT_JSONWriter.h>
 #include <UT/UT_PathSearch.h>
 #include <UT/UT_SharedPtr.h>
 #include <UT/UT_StringArray.h>

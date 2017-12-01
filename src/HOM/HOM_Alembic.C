@@ -71,6 +71,7 @@
 #include <Alembic/AbcGeom/All.h>
 #include <HOM/HOM_Module.h>
 #include <UT/UT_DSOVersion.h>
+#include <UT/UT_JSONWriter.h>
 #include <UT/UT_StackBuffer.h>
 #include <GT/GT_DataArray.h>
 #include <CH/CH_Channel.h>

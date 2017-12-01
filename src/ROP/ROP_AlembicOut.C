@@ -51,6 +51,7 @@
 #include <ROP/ROP_Shared.h>
 #include <SOP/SOP_Node.h>
 #include <UT/UT_DSOVersion.h>
+#include <UT/UT_JSONWriter.h>
 #include <UT/UT_SharedPtr.h>
 
 #if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)

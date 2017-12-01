@@ -37,6 +37,7 @@
 #include <GU/GU_PrimNURBCurve.h>
 #include <GU/GU_PrimNURBSurf.h>
 #include <UT/UT_Interrupt.h>
+#include <UT/UT_JSONWriter.h>
 #include <UT/UT_StackBuffer.h>
 #include <UT/UT_WorkArgs.h>
 #include <algorithm>
