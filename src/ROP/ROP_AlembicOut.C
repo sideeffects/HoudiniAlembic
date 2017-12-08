@@ -2304,6 +2304,14 @@ newDriverOperator(OP_OperatorTable *table)
     alembic_op->setObsoleteTemplates(theObsoleteParameters);
     alembic_op->setIconName("ROP_alembic");
     table->addOperator(alembic_op);
+}
+
+void
+newSopOperator(OP_OperatorTable *table)
+{
+    OP_TemplatePair pair(theParameters);
+    OP_TemplatePair templatepair(ROP_Node::getROPbaseTemplate(), &pair);
+    OP_VariablePair vp(ROP_Node::myVariableList);
 
     OP_Operator	*alembic_sop = new OP_Operator(
         CUSTOM_ALEMBIC_TOKEN_PREFIX "rop_alembic",
@@ -2313,11 +2321,5 @@ newDriverOperator(OP_OperatorTable *table)
 	OP_FLAG_GENERATOR | OP_FLAG_MANAGER);
     alembic_sop->setObsoleteTemplates(theObsoleteParameters);
     alembic_sop->setIconName("ROP_alembic");
-
-    // Note:  This is reliant on the order of operator table construction and
-    // may not be safe to do in all cases.
-    OP_OperatorTable	*soptable = OP_Network::getOperatorTable(
-					    SOP_TABLE_NAME,
-					    SOP_SCRIPT_NAME);
-    soptable->addOperator(alembic_sop);
+    table->addOperator(alembic_sop);
 }
