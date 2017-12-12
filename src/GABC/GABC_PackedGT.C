@@ -28,7 +28,6 @@
 #include "GABC_PackedGT.h"
 #include "GABC_PackedImpl.h"
 #include "GABC_IArchive.h"
-#include <UT/UT_StackBuffer.h>
 #include <GT/GT_CatPolygonMesh.h>
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_DANumeric.h>
@@ -43,10 +42,11 @@
 #include <GT/GT_PrimInstance.h>
 #include <GT/GT_PrimPolygonMesh.h>
 #include <GT/GT_Util.h>
+#include <UT/UT_Debug.h>
+#include <UT/UT_EnvControl.h>
+#include <UT/UT_StackBuffer.h>
 #include <SYS/SYS_Hash.h>
 #include <tools/henv.h>
-#include <UT/UT_Debug.h>
-
 
 using namespace GABC_NAMESPACE;
 
