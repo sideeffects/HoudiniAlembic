@@ -198,7 +198,10 @@ namespace
     writeStringProperty(OScalarProperty &prop,
 	    const GT_DataArrayHandle &src)
     {
-	std::string sample = src->getS(0, 0);
+	std::string sample;
+	const char *s = src->getS(0, 0);
+	if(s)
+	    sample = s;
 	prop.set((void *)(&sample));
     }
 }
