@@ -84,6 +84,8 @@ protected:
     virtual OP_ERROR	cookMyGuide1(OP_Context &ctx);
     virtual void	syncNodeVersion(const char *old_version,
 				const char *new_version, bool *node_deleted);
+    virtual void	getDescriptiveParmName(UT_String &name) const
+				{ name = "fileName"; }
     //--------------------------------------------------------------------------
     virtual void        getNodeSpecificInfoText(OP_Context &context,
 				OP_NodeInfoParms &iparms);
