@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -668,7 +668,21 @@ GABC_PackedAlembic::getInstanceKey(UT_Options &options) const
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
 
     options.setOptionS("f", impl->filename());
-    options.setOptionS("o", impl->objectPath());
+    // If the object instances another shape, we want to access the instance
+    // shape so we can share geometry.  We don't want to harden the instance.
+    // For non-instanced geometry, this should return the same as
+    // impl->objectPath().
+    std::string	ipath = impl->object().getSourcePath();
+    if (ipath.length())
+    {
+	options.setOptionS("o", ipath);
+    }
+    else
+    {
+	// If there was an error accessing the instance path, just return the
+	// object path verbatim.
+	options.setOptionS("o", impl->objectPath());
+    }
     if (SYSalmostEqual(impl->frame(), 0) || impl->isConstant())
 	options.setOptionF("t", 0.0);
     else
