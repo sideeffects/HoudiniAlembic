@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -164,6 +164,7 @@ public:
 	GABC_LOAD_IGNORE_VISIBILITY	= 0x2000,
 	// Load an optimized version for GL (single attrib freq, triangulated)
 	GABC_LOAD_GL_OPTIMIZED		= 0x4000,
+	GABC_LOAD_USE_GL_CACHE		= 0x8000
     };
 
     UT_StringHolder getAttributes(const GEO_PackedNameMapPtr &namemap,

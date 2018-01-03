@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -696,8 +696,10 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 	    myFrame = abc->frame();
 	    myRep = GEO_VIEWPORT_FULL;
 	    myLoadStyle = load_style;
-	    
-	    if(GT_PackedGeoCache::isCachingAvailable())
+
+	    const bool use_cache = (GT_PackedGeoCache::isCachingAvailable() &&
+			   (load_style & GABC_IObject::GABC_LOAD_USE_GL_CACHE));
+	    if(use_cache)
 	    {
 		GT_PackedGeoCache::buildAlembicName(
 					    cache_name,
@@ -737,7 +739,7 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 		    myPrim = GT_Util::optimizePolyMeshForGL(myPrim, dtl);
 		}
 
-		if(GT_PackedGeoCache::isCachingAvailable() && myPrim)
+		if(use_cache && myPrim)
 		{
 		    GT_PackedGeoCache::cacheInstance(cache_name, myPrim,
 						     version, load_style,
