@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -176,7 +176,9 @@ class GABC_API GABC_PackedAlembic : public GT_GEOPrimPacked
 {
 public:
 	     GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
-				const GU_PrimPacked *prim);
+				const GU_PrimPacked *prim,
+				const GT_DataArrayHandle &vp_mat,
+				const GT_DataArrayHandle &vp_remap);
     
 	     GABC_PackedAlembic(const GABC_PackedAlembic &src);
     virtual ~GABC_PackedAlembic();

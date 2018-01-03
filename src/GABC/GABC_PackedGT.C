@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -31,6 +31,7 @@
 #include <UT/UT_StackBuffer.h>
 #include <GT/GT_CatPolygonMesh.h>
 #include <GT/GT_DAConstantValue.h>
+#include <GT/GT_DAIndirect.h>
 #include <GT/GT_DANumeric.h>
 #include <GT/GT_GEOPrimPacked.h>
 #include <GT/GT_GEOPrimCollectBoxes.h>
@@ -89,6 +90,14 @@ public:
     void	operator()(const UT_BlockedRange<exint> &range) const
 	{
 	    GT_GEOAttributeFilter filter;
+	    GT_DataArrayHandle mat_id, mat_remap;
+	    
+	    if(myRefineParms)
+	    {
+		mat_id = myRefineParms->getViewportMaterialAttrib();
+		mat_remap = myRefineParms->getViewportMaterialRemapAttrib();
+	    }
+		
 
 	    int index = 0;
 	    for(auto itr = myGeos.begin(); itr != myGeos.end(); ++itr, index++)
@@ -106,7 +115,8 @@ public:
 		{
 		    GABC_PackedAlembic *packgt =
 			new GABC_PackedAlembic(myGeometry->getGeometry(0),
-					       itr->second(0));
+					       itr->second(0),
+					       mat_id, mat_remap);
 	    
 		    if(myCollectAnimInfo)
 		    {
@@ -139,7 +149,8 @@ public:
 		
 		for( auto pi : itr->second )
 		{
-		    GABC_PackedAlembic inst(myGeometry->getGeometry(0), pi);
+		    GABC_PackedAlembic inst(myGeometry->getGeometry(0), pi,
+					    mat_id, mat_remap);
 
 		    xforms->append( inst.getFullTransform() );
 		    offsets.append( inst.getPrim()->getMapOffset() );
@@ -190,6 +201,31 @@ public:
 		    myGeometry->getDetailAttributes(filter, false);
 		
 		GT_Util::addViewportLODAttribs(lod,prim_attribs,detail_attribs);
+
+		if(mat_id)
+		{
+		    GU_DetailHandleAutoReadLock gdl(myGeometry->getGeometry(0));
+
+		    auto index = new 
+			GT_DANumeric<int64>(offsets.entries(),1);
+		    for(int i=0; i<offsets.entries(); i++)
+		    {
+			GA_Offset off = offsets.get(i);
+			index->set( (int64) gdl->primitiveIndex(off), i);
+		    }
+
+		    GT_DataArrayHandle imat_id =
+			new GT_DAIndirect(index, mat_id);
+		    prim_attribs = prim_attribs->addAttribute("MatID", imat_id,
+							      true);
+		    if(mat_remap)
+		    {
+			GT_DataArrayHandle imat_remap =
+			    new GT_DAIndirect(index, mat_remap);
+			prim_attribs = prim_attribs->addAttribute(
+			    "MatRemap", imat_remap, true);
+		    }
+		}
 		
 		myPrims(index) = new GABC_PackedInstance(geo, xformh, anim_type,
 							 offsets, prim_attribs,
@@ -456,7 +492,9 @@ private:
 // ---------------------------------------------------------- GABC_PackedAlembic
 
 GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
-				       const GU_PrimPacked *prim)
+				       const GU_PrimPacked *prim,
+				       const GT_DataArrayHandle &vp_mat,
+				       const GT_DataArrayHandle &vp_remap)
     : GT_GEOPrimPacked(prim_gdh, prim),
       myID(0),
       myAnimType(GEO_ANIMATION_INVALID),
@@ -465,6 +503,23 @@ GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
       myFrame(0.0)
 {
     myOffset = prim ? prim->getMapOffset() : GA_INVALID_OFFSET;
+    if(prim)
+    {
+	GT_DataArrayHandle index, mat_id, mat_remap;
+	
+	index = new GT_DAConstantValue<int64>(1,prim->getMapIndex());
+
+	if(vp_mat)
+	{
+	    mat_id = new GT_DAIndirect(index, vp_mat);
+	    appendAttribute("MatID", mat_id);
+	}
+	if(vp_remap)
+	{
+	    mat_remap = new GT_DAIndirect(index, vp_remap);
+	    appendAttribute("MatRemap", mat_remap);
+	}
+    }
 }
 
 GABC_PackedAlembic::GABC_PackedAlembic(const GABC_PackedAlembic &src)
@@ -592,6 +647,8 @@ GABC_PackedAlembic::getFullGeometry(const GT_RefineParms *parms,
 
 	if(parms && parms->getAlembicGLOptimize())
 	    load_style |= GABC_IObject::GABC_LOAD_GL_OPTIMIZED;
+	
+	load_style |= GABC_IObject::GABC_LOAD_USE_GL_CACHE;
     }
     else
     {
@@ -1528,25 +1585,36 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 bool
 GABC_PackedArchive::archiveMatch(const GABC_PackedArchive *archive) const
 {
+    // This checks if a new archive is compatible with another, usually for
+    // in-place update purposes.
+
+    // Archives are not the same, or don't have the same contents.
     if(myName != archive->archiveName() ||
        myAlembicOffsets.entries() != archive->myAlembicOffsets.entries() ||
        myAlembicOffsets.entries() != archive->myAlembicObjects.size())
 	return false;
 
+    // Archive was reloaded
     if(archive && archive->myAlembicVersion != myAlembicVersion)
 	return false;
 
     GU_DetailHandleAutoReadLock this_lock(myDetailList->getGeometry(0));
     const GU_Detail *this_dtl = this_lock.getGdp();
-    
+
     for(int i=0; i<myAlembicOffsets.entries(); i++)
     {
 	GA_Offset src_off = myAlembicOffsets(i);
+
+	// If offsets are not the same, in-place updates can't occur.
+	if(src_off != archive->myAlembicOffsets(i))
+	    return false;
+	
 	const GU_PrimPacked *this_prim = static_cast<const GU_PrimPacked *>
 	    (this_dtl->getPrimitive(src_off));
 	auto this_impl = UTverify_cast<const GABC_PackedImpl*>
 	    (this_prim->implementation());
 
+	// If the objects are not the same, inplace updates can't occur.
 	if(archive->myAlembicObjects(i) !=
 	   this_impl->object().getFullName().c_str())
 	    return false;
@@ -1950,8 +2018,11 @@ GABC_CollectPacked::collect(const GT_GEODetailListHandle &geo,
     CollectData		*collector = data->asPointer<CollectData>();
     const GU_PrimPacked *pack = UTverify_cast<const GU_PrimPacked *>(prim[0]);
     if (!collector->append(*pack))
+    {
+	GT_DataArrayHandle nullh;
 	return GT_PrimitiveHandle(new GABC_PackedAlembic(geo->getGeometry(0),
-							 pack));
+							 pack, nullh, nullh));
+    }
     return GT_PrimitiveHandle();
 }
 
