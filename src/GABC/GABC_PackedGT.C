@@ -37,6 +37,7 @@
 #include <GT/GT_GEOPrimCollectBoxes.h>
 #include <GT/GT_GEOAttributeFilter.h>
 #include <GT/GT_PrimCollect.h>
+#include <GT/GT_PrimPointMesh.h>
 #include <GT/GT_Refine.h>
 #include <GT/GT_RefineParms.h>
 #include <GT/GT_TransformArray.h>
@@ -44,6 +45,9 @@
 #include <GT/GT_PrimInstance.h>
 #include <GT/GT_PrimPolygonMesh.h>
 #include <GT/GT_Util.h>
+#include <UT/UT_Debug.h>
+#include <UT/UT_EnvControl.h>
+#include <UT/UT_StackBuffer.h>
 #include <SYS/SYS_Hash.h>
 #include <tools/henv.h>
 #include <UT/UT_Debug.h>
@@ -659,7 +663,14 @@ GABC_PackedAlembic::getFullGeometry(const GT_RefineParms *parms,
     if(!parms->getAlembicSkipInvisible())
 	load_style |= GABC_IObject::GABC_LOAD_IGNORE_VISIBILITY;
 
-    return impl->fullGT(load_style);
+    GT_PrimitiveHandle prim = impl->fullGT(load_style);
+    if(!prim && GT_GEOPrimPacked::useViewportLOD(parms))
+    {
+	// Placeholder so the viewport can at least draw bboxes and decorations.
+	GT_AttributeListHandle null;
+	prim = new GT_PrimPointMesh(null, null);
+    }
+    return prim;
 }
 
 #if 0
@@ -853,7 +864,16 @@ GABC_PackedAlembic::getInstanceGeometry(const GT_RefineParms *p,
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    return impl->instanceGT(ignore_visibility);
+    GT_PrimitiveHandle prim = impl->instanceGT(ignore_visibility);
+
+    if(!prim && GT_GEOPrimPacked::useViewportLOD(p))
+    {
+	// Placeholder so the viewport can at least draw bboxes and decorations.
+	GT_AttributeListHandle null;
+	prim = new GT_PrimPointMesh(null, null);
+    }
+
+    return prim;
 }
 
 GT_TransformHandle
@@ -922,6 +942,14 @@ GABC_PackedAlembic::refine(GT_Refine &refiner,
 	    prim = getFullGeometry(parms, xform);
 	    break;
     }
+    
+    if(!prim && GT_GEOPrimPacked::useViewportLOD(parms))
+    {
+	// Placeholder so the viewport can at least draw bboxes and decorations.
+	GT_AttributeListHandle null;
+	prim = new GT_PrimPointMesh(null, null);
+    }
+
     
     refiner.addPrimitive(prim);
     return true;
@@ -1606,7 +1634,9 @@ GABC_PackedArchive::archiveMatch(const GABC_PackedArchive *archive) const
     if(myName != archive->archiveName() ||
        myAlembicOffsets.entries() != archive->myAlembicOffsets.entries() ||
        myAlembicOffsets.entries() != archive->myAlembicObjects.size())
+    {
 	return false;
+    }
 
     // Archive was reloaded
     if(archive && archive->myAlembicVersion != myAlembicVersion)
