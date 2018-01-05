@@ -1461,7 +1461,7 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 	}
 	else
 	{
-	    int nprocs = SYSgetProcessorCount();
+	    int nprocs = UT_Thread::getNumProcessors();
 	    int chunks = SYSmax(1, myAlembicOffsets.entries() / nprocs);
 	    num_streams = SYSmin(myAlembicOffsets.entries() / chunks,
 				 nprocs);
