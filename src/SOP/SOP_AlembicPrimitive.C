@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -171,7 +171,7 @@ SOP_AlembicPrimitive::evalVariableValue(UT_String &v, int index, int thread)
 		v = myCurrAbc->objectPath();
 		return true;
 	    case VAR_ABCFILENAME:
-		v = myCurrAbc->filename();
+		v = myCurrAbc->intrinsicFilename(nullptr);  // first filename
 		return true;
 	    case VAR_ABCTYPE:
 		v = GABCnodeType(myCurrAbc->nodeType());

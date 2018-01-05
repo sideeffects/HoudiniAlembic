@@ -2,11 +2,11 @@
 import _alembic_hom_extensions as _ahe
 import os
 self = hou.pwd()
-abcPath = self.evalParm('fileName')
+abcPath = self.hdaModule().GetFileName(self)
 objPath = self.evalParm('objectPath')
 fetchworldxform = self.evalParm('fetchworldxform')
 
-cacheKey = '%d@%s@%s' % (fetchworldxform, abcPath, objPath)
+cacheKey = repr((fetchworldxform, abcPath, objPath))
 
 cacheTuple = self.hdaModule().GetConstantXform(self)
 
@@ -17,19 +17,19 @@ else:
     fpsParm = self.parm('fps')
     sampleTime = frameParm.eval() / fpsParm.eval()
     if fetchworldxform:
-	xform, isConstant, inherit = _ahe.getWorldXform(abcPath, objPath, sampleTime)
-	m = hou.Matrix4(xform)
+        xform, isConstant, inherit = _ahe.getWorldXform(abcPath, objPath, sampleTime)
+        m = hou.Matrix4(xform)
     else:
-	xform, isConstant, inherit = _ahe.getLocalXform(abcPath, objPath, sampleTime)
-	m = hou.Matrix4(xform)
-	if not inherit:
-	    parentPath = os.path.split(objPath)[0]
-	    parent = _ahe.getWorldXform(abcPath, parentPath, sampleTime)
-	    if parent:
-		p = hou.Matrix4(parent[0])
-		m *= p.inverted()
-		isConstant &= parent[1]
+        xform, isConstant, inherit = _ahe.getLocalXform(abcPath, objPath, sampleTime)
+        m = hou.Matrix4(xform)
+        if not inherit:
+            parentPath = os.path.split(objPath)[0]
+            parent = _ahe.getWorldXform(abcPath, parentPath, sampleTime)
+            if parent:
+                p = hou.Matrix4(parent[0])
+                m *= p.inverted()
+                isConstant &= parent[1]
     hou.pwd().setCookTransform(m)
 
     if isConstant:
-	self.hdaModule().SetConstantXform(self, (cacheKey, m))
+        self.hdaModule().SetConstantXform(self, (cacheKey, m))

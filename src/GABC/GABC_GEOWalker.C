@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1382,8 +1382,10 @@ namespace {
 	    default:
 		return;	// Invalid primitive type
 	}
+	UT_StringArray filenames;
+	filenames.fromStdVectorOfStrings(walk.filenames());
 	GU_PrimPacked	*packed = GABC_PackedImpl::build(walk.detail(),
-				walk.filename(),
+				filenames,
 				obj,
 				walk.time(),
 				walk.includeXform(),

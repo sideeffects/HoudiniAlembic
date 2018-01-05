@@ -1,3 +1,12 @@
+def GetFileName(node):
+    r = []
+    for i in range(node.evalParm('numFiles')):
+        if node.evalParm('enableFile%d' % (i + 1,)):
+            path = node.evalParm('fileName%d' % (i + 1,))
+            if path:
+                r.append(path)
+    return r
+
 ConstantXforms = {}
 
 def GetConstantXform(node):

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -89,10 +89,10 @@ namespace
 	// the object path parm we want to modify.
 	parm_name.eraseHead(4);
 	cmd.strcpy("treechooser");
-	sop->evalString(filename, "fileName", 0, t);
+	std::vector<std::string> filenames;
+	sop->appendFileNames(filenames, t);
 	sop->evalString(objectpath, parm_name, 0, t);
-	const PathList	&abcobjects =
-	    GABC_Util::getObjectList((const char *)filename);
+	const PathList	&abcobjects = GABC_Util::getObjectList(filenames);
 
 	if (objectpath.isstring())
 	{
@@ -176,7 +176,6 @@ SOP_AlembicIn2::Parms::Parms()
     , myPointMode(GABC_GEOWalker::ABCPRIM_CENTROID_POINT)
     , myBuildAbcShape(true)
     , myBuildAbcXform(false)
-    , myFilename()
     , myObjectPath()
     , myObjectPattern()
     , myExcludeObjectPath()
@@ -209,7 +208,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
 SOP_AlembicIn2::Parms &
 SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
 {
-    myFilename = src.myFilename;
+    myFilenames = src.myFilenames;
     myLoadMode = src.myLoadMode;
     myBoundMode = src.myBoundMode;
     mySizeCullMode = src.mySizeCullMode;
@@ -269,7 +268,7 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	return true;
     if (myBuildAbcXform != src.myBuildAbcXform)
 	return true;
-    if (myFilename != src.myFilename)
+    if (myFilenames != src.myFilenames)
 	return true;
     if (myGroupMode != src.myGroupMode)
 	return true;
@@ -359,7 +358,7 @@ static PRM_Template prm_AttributeRemapTemplate[] = {
 };
 
 static PRM_Name prm_reloadbutton("reload", "Reload Geometry");
-static PRM_Name prm_filenameName("fileName", "File Name");
+static PRM_Name prm_numFilesName("numFiles", "Number of Files");
 static PRM_Name prm_frameName("frame", "Frame");
 static PRM_Name prm_fpsName("fps", "Frames Per Second");
 static PRM_Name prm_missingFileName("missingfile", "Missing File");
@@ -395,7 +394,6 @@ static PRM_Name prm_addfile("addfile", "Add Filename Attribute");
 static PRM_Name prm_fileattrib("fileattrib", "Filename Attribute");
 static PRM_Name prm_remapAttribName("remapAttributes", "Remap Attributes");
 
-static PRM_Default prm_filenameDefault(0, "$HH/geo/default.abc");
 static PRM_Default prm_frameDefault(1, "$FF");
 static PRM_Default prm_objectPathDefault(0, "");
 static PRM_Default prm_fpsDefault(24, "$FPS");
@@ -407,8 +405,16 @@ static PRM_Default prm_fileattribDefault(0, "abcFileName");
 static PRM_Default prm_geometryfilterDefault(true);
 
 static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
-        "__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu"
-                "(hou.pwd().evalParm('fileName'))[:16380]", CH_PYTHON_SCRIPT);
+        "def getFileName(node):\n"
+	"    r = []\n"
+	"    for i in range(node.evalParm('numFiles')):\n"
+	"        if node.evalParm('enableFile%d' % (i + 1,)):\n"
+	"            p = node.evalParm('fileName%d' % (i + 1,))\n"
+	"            if p:\n"
+	"                r.append(p)\n"
+	"    return r\n"
+	"return __import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu"
+                "(getFileName(hou.pwd()))[:16380]", CH_PYTHON_SCRIPT);
 
 static PRM_Name	loadModeOptions[] = {
     PRM_Name("alembic",	"Alembic Delayed Load Primitives"),
@@ -552,6 +558,16 @@ static PRM_Default	mainSwitcher[] =
     PRM_Default(11, "Attributes"),
 };
 
+static PRM_Name prm_enableFileName("enableFile#", "");
+static PRM_Name prm_filenameName("fileName#", "File Name #");
+
+static PRM_Template prm_filenamesTemplate[] = {
+    PRM_Template(PRM_TOGGLE, PRM_TYPE_TOGGLE_JOIN, 1, &prm_enableFileName, PRMoneDefaults),
+    PRM_Template(PRM_FILE, 1, &prm_filenameName, 0,
+	    0, 0, 0, &theAbcPattern),
+    PRM_Template()
+};
+
 static PRM_SpareData *
 sopCreateObjectPathSpareData(bool clear_path, bool clear_exclude)
 {
@@ -583,8 +599,9 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 {
     PRM_Template(PRM_CALLBACK, 1, &prm_reloadbutton,
 	    0, 0, 0, SOP_AlembicIn2::reloadGeo),
-    PRM_Template(PRM_FILE,  1, &prm_filenameName, &prm_filenameDefault,
-	    0, 0, 0, &theAbcPattern),
+    PRM_Template(PRM_MULTITYPE_LIST, prm_filenamesTemplate, 1,
+            &prm_numFilesName, PRMoneDefaults, 0,
+            &PRM_SpareData::multiStartOffsetOne),
     PRM_Template(PRM_FLT_J, 1, &prm_frameName, &prm_frameDefault),
     PRM_Template(PRM_FLT_J, 1, &prm_fpsName, &prm_fpsDefault),
     PRM_Template(PRM_ORD,   1, &prm_missingFileName, &missingFileDefault,
@@ -675,6 +692,16 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template()
 };
 
+static PRM_Name prm_obsoleteFilenameName("fileName", "File Name");
+static PRM_Default prm_obsoleteFilenameDefault(0, "$HH/geo/default.abc");
+
+PRM_Template SOP_AlembicIn2::myObsoleteList[] =
+{
+    PRM_Template(PRM_FILE,  1, &prm_obsoleteFilenameName, 0, 0, 0, 0, &theAbcPattern),
+
+    PRM_Template()
+};
+
 //-*****************************************************************************
 
 SOP_AlembicIn2::SOP_AlembicIn2(OP_Network *net, const char *name,
@@ -701,9 +728,10 @@ SOP_AlembicIn2::reloadGeo(void *data, int index, float time, const PRM_Template 
 {
     SOP_AlembicIn2 *me = (SOP_AlembicIn2 *) data;
 
-    UT_String fileName;
-    me->evalString(fileName, "fileName", 0, time);
-    GABC_Util::clearCache(fileName);
+    std::vector<std::string> filenames;
+    me->appendFileNames(filenames, time);
+    for(auto &filename : filenames)
+	GABC_Util::clearCache(filename.c_str());
     me->unloadData();
     return 1;
 }
@@ -801,6 +829,10 @@ SOP_AlembicIn2::updateParmsFlags()
 
     loadmode = evalInt("loadmode", 0, 0);
 
+    int numFiles = evalInt("numFiles", 0, 0);
+    for (int i = 1; i <= numFiles; ++i)
+	enableParmInst("fileName#", &i, evalIntInst("enableFile#", &i, 0, 0));
+
     changed |= enableParm("pathattrib", evalInt("addpath", 0, 0));
     changed |= enableParm("fileattrib", evalInt("addfile", 0, 0));
     changed |= enableParm("pointmode", loadmode == 0);
@@ -823,8 +855,8 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     fpreal	now = context.getTime();
     UT_String	sval;
 
-    evalString(sval, "fileName", 0, now);
-    parms.myFilename = sval.toStdString();
+    parms.myFilenames.clear();
+    appendFileNames(parms.myFilenames, now);
 
     parms.myLoadMode = GABC_GEOWalker::LOAD_ABC_PRIMITIVES;
     evalString(sval, "loadmode", 0, now);
@@ -982,11 +1014,11 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 
 //-*****************************************************************************
 void
-SOP_AlembicIn2::setupEventHandler(const std::string &filename)
+SOP_AlembicIn2::setupEventHandler(const std::vector<std::string> &filenames)
 {
     clearEventHandler();
     myEventHandler.reset(new EventHandler(this));
-    if (!GABC_Util::addEventHandler(filename, myEventHandler))
+    if (!GABC_Util::addEventHandler(filenames, myEventHandler))
 	myEventHandler.reset();
 }
 
@@ -1011,6 +1043,22 @@ SOP_AlembicIn2::archiveClearEvent()
     forceRecook();
 }
 
+void
+SOP_AlembicIn2::appendFileNames(std::vector<std::string> &filenames, fpreal t)
+{
+    int numFiles = evalInt("numFiles", 0, t);
+    for (int i = 1; i <= numFiles; ++i)
+    {
+	if (evalIntInst("enableFile#", &i, 0, t))
+	{
+	    UT_String fileName;
+	    evalStringInst("fileName#", &i, fileName, 0, t);
+	    if (fileName.isstring())
+		filenames.push_back(fileName.toStdString());
+	}
+    }
+}
+
 //-*****************************************************************************
 void
 SOP_AlembicIn2::setPathAttributes(GABC_GEOWalker &walk, const Parms &parms)
@@ -1030,7 +1078,10 @@ SOP_AlembicIn2::setPathAttributes(GABC_GEOWalker &walk, const Parms &parms)
 				    parms.myFilenameAttribute, 1);
 	GA_RWHandleS	h(aref.getAttribute());
 	if (h.isValid())
-	    h.set(GA_Offset(0), parms.myFilename.c_str());
+	{
+	    if (parms.myFilenames.size())
+		h.set(GA_Offset(0), parms.myFilenames[0].c_str());
+	}
 	else
 	    addWarning(SOP_MESSAGE, "Error adding filename attribute");
     }
@@ -1253,7 +1304,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 
 		removeDuplicates(olist);
 
-		if (!GABC_Util::walk(parms.myFilename, walk, olist))
+		if (!GABC_Util::walk(parms.myFilenames, walk, olist))
 		{
 		    if (parms.myMissingFileError || !walk.badArchive())
 		    {
@@ -1270,24 +1321,24 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	}
 	else
 	{
-	    if (!GABC_Util::walk(parms.myFilename, walk))
+	    if (!GABC_Util::walk(parms.myFilenames, walk))
 	    {
 		UT_WorkBuffer msg;
 		if (parms.myMissingFileError || !walk.badArchive())
 		{
 		    msg.sprintf("Error evaluating Alembic file (%s)",
-				parms.myFilename.c_str());
+				GABC_IArchive::filenamesToString(parms.myFilenames).c_str());
 		    addError(SOP_MESSAGE, msg.buffer());
 		}
 		else
 		{
 		    msg.sprintf("Invalid or missing Alembic file (%s)",
-				parms.myFilename.c_str());
+				GABC_IArchive::filenamesToString(parms.myFilenames).c_str());
 		    addWarning(SOP_MESSAGE, msg.buffer());
 		}
 	    }
 	}
-	setupEventHandler(parms.myFilename);
+	setupEventHandler(parms.myFilenames);
     }
 
     if (error() < UT_ERROR_ABORT)
@@ -1488,7 +1539,27 @@ SOP_AlembicIn2::installSOP(OP_OperatorTable *table)
         0,				// Local variables
 	OP_FLAG_GENERATOR);		// Generator flag
     alembic_op->setIconName("SOP_alembic");
+    alembic_op->setObsoleteTemplates(SOP_AlembicIn2::myObsoleteList);
     table->addOperator(alembic_op);
+}
+
+void
+SOP_AlembicIn2::resolveObsoleteParms(PRM_ParmList *obsolete_parms)
+{
+    // If there are none defined, we don't do any conversions...
+    if (!obsolete_parms)
+        return;
+
+    UT_String oldpath;
+    obsolete_parms->evalStringRaw(oldpath, prm_obsoleteFilenameName.getToken(), 0, 0.0f);
+    if (oldpath.isstring())
+    {
+	setInt("numFiles", 0, 0.0f, 1);
+	setInt("enableFile1", 0, 0.0f, 1);
+	setString(oldpath, CH_STRING_LITERAL, "fileName1", 0, 0.0f);
+    }
+    // delegate to base class
+    SOP_Node::resolveObsoleteParms(obsolete_parms);
 }
 
 const char *

@@ -5,5 +5,7 @@ TypePropertiesOptions	TypePropertiesOptions
 Help	Help
 Tools.shelf	Tools.shelf
 CreateScript	CreateScript
+Version	Version
 PythonModule	PythonModule
+SyncNodeVersion	SyncNodeVersion
 ExtraFileOptions	ExtraFileOptions

@@ -1,5 +1,4 @@
 import string
-import time
 import _alembic_hom_extensions as _abc
 try:
     from hou import ui
@@ -8,12 +7,21 @@ except:
 
 _AbcModule = '__import__("_alembic_hom_extensions")'
 
+def GetFileName(node):
+    r = []
+    for i in range(node.evalParm('numFiles')):
+        if node.evalParm('enableFile%d' % (i + 1,)):
+            path = node.evalParm('fileName%d' % (i + 1,))
+            if path:
+                r.append(path)
+    return r
+
 def BuildHierarchyRoot(rootNode):
     #For now delete the existing children.
     for child in rootNode.children():
         child.destroy()
 
-    fileName = rootNode.evalParm('fileName')
+    fileName = GetFileName(rootNode)
     if not fileName:
         if ui:
             ui.displayMessage(title='No Filename',
@@ -113,6 +121,14 @@ def _setParmValue(node, parmname, value):
     if parm:
         parm.set(value)
 
+def _setFileName(node, filename):
+    parm = node.parm('numFiles')
+    if parm:
+        parm.set(len(filename))
+        for i, name in enumerate(filename):
+            _setParmValue(node, 'enableFile%d' % (i + 1, ), 1)
+            _setParmValue(node, 'fileName%d' % (i + 1, ), name)
+
 def _setNodeName(node, name):
     try:
         node.setName(name, True)
@@ -146,15 +162,15 @@ def _setUserProperties(currentNode, currentPath, fileName, userPropsLoadMode):
             currentNode.parm('userProps').set(_abc.alembicUserPropertyValues(fileName, currentPath, 0))
         else:
             if (userPropsLoadMode == 2):
-                expr = '%s.alembicUserPropertyMetadata("%s", "%s", ch("frame")/ch("fps"))' % (_AbcModule, fileName, currentPath)
+                expr = '%s.alembicUserPropertyMetadata(%s, %s, ch("frame")/ch("fps"))' % (_AbcModule, repr(fileName), repr(currentPath))
                 currentNode.parm('userPropsMeta').setExpression(expr, hou.exprLanguage.Python)
 
-            expr = '%s.alembicUserPropertyValues("%s", "%s", ch("frame")/ch("fps"))' % (_AbcModule, fileName, currentPath)
+            expr = '%s.alembicUserPropertyValues(%s, %s, ch("frame")/ch("fps"))' % (_AbcModule, repr(fileName), repr(currentPath))
             currentNode.parm('userProps').setExpression(expr, hou.exprLanguage.Python)
             return True
     return False
 
-def _setVisibility(node, filename, objectpath, chprefix):
+def _setVisibility(node, filename, objectpath):
     vis = _abc.alembicVisibility(filename, objectpath, 0)
 
     if vis == None:
@@ -162,44 +178,42 @@ def _setVisibility(node, filename, objectpath, chprefix):
         # root.
         return False;
 
-    elif vis[1]:
-        if vis[0] == 1:
-            # Always visibile (constant visibility)
-            return False
-
-        elif vis[0] == 0:
+    if vis[1]:
+        if vis[0] == 0:
             # Never visible (constant hidden)
             _setParmValue(node, 'tdisplay', 1)
             _setParmValue(node, 'display', 0)
 
         elif vis[0] == -1:
             # Always whatever parent is (constant deferred)
-            ppath = objectpath[0:objectpath.rfind('/')]
+            ppath = objectpath[:objectpath.rfind('/')]
 
             if ppath != "":
-                return _setVisibility(node,
-                        filename,
-                        ppath,
-                        chprefix)
+                return _setVisibility(node, filename, ppath)
+        return False
+    # Animated visibility
+    _setFileName(node, filename)
+    _setParmValue(node, 'tdisplay', 1)
 
-    elif not vis[1]:
-        # Animated visibility
-        _setParmValue(node, 'fileName', filename)
-        _setParmValue(node, 'tdisplay', 1)
-
-        disp = node.parm('display')
-        expr = '%s.alembicVisibility(ch("%sfileName"), "%s", ch("%sframe")/ch("%sfps"), 1)[0]' % (_AbcModule, chprefix, objectpath, chprefix, chprefix)
-        disp.setExpression(expr, hou.exprLanguage.Python)
-
-        return True
-
-    return False
+    disp = node.parm('display')
+    expr = 'node = hou.pwd()\nif node.type().name() != "alembicxform":\n    node = node.parent()\nreturn %s.alembicVisibility(node.hdaModule().GetFileName(node), %s, node.evalParm("frame")/node.evalParm("fps"), 1)[0]' % (_AbcModule, repr(objectpath))
+    disp.setExpression(expr, hou.exprLanguage.Python)
+    return True
 
 def ExpressionToParm(srcParm, dstParm, isString=False):
     relPath = dstParm.node().relativePathTo(srcParm.node())
-    dstParm.setExpression('ch%s("%s/%s")' % (
-            bool(isString)*'s', relPath, srcParm.name()),
+    dstParm.setExpression('%s("%s/%s")' % (
+            'chs' if isString else 'ch', relPath, srcParm.name()),
             hou.exprLanguage.Hscript)
+
+def ExpressionToFileNameParm(src, dest):
+    p = src.parm('numFiles')
+    ExpressionToParm(p, dest.parm('numFiles'), False)
+    for i in range(p.evalAsInt()):
+        name = 'enableFile%d' % (i + 1,)
+        ExpressionToParm(src.parm(name), dest.parm(name), False)
+        name = 'fileName%d' % (i + 1,)
+        ExpressionToParm(src.parm(name), dest.parm(name), True)
 
 def _setupAbcGeo(geo):
     # We've just created an empty geometry node, we need to add the
@@ -252,7 +266,7 @@ def createSingleGeoNode(fileName, rootNode, buildSubnet, channelRefs, flatVisibi
 
     _setNodeName(currentNode, 'geo')
     if flatVisibility:
-        _setVisibility(currentNode, fileName, objectPath, "../")
+        _setVisibility(currentNode, fileName, objectPath)
 
     sopNode = currentNode.createNode('alembic')
     _setNodeName(sopNode, 'alembic')
@@ -266,9 +280,7 @@ def createSingleGeoNode(fileName, rootNode, buildSubnet, channelRefs, flatVisibi
         ExpressionToParm(rootNode.parm('remapAttributes'),
             sopNode.parm('remapAttributes'),
             isString=True)
-        ExpressionToParm(rootNode.parm('fileName'),
-            sopNode.parm('fileName'),
-            isString=True)
+        ExpressionToFileNameParm(rootNode, sopNode)
         ExpressionToParm(rootNode.parm('frame'), sopNode.parm('frame'))
         ExpressionToParm(rootNode.parm('fps'), sopNode.parm('fps'))
         ExpressionToParm(rootNode.parm('loadmode'), sopNode.parm('loadmode'))
@@ -283,20 +295,13 @@ def createSingleGeoNode(fileName, rootNode, buildSubnet, channelRefs, flatVisibi
 
 def _findNode(buildSubnet, parentNode, rootNode, currentPath):
     if buildSubnet:
-        for child in parentNode.children():
-            objPath = child.parm('objectPath')
-            if not objPath:
-                continue
-            if currentPath == objPath.eval():
-                return child
-    else:
-        for child in rootNode.children():
-            objPath = child.parm('objectPath')
-            if not objPath:
-                continue
-            if currentPath == objPath.eval():
-                return child
-    return None 
+        rootNode = parentNode
+    for child in rootNode.children():
+        objPath = child.parm('objectPath')
+        if not objPath:
+            continue
+        if currentPath == objPath.eval():
+            return child
 
 def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathList,
                 buildSubnet, channelRefs, buildSingleGeoNode, flatVisibility, userPropsLoadMode):
@@ -318,7 +323,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
                 _setParmValue(currentNode, parmname, 1)
         _setNodeName(currentNode, name)
         if flatVisibility:
-            _setVisibility(currentNode, fileName, currentPath, "../")
+            _setVisibility(currentNode, fileName, currentPath)
 
         sopNode = currentNode.createNode('alembic')
         _setNodeName(sopNode, name)
@@ -332,9 +337,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
             ExpressionToParm(rootNode.parm('remapAttributes'),
                 sopNode.parm('remapAttributes'),
                 isString=True)
-            ExpressionToParm(rootNode.parm('fileName'),
-                sopNode.parm('fileName'),
-                isString=True)
+            ExpressionToFileNameParm(rootNode, sopNode)
             ExpressionToParm(rootNode.parm('frame'), sopNode.parm('frame'))
             ExpressionToParm(rootNode.parm('fps'), sopNode.parm('fps'))
             ExpressionToParm(rootNode.parm('loadmode'), sopNode.parm('loadmode'))
@@ -368,13 +371,11 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
                 if _checkAnimatedVisibility(fileName, currentPath):
                     animated = True
             else:
-                if _setVisibility(currentNode, fileName, currentPath, ""):
+                if _setVisibility(currentNode, fileName, currentPath):
                     animated = True
 
             if channelRefs:
-                ExpressionToParm(rootNode.parm('fileName'),
-                        currentNode.parm('fileName'),
-                        isString=True)
+                ExpressionToFileNameParm(rootNode, currentNode)
                 if animated:
                     ExpressionToParm(rootNode.parm('frame'),
                             currentNode.parm('frame'))
@@ -395,21 +396,8 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
     elif typeName == 'camera':
         currentNode = _newAlembicNode(rootNode, parentNode, 'cam', buildSubnet)
         _setNodeName(currentNode, name)
-        currentNode.addSpareParmTuple(rootNode.parm('fileName').parmTemplate(),
-                ('Alembic',), True)
-        currentNode.addSpareParmTuple(rootNode.parm('frame').parmTemplate(),
-                ('Alembic',), True)
-        currentNode.addSpareParmTuple(rootNode.parm('fps').parmTemplate(),
-                ('Alembic',), True)
-
-        if channelRefs:
-            ExpressionToParm(rootNode.parm('fileName'),
-                    currentNode.parm('fileName'),
-                    isString=True)
-            ExpressionToParm(rootNode.parm('frame'), currentNode.parm('frame'))
-            ExpressionToParm(rootNode.parm('fps'), currentNode.parm('fps'))
-
-        sampleTime = currentNode.parm('frame').eval() / currentNode.parm('fps').eval()
+        parent = currentNode.parent()
+        sampleTime = parent.parm('frame').eval() / parent.parm('fps').eval()
         cameraDict = _abc.alembicGetCameraDict(fileName, currentPath, sampleTime)
 
         # Set Houdini camera parameters
@@ -427,7 +415,7 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
                     'winy',
                     'winsizex',
                     'winsizey'):
-                currentNode.parm(parmName).setExpression('%s.alembicGetCameraDict(ch("fileName"), "%s", ch("frame")/ch("fps")).get("%s")' % (_AbcModule, currentPath, parmName), hou.exprLanguage.Python)
+                currentNode.parm(parmName).setExpression('parent = hou.pwd().parent()\nreturn %s.alembicGetCameraDict(parent.hdaModule().GetFileName(parent), %s, parent.evalParm("frame")/parent.evalParm("fps")).get(%s)' % (_AbcModule, repr(currentPath), repr(parmName)), hou.exprLanguage.Python)
 
             resTuple = _abc.alembicGetCameraResolution(fileName, currentPath, sampleTime)
 
@@ -442,7 +430,6 @@ def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathLi
                 currentNode.parm('resy').set(int(resy))
 
 def PushParametersToChildren(rootNode):
-    now = time.time()
     WalkAndPush(rootNode, rootNode)
 
 def ReloadGeometry(rootNode):
@@ -490,7 +477,12 @@ def _pushRemapAttributesParm(fnode, tnode):
 
 def WalkAndPush(rootNode, parentNode):
     for kid in parentNode.children():
-        _pushStringParm('fileName', rootNode, kid)
+        p = rootNode.parm('numFiles')
+        if p:
+            _pushScalarParm('numFiles', rootNode, kid)
+            for i in range(p.evalAsInt()):
+                _pushScalarParm('enableFile%d' % (i + 1,), rootNode, kid)
+                _pushStringParm('fileName%d' % (i + 1,), rootNode, kid)
         cxform = kid.parm('abcConstant')
         if not cxform or not cxform.eval():
             _pushScalarParm('frame', rootNode, kid)

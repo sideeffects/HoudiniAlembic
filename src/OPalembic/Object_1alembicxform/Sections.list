@@ -5,7 +5,9 @@ TypePropertiesOptions	TypePropertiesOptions
 Help	Help
 Tools.shelf	Tools.shelf
 CreateScript	CreateScript
+Version	Version
 OnNameChanged	OnNameChanged
 OnDeleted	OnDeleted
 PythonModule	PythonModule
+SyncNodeVersion	SyncNodeVersion
 ExtraFileOptions	ExtraFileOptions

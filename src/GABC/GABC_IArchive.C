@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -53,15 +53,28 @@ namespace
 #if defined(GABC_OGAWA)
     using IFactory = Alembic::AbcCoreFactory::IFactory;
 #endif
-    using ArchiveCache = UT_Map<std::string, GABC_IArchive *>;
+    using ArchiveCache = UT_Map<std::vector<std::string>, GABC_IArchive *>;
 
     static ArchiveCache	theArchiveCache;
 }
 
 UT_Lock	*GABC_IArchive::theLock = NULL;
 
+std::string
+GABC_IArchive::filenamesToString(const std::vector<std::string> &filenames)
+{
+    UT_WorkBuffer buffer;
+    for (int i = 0; i < filenames.size(); ++i)
+    {
+	if(i)
+	   buffer.append(", ");
+	buffer.append(filenames[i].c_str());
+    }
+    return buffer.toStdString();
+}
+
 GABC_IArchivePtr
-GABC_IArchive::open(const std::string &path, int num_streams)
+GABC_IArchive::open(const std::vector<std::string> &paths, int num_streams)
 {
     if (!theLock)
     {
@@ -70,7 +83,7 @@ GABC_IArchive::open(const std::string &path, int num_streams)
     }
 
     UT_AutoLock	lock(*theLock);
-    ArchiveCache::iterator	it = theArchiveCache.find(path);
+    ArchiveCache::iterator	it = theArchiveCache.find(paths);
     GABC_IArchive		*arch = NULL;
     if (it != theArchiveCache.end())
     {
@@ -78,8 +91,8 @@ GABC_IArchive::open(const std::string &path, int num_streams)
     }
     else
     {
-	arch = new GABC_IArchive(path, num_streams);
-	theArchiveCache[path] = arch;
+	arch = new GABC_IArchive(paths, num_streams);
+	theArchiveCache[paths] = arch;
     }
     return GABC_IArchivePtr(arch);
 }
@@ -94,21 +107,21 @@ GABC_IArchive::closeAndDelete()
     if (myRefCount.load() != 0)
     {
 	// It's happened!
-	UT_ASSERT(theArchiveCache.find(myFilename) != theArchiveCache.end());
+	UT_ASSERT(theArchiveCache.find(myFilenames) != theArchiveCache.end());
 	return;
     }
-    theArchiveCache.erase(myFilename);
+    theArchiveCache.erase(myFilenames);
     delete this;
 }
 
-GABC_IArchive::GABC_IArchive(const std::string &path, int num_streams)
-    : myFilename(path)
+GABC_IArchive::GABC_IArchive(const std::vector<std::string> &paths, int num_streams)
+    : myFilenames(paths)
     , myPurged(false)
     , myIsOgawa(false)
 {
     UT_INC_COUNTER(theCount);
 
-    openArchive(path, num_streams);
+    openArchive(paths, num_streams);
 }
 
 GABC_IArchive::~GABC_IArchive()
@@ -121,71 +134,92 @@ GABC_IArchive::~GABC_IArchive()
 }
 
 void
-GABC_IArchive::openArchive(const std::string &path, int num_streams)
+GABC_IArchive::openArchive(
+    const std::vector<std::string> &paths, int num_streams)
 {
     myArchive.reset();
 
-    UT_String mapped_path = path.c_str();
-    UT_PathSearch::pathMap(mapped_path);
-    if (UTisstring(path.c_str()))
-    {
-	UT_FileStat file_stat;
-	bool is_readable_file =
-		(UTfileStat(mapped_path.c_str(), &file_stat) == 0
-		&& file_stat.isFile()
-		&& (UTaccess(mapped_path.c_str(), R_OK) >= 0));
+    if (paths.size() == 0)
+	return;
 
+    IFactory   factory;
+    bool canAccess = true;
+
+    std::vector<std::string> mapped_paths;
+    for (int i = 0; i < paths.size(); ++i)
+    {
+	UT_String tmp = paths[i].c_str();
+	UT_PathSearch::pathMap(tmp);
+
+	UT_FileStat file_stat;
+	if(UTfileStat(tmp.c_str(), &file_stat)
+	    || !file_stat.isFile()
+	    || (UTaccess(tmp.c_str(), R_OK) < 0))
+	{
+	    canAccess = false;
+	    break;
+	}
+	mapped_paths.push_back(tmp.c_str());
+    }
+
+    // Try to open using standard Ogawa file access
+    if (canAccess)
+    {
 #if defined(GABC_OGAWA)
 	IFactory	factory;
 
 	if(num_streams != -1)
 	    factory.setOgawaNumStreams(num_streams);
-	
-	// Try to open using standard Ogawa file access
-	if (is_readable_file)
-	{
-	    try
-	    {
-		IFactory::CoreType	archive_type;
-		myArchive = factory.getArchive(mapped_path.c_str(), archive_type);
-		myIsOgawa = (archive_type == IFactory::kOgawa);
-	    }
-	    catch (const std::exception &e)
-	    {
-		myError = e.what();
-		myArchive = IArchive();
-	    }
-	}
 
-	if (!myArchive.valid() && openStream(path, num_streams))
+	try
 	{
-	    std::vector<std::istream *> stream_list;
-	    for(auto &e : myStreams)
-		stream_list.push_back(e.myStream);
 	    IFactory::CoreType	archive_type;
-	    try
-	    {
-		myArchive = factory.getArchive(stream_list, archive_type);
-		myError.clear();
-		myIsOgawa = (archive_type == IFactory::kOgawa);
-	    }
-	    catch (const std::exception &)
-	    {
-		// It may still be an HDF5 archive
-		clearStream();
-		myArchive = IArchive();
-		myIsOgawa = false;
-	    }
+	    myArchive = factory.getArchive(mapped_paths, archive_type);
+	    myIsOgawa = (archive_type == IFactory::kOgawa);
 	}
+	catch (const std::exception &e)
+	{
+	    myError = e.what();
+	    myArchive = IArchive();
+	}
+    }
+
+    if (paths.size() == 1
+	&& !myArchive.valid()
+	&& openStream(paths[0], num_streams))
+    {
+	std::vector<std::istream *> stream_list;
+	for(auto &e : myStreams)
+	    stream_list.push_back(e.myStream);
+	IFactory::CoreType	archive_type;
+	try
+	{
+	    myArchive = factory.getArchive(stream_list, archive_type);
+	    myError.clear();
+	    myIsOgawa = (archive_type == IFactory::kOgawa);
+	}
+	catch (const std::exception &)
+	{
+	    // It may still be an HDF5 archive
+	    clearStream();
+	    myArchive = IArchive();
+	    myIsOgawa = false;
+	}
+    }
 #endif
+    if (!myArchive.valid())
+    {
 	// Try HDF5 -- the stream interface only works with Ogawa
-	if (!myArchive.valid() && is_readable_file)
+	if (mapped_paths.size() > 1)
+	    throw std::ios_base::failure("Alembic layers are not supported with HDF5");
+
+	if (canAccess)
 	{
 	    myIsOgawa = false;
 	    try
 	    {
 		myArchive = IArchive(Alembic::AbcCoreHDF5::ReadArchive(),
-				     mapped_path.c_str());
+				     mapped_paths[0]);
 	    }
 	    catch (const std::exception &e)
 	    {
@@ -202,7 +236,7 @@ GABC_IArchive::reopenStream(int num_streams)
     if(myArchive)
     {
 	clearStream();
-	openArchive(myFilename, num_streams);
+	openArchive(myFilenames, num_streams);
 
         for (SetType::iterator it=myObjects.begin(); it!=myObjects.end(); ++it)
 	{
@@ -288,7 +322,7 @@ GABC_IArchive::purgeObjects()
     }
     myArchive = IArchive();
     clearStream();
-    theArchiveCache.erase(myFilename);
+    theArchiveCache.erase(myFilenames);
 }
 
 void
@@ -304,4 +338,19 @@ GABC_IArchive::unreference(GABC_IItem *item)
 {
     UT_ASSERT(myObjects.count(item));
     myObjects.erase(item);
+}
+
+void
+GABC_IArchive::getFileNamesKey(UT_StringHolder &key) const
+{
+    UT_WorkBuffer buf;
+    buf.append('[');
+    exint npaths = myFilenames.size();
+    for(exint i = 0; i < npaths; ++i)
+    {
+	const std::string &name = myFilenames[i];
+	buf.appendSprintf("%" SYS_PRId64 "s%s", name.length(), name.c_str());
+    }
+    buf.append(']');
+    key = buf.buffer();
 }

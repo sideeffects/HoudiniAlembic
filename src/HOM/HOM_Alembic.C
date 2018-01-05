@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -118,6 +118,34 @@ namespace
     typedef Alembic::Abc::WrapExistingFlag          WrapExistingFlag;
     static const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
+    static void
+    appendFileList(std::vector<std::string> &filenames, PY_PyObject *fileList)
+    {
+	if (!fileList)
+	    return;
+
+	if (PY_PyString_Check(fileList))
+	{
+	    const char *fileStr = PY_PyString_AsString(fileList);
+	    if (fileStr && strlen(fileStr))
+		filenames.push_back(fileStr);
+	}
+	else if (PY_PySequence_Check(fileList))
+	{
+	    int numFiles = PY_PySequence_Size(fileList);
+	    for (int i = 0; i < numFiles; ++i)
+	    {
+		PY_PyObject *fileObj = PY_PySequence_GetItem(fileList, i);
+		if (PY_PyString_Check(fileObj))
+		{
+		    const char *fileStr = PY_PyString_AsString(fileObj);
+		    if (fileStr && strlen(fileStr))
+			filenames.push_back(fileStr);
+		}
+	    }
+	}
+    }
+
     // Returns an Alembic objects transform, as well as if the transform
     // is constant, and if it inherits it's parent's transform.
     static PY_PyObject *
@@ -125,28 +153,33 @@ namespace
 	    bool localx)
     {
 	UT_Matrix4D     xform;
-	const char     *filename = NULL;
 	const char     *objectPath = NULL;
 	const double   *data = NULL;
 	double          sampleTime = 0.0;
 	bool            isConstant = true;
 	bool            inheritsXform = true;
 	bool            ok;
+	PY_PyObject *fileList;
 
-        if (!PY_PyArg_ParseTuple(args, "ssd", &filename, &objectPath,
-                &sampleTime))
+        if (!PY_PyArg_ParseTuple(args, "Osd", &fileList, &objectPath,
+				 &sampleTime))
 	{
 	    return NULL;
 	}
 
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
+
 	if (localx)
 	{
-            ok = GABC_Util::getLocalTransform(filename, objectPath,
+            ok = GABC_Util::getLocalTransform(filenames, objectPath,
                     sampleTime, xform, isConstant, inheritsXform);
         }
 	else
 	{
-            ok = GABC_Util::getWorldTransform(filename, objectPath,
+            ok = GABC_Util::getWorldTransform(filenames, objectPath,
                     sampleTime, xform, isConstant, inheritsXform);
         }
 
@@ -414,7 +447,7 @@ namespace
     PY_PyObject *
     Py_AlembicArbGeometry(PY_PyObject *self, PY_PyObject *args)
     {
-	const char			*filename;
+	PY_PyObject *fileList;
 	const char			*objectPath;
 	const char			*name;
 	double				 sampleTime;
@@ -422,13 +455,17 @@ namespace
 	GEO_AnimationType		 atype;
 	GT_DataArrayHandle		 data;
 
-        if (!PY_PyArg_ParseTuple(args, "sssd", &filename, &objectPath,
+        if (!PY_PyArg_ParseTuple(args, "Ossd", &fileList, &objectPath,
                 &name, &sampleTime))
 	{
 	    return NULL;
 	}
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
 
-	GABC_IObject	obj = GABC_Util::findObject(filename, objectPath);
+	GABC_IObject	obj = GABC_Util::findObject(filenames, objectPath);
 	if (!obj.valid())
 	{
 	    PY_Py_RETURN_NONE;
@@ -451,15 +488,19 @@ namespace
     PY_PyObject *
     Py_AlembicHasUserProperties(PY_PyObject *self, PY_PyObject *args)
     {
-        const char         *filename;
+	PY_PyObject *fileList;
         const char         *objectPath;
 
-        if (!PY_PyArg_ParseTuple(args, "ss", &filename, &objectPath))
+        if (!PY_PyArg_ParseTuple(args, "Os", &fileList, &objectPath))
         {
             return NULL;
         }
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
 
-        GABC_IObject obj = GABC_Util::findObject(filename, objectPath);
+        GABC_IObject obj = GABC_Util::findObject(filenames, objectPath);
 	ICompoundProperty uprops = obj.getUserProperties();
         if (!uprops || uprops.getNumProperties() == 0)
         {
@@ -480,20 +521,24 @@ namespace
     PY_PyObject *
     Py_AlembicUserProperty(PY_PyObject *self, PY_PyObject *args)
     {
-	const char			*filename;
+	PY_PyObject *fileList;
 	const char			*objectPath;
 	const char			*name;
 	double				 sampleTime;
 	GEO_AnimationType		 atype;
 	GT_DataArrayHandle		 data;
 
-        if (!PY_PyArg_ParseTuple(args, "sssd", &filename, &objectPath,
+        if (!PY_PyArg_ParseTuple(args, "Ossd", &fileList, &objectPath,
                 &name, &sampleTime))
 	{
 	    return NULL;
 	}
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
 
-	GABC_IObject	obj = GABC_Util::findObject(filename, objectPath);
+	GABC_IObject	obj = GABC_Util::findObject(filenames, objectPath);
 	if (!obj.valid())
 	{
 	    PY_Py_RETURN_NONE;
@@ -517,20 +562,24 @@ namespace
     {
         UT_JSONWriter      *data_writer;
         UT_WorkBuffer       data_dictionary;
-        const char         *filename;
+	PY_PyObject *fileList;
         const char         *objectPath;
         double              sampleTime;
 
         if (!PY_PyArg_ParseTuple(args,
-                "ssd",
-                &filename,
+                "Osd",
+                &fileList,
                 &objectPath,
                 &sampleTime))
         {
             return NULL;
         }
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
 
-        GABC_IObject obj = GABC_Util::findObject(filename, objectPath);
+        GABC_IObject obj = GABC_Util::findObject(filenames, objectPath);
         if (!obj.valid())
         {
             PY_Py_RETURN_NONE;
@@ -570,20 +619,24 @@ namespace
     {
         UT_JSONWriter      *meta_writer;
         UT_WorkBuffer       meta_dictionary;
-        const char         *filename;
+	PY_PyObject *fileList;
         const char         *objectPath;
         double              sampleTime;
 
         if (!PY_PyArg_ParseTuple(args,
-                "ssd",
-                &filename,
+                "Osd",
+                &fileList,
                 &objectPath,
                 &sampleTime))
         {
             return NULL;
         }
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
 
-        GABC_IObject obj = GABC_Util::findObject(filename, objectPath);
+        GABC_IObject obj = GABC_Util::findObject(filenames, objectPath);
         if (!obj.valid())
         {
             PY_Py_RETURN_NONE;
@@ -627,20 +680,24 @@ namespace
         UT_JSONWriter      *meta_writer;
         UT_WorkBuffer       data_dictionary;
         UT_WorkBuffer       meta_dictionary;
-        const char         *filename;
+	PY_PyObject *fileList;
         const char         *objectPath;
         double              sampleTime;
 
         if (!PY_PyArg_ParseTuple(args,
-                "ssd",
-                &filename,
+                "Osd",
+                &fileList,
                 &objectPath,
                 &sampleTime))
         {
             return NULL;
         }
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
 
-        GABC_IObject obj = GABC_Util::findObject(filename, objectPath);
+        GABC_IObject obj = GABC_Util::findObject(filenames, objectPath);
         if (!obj.valid())
         {
             PY_Py_RETURN_NONE;
@@ -686,25 +743,29 @@ namespace
     PY_PyObject *
     Py_AlembicTimeRange(PY_PyObject *self, PY_PyObject *args)
     {
-	const char		    *filename;
+	PY_PyObject *fileList;
 	const char		    *objectPath;
 	UT_StringArray		    objects;
 
 	objectPath = "";
-	if (!PY_PyArg_ParseTuple(args, "s|s", &filename, &objectPath))
+	if (!PY_PyArg_ParseTuple(args, "O|s", &fileList, &objectPath))
 	    return NULL;
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
 
         PyWalker        walker;
 
 	if (objectPath && *objectPath)
 	{
 	    objects.append(objectPath);
-	    if (!GABC_Util::walk(filename, walker, objects))
+	    if (!GABC_Util::walk(filenames, walker, objects))
 		PY_Py_RETURN_NONE;
 	}
 	else
 	{
-	    if (!GABC_Util::walk(filename, walker))
+	    if (!GABC_Util::walk(filenames, walker))
 		PY_Py_RETURN_NONE;
 	}
 
@@ -736,7 +797,7 @@ namespace
     PY_PyObject *
     Py_AlembicVisibility(PY_PyObject *self, PY_PyObject *args)
     {
-	const char			*filename;
+	PY_PyObject *fileList;
 	const char			*objectPath;
 	double				 sampleTime;
 	int				 check_parent;
@@ -744,13 +805,17 @@ namespace
 
 	// Usage: alembicVisiblity(file, object, time, [checkparent=False])
 	check_parent = 0;
-        if (!PY_PyArg_ParseTuple(args, "ssd|i", &filename, &objectPath,
+        if (!PY_PyArg_ParseTuple(args, "Osd|i", &fileList, &objectPath,
                 &sampleTime, &check_parent))
 	{
 	    return NULL;
 	}
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
 
-	GABC_IObject	obj = GABC_Util::findObject(filename, objectPath);
+	GABC_IObject	obj = GABC_Util::findObject(filenames, objectPath);
 	if (!obj.valid())
 	{
 	    PY_Py_RETURN_NONE;
@@ -791,15 +856,19 @@ namespace
     Py_AlembicGetSceneHierarchy(PY_PyObject *self, PY_PyObject *args)
     {
         PY_PyObject    *result;
-        const char     *archivePath = NULL;
+	PY_PyObject *fileList;
         const char     *objectPath = NULL;
-        if (!PY_PyArg_ParseTuple(args, "ss", &archivePath, &objectPath))
+        if (!PY_PyArg_ParseTuple(args, "Os", &fileList, &objectPath))
 	    PY_Py_RETURN_NONE;
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
 
 	PyWalker	walker;
 	UT_StringArray	objects;
 	objects.append(objectPath);
-	GABC_Util::walk(archivePath, walker, objects);
+	GABC_Util::walk(filenames, walker, objects);
 
 	result = walker.getObject();
 	if (result)
@@ -863,12 +932,16 @@ namespace
     PY_PyObject *
     Py_AlembicGetObjectPathListForMenu(PY_PyObject *self, PY_PyObject *args)
     {
-        const char *filename = NULL;
-        if (!PY_PyArg_ParseTuple(args, "s", &filename))
+	PY_PyObject *fileList;
+        if (!PY_PyArg_ParseTuple(args, "O", &fileList))
 	    return NULL;
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
 
 	// TODO: Would be nice to have a tree instead of a flat list
-	const GABC_Util::PathList &objects = GABC_Util::getObjectList(filename);
+	const GABC_Util::PathList &objects = GABC_Util::getObjectList(filenames);
 	exint		 nobj = objects.size();
 	PY_PyObject	*result = PY_PyList_New(nobj*2);
 	for (exint i = 0; i < nobj; ++i)
@@ -1032,17 +1105,21 @@ namespace
     PY_PyObject *
     Py_AlembicGetCameraDict(PY_PyObject *self, PY_PyObject *args)
     {
-	const char	*archivePath = NULL;
+	PY_PyObject *fileList;
 	const char	*objectPath = NULL;
 	double		 sampleTime = 0.0;
 	PY_PyObject	*resultDict = PY_PyDict_New();
 
-        if (!PY_PyArg_ParseTuple(args, "ssd", &archivePath, &objectPath,
+        if (!PY_PyArg_ParseTuple(args, "Osd", &fileList, &objectPath,
                 &sampleTime)) return NULL;
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
 
 	try
 	{
-	    GABC_IObject    obj = GABC_Util::findObject(archivePath, objectPath);
+	    GABC_IObject    obj = GABC_Util::findObject(filenames, objectPath);
 
 	    if (obj.valid() && ICamera::matches(obj.getHeader()))
 	    {
@@ -1084,20 +1161,24 @@ namespace
     PY_PyObject *
     Py_AlembicGetCameraResolution(PY_PyObject *self, PY_PyObject *args)
     {
-        const char        *filename;
+	PY_PyObject *fileList;
         const char        *objectPath;
         double             sampleTime;
 
         if (!PY_PyArg_ParseTuple(args, 
-                "ssd", 
-                &filename, 
+                "Osd", 
+                &fileList, 
                 &objectPath, 
                 &sampleTime))
         {
             return NULL;
         }
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
 
-	GABC_IObject obj = GABC_Util::findObject(filename, objectPath);
+	GABC_IObject obj = GABC_Util::findObject(filenames, objectPath);
         if (!obj.valid())
         {
             PY_Py_RETURN_NONE;
@@ -1197,10 +1278,10 @@ HOMextendLibrary()
 
 
     PYrunPythonStatementsAndExpectNoErrors(
-    "def _alembicGetCameraDict(self, archivePath, objectPath, sampleTime):\n"
+    "def _alembicGetCameraDict(self, archivePaths, objectPath, sampleTime):\n"
     "    '''Return camera information.'''\n"
     "    import _alembic_hom_extensions\n"
-    "    return _alembic_hom_extensions.alembicGetCameraDict(archivePath, objectPath, sampleTime)\n"
+    "    return _alembic_hom_extensions.alembicGetCameraDict(archivePaths, objectPath, sampleTime)\n"
     "__import__('hou').ObjNode.alembicGetCameraDict = _alembicGetCameraDict\n"
     "del _alembicGetCameraDict\n");
 }

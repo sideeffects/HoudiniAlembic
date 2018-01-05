@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -477,6 +477,9 @@ loadDetail(RAY_ProceduralGeo &detail,
     walk.setPointMode(GABC_GEOWalker::ABCPRIM_SHARED_POINT);
     walk.setLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES);
     walk.setGroupMode(GABC_GEOWalker::ABC_GROUP_NONE);
+    std::vector<std::string> filenames;
+    if (filename)
+	filenames.push_back(filename);
 
     if (objectpath.isstring())
     {
@@ -488,12 +491,12 @@ loadDetail(RAY_ProceduralGeo &detail,
 	    UT_StringArray	olist;
 	    for (int i = 0; i < args.getArgc(); ++i)
 		olist.append(args(i));
-	    success = GABC_Util::walk(filename, walk, olist);
+	    success = GABC_Util::walk(filenames, walk, olist);
 	}
     }
     else
     {
-	success = GABC_Util::walk(filename, walk);
+	success = GABC_Util::walk(filenames, walk);
     }
     if (success && nsegments > 1)
     {

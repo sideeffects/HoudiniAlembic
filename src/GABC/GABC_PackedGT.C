@@ -302,10 +302,11 @@ public:
 	{
 	    UT_WorkBuffer bucket_name;
 	    UT_StringHolder path = impl->object().getSourcePath();
-	    UT_StringHolder arch = impl->object().archive()->filename();
-	    
-	    bucket_name.sprintf("%" SYS_PRId64 ":%s:%s",
-				arch.length(), arch.c_str(), path.c_str());
+
+	    UT_StringHolder arch;
+	    impl->object().archive()->getFileNamesKey(arch);
+
+	    bucket_name.sprintf("%s:%s", arch.c_str(), path.c_str());
 	    auto entry = myInstanceAnim.find( bucket_name.buffer() );
 	    GEO_AnimationType anim = impl->animationType();
 	    if(entry == myInstanceAnim.end())
@@ -329,20 +330,22 @@ public:
 	    if(!impl->object().valid())
 		return;
 	    GT_PrimitiveHandle archive;
-	    UT_StringHolder archname = impl->object().archive()->filename();
-	    auto entry = myViewportArchives.find( archname );
+
+	    UT_StringHolder arch;
+	    impl->object().archive()->getFileNamesKey(arch);
+
+	    auto entry = myViewportArchives.find( arch );
 	    if(entry == myViewportArchives.end())
 	    {
-		archive = new GABC_PackedArchive(archname, myGeometry,
+		archive = new GABC_PackedArchive(arch, myGeometry,
 						 impl->object().archive());
-		myViewportArchives[ archname ] = archive;
+		myViewportArchives[ arch ] = archive;
 	    }
 	    else
 		archive = entry->second;
 
 	    static_cast<GABC_PackedArchive *>(archive.get())->
 		appendAlembic( prim.getMapOffset() );
-
 	}
     
     class FillTask
@@ -732,7 +735,7 @@ GABC_PackedAlembic::getInstanceKey(UT_Options &options) const
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
 
-    options.setOptionS("f", impl->filename());
+    options.setOptionS("f", impl->filenamesJSON());
     // If the object instances another shape, we want to access the instance
     // shape so we can share geometry.  We don't want to harden the instance.
     // For non-instanced geometry, this should return the same as
@@ -960,9 +963,12 @@ GABC_PackedAlembic::getCachedGeometry(GT_PrimitiveHandle &ph) const
     const int64 version = 0;
     UT_StringHolder cache_name;
 
+    UT_StringHolder arch;
+    o.archive()->getFileNamesKey(arch);
+
     GT_PackedGeoCache::buildAlembicName(cache_name,
 					o.getSourcePath().c_str(),
-					o.archive()->filename().c_str(),
+					arch.c_str(),
 					impl->frame());
     ph = GT_PackedGeoCache::findInstance(cache_name, version,
 					   impl->currentLoadStyle(), nullptr);

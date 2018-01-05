@@ -1,0 +1,11 @@
+node = kwargs['node']
+oldversion = kwargs['old_version']
+
+if oldversion == '':
+    parm = node.parm('fileName')
+    filename = parm.eval()
+    if filename:
+        node.parm('numFiles').set(1)
+        node.parm('enableFile1').set(1)
+        node.parm('fileName1').set(filename)
+        parm.set('')

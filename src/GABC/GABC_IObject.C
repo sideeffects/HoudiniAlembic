@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -32,6 +32,7 @@
 #include "GABC_Util.h"
 #include "GABC_GTUtil.h"
 #include <SYS/SYS_AtomicInt.h>
+#include <SYS/SYS_Hash.h>
 #include <GEO/GEO_PackedNameMap.h>
 #include <GEO/GEO_PrimPacked.h>
 #include <GU/GU_Detail.h>
@@ -191,7 +192,7 @@ namespace
                         "Error reading %s attribute data for Alembic object "
                             "%s (%s). Ignoring attribute.",
                         name,
-                        obj.archive()->filename().c_str(),
+                        GABC_IArchive::filenamesToString(obj.archive()->filenames()).c_str(),
                         obj.getFullName().c_str());
             }
 	}
@@ -247,7 +248,7 @@ namespace
 	{
 	    UT_ErrorLog::mantraErrorOnce(
 		"Alembic sub-frame interpolation error for dynamic topology %s (%s)",
-		obj.archive()->filename().c_str(),
+		GABC_IArchive::filenamesToString(obj.archive()->filenames()).c_str(),
 		obj.getFullName().c_str());
 	}
 	t = best;
@@ -884,12 +885,14 @@ namespace
 	{
 	    if (obj.getAnimationType(false) != GEO_ANIMATION_TOPOLOGY)
 	    {
-		int64	 hash;
-
-		hash = UT_String::hash(obj.objectPath().c_str());
-		hash = hash << 32;
+		SYS_HashType hash = SYShash(obj.objectPath().c_str());
 		if (obj.archive())
-		    hash += UT_String::hash(obj.archive()->filename().c_str());
+		{
+		    auto &filenames = obj.archive()->filenames();
+		    SYShashCombine(hash, filenames.size());
+		    for(auto &name : filenames)
+			SYShashCombine(hash, name.c_str());
+		}
 		alist.set(__topologyIdx, new GT_IntConstant(1, hash));
 	    }
 	    else
@@ -1414,7 +1417,11 @@ namespace
 	auto obj_da = new GT_DAIndexedString(1);
 	auto time_da = new GT_DANumeric<fpreal32>(1,1);
 	auto cache_da = new GT_DAIndexedString(1);
-	file_da->setString(0,0, obj.archive()->filename().c_str());
+
+	UT_StringHolder arch;
+	obj.archive()->getFileNamesKey(arch);
+
+	file_da->setString(0,0, arch.c_str());
 	time_da->set(t, 0);
 
 	if(anim > GEO_ANIMATION_TRANSFORM)
@@ -1434,7 +1441,7 @@ namespace
 	UT_StringHolder cache;
 	GT_PackedGeoCache::buildAlembicName(cache,
 					    obj.getFullName().c_str(),
-					    obj.archive()->filename().c_str(),
+					    arch.c_str(),
 					    t);
 	cache_da->setString(0,0, cache);
 
@@ -1984,7 +1991,7 @@ namespace
 	UT_ErrorLog::mantraWarningOnce(
 		    "Alembic file %s (%s) has invalid %s curves - converting "
 		        "to linear",
-		    obj.archive()->filename().c_str(),
+		    GABC_IArchive::filenamesToString(obj.archive()->filenames()).c_str(),
 		    obj.getFullName().c_str(),
 		    basis);
     }
@@ -1994,7 +2001,7 @@ namespace
     {
 	UT_ErrorLog::mantraWarningOnce(
 		    "Alembic file %s (%s): %s converting to linear",
-		    obj.archive()->filename().c_str(),
+		    GABC_IArchive::filenamesToString(obj.archive()->filenames()).c_str(),
 		    obj.getFullName().c_str(),
 		    msg);
     }
@@ -2004,7 +2011,7 @@ namespace
     {
 	UT_ErrorLog::mantraWarningOnce(
 		    "Alembic file %s (%s): %s - Ignoring knot vectors",
-		    obj.archive()->filename().c_str(),
+		    GABC_IArchive::filenamesToString(obj.archive()->filenames()).c_str(),
 		    obj.getFullName().c_str(),
 		    msg);
     }
@@ -2014,7 +2021,7 @@ namespace
     {
 	UT_ErrorLog::mantraWarningOnce(
 		    "Alembic file %s (%s): %s - Ignoring corrupt curves",
-		    obj.archive()->filename().c_str(),
+		    GABC_IArchive::filenamesToString(obj.archive()->filenames()).c_str(),
 		    obj.getFullName().c_str(),
 		    msg);
     }
@@ -2670,6 +2677,8 @@ GABC_IObject::GABC_IObject()
     , myObjectPath()
     , myObject()
 {
+    if(myObjectPath == "")
+	myObjectPath = "/";
 }
 
 GABC_IObject::GABC_IObject(const GABC_IObject &obj)
@@ -3762,15 +3771,17 @@ GABC_IObject::localTransform(fpreal t, M44d &m4,
 }
 
 bool
-GABC_IObject::getPropertiesHash(int64 &hash) const
+GABC_IObject::getPropertiesHash(int64 &h) const
 {
     Alembic::Util::Digest prophash;
     if(const_cast<IObject &>(myObject).getPropertiesHash(prophash))
     {
-	hash = prophash.words[0] + SYSwang_inthash64(prophash.words[1]);
+	SYS_HashType hash = SYShash(prophash.words[0]);
+	SYShashCombine(hash, prophash.words[1]);
+	h = hash;
 	return true;
     }
 
-    hash = 0;
+    h = 0;
     return false;
 }

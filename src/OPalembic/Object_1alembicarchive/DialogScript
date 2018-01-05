@@ -295,6 +295,31 @@
 	export	none
 	parmtag	{ "filechooser_mode" "read" }
 	parmtag	{ "filechooser_pattern" "*.abc" }
+	invisible
+    }
+    multiparm {
+	name	"numFiles"
+	label	"Number of Files"
+	default	1
+
+	parm {
+	    name	"enableFile#"
+	    label	""
+	    type	toggle
+	    nolabel
+	    joinnext
+	    default	{ "1" }
+	}
+	parm {
+	    name	"fileName#"
+	    label	"File Name #"
+	    type	file
+	    default	{ "" }
+	    disablewhen	"{ enableFile# == off }"
+	    range	{ 0 1 }
+	    parmtag	{ "filechooser_mode" "read" }
+	    parmtag	{ "filechooser_pattern" "*.abc" }
+	}
     }
     parm {
 	name	"objectPath"
@@ -302,7 +327,7 @@
 	type	string
 	default	{ "" }
 	menureplace	{
-	    [ "__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu(hou.pwd().evalParm('fileName'))[:16380]" ]
+	    [ "__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu(hou.pwd().hdaModule().GetFileName(hou.pwd()))[:16380]" ]
 	    language	python
 	}
 	range	{ 0 1 }

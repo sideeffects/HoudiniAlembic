@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -95,7 +95,7 @@ public:
     {
     public:
 	Walker()
-	    : myFilename()
+	    : myFilenames()
 	    , myStartTime(0)
 	    , myEndTime(0)
 	    , myComputedTimes(false)
@@ -134,17 +134,17 @@ public:
     	fpreal      	getEndTime() const
                     		{ return myEndTime; }
 	/// @{
-	///  Access the current filename
-	const std::string	&filename() const	{ return myFilename; }
-	void			setFilename(const std::string &f)
-					{ myFilename = f; }
+	///  Access the current filenames
+	const std::vector<std::string>	&filenames() const	{ return myFilenames; }
+	void			setFilenames(const std::vector<std::string> &f)
+					{ myFilenames = f; }
 	/// @}
 
 	/// Return whether the walking error was caused by a bad Alembic archive
 	bool	badArchive() const		{ return myBadArchive; }
 
     private:
-	std::string     myFilename;
+	std::vector<std::string>     myFilenames;
 	fpreal		myStartTime;
 	fpreal		myEndTime;
 	bool		myComputedTimes;
@@ -220,9 +220,10 @@ public:
     //  Events
     //
 
-    /// Add an event handler to be notified of events on the given filename
+    /// Add an event handler to be notified of events on the given
+    /// list of filenames
     /// The method returns false if the archive hasn't been loaded yet.
-    static bool		addEventHandler(const std::string &filename,
+    static bool		addEventHandler(const std::vector<std::string> &filenames,
 				const ArchiveEventHandlerPtr &handler);
 
     //
@@ -230,12 +231,12 @@ public:
     //
 
     /// Find a given GABC_IObject in an Alembic file.
-    static GABC_IObject	findObject(const std::string &filename,
+    static GABC_IObject	findObject(const std::vector<std::string> &filenames,
 				const std::string &objectpath);
-    static GABC_IObject findObject(const std::string &filename,
+    static GABC_IObject findObject(const std::vector<std::string> &filenames,
                                 ObjectReaderPtr reader);
     /// Return a list of all the objects in an Alembic file
-    static const PathList	&getObjectList(const std::string &filename,
+    static const PathList	&getObjectList(const std::vector<std::string> &filenames,
 					bool include_face_sets=false);
 
     //
@@ -261,7 +262,7 @@ public:
     /// isConstant flag will be true if the local transform is constant (even
     /// if parent transforms are non-constant).
     static bool		getLocalTransform(
-				const std::string &filename,
+				const std::vector<std::string> &filenames,
 				const std::string &objectpath,
 				fpreal sample_time,
 				UT_Matrix4D &xform,
@@ -274,7 +275,7 @@ public:
     ///
     /// The method returns false if there was an error computing the transform.
     static bool		 getWorldTransform(
-				const std::string &filename,
+				const std::vector<std::string> &filenames,
 				const std::string &objectpath,
 				fpreal sample_time,
 				UT_Matrix4D &xform,
@@ -310,12 +311,12 @@ public:
 
     /// Walk the tree in an alembic file.  Returns false if traversal was
     /// interrupted, otherwise returns true.
-    static bool		walk(const std::string &filename, Walker &walker);
+    static bool		walk(const std::vector<std::string> &filenames, Walker &walker);
     /// Process a list of unique objects in an Alembic file (including their
     /// children)
-    static bool		walk(const std::string &filename, Walker &walker,
+    static bool		walk(const std::vector<std::string> &filenames, Walker &walker,
 				const UT_StringArray &objects);
-    static bool		walk(const std::string &filename, Walker &walker,
+    static bool		walk(const std::vector<std::string> &filenames, Walker &walker,
 				const UT_Set<std::string> &objects);
 
     //
