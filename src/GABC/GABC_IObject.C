@@ -264,7 +264,7 @@ namespace
 	GABC_IArray	iarray = GABC_IArray::getSample(arch, prop, idx, tinfo);
 	if(expected_size >= 0 && iarray.entries() < expected_size)
 	{
-	    UT_ASSERT("Unexpected array size");
+	    UT_ASSERT(0 && "Unexpected array size");
 	    return GT_DataArrayHandle();
 	}
 	return GABC_NAMESPACE::GABCarray(iarray);
