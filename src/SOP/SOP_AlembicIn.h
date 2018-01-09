@@ -61,9 +61,9 @@ public:
     void	appendFileNames(std::vector<std::string> &filenames, fpreal t);
 
     /// Return the label for the given input
-    virtual const char	*inputLabel(unsigned int idx) const;
+    virtual const char	*inputLabel(unsigned int idx) const override;
 
-    virtual SOP_ObjectAppearancePtr	getObjectAppearance();
+    virtual SOP_ObjectAppearancePtr	getObjectAppearance() override;
 
     void	abcError(const char *message)
     		{
@@ -83,19 +83,20 @@ protected:
     SOP_AlembicIn2(OP_Network *net, const char *name, OP_Operator *op);
     virtual ~SOP_AlembicIn2();
 
-    virtual bool	updateParmsFlags();
-    virtual OP_ERROR	cookMySop(OP_Context &context);
-    virtual OP_ERROR	cookMyGuide1(OP_Context &ctx);
+    virtual bool	updateParmsFlags() override;
+    virtual OP_ERROR	cookMySop(OP_Context &context) override;
+    virtual OP_ERROR	cookMyGuide1(OP_Context &ctx) override;
     virtual void	syncNodeVersion(const char *old_version,
-				const char *new_version, bool *node_deleted);
-    virtual void	getDescriptiveParmName(UT_String &name) const
+				const char *new_version,
+				bool *node_deleted) override;
+    virtual void	getDescriptiveParmName(UT_String &name) const override
 				{ name = "fileName"; }
     //--------------------------------------------------------------------------
     virtual void        getNodeSpecificInfoText(OP_Context &context,
-				OP_NodeInfoParms &iparms);
+				OP_NodeInfoParms &iparms) override;
 
     virtual void	fillInfoTreeNodeSpecific(UT_InfoTree &tree, 
-				const OP_NodeInfoTreeParms &parms);
+				const OP_NodeInfoTreeParms &parms) override;
 
 private:
     void	setupEventHandler(const std::vector<std::string> &filenames);
@@ -161,7 +162,7 @@ private:
 
 	void	setSOP(SOP_AlembicIn2 *sop)	{ mySOP = sop; }
 
-	virtual void	cleared()
+	virtual void	cleared() override
 	{
 	    if (mySOP)
 	    {
