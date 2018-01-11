@@ -259,13 +259,46 @@ GABC_PackedImpl::clearData()
     myCache.clear();
 }
 
+static void
+gabcParseStringArray(UT_StringArray &result, const UT_StringHolder &v)
+{
+    result.clear();
+
+    UT_WorkBuffer jsonbuf;
+    jsonbuf.append(v);
+    UT_IStream is(jsonbuf);
+    UT_JSONParser parser;
+    UT_JSONValue value;
+    if (value.parseValue(parser, &is))
+    {
+	UT_JSONValueArray *topArray = value.getArray();
+	if (topArray)
+	{
+	    int numLevels = topArray->entries();
+	    for (int lvl = 0; lvl < numLevels; ++lvl)
+	    {
+		UT_JSONValue *val = topArray->get(lvl);
+		if (val && val->getType() == UT_JSONValue::JSON_STRING)
+		{
+		    const UT_StringHolder *valStr = val->getStringHolder();
+		    if (valStr)
+			result.append(*valStr);
+		}
+	    }
+	}
+    }
+}
+
 template <typename T>
 bool
 GABC_PackedImpl::loadFrom(GU_PrimPacked *prim, const T &options, const GA_LoadMap &map)
 {
     clearData();
     bool bval;
-    if (!import(options, "filename", myFilenames))
+    UT_StringHolder filenames;
+    if (import(options, "filenames", filenames))
+	gabcParseStringArray(myFilenames, filenames);
+    else
     {
 	myFilenames.clear();
 	UT_StringHolder tmpFilename;
@@ -310,36 +343,6 @@ GABC_PackedImpl::save(UT_Options &options, const GA_SaveMap &map) const
     options.setOptionB("usetransform", myUseTransform);
     options.setOptionB("usevisibility", myUseVisibility);
     return true;
-}
-
-static void
-gabcParseStringArray(UT_StringArray &result, const UT_StringHolder &v)
-{
-    result.clear();
-
-    UT_WorkBuffer jsonbuf;
-    jsonbuf.append(v);
-    UT_IStream is(jsonbuf);
-    UT_JSONParser parser;
-    UT_JSONValue value;
-    if (value.parseValue(parser, &is))
-    {
-	UT_JSONValueArray *topArray = value.getArray();
-	if (topArray)
-	{
-	    int numLevels = topArray->entries();
-	    for (int lvl = 0; lvl < numLevels; ++lvl)
-	    {
-		UT_JSONValue *val = topArray->get(lvl);
-		if (val && val->getType() == UT_JSONValue::JSON_STRING)
-		{
-		    const UT_StringHolder *valStr = val->getStringHolder();
-		    if (valStr)
-			result.append(*valStr);
-		}
-	    }
-	}
-    }
 }
 
 bool
