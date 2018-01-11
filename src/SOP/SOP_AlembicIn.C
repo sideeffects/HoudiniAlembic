@@ -693,7 +693,7 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 };
 
 static PRM_Name prm_obsoleteFilenameName("fileName", "File Name");
-static PRM_Default prm_obsoleteFilenameDefault(0, "$HH/geo/default.abc");
+static PRM_Default prm_obsoleteFilenameDefault(0, "");
 
 PRM_Template SOP_AlembicIn2::myObsoleteList[] =
 {
@@ -1550,14 +1550,17 @@ SOP_AlembicIn2::resolveObsoleteParms(PRM_ParmList *obsolete_parms)
     if (!obsolete_parms)
         return;
 
-    UT_String oldpath;
-    obsolete_parms->evalStringRaw(oldpath, prm_obsoleteFilenameName.getToken(), 0, 0.0f);
-    if (oldpath.isstring())
+    const PRM_Parm *src_parm =
+	obsolete_parms->getParmPtr(prm_obsoleteFilenameName.getToken());
+    if(src_parm && !src_parm->isFactoryDefault())
     {
-	setInt("numFiles", 0, 0.0f, 1);
+	setInt(prm_numFilesName.getToken(), 0, 0.0f, 1);
 	setInt("enableFile1", 0, 0.0f, 1);
-	setString(oldpath, CH_STRING_LITERAL, "fileName1", 0, 0.0f);
+
+	PRM_Parm *parm = getParmPtr("fileName1");
+	parm->copyParm(*src_parm);
     }
+
     // delegate to base class
     SOP_Node::resolveObsoleteParms(obsolete_parms);
 }
