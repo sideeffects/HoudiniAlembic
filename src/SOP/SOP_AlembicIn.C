@@ -1552,7 +1552,7 @@ SOP_AlembicIn2::resolveObsoleteParms(PRM_ParmList *obsolete_parms)
 
     const PRM_Parm *src_parm =
 	obsolete_parms->getParmPtr(prm_obsoleteFilenameName.getToken());
-    if(src_parm && !src_parm->isFactoryDefault())
+    if(src_parm && !src_parm->isTrueFactoryDefault())
     {
 	setInt(prm_numFilesName.getToken(), 0, 0.0f, 1);
 	setInt("enableFile1", 0, 0.0f, 1);
