@@ -349,7 +349,8 @@ GABC_IArchive::getFileNamesKey(UT_StringHolder &key) const
     for(exint i = 0; i < npaths; ++i)
     {
 	const std::string &name = myFilenames[i];
-	buf.appendSprintf("%" SYS_PRId64 "s%s", name.length(), name.c_str());
+	buf.appendSprintf("%" SYS_PRId64 "s%s",
+			  exint(name.length()), name.c_str());
     }
     buf.append(']');
     key = buf.buffer();
