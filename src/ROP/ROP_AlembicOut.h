@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -46,6 +46,15 @@ class GA_PrimitiveGroup;
 class OBJ_Camera;
 class OBJ_Geometry;
 class OBJ_Node;
+
+class rop_AbcHierarchySample;
+
+enum ROP_AlembicPackedTransform
+{
+    ROP_ALEMBIC_PACKEDTRANSFORM_DEFORM_GEOMETRY,
+    ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM_GEOMETRY,
+    ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM
+};
 
 class ROP_AlembicOut : public ROP_Node
 {
@@ -129,19 +138,72 @@ protected:
 		{ return evalFloat("shutter", 1, time); }
 
 private:
-    enum PackedMode
+    class Hierarchy
     {
-	ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_SHAPE,
-	ROP_ALEMBIC_PACKEDMODE_TRANSFORM_AND_SHAPE,
-	ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT,
-	ROP_ALEMBIC_PACKEDMODE_TRANSFORMED_PARENT_AND_SHAPE
-    };
+	class Node
+	{
+	public:
+	    Node(ROP_AbcNode *node=nullptr) : myAbcNode(node) {}
 
-    enum PackedTransform
-    {
-	ROP_ALEMBIC_PACKEDTRANSFORM_DEFORM_GEOMETRY,
-	ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM_GEOMETRY,
-	ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM
+	    ROP_AbcNode *getAbcNode() const { return myAbcNode; }
+
+	    UT_Map<std::string, Node> &getChildren() { return myChildren; }
+	    const UT_Map<std::string, UT_Map<int, UT_Array<ROP_AbcNodeShape *> > > &getShapes() const { return myShapes; }
+	    const UT_Map<std::string, UT_Map<int, UT_Array<exint> > > &getInstancedShapes() const { return myInstancedShapes; }
+
+	    Node *setChild(const std::string &name,
+			   const ROP_AbcArchivePtr &arch,
+			   const UT_Matrix4D &m,
+			   const std::string &up_vals,
+			   const std::string &up_meta);
+
+	    void setShape(const std::string &name, int type, exint i,
+			  const ROP_AbcArchivePtr &arch,
+			  const GT_PrimitiveHandle &prim, bool visible,
+			  const std::string &up_vals,
+			  const std::string &up_meta);
+
+	    ROP_AbcNodeShape *
+	    newInstanceSource(const std::string &name, int type, exint key2,
+			      const ROP_AbcArchivePtr &arch,
+			      const GT_PrimitiveHandle &prim,
+			      const std::string &up_vals,
+			      const std::string &up_meta);
+
+	    void newInstanceRef(const std::string &name, int type, exint key2,
+				const ROP_AbcArchivePtr &arch,
+				ROP_AbcNodeShape *src);
+
+	    void setVisibility(bool vis);
+
+	private:
+	    ROP_AbcNode *myAbcNode; // root or xform
+	    UT_Map<std::string, Node> myChildren;
+	    UT_Map<std::string, UT_Map<int, UT_Array<ROP_AbcNodeShape *> > > myShapes;
+	    UT_Map<std::string, UT_Map<int, UT_Array<exint> > > myInstancedShapes;
+	    // FIXME: add support for cameras
+	};
+
+    public:
+	Hierarchy(ROP_AbcNode *root)
+	    : myRoot(root)
+	    , myNextInstanceId(0)
+	    , myLocked(false) {}
+
+	ROP_AbcNode *getRoot() const { return myRoot.getAbcNode(); }
+
+	void update(ROP_AbcArchivePtr &arch,
+		    const rop_AbcHierarchySample &src,
+		    const UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > &instance_map);
+
+	void setLocked(bool locked) { myLocked = locked; }
+	bool getLocked() const { return myLocked; }
+
+    private:
+	Node myRoot;
+	UT_Map<int, UT_Map<exint, ROP_AbcNodeShape *> > myInstancedShapes;
+	exint myNextInstanceId;
+	bool myLocked;
     };
 
     class rop_OError : public GABC_OError
@@ -158,109 +220,26 @@ private:
 	UT_StringArray myWarnings;
     };
 
-    class rop_RefinedGeoAssignments
-    {
-	class rop_Instance
-	{
-	public:
-	    rop_Instance() : myShape(nullptr) {}
-
-	    ROP_AbcNodeShape *myShape;
-	    UT_Array<ROP_AbcNodeXform *> myXforms;
-	    UT_Array<ROP_AbcNodeInstance *> myInstances;
-	};
-
-	class rop_TransformAndShape
-	{
-	public:
-	    rop_TransformAndShape() : myXform(nullptr), myChildIndex(-1) {}
-
-	    ROP_AbcNodeXform *myXform;
-	    exint myChildIndex;
-	};
-
-    public:
-	rop_RefinedGeoAssignments(ROP_AbcNode *parent)
-	    : myParent(parent), myMatrix(1), myLocked(false),
-	      myWarnedRoot(false), myWarnedChildren(false) {}
-
-	ROP_AbcNode *getParent() const { return myParent; }
-
-	void refine(const GT_PrimitiveHandle &prim,
-		    PackedTransform packedtransform, exint facesetmode,
-		    bool subd, bool use_instancing, bool shape_nodes,
-		    bool save_hidden, const std::string &name,
-		    const ROP_AbcArchivePtr &abc);
-
-	void setUserProperties(const UT_String &vals, const UT_String &meta,
-			       bool subd, const std::string &name);
-
-	ROP_AbcNodeXform *newXformNode(const std::string &name,
-				       const ROP_AbcArchivePtr &abc);
-
-	void setMatrix(const UT_Matrix4D &m);
-	const UT_Matrix4D &getMatrix() const { return myMatrix; }
-
-	void setLocked(bool locked);
-	bool isLocked() const { return myLocked; }
-
-	void warnRoot(const ROP_AbcArchivePtr &abc);
-	void warnChildren(const ROP_AbcArchivePtr &abc);
-
-    private:
-	ROP_AbcNodeShape *newShapeNode(const std::string &name,
-				       const ROP_AbcArchivePtr &abc);
-
-	ROP_AbcNode *myParent;
-	UT_Matrix4D myMatrix;
-	// use sorted maps so name collisions are resolved deterministicly
-	UT_SortedMap<std::tuple<std::string, int, bool>, UT_Array<ROP_AbcNodeShape *> > myShapes;
-	UT_SortedMap<std::tuple<std::string, int, bool>, UT_Array<rop_Instance> > myInstances;
-	UT_SortedMap<std::pair<std::string, bool>, UT_Array<rop_TransformAndShape> > myTransformAndShapes;
-	UT_Array<rop_RefinedGeoAssignments> myChildren;
-	bool myLocked;
-	bool myWarnedRoot;
-	bool myWarnedChildren;
-    };
-
-    class rop_SopAssignments : public rop_RefinedGeoAssignments
-    {
-    public:
-	rop_SopAssignments(ROP_AbcNode *parent) : rop_RefinedGeoAssignments(parent) {}
-
-	void addChild(const std::string &name, const rop_SopAssignments &refinement)
-	    { myChildren.emplace(name, refinement); }
-
-	rop_SopAssignments *getChild(const std::string &name)
-	    {
-		auto it = myChildren.find(name);
-		return it != myChildren.end() ? &it->second : nullptr;
-	    }
-
-    private:
-	UT_Map<std::string, rop_SopAssignments> myChildren;
-    };
-
-    static void exportUserProperties(
-			rop_RefinedGeoAssignments &r, bool subd,
-			const GU_Detail &gdp, const GA_Range &range,
-			const std::string &name,
-			const GA_ROHandleS &vals, const GA_ROHandleS &meta);
     const GA_PrimitiveGroup *getSubdGroup(bool &subd_all, OBJ_Geometry *geo,
 					  const GU_Detail *gdp, fpreal time);
-    void refineSop(rop_RefinedGeoAssignments &refinement,
-		   PackedTransform packedtransform, exint facesetmode,
-		   bool use_instancing, bool shape_nodes, bool displaysop,
-		   bool save_hidden, OBJ_Geometry *geo, SOP_Node *sop,
-		   fpreal time);
+    void refineSop(Hierarchy &assignments,
+		   ROP_AlembicPackedTransform packedtransform,
+		   exint facesetmode, bool use_instancing, bool shape_nodes,
+		   bool displaysop, bool save_hidden, OBJ_Geometry *geo,
+		   SOP_Node *sop, fpreal time);
 
+    bool updateFromSop2(OBJ_Geometry *geo, SOP_Node *sop,
+		       ROP_AlembicPackedTransform packedtransform,
+		       exint facesetmode, bool use_instancing,
+		       bool shape_nodes, bool displaysop, bool save_hidden);
     bool updateFromSop(OBJ_Geometry *geo, SOP_Node *sop,
-		       PackedTransform packedtransform, exint facesetmode,
-		       bool use_instancing, bool shape_nodes, bool displaysop,
-		       bool save_hidden);
-    bool updateFromHierarchy(PackedTransform packedtransform, exint facesetmode,
-			     bool use_instancing, bool shape_nodes,
-			     bool displaysop, bool save_hidden);
+		       ROP_AlembicPackedTransform packedtransform,
+		       exint facesetmode, bool use_instancing,
+		       bool shape_nodes, bool displaysop, bool save_hidden);
+    bool updateFromHierarchy(ROP_AlembicPackedTransform packedtransform,
+			     exint facesetmode, bool use_instancing,
+			     bool shape_nodes, bool displaysop,
+			     bool save_hidden);
     void reportCookErrors(OP_Node *node, fpreal time);
 
     // temporary storage when exporting to an Alembic archive
@@ -275,12 +254,12 @@ private:
     // temporary storage when exporting an OBJ hierarchy
     UT_Map<OBJ_Node *, ROP_AbcNodeXform *> myObjAssignments;
     UT_Map<OBJ_Camera *, ROP_AbcNodeCamera *> myCamAssignments;
-    UT_Map<OBJ_Geometry *, rop_RefinedGeoAssignments> myGeoAssignments;
+    UT_Map<OBJ_Geometry *, Hierarchy> myGeoAssignments;
     // keys of myGeoAssignments for deterministic OBJ_Geometry traversal
     UT_Array<OBJ_Geometry *> myGeos;
 
     // temporary storage when exporting a SOP hierarchy
-    UT_UniquePtr<rop_SopAssignments> mySopAssignments;
+    UT_UniquePtr<Hierarchy> mySopAssignments;
 };
 
 #endif

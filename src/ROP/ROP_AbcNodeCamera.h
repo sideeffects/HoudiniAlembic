@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -72,6 +72,7 @@ public:
 private:
     void makeValid();
 
+    exint mySampleCount;
     OCamera myOCamera;
     int myResX;
     int myResY;

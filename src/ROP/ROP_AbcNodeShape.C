@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -28,17 +28,6 @@
 #include "ROP_AbcNodeShape.h"
 
 typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
-
-void
-ROP_AbcNodeShape::clearData()
-{
-    if(!myLocked)
-    {
-	myPrim = nullptr;
-	myVisible = false;
-    }
-    ROP_AbcNode::clearData();
-}
 
 void
 ROP_AbcNodeShape::setArchive(const ROP_AbcArchivePtr &archive)
@@ -76,81 +65,84 @@ ropEnlargeBounds(UT_BoundingBox &box, const GT_PrimitiveHandle &prim)
 }
 
 void
+ROP_AbcNodeShape::preUpdate(bool locked)
+{
+    myLocked = locked;
+    if(!locked)
+	clear();
+    ROP_AbcNode::preUpdate(locked);
+}
+
+void
 ROP_AbcNodeShape::update()
 {
-    if(!myLocked)
-	myBox.initBounds();
-
     exint nsamples = myArchive->getSampleCount();
-    if(!myWriter && myPrim)
+    for(; mySampleCount < nsamples; ++mySampleCount)
     {
-	// write the first sample
-	myWriter.reset(new GABC_OGTGeometry(myName));
-	myWriter->start(myPrim, myParent->getOObject(),
-			myArchive->getOOptions(), myArchive->getOError(),
-			(nsamples == 1 && myVisible) ?
-			    Alembic::AbcGeom::kVisibilityDeferred :
-			    Alembic::AbcGeom::kVisibilityHidden);
-	ropEnlargeBounds(myBox, myPrim);
-	mySampleCount = 1;
-    }
-
-    if(!myWriter)
-	return;
-
-    if(mySampleCount < nsamples)
-    {
-	exint hidden = nsamples - mySampleCount;
-	if(myPrim)
-	    --hidden;
-
-	if(hidden)
+	if(!myWriter)
 	{
-	    myWriter->updateFromPrevious(myArchive->getOError(),
-					 Alembic::AbcGeom::kVisibilityHidden,
-					 hidden);
+	    if(myPrim)
+	    {
+		// write the first sample
+		mySampleCount = 0;
+		bool vis = (myVisible && nsamples == 1);
+		myWriter.reset(new GABC_OGTGeometry(myName));
+		myWriter->start(myPrim, myParent->getOObject(),
+				myArchive->getOOptions(), myArchive->getOError(),
+				vis ? Alembic::AbcGeom::kVisibilityDeferred
+				    : Alembic::AbcGeom::kVisibilityHidden);
+
+		myBox.initBounds();
+		ropEnlargeBounds(myBox, myPrim);
+	    }
 	}
-
-	if(myPrim)
+	else
 	{
-	    // write the current sample
-	    if(myLocked)
+	    bool vis = (myVisible && mySampleCount + 1 == nsamples);
+	    if(!myPrim || myLocked)
 	    {
 		myWriter->updateFromPrevious(myArchive->getOError(),
-					myVisible ?
-					Alembic::AbcGeom::kVisibilityDeferred :
-					Alembic::AbcGeom::kVisibilityHidden);
+				vis ? Alembic::AbcGeom::kVisibilityDeferred
+				    : Alembic::AbcGeom::kVisibilityHidden);
 	    }
 	    else
 	    {
 		myWriter->update(myPrim, myArchive->getOOptions(),
 				 myArchive->getOError(),
-				 myVisible ?
-				 Alembic::AbcGeom::kVisibilityDeferred :
-				 Alembic::AbcGeom::kVisibilityHidden);
+				 vis ? Alembic::AbcGeom::kVisibilityDeferred
+				     : Alembic::AbcGeom::kVisibilityHidden);
+		myBox.initBounds();
 		ropEnlargeBounds(myBox, myPrim);
 	    }
 	}
-	mySampleCount = nsamples;
-    }
 
-    // update user properties
-    if(myUserPropVals.isstring() && myUserPropMeta.isstring())
-    {
-	OCompoundProperty props = myWriter->getUserProperties();
-	myUserProperties.update(props, myUserPropVals, myUserPropMeta, myArchive);
+	// update user properties
+	if(myWriter && !myUserPropVals.empty() && !myUserPropMeta.empty())
+	{
+	    OCompoundProperty props = myWriter->getUserProperties();
+	    myUserProperties.update(props, myUserPropVals, myUserPropMeta, myArchive);
+	}
     }
 }
 
 void
-ROP_AbcNodeShape::setLocked(bool locked)
-{   
-    myLocked = locked;
-    if(locked)
-	return;
+ROP_AbcNodeShape::postUpdate(bool locked)
+{
+    if(!locked)
+	clear();
+    else if(!myLocked)
+    {
+	if(myPrim)
+	    myPrim = myPrim->harden();
+    }
+    ROP_AbcNode::postUpdate(locked);
+}
 
-    myUserPropVals.clear();
-    myUserPropMeta.clear();
+void
+ROP_AbcNodeShape::clear()
+{
     myPrim = nullptr;
     myVisible = false;
+    myUserPropVals.clear();
+    myUserPropMeta.clear();
 }

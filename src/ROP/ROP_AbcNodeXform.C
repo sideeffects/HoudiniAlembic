@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -30,17 +30,6 @@
 typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
 
 void
-ROP_AbcNodeXform::clearData()
-{
-    if(!myLocked)
-    {
-	myPreMatrixSet = false;
-	myVisible = false;
-    }
-    ROP_AbcNode::clearData();
-}
-
-void
 ROP_AbcNodeXform::setArchive(const ROP_AbcArchivePtr &archive)
 {
     myOXform = OXform();
@@ -56,6 +45,19 @@ ROP_AbcNodeXform::getOObject()
 {
     makeValid();
     return myOXform;
+}
+
+void
+ROP_AbcNodeXform::preUpdate(bool locked)
+{
+    if(!locked)
+    {
+	myPreMatrixSet = false;
+	myVisible = false;
+	myUserPropVals.clear();
+	myUserPropMeta.clear();
+    }
+    ROP_AbcNode::preUpdate(locked);
 }
 
 void
@@ -75,26 +77,36 @@ ROP_AbcNodeXform::update()
 
     bool full_bounds = myArchive->getOOptions().fullBounds();
     exint nsamples = myArchive->getSampleCount();
-    for(exint i = mySampleCount; i < nsamples; ++i)
+    for(; mySampleCount < nsamples; ++mySampleCount)
     {
-	XformSample sample;
-	sample.setMatrix(GABC_Util::getM(m));
-	myOXform.getSchema().set(sample);
-	bool vis = ((i + 1 == nsamples) && myVisible);
-	myVisibility.set(vis ? Alembic::AbcGeom::kVisibilityDeferred
-			     : Alembic::AbcGeom::kVisibilityHidden);
+	auto &schema = myOXform.getSchema();
+	bool cur = (mySampleCount + 1 == nsamples);
+
+	if(!mySampleCount || cur)
+	{
+	    bool vis = (myVisible && cur);
+	    XformSample sample;
+	    sample.setMatrix(GABC_Util::getM(m));
+	    schema.set(sample);
+	    myVisibility.set(vis ? Alembic::AbcGeom::kVisibilityDeferred
+				 : Alembic::AbcGeom::kVisibilityHidden);
+	}
+	else
+	{
+	    schema.setFromPrevious();
+	    myVisibility.set(Alembic::AbcGeom::kVisibilityHidden);
+	}
 
 	// update computed bounding box
 	if(full_bounds)
-	    myOXform.getSchema().getChildBoundsProperty().set(b3);
-    }
-    mySampleCount = nsamples;
+	    schema.getChildBoundsProperty().set(b3);
 
-    // update user properties
-    if(myUserPropVals.isstring() && myUserPropMeta.isstring())
-    {
-	OCompoundProperty props = myOXform.getSchema().getUserProperties();
-	myUserProperties.update(props, myUserPropVals, myUserPropMeta, myArchive);
+	// update user properties
+	if(!myUserPropVals.empty() && !myUserPropMeta.empty())
+	{
+	    OCompoundProperty props = schema.getUserProperties();
+	    myUserProperties.update(props, myUserPropVals, myUserPropMeta, myArchive);
+	}
     }
 }
 
@@ -109,25 +121,13 @@ ROP_AbcNodeXform::makeValid()
     myIsValid = true;
 }
 
-void
-ROP_AbcNodeXform::setLocked(bool locked)
-{
-    myLocked = locked;
-    if(myLocked)
-	return;
-
-    myPreMatrixSet = false;
-    myVisible = false;
-}
-
 bool
 ROP_AbcNodeXform::setPreMatrix(const UT_Matrix4D &m)
 {
-    if(!myPreMatrixSet)
-    {
-	myPreMatrix = m;
-	myPreMatrixSet = true;
-	return true;
-    }
-    return false;
+    if(myPreMatrixSet)
+	return false;
+
+    myPreMatrix = m;
+    myPreMatrixSet = true;
+    return true;
 }

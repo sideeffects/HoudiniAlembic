@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -54,6 +54,9 @@ public:
     /// that name.
     void makeCollisionFreeName(std::string &name) const;
 
+    // Returns the children of this node.
+    const UT_SortedMap<std::string, ROP_AbcNode *> &getChildren() const { return myChildren; }
+
     /// Adds a new child node.
     void addChild(ROP_AbcNode *child);
 
@@ -64,13 +67,6 @@ public:
     /// node.
     virtual OObject getOObject() = 0;
 
-    /// Clears the current sample data.
-    virtual void clearData()
-    {
-	for(auto &it : myChildren)
-	    it.second->clearData();
-    }
-
     /// Sets a new current Alembic archive.  All references to the previous
     /// Alembic archive are released.
     virtual void setArchive(const ROP_AbcArchivePtr &archive)
@@ -80,8 +76,12 @@ public:
 	    it.second->setArchive(archive);
     }
 
+    /// Hook to prepare node for calls to setData().
+    virtual void preUpdate(bool locked) {}
     /// Exports the current sample data update the computed bounding box.
     virtual void update() = 0;
+    /// Hook to clean up node after calls to update().
+    virtual void postUpdate(bool locked) {}
 
     /// Returns the last computed bounding box.
     const UT_BoundingBox &getBBox() const { return myBox; }

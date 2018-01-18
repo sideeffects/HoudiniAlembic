@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -42,7 +42,7 @@ typedef GABC_Util::PropertyMap PropertyMap;
 class ROP_AbcUserProperties
 {
 public:
-    ROP_AbcUserProperties() : mySampleCount(0) {}
+    ROP_AbcUserProperties() : myIsValid(false) {}
     ~ROP_AbcUserProperties() { clear(); }
 
     /// releases all references to user property data
@@ -58,7 +58,7 @@ private:
 		    const ROP_AbcArchivePtr &archive);
 
     PropertyMap myProps;
-    exint mySampleCount;
+    bool myIsValid;
 };
 
 #endif

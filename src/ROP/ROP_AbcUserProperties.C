@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -30,10 +30,10 @@
 void
 ROP_AbcUserProperties::clear()
 {
-    mySampleCount = 0;
     for(auto it = myProps.begin(); it != myProps.end(); ++it)
 	delete it->second;
     myProps.clear();
+    myIsValid = false;
 }
 
 void
@@ -43,12 +43,13 @@ ROP_AbcUserProperties::update(
     const UT_StringHolder &meta,
     const ROP_AbcArchivePtr &archive)
 {
-    if(!mySampleCount)
+    if(!myIsValid)
+    {
 	exportData(&props, vals, meta, archive);
+	myIsValid = true;
+    }
 
-    exint nsamples = archive->getSampleCount();
-    for(; mySampleCount < nsamples; ++mySampleCount)
-	exportData(nullptr, vals, meta, archive);
+    exportData(nullptr, vals, meta, archive);
 }
 
 void

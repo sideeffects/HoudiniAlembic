@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -42,6 +42,7 @@ ROP_AbcNodeCamera::setArchive(const ROP_AbcArchivePtr &archive)
     myOCamera = OCamera();
     ROP_AbcNode::setArchive(archive);
     myIsValid = false;
+    mySampleCount = 0;
 }
 
 OObject
@@ -56,39 +57,49 @@ ROP_AbcNodeCamera::update()
 {
     makeValid();
 
-    fpreal raspect = fpreal(myResY) / myResX;
-
-    CameraSample sample;
-    sample.setFocalLength(myFocalLength);
-    sample.setFStop(myFStop);
-    sample.setFocusDistance(myFocusDistance);
-
-    sample.setShutterOpen(0);
-    sample.setShutterClose(myShutterClose);
-
-    sample.setNearClippingPlane(myNearClippingPlane);
-    sample.setFarClippingPlane(myFarClippingPlane);
-
-    sample.setOverScanLeft(0);
-    sample.setOverScanRight(0);
-    sample.setOverScanTop(0);
-    sample.setOverScanBottom(0);
-
-    // We need to output the filmback fit and post projection transform
-    FilmBackXformOp winsize = FilmBackXformOp(Alembic::AbcGeom::kScaleFilmBackOperation, "winsize");
-    sample.addOp(winsize);
-    sample[0].setChannelValue(0, (1.0 / myWinSizeX));
-    sample[0].setChannelValue(1, (1.0 / myWinSizeY));
-
-    sample.setHorizontalAperture(myHorizontalAperture);
-    sample.setVerticalAperture(raspect * myVerticalAperture);
-    sample.setHorizontalFilmOffset(myHorizontalFilmOffset);
-    sample.setVerticalFilmOffset(raspect * myVerticalFilmOffset);
-    sample.setLensSqueezeRatio(myLensSqueezeRatio);
-
     exint nsamples = myArchive->getSampleCount();
-    for(exint i = myOCamera.getSchema().getNumSamples(); i < nsamples; ++i)
-	myOCamera.getSchema().set(sample);
+    for(; mySampleCount < nsamples; ++mySampleCount)
+    {
+	auto &schema = myOCamera.getSchema();
+	bool cur = (mySampleCount + 1 == nsamples);
+
+	if(!mySampleCount || cur)
+	{
+	    fpreal raspect = fpreal(myResY) / myResX;
+
+	    CameraSample sample;
+	    sample.setFocalLength(myFocalLength);
+	    sample.setFStop(myFStop);
+	    sample.setFocusDistance(myFocusDistance);
+
+	    sample.setShutterOpen(0);
+	    sample.setShutterClose(myShutterClose);
+
+	    sample.setNearClippingPlane(myNearClippingPlane);
+	    sample.setFarClippingPlane(myFarClippingPlane);
+
+	    sample.setOverScanLeft(0);
+	    sample.setOverScanRight(0);
+	    sample.setOverScanTop(0);
+	    sample.setOverScanBottom(0);
+
+	    // We need to output the filmback fit and post projection transform
+	    FilmBackXformOp winsize = FilmBackXformOp(Alembic::AbcGeom::kScaleFilmBackOperation, "winsize");
+	    sample.addOp(winsize);
+	    sample[0].setChannelValue(0, (1.0 / myWinSizeX));
+	    sample[0].setChannelValue(1, (1.0 / myWinSizeY));
+
+	    sample.setHorizontalAperture(myHorizontalAperture);
+	    sample.setVerticalAperture(raspect * myVerticalAperture);
+	    sample.setHorizontalFilmOffset(myHorizontalFilmOffset);
+	    sample.setVerticalFilmOffset(raspect * myVerticalFilmOffset);
+	    sample.setLensSqueezeRatio(myLensSqueezeRatio);
+
+	    schema.set(sample);
+	}
+	else
+	    schema.setFromPrevious();
+    }
 }
 
 void

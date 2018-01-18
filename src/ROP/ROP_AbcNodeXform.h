@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -47,22 +47,19 @@ class ROP_AbcNodeXform : public ROP_AbcNode
 public:
     ROP_AbcNodeXform(const std::string &name)
 	: ROP_AbcNode(name), myMatrix(1), myPreMatrix(1), myPreMatrixSet(false),
-	  myIsValid(false), myVisible(false), myLocked(false) {}
+	  myIsValid(false), myVisible(false) {}
 
     virtual OObject getOObject();
-    virtual void clearData();
     virtual void setArchive(const ROP_AbcArchivePtr &archive);
+    virtual void preUpdate(bool locked);
     virtual void update();
 
-    /// When locked update() uses the previously written sample instead of the
-    /// current sample.
-    void setLocked(bool locked);
     /// Sets the current user properties.
-    void setUserProperties(const UT_String &vals, const UT_String &meta)
+    void setUserProperties(const std::string &vals, const std::string &meta)
 	    { myUserPropVals = vals; myUserPropMeta = meta; }
     /// Sets the current transform.
-    void setData(const UT_Matrix4D &m, bool visible)
-	    { myMatrix = m; myVisible = visible; }
+    void setData(const UT_Matrix4D &m) { myMatrix = m; }
+    void setVisibility(bool vis) { myVisible = vis; }
     /// Sets an option pretransform.
     bool setPreMatrix(const UT_Matrix4D &m);
     /// Gets the current transform.
@@ -74,8 +71,8 @@ private:
     OXform myOXform;
     OVisibilityProperty myVisibility;
 
-    UT_StringHolder myUserPropVals;
-    UT_StringHolder myUserPropMeta;
+    std::string myUserPropVals;
+    std::string myUserPropMeta;
     ROP_AbcUserProperties myUserProperties;
 
     UT_Matrix4D myMatrix;
@@ -84,7 +81,6 @@ private:
     bool myPreMatrixSet;
     bool myIsValid;
     bool myVisible;
-    bool myLocked;
 };
 
 #endif

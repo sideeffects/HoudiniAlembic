@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -41,29 +41,29 @@ class ROP_AbcNodeShape : public ROP_AbcNode
 {
 public:
     ROP_AbcNodeShape(const std::string &name)
-	: ROP_AbcNode(name), myVisible(false), myLocked(false) {}
+	: ROP_AbcNode(name), myVisible(false) {}
 
     virtual OObject getOObject();
-    virtual void clearData();
     virtual void setArchive(const ROP_AbcArchivePtr &archive);
+    virtual void preUpdate(bool locked);
     virtual void update();
+    virtual void postUpdate(bool locked);
 
-    /// When locked update() uses the previously written sample instead of the
-    /// current sample.
-    void setLocked(bool locked);
     /// Sets the current user properties.
-    void setUserProperties(const UT_String &vals, const UT_String &meta)
+    void setUserProperties(const std::string &vals, const std::string &meta)
 	    { myUserPropVals = vals; myUserPropMeta = meta; }
     /// Sets the current geometry.
     void setData(const GT_PrimitiveHandle &prim, bool visible)
 	    { myPrim = prim; myVisible = visible; }
 
 private:
+    void clear();
+
     UT_UniquePtr<GABC_OGTGeometry> myWriter; 
     exint mySampleCount;
 
-    UT_StringHolder myUserPropVals;
-    UT_StringHolder myUserPropMeta;
+    std::string myUserPropVals;
+    std::string myUserPropMeta;
     ROP_AbcUserProperties myUserProperties;
 
     GT_PrimitiveHandle myPrim;
