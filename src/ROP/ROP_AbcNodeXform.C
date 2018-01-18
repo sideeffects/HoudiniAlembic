@@ -52,7 +52,6 @@ ROP_AbcNodeXform::preUpdate(bool locked)
 {
     if(!locked)
     {
-	myPreMatrixSet = false;
 	myVisible = false;
 	myUserPropVals.clear();
 	myUserPropMeta.clear();
@@ -65,7 +64,6 @@ ROP_AbcNodeXform::update()
 {
     makeValid();
 
-    UT_Matrix4D m = myPreMatrix * myMatrix;
     myBox.initBounds();
     for(auto &it : myChildren)
     {
@@ -73,7 +71,7 @@ ROP_AbcNodeXform::update()
 	myBox.enlargeBounds(it.second->getBBox());
     }
     Box3d b3 = GABC_Util::getBox(myBox);
-    myBox.transform(m);
+    myBox.transform(myMatrix);
 
     bool full_bounds = myArchive->getOOptions().fullBounds();
     exint nsamples = myArchive->getSampleCount();
@@ -86,7 +84,7 @@ ROP_AbcNodeXform::update()
 	{
 	    bool vis = (myVisible && cur);
 	    XformSample sample;
-	    sample.setMatrix(GABC_Util::getM(m));
+	    sample.setMatrix(GABC_Util::getM(myMatrix));
 	    schema.set(sample);
 	    myVisibility.set(vis ? Alembic::AbcGeom::kVisibilityDeferred
 				 : Alembic::AbcGeom::kVisibilityHidden);
@@ -119,15 +117,4 @@ ROP_AbcNodeXform::makeValid()
     myOXform = OXform(myParent->getOObject(), myName, myArchive->getTimeSampling());
     myVisibility = CreateVisibilityProperty(myOXform, myArchive->getTimeSampling());
     myIsValid = true;
-}
-
-bool
-ROP_AbcNodeXform::setPreMatrix(const UT_Matrix4D &m)
-{
-    if(myPreMatrixSet)
-	return false;
-
-    myPreMatrix = m;
-    myPreMatrixSet = true;
-    return true;
 }

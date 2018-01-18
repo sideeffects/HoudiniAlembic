@@ -46,8 +46,7 @@ class ROP_AbcNodeXform : public ROP_AbcNode
 {
 public:
     ROP_AbcNodeXform(const std::string &name)
-	: ROP_AbcNode(name), myMatrix(1), myPreMatrix(1), myPreMatrixSet(false),
-	  myIsValid(false), myVisible(false) {}
+	: ROP_AbcNode(name), myMatrix(1), myIsValid(false), myVisible(false) {}
 
     virtual OObject getOObject();
     virtual void setArchive(const ROP_AbcArchivePtr &archive);
@@ -60,8 +59,6 @@ public:
     /// Sets the current transform.
     void setData(const UT_Matrix4D &m) { myMatrix = m; }
     void setVisibility(bool vis) { myVisible = vis; }
-    /// Sets an option pretransform.
-    bool setPreMatrix(const UT_Matrix4D &m);
     /// Gets the current transform.
     const UT_Matrix4D &getMatrix() const { return myMatrix; }
 
@@ -76,9 +73,7 @@ private:
     ROP_AbcUserProperties myUserProperties;
 
     UT_Matrix4D myMatrix;
-    UT_Matrix4D myPreMatrix;
     exint mySampleCount;
-    bool myPreMatrixSet;
     bool myIsValid;
     bool myVisible;
 };
