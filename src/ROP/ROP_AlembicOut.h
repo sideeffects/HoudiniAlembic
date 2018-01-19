@@ -29,7 +29,7 @@
 #define __ROP_AlembicOut__
 
 #include <ROP/ROP_Node.h>
-#include "ROP_AbcArchive.h"
+#include "ROP_AbcHierarchy.h"
 #include "ROP_AbcNodeCamera.h"
 #include "ROP_AbcNodeInstance.h"
 #include "ROP_AbcNodeShape.h"
@@ -37,24 +37,13 @@
 
 #include <GA/GA_Handle.h>
 #include <GA/GA_Range.h>
-#include <UT/UT_Array.h>
 #include <UT/UT_Interrupt.h>
-#include <UT/UT_Map.h>
 #include <UT/UT_UniquePtr.h>
 
 class GA_PrimitiveGroup;
 class OBJ_Camera;
 class OBJ_Geometry;
 class OBJ_Node;
-
-class rop_AbcHierarchySample;
-
-enum ROP_AlembicPackedTransform
-{
-    ROP_ALEMBIC_PACKEDTRANSFORM_DEFORM_GEOMETRY,
-    ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM_GEOMETRY,
-    ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM
-};
 
 class ROP_AlembicOut : public ROP_Node
 {
@@ -138,74 +127,6 @@ protected:
 		{ return evalFloat("shutter", 1, time); }
 
 private:
-    class Hierarchy
-    {
-	class Node
-	{
-	public:
-	    Node(ROP_AbcNode *node=nullptr) : myAbcNode(node) {}
-
-	    ROP_AbcNode *getAbcNode() const { return myAbcNode; }
-
-	    UT_Map<std::string, Node> &getChildren() { return myChildren; }
-	    const UT_Map<std::string, UT_Map<int, UT_Array<ROP_AbcNodeShape *> > > &getShapes() const { return myShapes; }
-	    const UT_Map<std::string, UT_Map<int, UT_Array<exint> > > &getInstancedShapes() const { return myInstancedShapes; }
-
-	    Node *setChild(const std::string &name,
-			   const ROP_AbcArchivePtr &arch,
-			   const UT_Matrix4D &m,
-			   const std::string &up_vals,
-			   const std::string &up_meta);
-
-	    void setShape(const std::string &name, int type, exint i,
-			  const ROP_AbcArchivePtr &arch,
-			  const GT_PrimitiveHandle &prim, bool visible,
-			  const std::string &up_vals,
-			  const std::string &up_meta);
-
-	    ROP_AbcNodeShape *
-	    newInstanceSource(const std::string &name, int type, exint key2,
-			      const ROP_AbcArchivePtr &arch,
-			      const GT_PrimitiveHandle &prim,
-			      const std::string &up_vals,
-			      const std::string &up_meta);
-
-	    void newInstanceRef(const std::string &name, int type, exint key2,
-				const ROP_AbcArchivePtr &arch,
-				ROP_AbcNodeShape *src);
-
-	    void setVisibility(bool vis);
-
-	private:
-	    ROP_AbcNode *myAbcNode; // root or xform
-	    UT_Map<std::string, Node> myChildren;
-	    UT_Map<std::string, UT_Map<int, UT_Array<ROP_AbcNodeShape *> > > myShapes;
-	    UT_Map<std::string, UT_Map<int, UT_Array<exint> > > myInstancedShapes;
-	    // FIXME: add support for cameras
-	};
-
-    public:
-	Hierarchy(ROP_AbcNode *root)
-	    : myRoot(root)
-	    , myNextInstanceId(0)
-	    , myLocked(false) {}
-
-	ROP_AbcNode *getRoot() const { return myRoot.getAbcNode(); }
-
-	void update(ROP_AbcArchivePtr &arch,
-		    const rop_AbcHierarchySample &src,
-		    const UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > &instance_map);
-
-	void setLocked(bool locked) { myLocked = locked; }
-	bool getLocked() const { return myLocked; }
-
-    private:
-	Node myRoot;
-	UT_Map<int, UT_Map<exint, ROP_AbcNodeShape *> > myInstancedShapes;
-	exint myNextInstanceId;
-	bool myLocked;
-    };
-
     class rop_OError : public GABC_OError
     {
     public:
@@ -222,7 +143,7 @@ private:
 
     const GA_PrimitiveGroup *getSubdGroup(bool &subd_all, OBJ_Geometry *geo,
 					  const GU_Detail *gdp, fpreal time);
-    void refineSop(Hierarchy &assignments,
+    void refineSop(ROP_AbcHierarchy &assignments,
 		   ROP_AlembicPackedTransform packedtransform,
 		   exint facesetmode, bool use_instancing, bool shape_nodes,
 		   bool displaysop, bool save_hidden, OBJ_Geometry *geo,
@@ -254,12 +175,12 @@ private:
     // temporary storage when exporting an OBJ hierarchy
     UT_Map<OBJ_Node *, ROP_AbcNodeXform *> myObjAssignments;
     UT_Map<OBJ_Camera *, ROP_AbcNodeCamera *> myCamAssignments;
-    UT_Map<OBJ_Geometry *, Hierarchy> myGeoAssignments;
+    UT_Map<OBJ_Geometry *, ROP_AbcHierarchy> myGeoAssignments;
     // keys of myGeoAssignments for deterministic OBJ_Geometry traversal
     UT_Array<OBJ_Geometry *> myGeos;
 
     // temporary storage when exporting a SOP hierarchy
-    UT_UniquePtr<Hierarchy> mySopAssignments;
+    UT_UniquePtr<ROP_AbcHierarchy> mySopAssignments;
 };
 
 #endif
