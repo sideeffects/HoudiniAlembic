@@ -75,6 +75,12 @@ ROP_AbcHierarchySample::appendInstancedShape(
 }
 
 exint
+ROP_AbcHierarchySample::getNextInstanceId(const std::string &name)
+{
+    return ++myInstanceCount[name];
+}
+
+exint
 ROP_AbcHierarchySample::getNextPackedId(const std::string &name)
 {
     return ++myPackedCount[name];

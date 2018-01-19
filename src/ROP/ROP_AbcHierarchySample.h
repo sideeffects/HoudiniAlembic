@@ -113,6 +113,8 @@ public:
     void appendShape(const std::string &name, const GT_PrimitiveHandle &prim, bool visible, const std::string &userprops, const std::string &userpropsmeta);
     // adds a child instanced shape node
     void appendInstancedShape(const std::string &name, int type, const std::string &key, exint idx, bool visible, const std::string &up_vals, const std::string &up_meta);
+    // gets (and increments) the ID for the next child instance transform
+    exint getNextInstanceId(const std::string &name);
     // gets (and increments) the ID for the next child packed transform
     exint getNextPackedId(const std::string &name);
 
@@ -132,6 +134,8 @@ private:
     // list of all child instanced shapes (along with visibility, and user
     // properties) by name and primitive type
     UT_Map<std::string, UT_Map<int, UT_Array<std::tuple<std::string, exint, bool, std::string, std::string> > > > myInstancedShapes;
+    // number of written instance child xform nodes
+    UT_Map<std::string, exint> myInstanceCount;
     // number of written packed child xform nodes
     UT_Map<std::string, exint> myPackedCount;
 

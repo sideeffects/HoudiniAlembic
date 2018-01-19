@@ -394,7 +394,9 @@ ROP_AbcRefiner::processInstance(const GT_PrimitiveHandle &prim)
 	    auto new_root = myRoot;
 	    if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_TRANSFORM_GEOMETRY)
 	    {
-		buf.sprintf("%s_instance%" SYS_PRId64, myName.c_str(), i + 1);
+		buf.sprintf("%s_instance%" SYS_PRId64,
+			    myName.c_str(),
+			    saved_root->getNextInstanceId(myName));
 		new_root = new_root->getChildXform(buf.toStdString());
 		new_root->setXform(m);
 	    }
@@ -485,17 +487,18 @@ ROP_AbcRefiner::processPacked(const GT_PrimitiveHandle &prim)
 
     const GT_GEOPrimPacked *packed =
 		static_cast<const GT_GEOPrimPacked *>(prim.get());
+    const GU_PrimPacked *pr =
+	static_cast<const GU_PrimPacked *>(packed->getPrim());
 
     std::string saved_key = myInstanceKey;
+    ropGetInstanceKey(myInstanceKey, pr);
+
     bool saved_vis = myVisible;
     if(type == GT_PRIM_ALEMBIC_SHAPE)
     {
-	const GU_PrimPacked *pr =
-	    static_cast<const GU_PrimPacked *>(packed->getPrim());
 	const GABC_PackedImpl *impl =
 	    static_cast<const GABC_PackedImpl *>(pr->implementation());
 	myVisible &= (impl->intrinsicFullVisibility(pr) != 0);
-	ropGetInstanceKey(myInstanceKey, pr);
     }
 
     // use the packed primitive's pivot as the geometry's origin
