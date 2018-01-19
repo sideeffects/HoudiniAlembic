@@ -27,6 +27,8 @@
 
 #include "ROP_AbcHierarchySample.h"
 
+#include <UT/UT_WorkBuffer.h>
+
 ROP_AbcHierarchySample *
 ROP_AbcHierarchySample::getChildXform(const std::string &name)
 {
