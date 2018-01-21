@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -49,6 +49,7 @@
 #include <GT/GT_PrimSubdivisionMesh.h>
 #include <GT/GT_PrimNuPatch.h>
 #include <GT/GT_TrimNuCurves.h>
+#include <GA/GA_Names.h>
 #include <Alembic/AbcGeom/All.h>
 #include <Alembic/AbcMaterial/All.h>
 #include <Alembic/AbcCoreHDF5/All.h>
@@ -1081,7 +1082,9 @@ namespace
 
     static void
     initializeHoudiniAttributes(const GEO_Primitive &prim,
-	    GT_AttributeMap &map, GA_AttributeOwner owner)
+				GT_AttributeMap &map,
+				GA_AttributeOwner owner,
+				int load_style)
     {
 	const GA_Detail		&gdp = prim.getDetail();
 	const GA_AttributeDict	&dict = gdp.getAttributes().getDict(owner);
@@ -1089,6 +1092,14 @@ namespace
 		!it.atEnd(); ++it)
 	{
 	    const GA_Attribute	*attrib = it.attrib();
+	    if((load_style & GABC_IObject::GABC_LOAD_NO_MATERIAL_ATTRIBS) &&
+	       (attrib->getName() == GA_Names::material_stylesheet ||
+		attrib->getName() == GA_Names::material_override ||
+		attrib->getName() == GA_Names::shop_materialpath))
+	    {
+		continue;
+	    }
+	    
 	    if (attrib->getAIFTuple() || attrib->getAIFStringTuple())
 		map.add(attrib->getName(), false);
 	}
@@ -1159,8 +1170,10 @@ namespace
 		&& (load_style & GABC_IObject::GABC_LOAD_HOUDINI)
 		&& matchScope(gabcConstantScope, scope, scope_size))
 	{
-	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_PRIMITIVE);
-	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_GLOBAL);
+	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_PRIMITIVE,
+					load_style);
+	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_GLOBAL,
+					load_style);
 	}
 
 	if (!map->entries())
