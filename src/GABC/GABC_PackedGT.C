@@ -653,6 +653,7 @@ GABC_PackedAlembic::getFullGeometry(const GT_RefineParms *parms,
 	    load_style |= GABC_IObject::GABC_LOAD_GL_OPTIMIZED;
 	
 	load_style |= GABC_IObject::GABC_LOAD_USE_GL_CACHE;
+	load_style |= GABC_IObject::GABC_LOAD_NO_MATERIAL_ATTRIBS;
     }
     else
     {

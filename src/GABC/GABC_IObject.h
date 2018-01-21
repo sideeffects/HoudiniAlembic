@@ -164,7 +164,8 @@ public:
 	GABC_LOAD_IGNORE_VISIBILITY	= 0x2000,
 	// Load an optimized version for GL (single attrib freq, triangulated)
 	GABC_LOAD_GL_OPTIMIZED		= 0x4000,
-	GABC_LOAD_USE_GL_CACHE		= 0x8000
+	GABC_LOAD_USE_GL_CACHE		= 0x8000,
+	GABC_LOAD_NO_MATERIAL_ATTRIBS	= 0x10000
     };
 
     UT_StringHolder getAttributes(const GEO_PackedNameMapPtr &namemap,
