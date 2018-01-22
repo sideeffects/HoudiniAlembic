@@ -1029,7 +1029,7 @@ GABC_PackedImpl::getPropertiesHash() const
 }
 
 void
-GABC_PackedImpl::setViewportCache(GABC_AlembicCache *cache) const
+GABC_PackedImpl::setViewportCache(GT_AlembicCache *cache) const
 {
     myViewportCache = cache;
 }
