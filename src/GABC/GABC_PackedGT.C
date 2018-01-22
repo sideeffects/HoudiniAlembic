@@ -499,39 +499,12 @@ GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
 				       const GU_PrimPacked *prim,
 				       const GT_DataArrayHandle &vp_mat,
 				       const GT_DataArrayHandle &vp_remap)
-    : GT_GEOPrimPacked(prim_gdh, prim),
-      myID(0),
-      myAnimType(GEO_ANIMATION_INVALID),
-      myAnimVis(false),
-      myVisibleConst(true),
-      myFrame(0.0)
+    : GT_PackedAlembic(prim_gdh, prim, vp_mat, vp_remap)
 {
-    myOffset = prim ? prim->getMapOffset() : GA_INVALID_OFFSET;
-    if(prim)
-    {
-	GT_DataArrayHandle index, mat_id, mat_remap;
-	
-	index = new GT_DAConstantValue<int64>(1,prim->getMapIndex());
-
-	if(vp_mat)
-	{
-	    mat_id = new GT_DAIndirect(index, vp_mat);
-	    appendAttribute("MatID", mat_id);
-	}
-	if(vp_remap)
-	{
-	    mat_remap = new GT_DAIndirect(index, vp_remap);
-	    appendAttribute("MatRemap", mat_remap);
-	}
-    }
 }
 
 GABC_PackedAlembic::GABC_PackedAlembic(const GABC_PackedAlembic &src)
-    : GT_GEOPrimPacked(src),
-      myID(src.myID),
-      myOffset(src.myOffset),
-      myFrame(src.myFrame),
-      myDetailAttribs(src.myDetailAttribs)
+    : GT_PackedAlembic(src)
 {
 }
 
@@ -800,20 +773,6 @@ GABC_PackedAlembic::getInstanceKey(UT_Options &options) const
     return true;
 }
 
-GT_TransformHandle
-GABC_PackedAlembic::fullCachedTransform()
-{
-    GT_TransformHandle th;
-    if(!getCachedTransform(th))
-    {
-	th = getLocalTransform();
-	if(th)
-	    cacheTransform(th);
-    }
-
-    return applyPrimTransform(th);
-}
-
 bool
 GABC_PackedAlembic::isVisible()
 {
@@ -831,21 +790,6 @@ GABC_PackedAlembic::isVisible()
     }
 
     return visible;
-}
-
-
-GT_TransformHandle 
-GABC_PackedAlembic::applyPrimTransform(const GT_TransformHandle &th) const
-{
-    UT_Matrix4D xform;
-    if(th)
-	th->getMatrix(xform);
-    else
-	xform.identity();
-	    
-    getPrim()->multiplyByPrimTransform(xform);
-
-    return new GT_Transform(&xform, 1);
 }
 
 GT_TransformHandle
@@ -1340,8 +1284,8 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 		
 		// UTdebugPrint("Mesh size",UTverify_cast<GT_PrimPolygonMesh*>
 		// 		 (merged_mesh.get())->getFaceCount());
-		shapes.append(new GABC_PackedAlembicMesh(merged_mesh, id,
-							 anim_merge_packs(i)));
+		shapes.append(new GT_PackedAlembicMesh(merged_mesh, id,
+						       anim_merge_packs(i)));
 	    }
 	}
 	
@@ -1353,7 +1297,7 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 		const int64 id = const_merge_ids(i);
 		// UTdebugPrint("Mesh size",UTverify_cast<GT_PrimPolygonMesh*>
 		// 		 (merged_mesh.get())->getFaceCount());
-		shapes.append(new GABC_PackedAlembicMesh(merged_mesh, id));
+		shapes.append(new GT_PackedAlembicMesh(merged_mesh, id));
 	    }
 	}
     }
@@ -1389,33 +1333,11 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 GABC_PackedArchive::GABC_PackedArchive(const UT_StringHolder &arch,
 				       const GT_GEODetailListHandle &dlist,
 				       const GABC_IArchivePtr &archive)
-    : myName(arch),
-      myDetailList(dlist),
-      myArchive(archive),
-      myHasConstSubset(false),
-      myHasTransSubset(false),
-      myAlembicVersion(0)
+    : GT_PackedAlembicArchive(arch, dlist),
+      myArchive(archive)
 {
 }
 
-void
-GABC_PackedArchive::setRefinedSubset(bool has_const,
-				     UT_IntArray &const_indices,
-				     bool has_trans,
-				     UT_IntArray &trans_indices)
-{
-    myHasConstSubset = has_const;
-    myHasTransSubset = has_trans;
-    if(has_const)
-	myConstSubset = std::move(const_indices);
-    else
-	myConstSubset.entries(0);
-    if(has_trans)
-	myTransSubset = std::move(trans_indices);
-    else
-	myTransSubset.entries(0);
-}
-    
 //#define TIME_BUCKETTING
 #ifdef TIME_BUCKETTING
 #include <UT/UT_StopWatch.h>
@@ -1433,7 +1355,7 @@ GABC_PackedArchive::setRefinedSubset(bool has_const,
 //#define DEBUG_COMBINED_SHAPES 0
 
 bool
-GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
+GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
 				const GT_RefineParms *parms,
 				bool force_update)
 {
@@ -1629,21 +1551,23 @@ GABC_PackedArchive::bucketPrims(const GABC_PackedArchive *prev_archive,
 }
 
 bool
-GABC_PackedArchive::archiveMatch(const GABC_PackedArchive *archive) const
+GABC_PackedArchive::archiveMatch(const GT_PackedAlembicArchive *archive) const
 {
     // This checks if a new archive is compatible with another, usually for
     // in-place update purposes.
+    auto &offsets = archive->getAlembicOffsets();
+    auto &objects = archive->getAlembicObjects();
 
     // Archives are not the same, or don't have the same contents.
     if(myName != archive->archiveName() ||
-       myAlembicOffsets.entries() != archive->myAlembicOffsets.entries() ||
-       myAlembicOffsets.entries() != archive->myAlembicObjects.size())
+       myAlembicOffsets.entries() != offsets.entries() ||
+       myAlembicObjects.entries() != objects.size())
     {
 	return false;
     }
 
     // Archive was reloaded
-    if(archive && archive->myAlembicVersion != myAlembicVersion)
+    if(archive && archive->getAlembicVersion() != myAlembicVersion)
 	return false;
 
     GU_DetailHandleAutoReadLock this_lock(myDetailList->getGeometry(0));
@@ -1654,7 +1578,7 @@ GABC_PackedArchive::archiveMatch(const GABC_PackedArchive *archive) const
 	GA_Offset src_off = myAlembicOffsets(i);
 
 	// If offsets are not the same, in-place updates can't occur.
-	if(src_off != archive->myAlembicOffsets(i))
+	if(src_off != offsets(i))
 	    return false;
 	
 	const GU_PrimPacked *this_prim = static_cast<const GU_PrimPacked *>
@@ -1663,32 +1587,13 @@ GABC_PackedArchive::archiveMatch(const GABC_PackedArchive *archive) const
 	    (this_prim->implementation());
 
 	// If the objects are not the same, inplace updates can't occur.
-	if(archive->myAlembicObjects(i) !=
-	   this_impl->object().getFullName().c_str())
+	if(objects(i) != this_impl->object().getFullName().c_str())
 	    return false;
     }
 
     return true;
 }
 
-
-void
-GABC_PackedArchive::enlargeBounds(UT_BoundingBox boxes[],
-			     int nsegments) const
-{
-    // do nothing.
-}
-int64
-GABC_PackedArchive::getMemoryUsage() const
-{
-    return 0;
-}
-
-GT_PrimitiveHandle
-GABC_PackedArchive::doSoftCopy() const
-{
-    return NULL;
-}
 // -------------------------------------------------------------------------
 
 GABC_PackedInstance::GABC_PackedInstance()
@@ -1861,188 +1766,6 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 	}
     }
     return updated;
-}
-
-// -------------------------------------------------------------------------
-
-GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GT_PrimitiveHandle &geo,
-					       int64 id)
-    : myMeshGeo(geo),
-      myID(id),
-      myTransID(0),
-      myVisID(0),
-      myAlembicVersion(0)
-{
-}
-
-GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GT_PrimitiveHandle &geo,
-					       int64 id,
-					       UT_Array<GT_PrimitiveHandle> &pa)
-    : myMeshGeo(geo),
-      myID(id),
-      myPrims(pa),
-      myAlembicVersion(0)
-{
-    if(geo->getDetailAttributes())
-    {
-	myTransformArray =  geo->getDetailAttributes()->get("PrimTransform");
-	myVisibilityArray = geo->getDetailAttributes()->get("PrimVisibility");
-    }
-}
-
-GABC_PackedAlembicMesh::GABC_PackedAlembicMesh(const GABC_PackedAlembicMesh &m)
-    : GT_Primitive(m),
-      myMeshGeo(m.myMeshGeo),
-      myID(m.myID),
-      myAlembicVersion(m.myAlembicVersion)
-{
-}
-
-
-bool
-GABC_PackedAlembicMesh::refine(GT_Refine &refiner,
-			       const GT_RefineParms *parms) const
-{
-    if(myMeshGeo)
-    {
-	refiner.addPrimitive(myMeshGeo);
-	return true;
-    }
-    return false;
-}
-
-void
-GABC_PackedAlembicMesh::enlargeBounds(UT_BoundingBox boxes[],
-				      int nsegments) const
-{
-    if(myMeshGeo)
-	myMeshGeo->enlargeBounds(boxes, nsegments);
-}
-
-int64
-GABC_PackedAlembicMesh::getMemoryUsage() const
-{
-    int64 size = sizeof(*this);
-    
-    if(myMeshGeo)
-	size += myMeshGeo->getMemoryUsage();
-    for(auto p : myPrims)
-	size += p->getMemoryUsage();
-    
-    return size;
-}
-
-void
-GABC_PackedAlembicMesh::update(bool initial)
-{
-    if(myPrims.entries() == 0)
-	return;
-
-    if(myTransformArray)
-    {
-	auto transform_array =
-	    UTverify_cast<GT_Real32Array *> (myTransformArray.get());
-
-	UT_ASSERT(myTransformArray->entries() == myPrims.entries() * 4);
-
-	bool      changed = initial;
-	fpreal32 *dest = transform_array->data();
-
-	for(auto p : myPrims)
-	{
-	    auto pack = UTverify_cast<GABC_PackedAlembic *>(p.get());
-	    GT_TransformHandle tr;
-	    UT_Matrix4F mat;
-
-	    if(pack->getCachedTransform(tr))
-		tr->getMatrix(mat);
-	    else
-	    {
-		tr= pack->getInstanceTransform();
-		if(tr)
-		{
-		    pack->cacheTransform(tr);
-		    tr->getMatrix(mat);
-		}
-		else
-		    mat = UT_Matrix4F::getIdentityMatrix();
-	    }
-
-	    if(changed || memcmp(dest, mat.data(),sizeof(UT_Matrix4F)) != 0)
-	    {
-		memcpy(dest, mat.data(), sizeof(UT_Matrix4F));
-		changed = true;
-	    }
-	    dest+=16;
-	}
-	UT_ASSERT(dest == (transform_array->data() + myPrims.entries()*16));
-    
-	if(changed)
-	    transform_array->setDataId( myTransID++ );
-    }
-
-    if(myVisibilityArray)
-    {
-	auto vis_array =
-	    UTverify_cast<GT_UInt8Array *>
-	    (myVisibilityArray.get());
-
-	bool changed = false;
-	uint8 *vis = vis_array->data();
-	for(auto p : myPrims)
-	{
-	    auto pack = UTverify_cast<GABC_PackedAlembic *>(p.get());
-	    bool visible = true;
-	    if(!pack->getCachedVisibility(visible))
-	    {
-		auto impl = UTverify_cast<const GABC_PackedImpl *>
-				(pack->getImplementation());
-		visible = impl->visibleGT();
-		pack->cacheVisibility(visible);
-	    }
-	    
-	    if(bool(*vis) != visible)
-	    {
-		*vis = visible;
-		changed = true;
-	    }
-
-	    vis++;
-	}
-	if(changed)
-	    vis_array->setDataId( myVisID++ );
-    }
-}
-
-// -------------------------------------------------------------------------
-
-bool
-GABC_AlembicCache::getVisibility(fpreal t, bool &visible) const
-{
-    if(!myVisibilityAnimated)
-	t = 0.0;
-    auto entry = myVisibility.find(t);
-    if(entry != myVisibility.end())
-    {
-	visible = entry->second;
-	return true;
-    }
-    return false;
-}
-
-bool
-GABC_AlembicCache::getTransform(fpreal t, UT_Matrix4D &transform) const
-{
-    if(!myTransformAnimated)
-      	t = 0.0;
-
-    auto entry = myTransform.find(t);
-    if(entry != myTransform.end())
-    {
-	transform = entry->second;
-	return true;
-    }
-    return false;
 }
 
 // -------------------------------------------------------------------------
