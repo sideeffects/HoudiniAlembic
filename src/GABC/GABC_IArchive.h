@@ -77,7 +77,7 @@ public:
     const std::string	&error() const		{ return myError; }
 
     /// Access the filename
-    const std::vector<std::string>	&filenames() const	{ return myFilenames; }
+    const std::vector<std::string> &filenames() const { return myFileNames; }
 
     /// Get the root object
     GABC_IObject	getTop() const;
@@ -130,8 +130,6 @@ public:
     static std::string filenamesToString(const std::vector<std::string> &filenames);
     /// @}
 
-    void getFileNamesKey(UT_StringHolder &key) const;
-
 private:
     void		 openArchive(const std::vector<std::string> &paths, int num_streams);
     void		 closeAndDelete();
@@ -151,7 +149,7 @@ private:
     void		 clearStream();
 
     SYS_AtomicInt32	 myRefCount;
-    std::vector<std::string> myFilenames;
+    std::vector<std::string> myFileNames;
     std::string		 myError;
     struct gabc_streamentry
     {

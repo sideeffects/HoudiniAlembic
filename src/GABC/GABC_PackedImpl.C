@@ -810,7 +810,8 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 	    if(use_cache)
 	    {
 		UT_StringHolder arch;
-		o.archive()->getFileNamesKey(arch);
+		GT_PackedGeoCache::buildAlembicArchiveName(arch,
+						o.archive()->filenames());
 
 		GT_PackedGeoCache::buildAlembicName(
 					    cache_name,
@@ -979,7 +980,8 @@ GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
 		GEO_AnimationType	atype = GEO_ANIMATION_INVALID;
 
 		UT_StringHolder arch;
-		o.archive()->getFileNamesKey(arch);
+		GT_PackedGeoCache::buildAlembicArchiveName(arch,
+						o.archive()->filenames());
 
 		GT_PackedGeoCache::buildAlembicName(
 		    cache_name,

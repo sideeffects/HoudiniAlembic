@@ -107,15 +107,15 @@ GABC_IArchive::closeAndDelete()
     if (myRefCount.load() != 0)
     {
 	// It's happened!
-	UT_ASSERT(theArchiveCache.find(myFilenames) != theArchiveCache.end());
+	UT_ASSERT(theArchiveCache.find(myFileNames) != theArchiveCache.end());
 	return;
     }
-    theArchiveCache.erase(myFilenames);
+    theArchiveCache.erase(myFileNames);
     delete this;
 }
 
 GABC_IArchive::GABC_IArchive(const std::vector<std::string> &paths, int num_streams)
-    : myFilenames(paths)
+    : myFileNames(paths)
     , myPurged(false)
     , myIsOgawa(false)
 {
@@ -236,7 +236,7 @@ GABC_IArchive::reopenStream(int num_streams)
     if(myArchive)
     {
 	clearStream();
-	openArchive(myFilenames, num_streams);
+	openArchive(myFileNames, num_streams);
 
         for (SetType::iterator it=myObjects.begin(); it!=myObjects.end(); ++it)
 	{
@@ -322,7 +322,7 @@ GABC_IArchive::purgeObjects()
     }
     myArchive = IArchive();
     clearStream();
-    theArchiveCache.erase(myFilenames);
+    theArchiveCache.erase(myFileNames);
 }
 
 void
@@ -338,20 +338,4 @@ GABC_IArchive::unreference(GABC_IItem *item)
 {
     UT_ASSERT(myObjects.count(item));
     myObjects.erase(item);
-}
-
-void
-GABC_IArchive::getFileNamesKey(UT_StringHolder &key) const
-{
-    UT_WorkBuffer buf;
-    buf.append('[');
-    exint npaths = myFilenames.size();
-    for(exint i = 0; i < npaths; ++i)
-    {
-	const std::string &name = myFilenames[i];
-	buf.appendSprintf("%" SYS_PRId64 "s%s",
-			  exint(name.length()), name.c_str());
-    }
-    buf.append(']');
-    key = buf.buffer();
 }

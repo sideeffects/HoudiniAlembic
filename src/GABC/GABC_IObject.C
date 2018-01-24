@@ -1432,7 +1432,8 @@ namespace
 	auto cache_da = new GT_DAIndexedString(1);
 
 	UT_StringHolder arch;
-	obj.archive()->getFileNamesKey(arch);
+	GT_PackedGeoCache::buildAlembicArchiveName(arch,
+						obj.archive()->filenames());
 
 	file_da->setString(0,0, arch.c_str());
 	time_da->set(t, 0);
