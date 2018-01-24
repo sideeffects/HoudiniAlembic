@@ -305,10 +305,13 @@ public:
 	{
 	    UT_WorkBuffer bucket_name;
 	    UT_StringHolder path = impl->object().getSourcePath();
-	    UT_StringHolder arch = impl->object().archive()->filename();
-	    
-	    bucket_name.sprintf("%" SYS_PRId64 ":%s:%s",
-				arch.length(), arch.c_str(), path.c_str());
+	    std::vector<std::string> filenames;
+	    filenames.push_back(impl->object().archive()->filename());
+
+	    UT_StringHolder arch;
+	    GT_PackedGeoCache::buildAlembicArchiveName(arch, filenames);
+
+	    bucket_name.sprintf("%s:%s", arch.c_str(), path.c_str());
 	    auto entry = myInstanceAnim.find( bucket_name.buffer() );
 	    GEO_AnimationType anim = impl->animationType();
 	    if(entry == myInstanceAnim.end())
@@ -332,13 +335,18 @@ public:
 	    if(!impl->object().valid())
 		return;
 	    GT_PrimitiveHandle archive;
-	    UT_StringHolder archname = impl->object().archive()->filename();
-	    auto entry = myViewportArchives.find( archname );
+	    std::vector<std::string> filenames;
+	    filenames.push_back(impl->object().archive()->filename());
+
+	    UT_StringHolder arch;
+	    GT_PackedGeoCache::buildAlembicArchiveName(arch, filenames);
+
+	    auto entry = myViewportArchives.find(arch);
 	    if(entry == myViewportArchives.end())
 	    {
-		archive = new GABC_PackedArchive(archname, myGeometry,
+		archive = new GABC_PackedArchive(arch, myGeometry,
 						 impl->object().archive());
-		myViewportArchives[ archname ] = archive;
+		myViewportArchives[arch] = archive;
 	    }
 	    else
 		archive = entry->second;
@@ -908,9 +916,15 @@ GABC_PackedAlembic::getCachedGeometry(GT_PrimitiveHandle &ph) const
     const int64 version = 0;
     UT_StringHolder cache_name;
 
+    std::vector<std::string> filenames;
+    filenames.push_back(o.archive()->filename());
+
+    UT_StringHolder arch;
+    GT_PackedGeoCache::buildAlembicArchiveName(arch, filenames);
+
     GT_PackedGeoCache::buildAlembicName(cache_name,
 					o.getSourcePath().c_str(),
-					o.archive()->filename().c_str(),
+					arch,
 					impl->frame());
     ph = GT_PackedGeoCache::findInstance(cache_name, version,
 					   impl->currentLoadStyle(), nullptr);
@@ -1364,7 +1378,7 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
     int num_streams = 1; 
 #ifdef USE_PRELOAD_STREAMS
     if(myArchive->isOgawa() &&
-       !GT_PackedGeoCache::hasAlembicFile(myName.c_str()))
+       !GT_PackedGeoCache::hasAlembicArchive(myName.c_str()))
     {
 	num_streams = DEFAULT_NUM_STREAMS;
 	int env = UT_EnvControl::getInt(ENV_HOUDINI_ALEMBIC_OGAWA_STREAMS);

@@ -1427,7 +1427,13 @@ namespace
 	auto obj_da = new GT_DAIndexedString(1);
 	auto time_da = new GT_DANumeric<fpreal32>(1,1);
 	auto cache_da = new GT_DAIndexedString(1);
-	file_da->setString(0,0, obj.archive()->filename().c_str());
+	std::vector<std::string> filenames;
+	filenames.push_back(obj.archive()->filename());
+
+	UT_StringHolder arch;
+	GT_PackedGeoCache::buildAlembicArchiveName(arch, filenames);
+
+	file_da->setString(0,0, arch.c_str());
 	time_da->set(t, 0);
 
 	if(anim > GEO_ANIMATION_TRANSFORM)

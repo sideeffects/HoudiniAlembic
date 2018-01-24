@@ -701,10 +701,16 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 			   (load_style & GABC_IObject::GABC_LOAD_USE_GL_CACHE));
 	    if(use_cache)
 	    {
+		std::vector<std::string> filenames;
+		filenames.push_back(o.archive()->filename());
+
+		UT_StringHolder arch;
+		GT_PackedGeoCache::buildAlembicArchiveName(arch, filenames);
+
 		GT_PackedGeoCache::buildAlembicName(
 					    cache_name,
 					    o.getSourcePath().c_str(),
-					    o.archive()->filename().c_str(),
+					    arch,
 					    myFrame);
 		myPrim = GT_PackedGeoCache::findInstance(cache_name, version,
 							 load_style, &atype);
@@ -866,10 +872,16 @@ GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
 		UT_StringHolder cache_name;
 		const int64 version = 0;
 		GEO_AnimationType	atype = GEO_ANIMATION_INVALID;
+		std::vector<std::string> filenames;
+		filenames.push_back(o.archive()->filename());
+
+		UT_StringHolder arch;
+		GT_PackedGeoCache::buildAlembicArchiveName(arch, filenames);
+
 		GT_PackedGeoCache::buildAlembicName(
 		    cache_name,
 		    o.getSourcePath().c_str(),
-		    o.archive()->filename().c_str(),
+		    arch,
 		    abc->frame());
 
 		if(GT_PackedGeoCache::findAnimation(cache_name, version, atype))
