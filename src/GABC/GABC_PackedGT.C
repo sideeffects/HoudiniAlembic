@@ -1561,16 +1561,24 @@ GABC_PackedArchive::archiveMatch(const GT_PackedAlembicArchive *archive) const
     auto &objects = archive->getAlembicObjects();
 
     // Archives are not the same, or don't have the same contents.
-    if(myName != archive->archiveName() ||
-       myAlembicOffsets.entries() != offsets.entries() ||
-       myAlembicObjects.entries() != objects.size())
+    if(myName != archive->archiveName())
     {
+	//UTdebugPrint("Name", myName, archive->archiveName());
+	return false;
+    }
+    if(myAlembicOffsets.entries() != offsets.entries())
+    {
+	// UTdebugPrint("offsets differ", myAlembicOffsets.entries(),
+	// 	     offsets.entries());
 	return false;
     }
 
     // Archive was reloaded
     if(archive && archive->getAlembicVersion() != myAlembicVersion)
+    {
+	//UTdebugPrint("versions differ");
 	return false;
+    }
 
     GU_DetailHandleAutoReadLock this_lock(myDetailList->getGeometry(0));
     const GU_Detail *this_dtl = this_lock.getGdp();
@@ -1581,7 +1589,10 @@ GABC_PackedArchive::archiveMatch(const GT_PackedAlembicArchive *archive) const
 
 	// If offsets are not the same, in-place updates can't occur.
 	if(src_off != offsets(i))
+	{
+	    //UTdebugPrint("Offset mismatch", src_off);
 	    return false;
+	}
 	
 	const GU_PrimPacked *this_prim = static_cast<const GU_PrimPacked *>
 	    (this_dtl->getPrimitive(src_off));
@@ -1590,7 +1601,10 @@ GABC_PackedArchive::archiveMatch(const GT_PackedAlembicArchive *archive) const
 
 	// If the objects are not the same, inplace updates can't occur.
 	if(objects(i) != this_impl->object().getFullName().c_str())
+	{
+	    //UTdebugPrint("Obj mismatch");
 	    return false;
+	}
     }
 
     return true;
