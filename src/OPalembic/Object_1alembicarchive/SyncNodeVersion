@@ -3,9 +3,8 @@ oldversion = kwargs['old_version']
 
 if oldversion == '':
     parm = node.parm('fileName')
-    filename = parm.eval()
-    if filename:
+    if not parm.isAtDefault(False, True):
         node.parm('numFiles').set(1)
         node.parm('enableFile1').set(1)
-        node.parm('fileName1').set(filename)
+        node.parm('fileName1').setFromParm(parm)
         parm.set('')
