@@ -1427,11 +1427,10 @@ namespace
 	auto obj_da = new GT_DAIndexedString(1);
 	auto time_da = new GT_DANumeric<fpreal32>(1,1);
 	auto cache_da = new GT_DAIndexedString(1);
-	std::vector<std::string> filenames;
-	filenames.push_back(obj.archive()->filename());
 
 	UT_StringHolder arch;
-	GT_PackedGeoCache::buildAlembicArchiveName(arch, filenames);
+	GT_PackedGeoCache::buildAlembicArchiveName(arch,
+						   obj.archive()->filename());
 
 	file_da->setString(0,0, arch.c_str());
 	time_da->set(t, 0);

@@ -305,11 +305,10 @@ public:
 	{
 	    UT_WorkBuffer bucket_name;
 	    UT_StringHolder path = impl->object().getSourcePath();
-	    std::vector<std::string> filenames;
-	    filenames.push_back(impl->object().archive()->filename());
 
 	    UT_StringHolder arch;
-	    GT_PackedGeoCache::buildAlembicArchiveName(arch, filenames);
+	    GT_PackedGeoCache::buildAlembicArchiveName(arch,
+					impl->object().archive()->filename());
 
 	    bucket_name.sprintf("%s:%s", arch.c_str(), path.c_str());
 	    auto entry = myInstanceAnim.find( bucket_name.buffer() );
@@ -335,11 +334,10 @@ public:
 	    if(!impl->object().valid())
 		return;
 	    GT_PrimitiveHandle archive;
-	    std::vector<std::string> filenames;
-	    filenames.push_back(impl->object().archive()->filename());
 
 	    UT_StringHolder arch;
-	    GT_PackedGeoCache::buildAlembicArchiveName(arch, filenames);
+	    GT_PackedGeoCache::buildAlembicArchiveName(arch,
+					impl->object().archive()->filename());
 
 	    auto entry = myViewportArchives.find(arch);
 	    if(entry == myViewportArchives.end())
@@ -916,11 +914,8 @@ GABC_PackedAlembic::getCachedGeometry(GT_PrimitiveHandle &ph) const
     const int64 version = 0;
     UT_StringHolder cache_name;
 
-    std::vector<std::string> filenames;
-    filenames.push_back(o.archive()->filename());
-
     UT_StringHolder arch;
-    GT_PackedGeoCache::buildAlembicArchiveName(arch, filenames);
+    GT_PackedGeoCache::buildAlembicArchiveName(arch, o.archive()->filename());
 
     GT_PackedGeoCache::buildAlembicName(cache_name,
 					o.getSourcePath().c_str(),
