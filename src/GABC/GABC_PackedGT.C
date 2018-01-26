@@ -1401,7 +1401,7 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
     UT_StopWatch timer;
     timer.start();
 #endif
-    myAlembicObjects.resize( myAlembicOffsets.entries() );
+    myAlembicObjects.setCapacityAndSize( myAlembicOffsets.entries() );
     // Sort the collected Alembic primitives into buckets for instancing.
     GU_DetailHandleAutoReadLock gdplock(myDetailList->getGeometry(0));
     gabc_BucketAlembics btask(gdplock.getGdp(),
