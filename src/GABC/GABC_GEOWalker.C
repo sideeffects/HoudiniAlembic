@@ -2274,6 +2274,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
     , myReusePrimitives(false)
     , myBuildLocator(true)
     , myLoadMode(LOAD_ABC_PRIMITIVES)
+    , myLoadUserProps(UP_LOAD_NONE)
     , myBuildAbcShape(true)
     , myBuildAbcXform(false)
     , myPathAttributeChanged(true)
