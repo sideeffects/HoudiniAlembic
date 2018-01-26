@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -2274,6 +2274,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
     , myReusePrimitives(false)
     , myBuildLocator(true)
     , myLoadMode(LOAD_ABC_PRIMITIVES)
+    , myLoadUserProps(UP_LOAD_NONE)
     , myBuildAbcShape(true)
     , myBuildAbcXform(false)
     , myPathAttributeChanged(true)
