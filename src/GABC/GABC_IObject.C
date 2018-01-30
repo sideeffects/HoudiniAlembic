@@ -1443,7 +1443,7 @@ namespace
 	    // Append time onto the end - objname[frame]
 	    UT_StringHolder obj_name = obj.getFullName();
 	    UT_WorkBuffer time;
-	    time.sprintf("[%f]", t);
+	    time.sprintf("<[%f]>", t);
 	    obj_name += time.buffer();
 	    obj_da->setString(0,0, obj_name);
 	}
