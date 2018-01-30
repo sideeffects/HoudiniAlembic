@@ -63,9 +63,6 @@ public:
 private:
 };
 
-}; // GABC_NAMESPACE
-
-
 /// Collection class for a single archive's worth of Alembic primitives.
 /// This is generally only useful for the viewport.
 class GABC_API GABC_PackedArchive : public GT_PackedAlembicArchive
@@ -88,7 +85,6 @@ private:
 
     GABC_NAMESPACE::GABC_IArchivePtr myArchive;
 };
-
 
 /// Single Alembic shape (non-instanced)
 class GABC_API GABC_PackedAlembic : public GT_PackedAlembic
@@ -171,5 +167,6 @@ private:
     int64	      myAlembicVersion;
 };
     
+}; // GABC_NAMESPACE
 
 #endif
