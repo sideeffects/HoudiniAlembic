@@ -9,9 +9,12 @@ _AbcModule = '__import__("_alembic_hom_extensions")'
 
 def GetFileName(node):
     r = []
-    for i in range(node.evalParm('numFiles')):
-        if node.evalParm('enableFile%d' % (i + 1,)):
-            path = node.evalParm('fileName%d' % (i + 1,))
+    p = node.evalParm('fileName')
+    if p:
+        r.append(p)
+    for i in range(node.evalParm('numlayers')):
+        if node.evalParm('enablelayer%d' % (i + 1,)):
+            path = node.evalParm('layer%d' % (i + 1,))
             if path:
                 r.append(path)
     return r
@@ -122,12 +125,15 @@ def _setParmValue(node, parmname, value):
         parm.set(value)
 
 def _setFileName(node, filename):
-    parm = node.parm('numFiles')
-    if parm:
-        parm.set(len(filename))
-        for i, name in enumerate(filename):
-            _setParmValue(node, 'enableFile%d' % (i + 1, ), 1)
-            _setParmValue(node, 'fileName%d' % (i + 1, ), name)
+    if len(filename):
+        _setParmValue(node, 'fileName', filename[0])
+        parm = node.parm('numlayers')
+        if parm:
+            layers = filename[1:]
+            parm.set(len(layers))
+            for i, name in enumerate(layers):
+                _setParmValue(node, 'enablelayer%d' % (i + 1, ), 1)
+                _setParmValue(node, 'layer%d' % (i + 1, ), name)
 
 def _setNodeName(node, name):
     try:
@@ -207,12 +213,13 @@ def ExpressionToParm(srcParm, dstParm, isString=False):
             hou.exprLanguage.Hscript)
 
 def ExpressionToFileNameParm(src, dest):
-    p = src.parm('numFiles')
-    ExpressionToParm(p, dest.parm('numFiles'), False)
+    ExpressionToParm(src.parm('fileName'), dest.parm('fileName'), True)
+    p = src.parm('numlayers')
+    ExpressionToParm(p, dest.parm('numlayers'), False)
     for i in range(p.evalAsInt()):
-        name = 'enableFile%d' % (i + 1,)
+        name = 'enablelayer%d' % (i + 1,)
         ExpressionToParm(src.parm(name), dest.parm(name), False)
-        name = 'fileName%d' % (i + 1,)
+        name = 'layer%d' % (i + 1,)
         ExpressionToParm(src.parm(name), dest.parm(name), True)
 
 def _setupAbcGeo(geo):
@@ -477,12 +484,13 @@ def _pushRemapAttributesParm(fnode, tnode):
 
 def WalkAndPush(rootNode, parentNode):
     for kid in parentNode.children():
-        p = rootNode.parm('numFiles')
+        _pushStringParm('fileName', rootNode, kid)
+        p = rootNode.parm('numlayers')
         if p:
-            _pushScalarParm('numFiles', rootNode, kid)
+            _pushScalarParm('numlayers', rootNode, kid)
             for i in range(p.evalAsInt()):
-                _pushScalarParm('enableFile%d' % (i + 1,), rootNode, kid)
-                _pushStringParm('fileName%d' % (i + 1,), rootNode, kid)
+                _pushScalarParm('enablelayer%d' % (i + 1,), rootNode, kid)
+                _pushStringParm('layer%d' % (i + 1,), rootNode, kid)
         cxform = kid.parm('abcConstant')
         if not cxform or not cxform.eval():
             _pushScalarParm('frame', rootNode, kid)

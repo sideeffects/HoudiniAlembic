@@ -20,6 +20,10 @@ File name:
         
     Path to the Alembic archive (`.abc`) file.
 
+Number of Layers:
+    #id: numlayers
+    Use this multiparm to apply Alembic layers.
+
 Frame:
     #id: frame
     

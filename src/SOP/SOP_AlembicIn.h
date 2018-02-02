@@ -46,9 +46,6 @@ public:
     static OP_Node *myConstructor(OP_Network *net, const char *name,
 		    OP_Operator *entry);
     static PRM_Template myTemplateList[];
-    static PRM_Template myObsoleteList[];
-
-    virtual void resolveObsoleteParms(PRM_ParmList *obsolete_parms) override;
 
     /// Reload callback
     static int reloadGeo(void *data, int index,
@@ -133,14 +130,14 @@ private:
 	GEO_PackedNameMapPtr			myNameMapPtr;
 	GEO_ViewportLOD				myViewportLOD;
 	UT_BoundingBox				myBoundBox;
-	UT_String				myFilenameAttribute;
+	UT_String				myFileNameAttribute;
 	UT_String				myObjectPath;
 	UT_String				myObjectPattern;
 	UT_String				myExcludeObjectPath;
 	UT_String				myPathAttribute;
 	UT_String				mySubdGroupName;
         UT_String                               myFacesetAttribute;
-	std::vector<std::string>		myFilenames;
+	std::vector<std::string>		myFileNames;
 	fpreal					mySize;
 	bool					myMissingFileError;
 	bool					myBuildAbcShape;

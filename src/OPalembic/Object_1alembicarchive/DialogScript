@@ -295,15 +295,14 @@
 	export	none
 	parmtag	{ "filechooser_mode" "read" }
 	parmtag	{ "filechooser_pattern" "*.abc" }
-	invisible
     }
     multiparm {
-	name	"numFiles"
-	label	"Number of Files"
-	default	1
+	name	"numlayers"
+	label	"Number of Layers"
+	default	0
 
 	parm {
-	    name	"enableFile#"
+	    name	"enablelayer#"
 	    label	""
 	    type	toggle
 	    nolabel
@@ -311,11 +310,11 @@
 	    default	{ "1" }
 	}
 	parm {
-	    name	"fileName#"
-	    label	"File Name #"
+	    name	"layer#"
+	    label	"Layer #"
 	    type	file
 	    default	{ "" }
-	    disablewhen	"{ enableFile# == off }"
+	    disablewhen	"{ enablelayer# == off }"
 	    range	{ 0 1 }
 	    parmtag	{ "filechooser_mode" "read" }
 	    parmtag	{ "filechooser_pattern" "*.abc" }
