@@ -117,7 +117,7 @@ public:
 		    GABC_PackedAlembic *packgt =
 			new GABC_PackedAlembic(myGeometry->getGeometry(0),
 					       itr->second(0),
-					       mat_id, mat_remap);
+					       mat_id, mat_remap, true);
 	    
 		    if(myCollectAnimInfo)
 		    {
@@ -151,7 +151,7 @@ public:
 		for( auto pi : itr->second )
 		{
 		    GABC_PackedAlembic inst(myGeometry->getGeometry(0), pi,
-					    mat_id, mat_remap);
+					    mat_id, mat_remap, true);
 
 		    xforms->append( inst.getFullTransform() );
 		    offsets.append( inst.getPrim()->getMapOffset() );
@@ -500,8 +500,9 @@ private:
 GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
 				       const GU_PrimPacked *prim,
 				       const GT_DataArrayHandle &vp_mat,
-				       const GT_DataArrayHandle &vp_remap)
-    : GT_PackedAlembic(prim_gdh, prim, vp_mat, vp_remap)
+				       const GT_DataArrayHandle &vp_remap,
+				       bool build_packed_attribs)
+    : GT_PackedAlembic(prim_gdh, prim, vp_mat, vp_remap, build_packed_attribs)
 {
 }
 
@@ -514,8 +515,8 @@ bool
 GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 				  const GT_RefineParms &refine)
 {
-    bool changed = GT_GEOPrimPacked::updateGeoPrim(dtl, refine);
-
+    bool changed = false;
+    
     const GU_PrimPacked *packed = nullptr;
     if(GAisValid(myOffset))
     {
@@ -525,6 +526,8 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 
 	if(packed)
 	{
+	    GT_GEOPrimPacked::setDetailPrim(dtl, packed);
+	    
 	    GA_LocalIntrinsic fr = packed->findIntrinsic("abcframe");
 	    float frame = 0;
 	    if(packed->getIntrinsic(fr, frame))
@@ -551,9 +554,8 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 	    }
 	}
     }
-    setDetailPrim(dtl, packed);
     
-    return changed;
+    return GT_GEOPrimPacked::updateGeoPrim(dtl, refine) || changed;
 }
 
 void
