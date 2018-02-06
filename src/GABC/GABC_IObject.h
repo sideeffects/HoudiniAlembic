@@ -165,7 +165,8 @@ public:
 	// Load an optimized version for GL (single attrib freq, triangulated)
 	GABC_LOAD_GL_OPTIMIZED		= 0x4000,
 	GABC_LOAD_USE_GL_CACHE		= 0x8000,
-	GABC_LOAD_NO_MATERIAL_ATTRIBS	= 0x10000
+	// Don't bake attributes on the packed prim into the geometry
+	GABC_LOAD_NO_PACKED_ATTRIBS	= 0x10000
     };
 
     UT_StringHolder getAttributes(const GEO_PackedNameMapPtr &namemap,
