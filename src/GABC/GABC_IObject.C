@@ -1501,9 +1501,9 @@ namespace
 	ISampleSelector iss(t);
 	for (exint i = 0; i < nkids; ++i)
 	{
-	    const GABC_IObject	&kid = obj.getChild(i);
-	    if (kid.valid() && kid.nodeType() == GABC_FACESET)
+	    if (obj.getChildNodeType(i) == GABC_FACESET)
 	    {
+		const GABC_IObject &kid = obj.getChild(i);
                 UT_String name(kid.getName());
 		if (name.multiMatch(attrib) && loadFaceSet(set, kid, iss))
 		    pmesh.addFaceSet(name, set);
@@ -1520,9 +1520,9 @@ namespace
         UT_StringArray array;
         for (exint i = 0; i < nkids; ++i)
         {
-            const GABC_IObject &kid = obj.getChild(i);
-            if (kid.valid() && kid.nodeType() == GABC_FACESET)
+            if (obj.getChildNodeType(i) == GABC_FACESET)
             {
+		const GABC_IObject &kid = obj.getChild(i);
                 UT_String name(kid.getName());
                 if (name.multiMatch(attrib))
                 {
@@ -2558,9 +2558,9 @@ namespace
 	exint nkids = obj.getNumChildren();
 	for (exint i = 0; i < nkids; ++i)
 	{
-	    const GABC_IObject &kid = obj.getChild(i);
-	    if (kid.valid() && kid.nodeType() == GABC_FACESET)
+	    if (obj.getChildNodeType(i) == GABC_FACESET)
 	    {
+		const GABC_IObject &kid = obj.getChild(i);
 		IFaceSet shape(kid.object(), gabcWrapExisting);
 		const IFaceSetSchema   &ss = shape.getSchema();
 		if(!ss.isConstant())
@@ -2818,12 +2818,9 @@ GABC_IObject::getChild(const std::string &name) const
     return GABC_IObject();
 }
 
-GABC_NodeType
-GABC_IObject::nodeType() const
+static GABC_NodeType
+gabcNodeType(const ObjectHeader	&ohead)
 {
-    if (!myObject.valid())
-	return GABC_UNKNOWN;
-    const ObjectHeader	&ohead = myObject.getHeader();
     if (IXform::matches(ohead))
 	return GABC_XFORM;
     if (IPolyMesh::matches(ohead))
@@ -2844,8 +2841,24 @@ GABC_IObject::nodeType() const
 	return GABC_LIGHT;
     if (IMaterial::matches(ohead))
 	return GABC_MATERIAL;
-    UT_ASSERT(!myObject.getParent().valid());
     return GABC_UNKNOWN;
+}
+
+GABC_NodeType
+GABC_IObject::nodeType() const
+{
+    if (!myObject.valid())
+	return GABC_UNKNOWN;
+    GABC_NodeType retval = gabcNodeType(myObject.getHeader());
+    if(retval == GABC_UNKNOWN)
+	UT_ASSERT(!myObject.getParent().valid());
+    return retval;
+}
+
+GABC_NodeType
+GABC_IObject::getChildNodeType(exint i) const
+{
+    return gabcNodeType(myObject.getChildHeader(i));
 }
 
 bool

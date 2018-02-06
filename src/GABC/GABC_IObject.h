@@ -97,10 +97,10 @@ public:
 			}
 
     /// Get my header
-    ObjectHeader	getHeader() const
+    const ObjectHeader	&getHeader() const
 			    { return object().getHeader(); }
     /// Get the child header
-    ObjectHeader	getChildHeader(exint i) const
+    const ObjectHeader	&getChildHeader(exint i) const
 			    { return object().getChildHeader(i); }
 
     /// Get the name of the object
@@ -129,6 +129,8 @@ public:
 
     /// Query the type of this node
     GABC_NodeType	nodeType() const;
+    /// Query the type of a child node
+    GABC_NodeType	getChildNodeType(exint i) const;
 
     /// Query whether the node is a Maya locator
     bool		isMayaLocator() const;

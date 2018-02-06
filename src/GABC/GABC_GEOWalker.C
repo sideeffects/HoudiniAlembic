@@ -1306,8 +1306,7 @@ namespace {
 	exint	nkids = obj.getNumChildren();
 	for (exint i = 0; i < nkids; ++i)
 	{
-	    GABC_IObject	kid(obj.getChild(i));
-	    if (kid.nodeType() == GABC_FACESET)
+	    if (obj.getChildNodeType(i) == GABC_FACESET)
 		return true;
 	}
 	return false;
