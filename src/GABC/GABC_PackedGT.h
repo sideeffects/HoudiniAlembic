@@ -93,7 +93,8 @@ public:
 	     GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
 				const GU_PrimPacked *prim,
 				const GT_DataArrayHandle &vp_mat,
-				const GT_DataArrayHandle &vp_remap);
+				const GT_DataArrayHandle &vp_remap,
+				bool build_packed_attribs = false);
     
 	     GABC_PackedAlembic(const GABC_PackedAlembic &src);
     virtual ~GABC_PackedAlembic();
