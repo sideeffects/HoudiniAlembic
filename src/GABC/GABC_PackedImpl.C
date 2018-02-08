@@ -31,6 +31,8 @@
 #include <UT/UT_JSONParser.h>
 #include <UT/UT_Debug.h>
 #include <UT/UT_MemoryCounter.h>
+#include <UT/UT_JSONValue.h>
+#include <UT/UT_JSONWriter.h>
 #include <GU/GU_PackedFactory.h>
 #include <GU/GU_PrimPacked.h>
 #include <GT/GT_Primitive.h>
@@ -40,6 +42,7 @@
 #include <GT/GT_PrimPointMesh.h>
 #include <GT/GT_PrimitiveBuilder.h>
 #include <GT/GT_PackedGeoCache.h>
+#include <SYS/SYS_Hash.h>
 
 #if !defined(GABC_PRIMITIVE_TOKEN)
     #define GABC_PRIMITIVE_TOKEN	"AlembicRef"
@@ -65,6 +68,9 @@ public:
 	registerIntrinsic("abcfilename",
 	    StringHolderGetterCast(&GABC_PackedImpl::intrinsicFilename),
 	    StringHolderSetterCast(&GABC_PackedImpl::setFilename));
+	registerIntrinsic("abcfilenames",
+	    StringHolderGetterCast(&GABC_PackedImpl::intrinsicFilenamesJSON),
+	    StringHolderSetterCast(&GABC_PackedImpl::setFilenamesJSON));
 	registerIntrinsic("abcobjectpath",
 	    StringHolderGetterCast(&GABC_PackedImpl::intrinsicObjectPath),
 	    StringHolderSetterCast(&GABC_PackedImpl::setObjectPath));
@@ -114,7 +120,7 @@ GA_PrimitiveTypeId GABC_PackedImpl::theTypeId(-1);
 
 GU_PrimPacked *
 GABC_PackedImpl::build(GU_Detail &gdp,
-			const UT_StringHolder &filename,
+			const UT_StringArray &filenames,
 			const GABC_IObject &obj,
 			fpreal frame,
 			bool useTransform,
@@ -129,7 +135,7 @@ GABC_PackedImpl::build(GU_Detail &gdp,
     // Alembic primitives, so this is handled separately.
     GU_PrimPacked *pack = UTverify_cast<GU_PrimPacked *>(prim);
     GABC_PackedImpl *abc = UTverify_cast<GABC_PackedImpl *>(pack->implementation());
-    abc->setFilename(pack, filename);
+    abc->setFilenames(pack, filenames);
     abc->setObject(obj);
     abc->setFrame(pack, frame);
     abc->setUseTransform(pack, useTransform);
@@ -164,7 +170,6 @@ GABC_PackedImpl::GABC_PackedImpl()
     : GU_PackedImpl()
     , myObject()
     , myCache()
-    , myFilename()
     , myObjectPath()
     , myFrame(0)
     , myUseTransform(true)
@@ -181,7 +186,7 @@ GABC_PackedImpl::GABC_PackedImpl(const GABC_PackedImpl &src)
     : GU_PackedImpl(src)
     , myObject(src.myObject)
     , myCache()
-    , myFilename(src.myFilename)
+    , myFilenames(src.myFilenames)
     , myObjectPath(src.myObjectPath)
     , myFrame(src.myFrame)
     , myUseTransform(src.myUseTransform)
@@ -220,7 +225,7 @@ GABC_PackedImpl::getMemoryUsage(bool inclusive) const
     //       playback noticably. 
     // mem += myCache.getMemoryUsage(false);
     
-    mem += myFilename.getMemoryUsage(false);
+    mem += myFilenames.getMemoryUsage(false);
     mem += myObjectPath.getMemoryUsage(false);
     return mem;
 }
@@ -246,12 +251,42 @@ void
 GABC_PackedImpl::clearData()
 {
     myObject = GABC_IObject();
-    myFilename.clear();
+    myFilenames.clear();
     myObjectPath.clear();
     myFrame = 0;
     myUseTransform = true;
     myUseVisibility = true;
     myCache.clear();
+}
+
+static void
+gabcParseStringArray(UT_StringArray &result, const UT_StringHolder &v)
+{
+    result.clear();
+
+    UT_WorkBuffer jsonbuf;
+    jsonbuf.append(v);
+    UT_IStream is(jsonbuf);
+    UT_JSONParser parser;
+    UT_JSONValue value;
+    if (value.parseValue(parser, &is))
+    {
+	UT_JSONValueArray *topArray = value.getArray();
+	if (topArray)
+	{
+	    int numLevels = topArray->entries();
+	    for (int lvl = 0; lvl < numLevels; ++lvl)
+	    {
+		UT_JSONValue *val = topArray->get(lvl);
+		if (val && val->getType() == UT_JSONValue::JSON_STRING)
+		{
+		    const UT_StringHolder *valStr = val->getStringHolder();
+		    if (valStr)
+			result.append(*valStr);
+		}
+	    }
+	}
+    }
 }
 
 template <typename T>
@@ -260,8 +295,16 @@ GABC_PackedImpl::loadFrom(GU_PrimPacked *prim, const T &options, const GA_LoadMa
 {
     clearData();
     bool bval;
-    if (!import(options, "filename", myFilename))
-	myFilename = "";
+    UT_StringHolder filenames;
+    if (import(options, "filenames", filenames))
+	gabcParseStringArray(myFilenames, filenames);
+    else
+    {
+	myFilenames.clear();
+	UT_StringHolder tmpFilename;
+	if (import(options, "filename", tmpFilename))
+	    myFilenames.append(tmpFilename);
+    }
     if (!import(options, "object", myObjectPath))
 	myObjectPath = "";
     if (!import(options, "frame", myFrame))
@@ -280,7 +323,9 @@ GABC_PackedImpl::update(GU_PrimPacked *prim, const UT_Options &options)
 {
     bool	changed = false;
     bool	bval;
-    changed |= options.importOption("filename", myFilename);
+    UT_StringHolder tmpFilenames;
+    changed |= options.importOption("filenames", tmpFilenames);
+    setFilenamesJSON(prim, tmpFilenames);
     changed |= options.importOption("object", myObjectPath);
     changed |= options.importOption("frame", myFrame);
     changed |= options.importOption("usetransform", bval);
@@ -292,7 +337,7 @@ GABC_PackedImpl::update(GU_PrimPacked *prim, const UT_Options &options)
 bool
 GABC_PackedImpl::save(UT_Options &options, const GA_SaveMap &map) const
 {
-    options.setOptionS("filename", myFilename);
+    options.setOptionS("filenames", filenamesJSON());
     options.setOptionS("object", myObjectPath);
     options.setOptionF("frame", myFrame);
     options.setOptionB("usetransform", myUseTransform);
@@ -307,11 +352,18 @@ GABC_PackedImpl::loadUnknownToken(const char *token,
     UT_StringHolder	sval;
     fpreal64		fval;
     bool		bval;
-    if (!strcmp(token, "filename"))
+    if (!strcmp(token, "filenames"))
     {
 	if (!p.parseString(sval))
 	    return false;
-	myFilename = sval;
+	gabcParseStringArray(myFilenames, sval);
+    }
+    else if (!strcmp(token, "filename"))
+    {
+	if (!p.parseString(sval))
+	    return false;
+	myFilenames.clear();
+	myFilenames.append(sval);
     }
     else if (!strcmp(token, "object"))
     {
@@ -544,12 +596,39 @@ GABC_PackedImpl::xformGT() const
     return myCache.xform(this);
 }
 
+UT_StringHolder
+GABC_PackedImpl::intrinsicFilenamesJSON(const GU_PrimPacked *prim) const
+{
+    return filenamesJSON();
+}
+
+UT_StringHolder
+GABC_PackedImpl::filenamesJSON() const
+{
+    UT_WorkBuffer buffer;
+    {
+	UT_AutoJSONWriter autoWriter(buffer);
+	UT_JSONWriter &writer = autoWriter.writer();
+	UT_Options options;
+        options.setOptionB("json:prettyprint", false);
+	writer.setOptions(options);
+	writer.jsonBeginArray();
+	for (int i = 0; i < myFilenames.size(); ++i)
+	    writer.jsonStringToken(myFilenames[i]);
+	writer.jsonEndArray();
+    }
+
+    return buffer.buffer();
+}
+
 const GABC_IObject &
 GABC_PackedImpl::object() const
 {
     if (!myObject.valid())
     {
-	myObject = GABC_Util::findObject(myFilename.toStdString(),
+	std::vector<std::string> filenames;
+	myFilenames.toStdVectorOfStrings(filenames);
+	myObject = GABC_Util::findObject(filenames,
 					myObjectPath.toStdString());
     }
     return myObject;
@@ -566,9 +645,38 @@ GABC_PackedImpl::setObject(const GABC_IObject &v)
 void
 GABC_PackedImpl::setFilename(GU_PrimPacked *prim, const UT_StringHolder &v)
 {
-    if (myFilename != v)
+    UT_StringArray tmpFilenames;
+    tmpFilenames.append(v);
+    if (myFilenames != tmpFilenames)
     {
-	myFilename = v;
+	myFilenames = tmpFilenames;
+	myCache.clear();
+	myObject.purge();
+	markDirty(prim);
+    }
+}
+
+void
+GABC_PackedImpl::setFilenames(GU_PrimPacked *prim, const UT_StringArray &v)
+{
+    if (myFilenames != v)
+    {
+	myFilenames = v;
+	myCache.clear();
+	myObject.purge();
+	markDirty(prim);
+    }
+}
+
+void
+GABC_PackedImpl::setFilenamesJSON(GU_PrimPacked *prim, const UT_StringHolder &v)
+{
+    UT_StringArray tmpFilenames;
+    gabcParseStringArray(tmpFilenames, v);
+
+    if (myFilenames != tmpFilenames)
+    {
+	myFilenames = tmpFilenames;
 	myCache.clear();
 	myObject.purge();
 	markDirty(prim);
@@ -703,7 +811,7 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 	    {
 		UT_StringHolder arch;
 		GT_PackedGeoCache::buildAlembicArchiveName(arch,
-						o.archive()->filename());
+						o.archive()->filenames());
 
 		GT_PackedGeoCache::buildAlembicName(
 					    cache_name,
@@ -873,7 +981,7 @@ GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
 
 		UT_StringHolder arch;
 		GT_PackedGeoCache::buildAlembicArchiveName(arch,
-						o.archive()->filename());
+						o.archive()->filenames());
 
 		GT_PackedGeoCache::buildAlembicName(
 		    cache_name,
@@ -1026,10 +1134,12 @@ GABC_PackedImpl::getPropertiesHash() const
 	if(!myObject.getPropertiesHash(myUniqueID))
 	{
 	    // HDF, likely. Hash the object path & filename to get an id.
-	    const int64 pathhash = UT_String::hash(objectPath().c_str());
-	    const int64 filehash = UT_String::hash(filename().c_str());
-
-	    myUniqueID = pathhash + SYSwang_inthash64(filehash);
+	    SYS_HashType hash = SYShash(objectPath().c_str());
+	    auto &names = filenames();
+	    SYShashCombine(hash, names.size());
+	    for(auto &name : names)
+		SYShashCombine(hash, name.c_str());
+	    myUniqueID = hash;
 	}
 	myCachedUniqueID = true;
     }

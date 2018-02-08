@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -77,7 +77,7 @@ public:
     const std::string	&error() const		{ return myError; }
 
     /// Access the filename
-    const std::string	&filename() const	{ return myFilename; }
+    const std::vector<std::string> &filenames() const { return myFileNames; }
 
     /// Get the root object
     GABC_IObject	getTop() const;
@@ -120,18 +120,24 @@ public:
     /// Open an archive.  Please use GABC_Util::open instead
     /// This method is @b not thread-safe.  You must lock around it.
     /// @private
-    static GABC_IArchivePtr	open(const std::string &filename,
+    static GABC_IArchivePtr	open(const std::vector<std::string> &filenames,
 				     int num_ogawa_streams = -1);
     /// @}
 
+    /// @{
+    /// Generate a single, user-friendly printable string from a list
+    /// of filenames
+    static std::string filenamesToString(const std::vector<std::string> &filenames);
+    /// @}
+
 private:
-    void		 openArchive(const std::string &path, int num_streams);
+    void		 openArchive(const std::vector<std::string> &paths, int num_streams);
     void		 closeAndDelete();
     /// Access to the file lock - required for non-thread safe HDF5
     UT_Lock		&getLock() const	{ return *theLock; }
     friend class	 GABC_AutoLock;
 
-    GABC_IArchive(const std::string &filename,
+    GABC_IArchive(const std::vector<std::string> &filenames,
 		  int num_streams = -1);
 
     // At the current time, HDF5 requires a *global* lock across all files.
@@ -143,7 +149,7 @@ private:
     void		 clearStream();
 
     SYS_AtomicInt32	 myRefCount;
-    std::string		 myFilename;
+    std::vector<std::string> myFileNames;
     std::string		 myError;
     struct gabc_streamentry
     {

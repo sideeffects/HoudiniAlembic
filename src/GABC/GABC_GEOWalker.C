@@ -1384,8 +1384,10 @@ namespace {
 	    default:
 		return;	// Invalid primitive type
 	}
+	UT_StringArray filenames;
+	filenames.fromStdVectorOfStrings(walk.filenames());
 	GU_PrimPacked	*packed = GABC_PackedImpl::build(walk.detail(),
-				walk.filename(),
+				filenames,
 				obj,
 				walk.time(),
 				walk.includeXform(),

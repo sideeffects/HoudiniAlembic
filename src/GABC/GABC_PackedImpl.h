@@ -60,7 +60,7 @@ public:
     /// which handles the point creation automatically (see the packedsphere
     /// HDK sample code).
     static GU_PrimPacked	*build(GU_Detail &gdp,
-					const UT_StringHolder &filename,
+					const UT_StringArray &filenames,
 					const GABC_IObject &obj,
 					fpreal frame,
 					bool useTransform,
@@ -165,8 +165,15 @@ public:
     GT_TransformHandle	xformGT() const;
 
     const GABC_IObject	&object() const;
-    const UT_StringHolder &filename() const { return myFilename; }
-    UT_StringHolder	  intrinsicFilename(const GU_PrimPacked *prim) const { return myFilename; }
+    const UT_StringArray &filenames() const { return myFilenames; }
+    UT_StringHolder	 filenamesJSON() const;
+    UT_StringHolder	 intrinsicFilename(const GU_PrimPacked *prim) const
+			    {
+				if (myFilenames.size())
+				    return myFilenames[0];
+				return "";
+			    }
+    UT_StringHolder	 intrinsicFilenamesJSON(const GU_PrimPacked *prim) const;
     const UT_StringHolder &objectPath() const	{ return myObjectPath; }
     UT_StringHolder	 intrinsicObjectPath(const GU_PrimPacked *prim) const { return myObjectPath; }
     UT_StringHolder	 intrinsicSourcePath(const GU_PrimPacked *prim) const
@@ -212,6 +219,8 @@ public:
 
     void	setObject(const GABC_IObject &v);
     void	setFilename(GU_PrimPacked *prim, const UT_StringHolder &v);
+    void	setFilenames(GU_PrimPacked *prim, const UT_StringArray &v);
+    void	setFilenamesJSON(GU_PrimPacked *prim, const UT_StringHolder &v);
     void	setObjectPath(GU_PrimPacked *prim, const UT_StringHolder &v);
     void	setFrame(GU_PrimPacked *prim, fpreal f);
     void	setUseTransform(GU_PrimPacked *prim, bool v);
@@ -310,7 +319,7 @@ private:
     mutable GTCache		myCache;
     mutable bool		myCachedUniqueID;
     mutable int64		myUniqueID;
-    UT_StringHolder		myFilename;
+    UT_StringArray		myFilenames;
     UT_StringHolder		myObjectPath;
     fpreal			myFrame;
     bool			myUseTransform;

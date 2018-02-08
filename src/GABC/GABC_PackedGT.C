@@ -308,7 +308,7 @@ public:
 
 	    UT_StringHolder arch;
 	    GT_PackedGeoCache::buildAlembicArchiveName(arch,
-					impl->object().archive()->filename());
+					impl->object().archive()->filenames());
 
 	    bucket_name.sprintf("%s:%s", arch.c_str(), path.c_str());
 	    auto entry = myInstanceAnim.find( bucket_name.buffer() );
@@ -337,7 +337,7 @@ public:
 
 	    UT_StringHolder arch;
 	    GT_PackedGeoCache::buildAlembicArchiveName(arch,
-					impl->object().archive()->filename());
+					impl->object().archive()->filenames());
 
 	    auto entry = myViewportArchives.find(arch);
 	    if(entry == myViewportArchives.end())
@@ -351,7 +351,6 @@ public:
 
 	    static_cast<GABC_PackedArchive *>(archive.get())->
 		appendAlembic( prim.getMapOffset() );
-
 	}
     
     class FillTask
@@ -715,7 +714,7 @@ GABC_PackedAlembic::getInstanceKey(UT_Options &options) const
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
 
-    options.setOptionS("f", impl->filename());
+    options.setOptionS("f", impl->filenamesJSON());
     // If the object instances another shape, we want to access the instance
     // shape so we can share geometry.  We don't want to harden the instance.
     // For non-instanced geometry, this should return the same as
@@ -915,7 +914,7 @@ GABC_PackedAlembic::getCachedGeometry(GT_PrimitiveHandle &ph) const
     UT_StringHolder cache_name;
 
     UT_StringHolder arch;
-    GT_PackedGeoCache::buildAlembicArchiveName(arch, o.archive()->filename());
+    GT_PackedGeoCache::buildAlembicArchiveName(arch, o.archive()->filenames());
 
     GT_PackedGeoCache::buildAlembicName(cache_name,
 					o.getSourcePath().c_str(),

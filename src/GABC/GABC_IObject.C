@@ -32,6 +32,7 @@
 #include "GABC_Util.h"
 #include "GABC_GTUtil.h"
 #include <SYS/SYS_AtomicInt.h>
+#include <SYS/SYS_Hash.h>
 #include <GEO/GEO_PackedNameMap.h>
 #include <GEO/GEO_PrimPacked.h>
 #include <GU/GU_Detail.h>
@@ -192,7 +193,7 @@ namespace
                         "Error reading %s attribute data for Alembic object "
                             "%s (%s). Ignoring attribute.",
                         name,
-                        obj.archive()->filename().c_str(),
+                        GABC_IArchive::filenamesToString(obj.archive()->filenames()).c_str(),
                         obj.getFullName().c_str());
             }
 	}
@@ -248,7 +249,7 @@ namespace
 	{
 	    UT_ErrorLog::mantraErrorOnce(
 		"Alembic sub-frame interpolation error for dynamic topology %s (%s)",
-		obj.archive()->filename().c_str(),
+		GABC_IArchive::filenamesToString(obj.archive()->filenames()).c_str(),
 		obj.getFullName().c_str());
 	}
 	t = best;
@@ -264,7 +265,7 @@ namespace
 	GABC_IArray	iarray = GABC_IArray::getSample(arch, prop, idx, tinfo);
 	if(expected_size >= 0 && iarray.entries() < expected_size)
 	{
-	    UT_ASSERT("Unexpected array size");
+	    UT_ASSERT(0 && "Unexpected array size");
 	    return GT_DataArrayHandle();
 	}
 	return GABC_NAMESPACE::GABCarray(iarray);
@@ -885,12 +886,14 @@ namespace
 	{
 	    if (obj.getAnimationType(false) != GEO_ANIMATION_TOPOLOGY)
 	    {
-		int64	 hash;
-
-		hash = UT_String::hash(obj.objectPath().c_str());
-		hash = hash << 32;
+		SYS_HashType hash = SYShash(obj.objectPath().c_str());
 		if (obj.archive())
-		    hash += UT_String::hash(obj.archive()->filename().c_str());
+		{
+		    auto &filenames = obj.archive()->filenames();
+		    SYShashCombine(hash, filenames.size());
+		    for(auto &name : filenames)
+			SYShashCombine(hash, name.c_str());
+		}
 		alist.set(__topologyIdx, new GT_IntConstant(1, hash));
 	    }
 	    else
@@ -1430,7 +1433,7 @@ namespace
 
 	UT_StringHolder arch;
 	GT_PackedGeoCache::buildAlembicArchiveName(arch,
-						   obj.archive()->filename());
+						obj.archive()->filenames());
 
 	file_da->setString(0,0, arch.c_str());
 	time_da->set(t, 0);
@@ -1452,7 +1455,7 @@ namespace
 	UT_StringHolder cache;
 	GT_PackedGeoCache::buildAlembicName(cache,
 					    obj.getFullName().c_str(),
-					    obj.archive()->filename().c_str(),
+					    arch.c_str(),
 					    t);
 	cache_da->setString(0,0, cache);
 
@@ -2002,7 +2005,7 @@ namespace
 	UT_ErrorLog::mantraWarningOnce(
 		    "Alembic file %s (%s) has invalid %s curves - converting "
 		        "to linear",
-		    obj.archive()->filename().c_str(),
+		    GABC_IArchive::filenamesToString(obj.archive()->filenames()).c_str(),
 		    obj.getFullName().c_str(),
 		    basis);
     }
@@ -2012,7 +2015,7 @@ namespace
     {
 	UT_ErrorLog::mantraWarningOnce(
 		    "Alembic file %s (%s): %s converting to linear",
-		    obj.archive()->filename().c_str(),
+		    GABC_IArchive::filenamesToString(obj.archive()->filenames()).c_str(),
 		    obj.getFullName().c_str(),
 		    msg);
     }
@@ -2022,7 +2025,7 @@ namespace
     {
 	UT_ErrorLog::mantraWarningOnce(
 		    "Alembic file %s (%s): %s - Ignoring knot vectors",
-		    obj.archive()->filename().c_str(),
+		    GABC_IArchive::filenamesToString(obj.archive()->filenames()).c_str(),
 		    obj.getFullName().c_str(),
 		    msg);
     }
@@ -2032,7 +2035,7 @@ namespace
     {
 	UT_ErrorLog::mantraWarningOnce(
 		    "Alembic file %s (%s): %s - Ignoring corrupt curves",
-		    obj.archive()->filename().c_str(),
+		    GABC_IArchive::filenamesToString(obj.archive()->filenames()).c_str(),
 		    obj.getFullName().c_str(),
 		    msg);
     }
@@ -2688,6 +2691,8 @@ GABC_IObject::GABC_IObject()
     , myObjectPath()
     , myObject()
 {
+    if(myObjectPath == "")
+	myObjectPath = "/";
 }
 
 GABC_IObject::GABC_IObject(const GABC_IObject &obj)
@@ -2712,6 +2717,8 @@ GABC_IObject::GABC_IObject(const GABC_IArchivePtr &arch, const IObject &obj)
     , myObjectPath(obj.getFullName())
     , myObject(obj)
 {
+    if(myObjectPath == "")
+	myObjectPath = "/";
 }
 
 void
@@ -2846,7 +2853,7 @@ GABC_IObject::nodeType() const
 	return GABC_LIGHT;
     if (IMaterial::matches(ohead))
 	return GABC_MATERIAL;
-    UT_ASSERT(!strcmp(myObject.getFullName().c_str(), "/"));
+    UT_ASSERT(!myObject.getParent().valid());
     return GABC_UNKNOWN;
 }
 
@@ -3778,15 +3785,17 @@ GABC_IObject::localTransform(fpreal t, M44d &m4,
 }
 
 bool
-GABC_IObject::getPropertiesHash(int64 &hash) const
+GABC_IObject::getPropertiesHash(int64 &h) const
 {
     Alembic::Util::Digest prophash;
     if(const_cast<IObject &>(myObject).getPropertiesHash(prophash))
     {
-	hash = prophash.words[0] + SYSwang_inthash64(prophash.words[1]);
+	SYS_HashType hash = SYShash(prophash.words[0]);
+	SYShashCombine(hash, prophash.words[1]);
+	h = hash;
 	return true;
     }
 
-    hash = 0;
+    h = 0;
     return false;
 }

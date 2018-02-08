@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -55,6 +55,7 @@ public:
 
     /// Called when an archive gets cleared from the cache
     void	archiveClearEvent();
+    void	appendFileNames(std::vector<std::string> &filenames, fpreal t);
 
     /// Return the label for the given input
     virtual const char	*inputLabel(unsigned int idx) const;
@@ -94,7 +95,7 @@ protected:
 				const OP_NodeInfoTreeParms &parms);
 
 private:
-    void	setupEventHandler(const std::string &filename);
+    void	setupEventHandler(const std::vector<std::string> &filenames);
     void	clearEventHandler();
 
     GABC_GEOWalker::BoxCullMode	getCullingBox(UT_BoundingBox &box,
@@ -108,8 +109,8 @@ private:
 	Parms();
 	Parms(const Parms &src);
 	/// Compare this set of parameters with the other set of parameters to
-	/// see if new geometry is needed (i.e. the filename has changed, or the
-	/// path attribute has changed, etc.)
+	/// see if new geometry is needed (i.e. the filenames have changed, or
+	/// the path attribute has changed, etc.)
 	bool	needsNewGeometry(const Parms &parms);
 	bool	needsPathAttributeUpdate(const Parms &parms);
 
@@ -128,14 +129,14 @@ private:
 	GEO_PackedNameMapPtr			myNameMapPtr;
 	GEO_ViewportLOD				myViewportLOD;
 	UT_BoundingBox				myBoundBox;
-	UT_String				myFilenameAttribute;
+	UT_String				myFileNameAttribute;
 	UT_String				myObjectPath;
 	UT_String				myObjectPattern;
 	UT_String				myExcludeObjectPath;
 	UT_String				myPathAttribute;
 	UT_String				mySubdGroupName;
         UT_String                               myFacesetAttribute;
-	std::string				myFilename;
+	std::vector<std::string>		myFileNames;
 	fpreal					mySize;
 	bool					myMissingFileError;
 	bool					myBuildAbcShape;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -215,7 +215,6 @@ namespace
     using AbcTransformMap = UT_StringMap<LocalWorldXform>;
     using AbcVisibilityMap = UT_StringMap<GABC_VisibilityType>;
     using ArchiveCacheEntryPtr = UT_SharedPtr<ArchiveCacheEntry>;
-    using ArchiveCache = UT_Map<std::string, ArchiveCacheEntryPtr>;
 
     using HeaderMap = UT_SortedMap<std::string, const PropertyHeader *>;
     using HeaderMapInsert = std::pair<std::string, const PropertyHeader *>;
@@ -231,25 +230,25 @@ namespace
 
     const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
-    // Convenience class for resetting a Walker objects filename to it's
-    // original value.
+    // Convenience class for resetting a Walker objects filenames to its
+    // original values.
     class WalkPushFile
     {
     public:
-	WalkPushFile(GABC_Util::Walker &walk, const std::string &filename)
+	WalkPushFile(GABC_Util::Walker &walk, const std::vector<std::string> &filenames)
 	    : myWalk(walk)
-	    , myFilename(walk.filename())
+	    , myFilenames(walk.filenames())
 	{
-	    myWalk.setFilename(filename);
+	    myWalk.setFilenames(filenames);
 	}
 	~WalkPushFile()
 	{
-	    myWalk.setFilename(myFilename);
+	    myWalk.setFilenames(myFilenames);
 	}
 
     private:
 	GABC_Util::Walker  &myWalk;
-	std::string         myFilename;
+	std::vector<std::string> myFilenames;
     };
 
     // Stores world (cumulative) transforms for objects in the cache. These
@@ -944,9 +943,6 @@ namespace
     //-*************************************************************************
 
     size_t g_maxCache = 50;
-    //for now, leak the pointer to the archive cache so we don't
-    //crash at shutdown
-    ArchiveCache *g_archiveCache(new ArchiveCache);
 
     //-*************************************************************************
 
@@ -963,101 +959,138 @@ namespace
     }
 
     static bool
-    pathMap(UT_String &path)
+    pathMap(const std::string &path)
     {
-	if (!path.isstring())
-	{
+	if (path == "")
 	    return false;
-        }
-	FS_Info	finfo(path.buffer());
+	FS_Info	finfo(path.c_str());
 	return finfo.hasAccess(FS_READ);
     }
 
-    static ArchiveCacheEntryPtr
-    FindArchive(const std::string &path)
+    class ArchiveCache
     {
-        ArchiveCache::iterator  I;
-	UT_String               spath(path.c_str());
+    public:
+	ArchiveCache() {}
+	~ArchiveCache() { clearArchive(); }
 
-	if (pathMap(spath))
+	ArchiveCacheEntryPtr
+	findArchive(const std::vector<std::string> &paths)
 	{
-	    I = g_archiveCache->find(spath.buffer());
-	    if (I != g_archiveCache->end())
+	    for (auto &it : paths)
 	    {
+		if (!pathMap(it))
+		{
+		    badFileWarning(it);
+		    return ArchiveCacheEntryPtr();
+		}
+	    }
+
+	    auto I = myItems.find(paths);
+	    if (I != myItems.end())
 		return I->second;
+
+	    return ArchiveCacheEntryPtr();
+	}
+
+	ArchiveCacheEntryPtr
+	loadArchive(const std::vector<std::string> &paths)
+	{
+	    UT_AutoLock lock(theFileLock);
+
+	    auto I = myItems.find(paths);
+	    if (I != myItems.end())
+		return I->second;
+
+	    if (!paths.size())
+		return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
+
+	    for (auto &it : paths)
+	    {
+		if (!pathMap(it))
+		{
+		    badFileWarning(it);
+		    return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
+		}
+	    }
+
+	    auto entry = ArchiveCacheEntryPtr(new ArchiveCacheEntry());
+	    entry->setArchive(GABC_IArchive::open(paths));
+	    while (myItems.size() >= g_maxCache)
+	    {
+		long d = static_cast<long>(
+			std::floor(static_cast<double>(std::rand())
+				    / RAND_MAX * g_maxCache - 0.5));
+		if (d < 0)
+		    d = 0;
+
+		auto it = myItems.begin();
+		for (; d > 0; --d)
+		    ++it;
+		removeCacheEntry(it->first);
+	    }
+
+	    addCacheEntry(paths, entry);
+	    return entry;
+	}
+
+	void
+	clearArchive(const char *path=nullptr)
+	{
+	    if(path)
+	    {
+		std::string tmp = path;
+		auto it = myKeysWithPath.find(tmp);
+		if(it != myKeysWithPath.end())
+		{
+		    auto keys = it->second;
+		    for(auto &paths : keys)
+			removeCacheEntry(paths);
+		}
+	    }
+	    else
+	    {
+		for (auto &it : myItems)
+		    it.second->purge();
+
+		myItems.clear();
+		myKeysWithPath.clear();
 	    }
 	}
 
-	badFileWarning(path);
-	return ArchiveCacheEntryPtr();
-    }
-
-    static ArchiveCacheEntryPtr
-    LoadArchive(const std::string &path)
-    {
-	UT_AutoLock	lock(theFileLock);
-
-        ArchiveCache::iterator  I = g_archiveCache->find(path);
-        if (I != g_archiveCache->end())
-        {
-            return (*I).second;
-        }
-	UT_String               spath(path.c_str());
-	if (!pathMap(spath))
+    private:
+	void
+	addCacheEntry(const std::vector<std::string> &paths,
+		      const ArchiveCacheEntryPtr &entry)
 	{
-	    badFileWarning(path);
-	    return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
+	    for(auto &path : paths)
+		myKeysWithPath[path].insert(paths);
+
+	    myItems[paths] = entry;
 	}
 
-        ArchiveCacheEntryPtr    entry;
-        entry = ArchiveCacheEntryPtr(new ArchiveCacheEntry);
-	entry->setArchive(GABC_IArchive::open(spath.buffer()));
-        while (g_archiveCache->size() >= g_maxCache)
-        {
-            long d = static_cast<long>(
-                    std::floor(   static_cast<double>(std::rand())
-                                / RAND_MAX * g_maxCache - 0.5));
-            if (d < 0)
-            {
-                d = 0;
-            }
-
-            ArchiveCache::iterator it = g_archiveCache->begin();
-            for (; d > 0; --d)
-            {
-                ++it;
-            }
-            g_archiveCache->erase(it);
-        }
-
-        (*g_archiveCache)[path] = entry;
-        return entry;
-    }
-
-    static void
-    ClearArchiveFile(const std::string &path)
-    {
-        ArchiveCache::iterator it = g_archiveCache->find(path);
-	if (it != g_archiveCache->end())
+	void
+	removeCacheEntry(const std::vector<std::string> &paths)
 	{
+	    for(auto &p : paths)
+	    {
+		auto it = myKeysWithPath.find(p);
+		it->second.erase(paths);
+		if(it->second.empty())
+		    myKeysWithPath.erase(p);
+	    }
+
+	    auto it = myItems.find(paths);
 	    it->second->purge();
-	    g_archiveCache->erase(it);
-	}
-    }
-
-    static void
-    ClearArchiveCache()
-    {
-	for (ArchiveCache::iterator it = g_archiveCache->begin();
-		it != g_archiveCache->end();
-		++it)
-	{
-	    it->second->purge();
+	    myItems.erase(it);
 	}
 
-	delete g_archiveCache;
-	g_archiveCache = new ArchiveCache;
-    }
+	UT_Map<std::vector<std::string>, ArchiveCacheEntryPtr> myItems;
+	UT_Map<std::string, UT_Set<std::vector<std::string> > > myKeysWithPath;
+    };
+
+    // for now, leak the pointer to the archive cache so we don't
+    // crash at shutdown
+    ArchiveCache *g_archiveCache(new ArchiveCache);
 
     static std::string
     getInterpretation(const PropertyHeader &head, const DataType &dt)
@@ -1874,17 +1907,17 @@ GABC_Util::getAlembicCompileNamespace()
 }
 
 bool
-GABC_Util::walk(const std::string &filename,
+GABC_Util::walk(const std::vector<std::string> &filenames,
         Walker &walker,
         const UT_StringArray &objects)
 {
-    ArchiveCacheEntryPtr    cacheEntry = LoadArchive(filename);
-    WalkPushFile            walkfile(walker, filename);
+    auto cacheEntry = g_archiveCache->loadArchive(filenames);
+    WalkPushFile walkfile(walker, filenames);
 
     for (exint i = 0; i < objects.entries(); ++i)
     {
 	std::string     path(objects(i));
-	GABC_IObject    obj = findObject(filename, path);
+	GABC_IObject obj = findObject(filenames, path);
 
 	if (obj.valid())
 	{
@@ -1903,17 +1936,17 @@ GABC_Util::walk(const std::string &filename,
 }
 
 bool
-GABC_Util::walk(const std::string &filename,
+GABC_Util::walk(const std::vector<std::string> &filenames,
         Walker &walker,
         const UT_Set<std::string> &objects)
 {
-    ArchiveCacheEntryPtr    cacheEntry = LoadArchive(filename);
-    WalkPushFile            walkfile(walker, filename);
+    auto cacheEntry = g_archiveCache->loadArchive(filenames);
+    WalkPushFile walkfile(walker, filenames);
 
     walker.myBadArchive = !cacheEntry->isValid();
     for (auto it = objects.begin(); it != objects.end(); ++it)
     {
-	GABC_IObject    obj = findObject(filename, *it);
+	GABC_IObject obj = findObject(filenames, *it);
 
 	if (obj.valid())
 	{
@@ -1932,9 +1965,9 @@ GABC_Util::walk(const std::string &filename,
 }
 
 bool
-GABC_Util::walk(const std::string &filename, GABC_Util::Walker &walker)
+GABC_Util::walk(const std::vector<std::string> &filenames, GABC_Util::Walker &walker)
 {
-    ArchiveCacheEntryPtr    cacheEntry = LoadArchive(filename);
+    auto cacheEntry = g_archiveCache->loadArchive(filenames);
 
     walker.myBadArchive = !cacheEntry->isValid();
     if (walker.myBadArchive)
@@ -1942,18 +1975,14 @@ GABC_Util::walk(const std::string &filename, GABC_Util::Walker &walker)
 	return false;
     }
 
-    WalkPushFile            walkfile(walker, filename);
+    WalkPushFile walkfile(walker, filenames);
     return cacheEntry->walk(walker);
 }
 
 void
 GABC_Util::clearCache(const char *filename)
 {
-    if (filename)
-        ClearArchiveFile(filename);
-    else
-        ClearArchiveCache();
-    
+    g_archiveCache->clearArchive(filename);
     GT_PackedGeoCache::clearAlembics(filename);
 }
 
@@ -1970,26 +1999,26 @@ GABC_Util::fileCacheSize()
 }
 
 GABC_IObject
-GABC_Util::findObject(const std::string &filename,
+GABC_Util::findObject(const std::vector<std::string> &filenames,
 	const std::string &objectpath)
 {
-    ArchiveCacheEntryPtr    cacheEntry = LoadArchive(filename);
+    auto cacheEntry = g_archiveCache->loadArchive(filenames);
     return cacheEntry->isValid()
             ? cacheEntry->getObject(objectpath)
             : GABC_IObject();
 }
 
 GABC_IObject
-GABC_Util::findObject(const std::string &filename, ObjectReaderPtr reader)
+GABC_Util::findObject(const std::vector<std::string> &filenames, ObjectReaderPtr reader)
 {
-    ArchiveCacheEntryPtr    cacheEntry = LoadArchive(filename);
+    auto cacheEntry = g_archiveCache->loadArchive(filenames);
     return cacheEntry->isValid()
             ? cacheEntry->getObject(reader)
             : GABC_IObject();
 }
 
 bool
-GABC_Util::getLocalTransform(const std::string &filename,
+GABC_Util::getLocalTransform(const std::vector<std::string> &filenames,
 	const std::string &objectpath,
 	fpreal sample_time,
 	UT_Matrix4D &xform,
@@ -2001,7 +2030,7 @@ GABC_Util::getLocalTransform(const std::string &filename,
 
     try
     {
-	ArchiveCacheEntryPtr    cacheEntry = LoadArchive(filename);
+	auto cacheEntry = g_archiveCache->loadArchive(filenames);
 	if (cacheEntry->isValid())
 	{
 	    GABC_IObject        obj = cacheEntry->getObject(objectpath);
@@ -2029,7 +2058,7 @@ GABC_Util::getLocalTransform(const std::string &filename,
 }
 
 bool
-GABC_Util::getWorldTransform(const std::string &filename,
+GABC_Util::getWorldTransform(const std::vector<std::string> &filenames,
 	const std::string &objectpath,
 	fpreal sample_time,
 	UT_Matrix4D &xform,
@@ -2041,7 +2070,7 @@ GABC_Util::getWorldTransform(const std::string &filename,
 
     try
     {
-	ArchiveCacheEntryPtr    cacheEntry = LoadArchive(filename);
+	auto cacheEntry = g_archiveCache->loadArchive(filenames);
 	if (cacheEntry->isValid())
 	{
 	    GABC_IObject        obj = cacheEntry->getObject(objectpath);
@@ -2082,8 +2111,8 @@ GABC_Util::getWorldTransform(
     {
 	try
 	{
-	    std::string filename = obj.archive()->filename();
-	    ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
+	    auto &filenames = obj.archive()->filenames();
+	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
 	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
 	    success = cacheEntry->getWorldTransform(wxform,
 	            obj,
@@ -2113,8 +2142,8 @@ GABC_Util::isTransformAnimated(const GABC_IObject &obj)
     {
 	try
 	{
-	    std::string filename = obj.archive()->filename();
-	    ArchiveCacheEntryPtr    cacheEntry = LoadArchive(filename);
+	    auto &filenames = obj.archive()->filenames();
+	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
 	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
 	    animated = cacheEntry->isObjectAnimated(obj);
 	}
@@ -2140,8 +2169,8 @@ GABC_Util::getVisibility(
     {
 	try
 	{
-	    std::string filename = obj.archive()->filename();
-	    ArchiveCacheEntryPtr cacheEntry = LoadArchive(filename);
+	    auto &filenames = obj.archive()->filenames();
+	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
 	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
 	    vis = cacheEntry->getVisibility(obj, sample_time, animated,
 					    check_parent);
@@ -2157,32 +2186,28 @@ GABC_Util::getVisibility(
 }
 
 bool
-GABC_Util::addEventHandler(const std::string &path,
+GABC_Util::addEventHandler(const std::vector<std::string> &paths,
 	const GABC_Util::ArchiveEventHandlerPtr &handler)
 {
     if (handler)
     {
-	ArchiveCacheEntryPtr	arch = FindArchive(path);
-	if (arch)
-	{
-	    if (arch->addHandler(handler))
-	    {
-                return true;
-            }
-	}
+	auto arch = g_archiveCache->findArchive(paths);
+	if (arch && arch->addHandler(handler))
+	    return true;
     }
 
     return false;
 }
 
 const PathList &
-GABC_Util::getObjectList(const std::string &filename, bool with_fsets)
+GABC_Util::getObjectList(
+    const std::vector<std::string> &filenames, bool with_fsets)
 {
     static PathList theEmptyList;
 
     try
     {
-	ArchiveCacheEntryPtr	cacheEntry = LoadArchive(filename);
+	auto cacheEntry = g_archiveCache->loadArchive(filenames);
 	return cacheEntry->getObjectList(with_fsets);
     }
     catch (const std::exception &)

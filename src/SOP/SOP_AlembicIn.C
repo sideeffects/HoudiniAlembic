@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -89,10 +89,10 @@ namespace
 	// the object path parm we want to modify.
 	parm_name.eraseHead(4);
 	cmd.strcpy("treechooser");
-	sop->evalString(filename, "fileName", 0, t);
+	std::vector<std::string> filenames;
+	sop->appendFileNames(filenames, t);
 	sop->evalString(objectpath, parm_name, 0, t);
-	const PathList	&abcobjects =
-	    GABC_Util::getObjectList((const char *)filename);
+	const PathList	&abcobjects = GABC_Util::getObjectList(filenames);
 
 	if (objectpath.isstring())
 	{
@@ -176,7 +176,6 @@ SOP_AlembicIn2::Parms::Parms()
     , myPointMode(GABC_GEOWalker::ABCPRIM_CENTROID_POINT)
     , myBuildAbcShape(true)
     , myBuildAbcXform(false)
-    , myFilename()
     , myObjectPath()
     , myObjectPattern()
     , myExcludeObjectPath()
@@ -193,7 +192,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myPolySoup(GABC_GEOWalker::ABC_POLYSOUP_POLYMESH)
     , myViewportLOD(GEO_VIEWPORT_FULL)
     , myPathAttribute("")
-    , myFilenameAttribute("")
+    , myFileNameAttribute("")
     , myNameMapPtr()
     , myFacesetAttribute("*")
 {
@@ -209,7 +208,7 @@ SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
 SOP_AlembicIn2::Parms &
 SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
 {
-    myFilename = src.myFilename;
+    myFileNames = src.myFileNames;
     myLoadMode = src.myLoadMode;
     myBoundMode = src.myBoundMode;
     mySizeCullMode = src.mySizeCullMode;
@@ -237,7 +236,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myExcludeObjectPath.harden(src.myExcludeObjectPath);
     mySubdGroupName.harden(src.mySubdGroupName);
     myPathAttribute.harden(src.myPathAttribute);
-    myFilenameAttribute.harden(src.myFilenameAttribute);
+    myFileNameAttribute.harden(src.myFileNameAttribute);
     return *this;
 }
 
@@ -245,7 +244,7 @@ bool
 SOP_AlembicIn2::Parms::needsPathAttributeUpdate(const SOP_AlembicIn2::Parms &parms)
 {
     return myPathAttribute != parms.myPathAttribute ||
-	myFilenameAttribute != parms.myFilenameAttribute;
+	myFileNameAttribute != parms.myFileNameAttribute;
 }
 
 bool
@@ -269,7 +268,7 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 	return true;
     if (myBuildAbcXform != src.myBuildAbcXform)
 	return true;
-    if (myFilename != src.myFilename)
+    if (myFileNames != src.myFileNames)
 	return true;
     if (myGroupMode != src.myGroupMode)
 	return true;
@@ -302,7 +301,7 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
     if (myLoadUserProps != src.myLoadUserProps)
 	return true;
     // myPathAttribute can change
-    // myFilenameAttribute can change
+    // myFileNameAttribute can change
     if (myNameMapPtr && src.myNameMapPtr)
     {
 	if (*myNameMapPtr != *src.myNameMapPtr)
@@ -360,6 +359,7 @@ static PRM_Template prm_AttributeRemapTemplate[] = {
 
 static PRM_Name prm_reloadbutton("reload", "Reload Geometry");
 static PRM_Name prm_filenameName("fileName", "File Name");
+static PRM_Name prm_numlayersName("numlayers", "Number of Layers");
 static PRM_Name prm_frameName("frame", "Frame");
 static PRM_Name prm_fpsName("fps", "Frames Per Second");
 static PRM_Name prm_missingFileName("missingfile", "Missing File");
@@ -407,8 +407,19 @@ static PRM_Default prm_fileattribDefault(0, "abcFileName");
 static PRM_Default prm_geometryfilterDefault(true);
 
 static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
-        "__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu"
-                "(hou.pwd().evalParm('fileName'))[:16380]", CH_PYTHON_SCRIPT);
+        "def getFileName(node):\n"
+	"    r = []\n"
+	"    p = node.evalParm('fileName')\n"
+	"    if p:\n"
+	"        r.append(p)\n"
+	"    for i in range(node.evalParm('numlayers')):\n"
+	"        if node.evalParm('enablelayer%d' % (i + 1,)):\n"
+	"            p = node.evalParm('layer%d' % (i + 1,))\n"
+	"            if p:\n"
+	"                r.append(p)\n"
+	"    return r\n"
+	"return __import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu"
+                "(getFileName(hou.pwd()))[:16380]", CH_PYTHON_SCRIPT);
 
 static PRM_Name	loadModeOptions[] = {
     PRM_Name("alembic",	"Alembic Delayed Load Primitives"),
@@ -552,6 +563,16 @@ static PRM_Default	mainSwitcher[] =
     PRM_Default(11, "Attributes"),
 };
 
+static PRM_Name prm_enablelayerName("enablelayer#", "");
+static PRM_Name prm_layerName("layer#", "Layer #");
+
+static PRM_Template prm_layersTemplate[] = {
+    PRM_Template(PRM_TOGGLE, PRM_TYPE_TOGGLE_JOIN, 1, &prm_enablelayerName,
+	    PRMoneDefaults),
+    PRM_Template(PRM_FILE, 1, &prm_layerName, 0, 0, 0, 0, &theAbcPattern),
+    PRM_Template()
+};
+
 static PRM_SpareData *
 sopCreateObjectPathSpareData(bool clear_path, bool clear_exclude)
 {
@@ -585,6 +606,8 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 	    0, 0, 0, SOP_AlembicIn2::reloadGeo),
     PRM_Template(PRM_FILE,  1, &prm_filenameName, &prm_filenameDefault,
 	    0, 0, 0, &theAbcPattern),
+    PRM_Template(PRM_MULTITYPE_LIST, prm_layersTemplate, 1,
+            &prm_numlayersName, 0, 0, &PRM_SpareData::multiStartOffsetOne),
     PRM_Template(PRM_FLT_J, 1, &prm_frameName, &prm_frameDefault),
     PRM_Template(PRM_FLT_J, 1, &prm_fpsName, &prm_fpsDefault),
     PRM_Template(PRM_ORD,   1, &prm_missingFileName, &missingFileDefault,
@@ -701,9 +724,10 @@ SOP_AlembicIn2::reloadGeo(void *data, int index, float time, const PRM_Template 
 {
     SOP_AlembicIn2 *me = (SOP_AlembicIn2 *) data;
 
-    UT_String fileName;
-    me->evalString(fileName, "fileName", 0, time);
-    GABC_Util::clearCache(fileName);
+    std::vector<std::string> filenames;
+    me->appendFileNames(filenames, time);
+    for(auto &filename : filenames)
+	GABC_Util::clearCache(filename.c_str());
     me->unloadData();
     return 1;
 }
@@ -801,6 +825,10 @@ SOP_AlembicIn2::updateParmsFlags()
 
     loadmode = evalInt("loadmode", 0, 0);
 
+    int numlayers = evalInt("numlayers", 0, 0);
+    for (int i = 1; i <= numlayers; ++i)
+	enableParmInst("layer#", &i, evalIntInst("enablelayer#", &i, 0, 0));
+
     changed |= enableParm("pathattrib", evalInt("addpath", 0, 0));
     changed |= enableParm("fileattrib", evalInt("addfile", 0, 0));
     changed |= enableParm("pointmode", loadmode == 0);
@@ -823,8 +851,8 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     fpreal	now = context.getTime();
     UT_String	sval;
 
-    evalString(sval, "fileName", 0, now);
-    parms.myFilename = sval.toStdString();
+    parms.myFileNames.clear();
+    appendFileNames(parms.myFileNames, now);
 
     parms.myLoadMode = GABC_GEOWalker::LOAD_ABC_PRIMITIVES;
     evalString(sval, "loadmode", 0, now);
@@ -883,7 +911,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     if (evalInt("addpath", 0, now))
 	evalString(parms.myPathAttribute, "pathattrib", 0, now);
     if (evalInt("addfile", 0, now))
-	evalString(parms.myFilenameAttribute, "fileattrib", 0, now);
+	evalString(parms.myFileNameAttribute, "fileattrib", 0, now);
 
     evalString(sval, "loadUserProps", 0, now);
     if (sval == "none")
@@ -982,11 +1010,11 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 
 //-*****************************************************************************
 void
-SOP_AlembicIn2::setupEventHandler(const std::string &filename)
+SOP_AlembicIn2::setupEventHandler(const std::vector<std::string> &filenames)
 {
     clearEventHandler();
     myEventHandler.reset(new EventHandler(this));
-    if (!GABC_Util::addEventHandler(filename, myEventHandler))
+    if (!GABC_Util::addEventHandler(filenames, myEventHandler))
 	myEventHandler.clear();
 }
 
@@ -1011,6 +1039,26 @@ SOP_AlembicIn2::archiveClearEvent()
     forceRecook();
 }
 
+void
+SOP_AlembicIn2::appendFileNames(std::vector<std::string> &filenames, fpreal t)
+{
+    UT_String name;
+    evalString(name, "fileName", 0, t);
+    if(name.isstring())
+	filenames.push_back(name.toStdString());
+    int numlayers = evalInt("numlayers", 0, t);
+    for (int i = 1; i <= numlayers; ++i)
+    {
+	if (evalIntInst("enablelayer#", &i, 0, t))
+	{
+	    UT_String fileName;
+	    evalStringInst("layer#", &i, fileName, 0, t);
+	    if (fileName.isstring())
+		filenames.push_back(fileName.toStdString());
+	}
+    }
+}
+
 //-*****************************************************************************
 void
 SOP_AlembicIn2::setPathAttributes(GABC_GEOWalker &walk, const Parms &parms)
@@ -1024,13 +1072,16 @@ SOP_AlembicIn2::setPathAttributes(GABC_GEOWalker &walk, const Parms &parms)
 	if (a.isValid())
 	    walk.setPathAttribute(a);
     }
-    if (parms.myFilenameAttribute.isstring())
+    if (parms.myFileNameAttribute.isstring())
     {
 	GA_RWAttributeRef	aref = detail.addStringTuple(GA_ATTRIB_DETAIL,
-				    parms.myFilenameAttribute, 1);
+				    parms.myFileNameAttribute, 1);
 	GA_RWHandleS	h(aref.getAttribute());
 	if (h.isValid())
-	    h.set(GA_Offset(0), parms.myFilename.c_str());
+	{
+	    if (parms.myFileNames.size())
+		h.set(GA_Offset(0), parms.myFileNames[0].c_str());
+	}
 	else
 	    addWarning(SOP_MESSAGE, "Error adding filename attribute");
     }
@@ -1185,12 +1236,12 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	}
 	walk.setPathAttributeChanged(true);
     }
-    if (myLastParms.myFilenameAttribute != parms.myFilenameAttribute)
+    if (myLastParms.myFileNameAttribute != parms.myFileNameAttribute)
     {
-	if (myLastParms.myFilenameAttribute.isstring())
+	if (myLastParms.myFileNameAttribute.isstring())
 	{
 	    walkgdp->destroyAttribute(GA_ATTRIB_DETAIL,
-		    myLastParms.myFilenameAttribute);
+		    myLastParms.myFileNameAttribute);
 	}
     }
     walk.setUserProps(parms.myLoadUserProps);
@@ -1253,7 +1304,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 
 		removeDuplicates(olist);
 
-		if (!GABC_Util::walk(parms.myFilename, walk, olist))
+		if (!GABC_Util::walk(parms.myFileNames, walk, olist))
 		{
 		    if (parms.myMissingFileError || !walk.badArchive())
 		    {
@@ -1270,24 +1321,24 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	}
 	else
 	{
-	    if (!GABC_Util::walk(parms.myFilename, walk))
+	    if (!GABC_Util::walk(parms.myFileNames, walk))
 	    {
 		UT_WorkBuffer msg;
 		if (parms.myMissingFileError || !walk.badArchive())
 		{
 		    msg.sprintf("Error evaluating Alembic file (%s)",
-				parms.myFilename.c_str());
+				GABC_IArchive::filenamesToString(parms.myFileNames).c_str());
 		    addError(SOP_MESSAGE, msg.buffer());
 		}
 		else
 		{
 		    msg.sprintf("Invalid or missing Alembic file (%s)",
-				parms.myFilename.c_str());
+				GABC_IArchive::filenamesToString(parms.myFileNames).c_str());
 		    addWarning(SOP_MESSAGE, msg.buffer());
 		}
 	    }
 	}
-	setupEventHandler(parms.myFilename);
+	setupEventHandler(parms.myFileNames);
     }
 
     if (error() < UT_ERROR_ABORT)
