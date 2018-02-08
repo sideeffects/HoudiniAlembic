@@ -175,7 +175,7 @@ $(FULL_LIB):	$(OFILES)
 # Build a test application using the installed custom version of the
 # Alembic libraries, and the shipped Houdini libraries.
 #
-ABCINSTALL	= /usr/local/alembic-1.6.1
+ABCINSTALL	= /usr/local/alembic-1.7.5
 ABCINC		= $(ABCINSTALL)/include
 ABCLIB		= $(ABCINSTALL)/lib
 HALFINC		= -I$(HFS)/custom/include/OpenEXR
