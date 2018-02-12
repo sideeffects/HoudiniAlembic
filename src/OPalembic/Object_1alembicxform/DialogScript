@@ -210,14 +210,6 @@
 	baseparm
 	export	none
     }
-    parm {
-	name	"fileName"
-	label	"File Name"
-	type	file
-	default	{ "" }
-	range	{ 0 1 }
-	export	none
-    }
     multiparm {
 	name	"numlayers"
 	label	"Number of Layers"
@@ -241,6 +233,14 @@
 	    parmtag	{ "filechooser_mode" "read" }
 	    parmtag	{ "filechooser_pattern" "*.abc" }
 	}
+    }
+    parm {
+	name	"fileName"
+	label	"File Name"
+	type	file
+	default	{ "" }
+	range	{ 0 1 }
+	export	none
     }
     parm {
 	name	"objectPath"
