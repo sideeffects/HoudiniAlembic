@@ -409,14 +409,14 @@ static PRM_Default prm_geometryfilterDefault(true);
 static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
         "def getFileName(node):\n"
 	"    r = []\n"
-	"    p = node.evalParm('fileName')\n"
-	"    if p:\n"
-	"        r.append(p)\n"
 	"    for i in range(node.evalParm('numlayers')):\n"
 	"        if node.evalParm('enablelayer%d' % (i + 1,)):\n"
 	"            p = node.evalParm('layer%d' % (i + 1,))\n"
 	"            if p:\n"
 	"                r.append(p)\n"
+	"    p = node.evalParm('fileName')\n"
+	"    if p:\n"
+	"        r.append(p)\n"
 	"    return r\n"
 	"return __import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu"
                 "(getFileName(hou.pwd()))[:16380]", CH_PYTHON_SCRIPT);
@@ -1042,10 +1042,6 @@ SOP_AlembicIn2::archiveClearEvent()
 void
 SOP_AlembicIn2::appendFileNames(std::vector<std::string> &filenames, fpreal t)
 {
-    UT_String name;
-    evalString(name, "fileName", 0, t);
-    if(name.isstring())
-	filenames.push_back(name.toStdString());
     int numlayers = evalInt("numlayers", 0, t);
     for (int i = 1; i <= numlayers; ++i)
     {
@@ -1057,6 +1053,11 @@ SOP_AlembicIn2::appendFileNames(std::vector<std::string> &filenames, fpreal t)
 		filenames.push_back(fileName.toStdString());
 	}
     }
+
+    UT_String name;
+    evalString(name, "fileName", 0, t);
+    if(name.isstring())
+	filenames.push_back(name.toStdString());
 }
 
 //-*****************************************************************************

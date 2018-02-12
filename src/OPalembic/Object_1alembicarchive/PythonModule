@@ -9,14 +9,14 @@ _AbcModule = '__import__("_alembic_hom_extensions")'
 
 def GetFileName(node):
     r = []
-    p = node.evalParm('fileName')
-    if p:
-        r.append(p)
     for i in range(node.evalParm('numlayers')):
         if node.evalParm('enablelayer%d' % (i + 1,)):
             path = node.evalParm('layer%d' % (i + 1,))
             if path:
                 r.append(path)
+    p = node.evalParm('fileName')
+    if p:
+        r.append(p)
     return r
 
 def BuildHierarchyRoot(rootNode):
@@ -126,14 +126,14 @@ def _setParmValue(node, parmname, value):
 
 def _setFileName(node, filename):
     if len(filename):
-        _setParmValue(node, 'fileName', filename[0])
         parm = node.parm('numlayers')
         if parm:
-            layers = filename[1:]
+            layers = filename[:-1]
             parm.set(len(layers))
             for i, name in enumerate(layers):
                 _setParmValue(node, 'enablelayer%d' % (i + 1, ), 1)
                 _setParmValue(node, 'layer%d' % (i + 1, ), name)
+        _setParmValue(node, 'fileName', filename[-1])
 
 def _setNodeName(node, name):
     try:
