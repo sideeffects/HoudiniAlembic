@@ -170,7 +170,7 @@ public:
     UT_StringHolder	 intrinsicFilename(const GU_PrimPacked *prim) const
 			    {
 				if (myFilenames.size())
-				    return myFilenames[0];
+				    return myFilenames.last();
 				return "";
 			    }
     UT_StringHolder	 intrinsicFilenamesJSON(const GU_PrimPacked *prim) const;

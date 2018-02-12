@@ -1,13 +1,13 @@
 def GetFileName(node):
     r = []
-    p = node.evalParm('fileName')
-    if p:
-        r.append(p)
     for i in range(node.evalParm('numlayers')):
         if node.evalParm('enablelayer%d' % (i + 1,)):
             path = node.evalParm('layer%d' % (i + 1,))
             if path:
                 r.append(path)
+    p = node.evalParm('fileName')
+    if p:
+        r.append(p)
     return r
 
 ConstantXforms = {}
