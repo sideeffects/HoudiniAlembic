@@ -838,6 +838,10 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 					abc->getPrim()->attributeNameMap(),
 					abc->getPrim()->facesetAttribute(), 
 					myLoadStyle);
+		// The above call only sets atype if it's deforming.
+		// Need to check for transform animation.
+		if(atype == GEO_ANIMATION_CONSTANT)
+		    atype = o.getAnimationType(true);
 
 		if (atype > myAnimationType)
 		    myAnimationType = atype;
