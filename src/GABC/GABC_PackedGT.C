@@ -82,7 +82,7 @@ public:
 	const UT_StringMap< UT_Array<const GU_PrimPacked*> > &geo,
 	const GT_GEODetailListHandle &geometry,
 	const GT_RefineParms *ref_parms,
-	UT_Array<GT_PrimitiveHandle> &gt_prims,
+	UT_StringMap<GT_PrimitiveHandle> &gt_prims,
 	bool collect_anim_info)
       : myGeos(geo), myGeometry(geometry), myRefineParms(ref_parms),
 	myPrims(gt_prims), myCollectAnimInfo(collect_anim_info)
@@ -111,6 +111,8 @@ public:
 		auto impl= UTverify_cast<const GABC_PackedImpl*>
 		    (itr->second(0)->implementation());
 
+		UT_StringHolder path = impl->object().getFullName();
+
 		// No need to pack if there is only a single instance.
 		if(itr->second.entries() == 1)
 		{
@@ -131,7 +133,7 @@ public:
 		    else
 			packgt->initVisAnim();
 		    
-		    myPrims(index) = packgt;
+		    myPrims[path] = packgt;
 		    continue;
 		}
 		
@@ -228,16 +230,16 @@ public:
 		    }
 		}
 		
-		myPrims(index) = new GABC_PackedInstance(geo, xformh, anim_type,
-							 offsets, prim_attribs,
-							 detail_attribs,
+		myPrims[path] = new GABC_PackedInstance(geo, xformh, anim_type,
+							offsets, prim_attribs,
+							detail_attribs,
 						     GT_GEODetailListHandle());
 	    }
 	}
 
 private:
     const UT_StringMap< UT_Array<const GU_PrimPacked *> > &myGeos;
-    UT_Array<GT_PrimitiveHandle>		 &myPrims;
+    UT_StringMap<GT_PrimitiveHandle>		 &myPrims;
     const GT_GEODetailListHandle		  myGeometry;
     const GT_RefineParms			 *myRefineParms;
     const bool					  myCollectAnimInfo;
@@ -322,6 +324,7 @@ public:
 		bucket_name.appendSprintf("[%f]", impl->frame());
 
 	    myInstanceGeo[ bucket_name.buffer() ].append(&prim);
+	    myAlembicNames.append(bucket_name.buffer());
 	}
 
     // only bucket by archive. will be bucketed later. 
@@ -435,8 +438,9 @@ public:
 
 	    // std::cerr << "# unique instances: " << myInstanceGeo.size()
 	    // 	      << std::endl;
-	    UT_Array<GT_PrimitiveHandle> prims;
-	    prims.entries( myInstanceGeo.size() );
+	    UT_StringMap<GT_PrimitiveHandle> prims;
+	    for(auto name : myAlembicNames)
+		prims[name] = nullptr;
 	    gabc_CreateInstanceGeos task(myInstanceGeo, myGeometry,
 					 myRefineParms, prims, false);
 #if 1
@@ -448,11 +452,11 @@ public:
 #endif
 	    if(collect)
 	    {
-		for(int i=0; i<prims.entries(); i++)
-		    collect->appendPrimitive(prims(i));
+		for(auto name : myAlembicNames)
+		    collect->appendPrimitive(prims[name]);
 	    }
 	    else
-		result = prims(0);
+		result = prims[myAlembicNames(0)];
 
 	    return result;
 	}
@@ -489,7 +493,7 @@ private:
     UT_Array<const GU_PrimPacked *>	myCentroidPrims;
     UT_StringMap< UT_Array<const GU_PrimPacked *> > myInstanceGeo;
     UT_StringMap< GEO_AnimationType >	myInstanceAnim;
-
+    UT_StringArray			myAlembicNames;
 };
 
 } // namespace
@@ -1417,8 +1421,10 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
     START_TIMER();
 
     // Create GT primitives for the buckets
-    UT_Array<GT_PrimitiveHandle> prims;
-    prims.entries(btask.buckets().size());
+    UT_StringMap<GT_PrimitiveHandle> prims;
+    for(auto name : myAlembicObjects)
+	prims[name] = nullptr;
+    
     gabc_CreateInstanceGeos gttask(btask.buckets(), myDetailList, parms, prims,
 				   true);
 
@@ -1429,8 +1435,9 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
     UT_Array<GT_PrimitiveHandle> alem_meshes;
     int ccount = 0;
     // Sort the primitives into buckets based on animation.
-    for(auto &p : prims)
+    for(auto name : myAlembicObjects)
     {
+	GT_PrimitiveHandle p = prims[name];
 	GEO_AnimationType type = GEO_ANIMATION_INVALID;
 	
 	GABC_PackedAlembic *single =dynamic_cast<GABC_PackedAlembic *>(p.get());
