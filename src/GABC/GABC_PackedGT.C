@@ -510,12 +510,14 @@ GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
 				       const GT_DataArrayHandle &vp_mat,
 				       const GT_DataArrayHandle &vp_remap,
 				       bool build_packed_attribs)
-    : GT_PackedAlembic(prim_gdh, prim, vp_mat, vp_remap, build_packed_attribs)
+    : GT_PackedAlembic(prim_gdh, prim, vp_mat, vp_remap, build_packed_attribs),
+      myColorID(-2)
 {
 }
 
 GABC_PackedAlembic::GABC_PackedAlembic(const GABC_PackedAlembic &src)
-    : GT_PackedAlembic(src)
+    : GT_PackedAlembic(src),
+      myColorID(src.myColorID)
 {
 }
 
@@ -546,7 +548,7 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 		    changed = true;
 		}
 	    }
-	    
+
 	    UT_Matrix4D transform;
 	    auto pimpl = UTverify_cast<const GABC_PackedImpl *>(
 		packed->implementation());
@@ -561,10 +563,28 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 		changed = true;
 	    }
 	}
+	
     }
     
-    return GT_GEOPrimPacked::updateGeoPrim(dtl, refine) || changed;
+    if(GT_GEOPrimPacked::updateGeoPrim(dtl, refine))
+	changed = true;
+
+    int cid = -2; // no Cd attrib
+    if(getPointAttributes())
+    {
+	GT_DataArrayHandle ch = getPointAttributes()->get("Cd");
+	if(ch)
+	{
+	    cid = ch->getDataId();
+	    if(cid == -1 || cid != myColorID)
+		changed = true;
+	}
+    }
+    myColorID = cid;
+
+    return changed;
 }
+
 
 void
 GABC_PackedAlembic::initVisAnim()
