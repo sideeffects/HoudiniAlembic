@@ -582,6 +582,7 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
     }
     myColorID = cid;
 
+    myHasChanged = changed;
     return changed;
 }
 
@@ -602,9 +603,11 @@ GABC_PackedAlembic::initVisAnim()
 	}
 	else if(myAnimType != GEO_ANIMATION_CONSTANT)
 	    myCache.setTransformAnimated(true);
-		
-	myVisibleConst = impl->visibleGT(&myAnimVis);
-	myCache.setVisibilityAnimated(myAnimVis);
+
+	bool vis = false;
+	myVisibleConst = impl->visibleGT(&vis);
+	myCache.setVisibilityAnimated(vis);
+	myAnimVis = vis;
 
 	SYS_HashType hash = impl->getPropertiesHash();
 	SYShashCombine(hash, SYSreal_hash(frame));
@@ -1646,61 +1649,34 @@ GABC_PackedArchive::archiveMatch(const GT_PackedAlembicArchive *archive) const
 // -------------------------------------------------------------------------
 
 GABC_PackedInstance::GABC_PackedInstance()
-    : GT_PrimInstance(),
-      myAnimType(GEO_ANIMATION_INVALID)
-{
-}
+  : GT_AlembicInstance()
+{}
 
 GABC_PackedInstance::GABC_PackedInstance(const GABC_PackedInstance &src)
-    : GT_PrimInstance(src),
-      myAnimType(src.myAnimType)
-{
-    myCache.entries( entries() );
-    
-    if(myAnimType >= GEO_ANIMATION_TRANSFORM)
-    {
-	for(int i=0; i<myCache.entries(); i++)
-	{
-	    myCache(i).setVisibilityAnimated(true);
-	    myCache(i).setTransformAnimated(true);
-	}
-    }
-}
+    : GT_AlembicInstance(src)
+{}
 
 GABC_PackedInstance::GABC_PackedInstance(
     const GT_PrimitiveHandle &geometry,
     const GT_TransformArrayHandle &transforms,
-    GEO_AnimationType anim,
+    GEO_AnimationType animation,
     const GT_GEOOffsetList &packed_prim_offsets,
     const GT_AttributeListHandle &uniform,
     const GT_AttributeListHandle &detail,
     const GT_GEODetailListHandle &source)
-    : GT_PrimInstance(geometry, transforms, packed_prim_offsets,
-		      uniform, detail, source),
-      myAnimType(anim)
-{
-    myCache.entries( entries() );
-    
-    if(myAnimType >= GEO_ANIMATION_TRANSFORM)
-    {
-	for(int i=0; i<myCache.entries(); i++)
-	{
-	    myCache(i).setVisibilityAnimated(true);
-	    myCache(i).setTransformAnimated(true);
-	}
-    }
-}
+    : GT_AlembicInstance(geometry, transforms,animation,packed_prim_offsets,
+			 uniform, detail, source)
+{}
 
 GABC_PackedInstance::~GABC_PackedInstance()
-{
-}
+{}
 
 bool
 GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 				   const GT_RefineParms &refine)
 {
     //static UT_Vector3 theZero(0.0);
-    
+
     bool updated = GT_Primitive::updateGeoPrim(dtl, refine);
 
     if(myUniform)
@@ -1814,6 +1790,7 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 	    }
 	}
     }
+    myHasChanged = updated;
     return updated;
 }
 

@@ -132,14 +132,14 @@ public:
 
     virtual GT_TransformHandle	getLocalTransform() const;
 
-    virtual bool	updateGeoPrim(const GU_ConstDetailHandle &dtl,
-				      const GT_RefineParms &refine);
+    virtual bool		updateGeoPrim(const GU_ConstDetailHandle &dtl,
+					      const GT_RefineParms &refine);
 private:
     int64			     myColorID;
 };
 
 /// Packed instance with alembic extensions
-class GABC_API GABC_PackedInstance : public GT_PrimInstance
+class GABC_API GABC_PackedInstance : public GT_AlembicInstance
 {
 public:
     GABC_PackedInstance();
@@ -152,22 +152,9 @@ public:
 	    const GT_AttributeListHandle &detail=GT_AttributeListHandle(),
 	    const GT_GEODetailListHandle &source=GT_GEODetailListHandle());
     virtual ~GABC_PackedInstance();
-    virtual int		 getPrimitiveType() const
-				    { return GT_PRIM_ALEMBIC_INSTANCE; }
-
-    virtual const char	*className() const { return "GABC_PackedInstance"; }
     
-    GEO_AnimationType animationType() const { return myAnimType; }
-    
-    int64	      alembicVersion() const { return myAlembicVersion; }
-    void	      setAlembicVersion(int64 v) { myAlembicVersion = v; }
-    bool	      updateGeoPrim(const GU_ConstDetailHandle &dtl,
+    virtual bool	      updateGeoPrim(const GU_ConstDetailHandle &dtl,
 				    const GT_RefineParms &refine);
-
-private:
-    GEO_AnimationType myAnimType;
-    UT_Array<GT_AlembicCache> myCache;
-    int64	      myAlembicVersion;
 };
     
 }; // GABC_NAMESPACE
