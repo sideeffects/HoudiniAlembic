@@ -81,7 +81,7 @@ public:
     virtual GT_PrimitiveHandle	doSoftCopy() const { return nullptr; }
 
 private:
-    virtual bool	archiveMatch(const GT_PackedAlembicArchive *archive) const;
+    virtual bool archiveMatch(const GT_PackedAlembicArchive *archive) const;
 
     GABC_NAMESPACE::GABC_IArchivePtr myArchive;
 };
@@ -134,6 +134,8 @@ public:
 
     virtual bool	updateGeoPrim(const GU_ConstDetailHandle &dtl,
 				      const GT_RefineParms &refine);
+private:
+    int64			     myColorID;
 };
 
 /// Packed instance with alembic extensions
