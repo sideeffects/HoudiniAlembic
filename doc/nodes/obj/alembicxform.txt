@@ -10,9 +10,9 @@ archive (`.abc`)."""
 
 @parameters
 
-[Include:/nodes/sop/alembic#fileName]
-
 [Include:/nodes/sop/alembic#numlayers]
+
+[Include:/nodes/sop/alembic#fileName]
 
 [Include:/nodes/sop/alembic#objectPath]
 

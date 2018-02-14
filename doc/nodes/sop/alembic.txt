@@ -15,14 +15,14 @@ Reload Geometry:
 
     Clears the Alembic cache and reloads fresh geometry.
 
+Number of Layers:
+    #id: numlayers
+    Use this multiparm to apply Alembic layers.
+
 File name:
     #id: fileName
         
     Path to the Alembic archive (`.abc`) file.
-
-Number of Layers:
-    #id: numlayers
-    Use this multiparm to apply Alembic layers.
 
 Frame:
     #id: frame

@@ -41,9 +41,9 @@ Reload Geometry:
 	    Compared to __Build or Update Hierarchy__, this is the faster way to update an Alembic archive version when there is no hierarchy change. 
 
 
-[Include:/nodes/sop/alembic#fileName]
-
 [Include:/nodes/sop/alembic#numlayers]
+
+[Include:/nodes/sop/alembic#fileName]
 
 [Include:/nodes/sop/alembic#objectPath]
 
