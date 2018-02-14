@@ -103,7 +103,7 @@ ROP_AbcHierarchySample::warnChildren(const ROP_AbcArchivePtr &abc)
 	return;
 
     UT_Array<const ROP_AbcHierarchySample *> ancestors;
-    for(auto node = myParent; node; node = node->getParent())
+    for(auto node = this; node; node = node->getParent())
 	ancestors.append(node);
 
     UT_WorkBuffer buf;
