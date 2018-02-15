@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -39,10 +39,10 @@ public:
 
     virtual OObject getOObject();
     virtual void setArchive(const ROP_AbcArchivePtr &archive);
-    virtual void update();
+    virtual void update(const GABC_LayerOptions &layerOptions);
 
 private:
-    void makeValid();
+    void makeValid(const GABC_LayerOptions &layerOptions);
 
     ROP_AbcNodeShape *mySource;
     bool myIsValid;

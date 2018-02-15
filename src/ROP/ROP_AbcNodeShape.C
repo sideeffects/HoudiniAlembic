@@ -74,7 +74,7 @@ ROP_AbcNodeShape::preUpdate(bool locked)
 }
 
 void
-ROP_AbcNodeShape::update()
+ROP_AbcNodeShape::update(const GABC_LayerOptions &layerOptions)
 {
     exint nsamples = myArchive->getSampleCount();
     for(; mySampleCount < nsamples; ++mySampleCount)

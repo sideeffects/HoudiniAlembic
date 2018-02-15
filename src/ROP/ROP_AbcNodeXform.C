@@ -60,14 +60,14 @@ ROP_AbcNodeXform::preUpdate(bool locked)
 }
 
 void
-ROP_AbcNodeXform::update()
+ROP_AbcNodeXform::update(const GABC_LayerOptions &layerOptions)
 {
     makeValid();
 
     myBox.initBounds();
     for(auto &it : myChildren)
     {
-	it.second->update();
+	it.second->update(layerOptions);
 	myBox.enlargeBounds(it.second->getBBox());
     }
     Box3d b3 = GABC_Util::getBox(myBox);

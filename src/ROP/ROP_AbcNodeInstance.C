@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -43,20 +43,20 @@ ROP_AbcNodeInstance::setArchive(const ROP_AbcArchivePtr &archive)
 }
 
 void
-ROP_AbcNodeInstance::update()
+ROP_AbcNodeInstance::update(const GABC_LayerOptions &layerOptions)
 {
-    makeValid();
+    makeValid(layerOptions);
 
     myBox = mySource->getBBox();
 }
 
 void
-ROP_AbcNodeInstance::makeValid()
+ROP_AbcNodeInstance::makeValid(const GABC_LayerOptions &layerOptions)
 {
     if(myIsValid)
 	return;
 
-    mySource->update();
+    mySource->update(layerOptions);
     myParent->getOObject().addChildInstance(mySource->getOObject(), myName);
     myIsValid = true;
 }

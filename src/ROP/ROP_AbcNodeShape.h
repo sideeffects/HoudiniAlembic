@@ -46,7 +46,7 @@ public:
     virtual OObject getOObject();
     virtual void setArchive(const ROP_AbcArchivePtr &archive);
     virtual void preUpdate(bool locked);
-    virtual void update();
+    virtual void update(const GABC_LayerOptions &layerOptions);
     virtual void postUpdate(bool locked);
 
     /// Sets the current user properties.

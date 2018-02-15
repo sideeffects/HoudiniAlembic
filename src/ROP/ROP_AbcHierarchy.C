@@ -133,6 +133,7 @@ ROP_AbcHierarchy::update(
     const ROP_AbcHierarchySample &src,
     const UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > &instance_map)
 {
+
     // assign existing instances if possible
     UT_Map<std::tuple<int, std::string, exint>, exint> mapping;
     UT_Map<exint, std::tuple<int, std::string, exint> > rev_mapping;

@@ -31,8 +31,10 @@
 #include "ROP_AbcArchive.h"
 
 #include <UT/UT_Map.h>
+#include <GABC/GABC_LayerOptions.h>
 #include <GABC/GABC_Util.h>
 
+typedef GABC_NAMESPACE::GABC_LayerOptions GABC_LayerOptions;
 typedef GABC_NAMESPACE::GABC_Util::CollisionResolver CollisionResolver;
 
 /// Class describing a node of data exported to an Alembic archive.  This
@@ -79,7 +81,7 @@ public:
     /// Hook to prepare node for calls to setData().
     virtual void preUpdate(bool locked) {}
     /// Exports the current sample data update the computed bounding box.
-    virtual void update() = 0;
+    virtual void update(const GABC_LayerOptions &layerOptions) = 0;
     /// Hook to clean up node after calls to update().
     virtual void postUpdate(bool locked) {}
 
@@ -109,14 +111,14 @@ public:
     ROP_AbcNodeRoot() : ROP_AbcNode("") {}
 
     virtual OObject getOObject() { return myArchive->getTop(); }
-    virtual void update()
+    virtual void update(const GABC_LayerOptions &layerOptions)
     {
 	// The root node has no sample data, just update the computed bounding
 	// box.
 	myBox.initBounds();
 	for(auto &it : myChildren)
 	{
-	    it.second->update();
+	    it.second->update(layerOptions);
 	    myBox.enlargeBounds(it.second->getBBox());
 	}
         myArchive->setBoundingBox(myBox);

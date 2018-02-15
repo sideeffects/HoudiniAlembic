@@ -64,6 +64,8 @@ typedef GABC_NAMESPACE::GABC_IObject GABC_IObject;
 typedef GABC_NAMESPACE::GABC_PackedImpl GABC_PackedImpl;
 typedef GABC_NAMESPACE::GABC_NodeType GABC_NodeType;
 typedef GABC_NAMESPACE::GABC_Util GABC_Util;
+typedef GABC_NAMESPACE::GABC_LayerOptions GABC_LayerOptions;
+typedef GABC_NAMESPACE::GABC_AbcLayerFlag GABC_AbcLayerFlag;
 
 static PRM_Name theFilenameName("filename", "Alembic File");
 static PRM_Name theFormatName("format", "Format");
@@ -94,6 +96,22 @@ static PRM_Name thePromoteUniformPatternName("prim_to_detail_pattern", "Primitiv
 static PRM_Name theForcePromoteUniformName("force_prim_to_detail", "Force Conversion of Matching Primitive Attributes to Detail");
 static PRM_Name theUVAttribPatternName("uvAttributes", "Additional UV Attributes");
 static PRM_Name theFaceSetModeName("facesets", "Face Sets");
+static PRM_Name theUseLayeringName("uselayering", "Enable Layering");
+static PRM_Name theFullXformName("fullancestor", "Create Full Ancestors for Output Nodes");
+static PRM_Name theNumNodesName("numnodes", "Nodes");
+static PRM_Name theNodePathName("nodepath#", "Path #");
+static PRM_Name theNodeFlagName("nodeflag#", "Flag #");
+static PRM_Name theNumVizsName("numvizs", "Visibilities");
+static PRM_Name theVizPathName("vizpath#", "Path #");
+static PRM_Name theVizFlagName("vizflag#", "Flag #");
+static PRM_Name theNumAttrsName("numattrs", "Attributes");
+static PRM_Name theAttrPathName("attrpath#", "Path #");
+static PRM_Name theAttrPatternName("attrpattern#", "Pattern #");
+static PRM_Name theAttrFlagName("attrflag#", "Flag #");
+static PRM_Name theNumUsersName("numuserprops", "User Properties");
+static PRM_Name theUserPathName("userproppath#", "Path #");
+static PRM_Name theUserPatternName("userproppattern#", "Pattern #");
+static PRM_Name theUserFlagName("userpropflag#", "Flag #");
 static PRM_Name theMotionBlurName("motionBlur", "Use Motion Blur");
 static PRM_Name theSampleName("samples", "Samples");
 static PRM_Name theShutterName("shutter", "Shutter");
@@ -102,6 +120,7 @@ static PRM_Default theFilenameDefault(0, "$HIP/output.abc");
 static PRM_Default theFormatDefault(0, "default");
 static PRM_Default theRootDefault(0, "/obj");
 static PRM_Default theStarDefault(0, "*");
+static PRM_Default theAttrLayerDefault(0, "* ^P");
 static PRM_Default thePathAttribDefault(0, "path");
 static PRM_Default theCollapseDefault(0, "off");
 static PRM_Default thePackedTransformDefault(0, "deform");
@@ -117,7 +136,8 @@ static PRM_Default mainSwitcher[] =
 {
     PRM_Default(13, "Hierarchy"),
     PRM_Default(12, "Geometry"),
-    PRM_Default(3, "Motion Blur"),
+    PRM_Default(6,  "Layering"),
+    PRM_Default(3,  "Motion Blur"),
 };
 
 static PRM_Name theFormatChoices[] =
@@ -167,6 +187,21 @@ static PRM_Name theFaceSetModeChoices[] =
     PRM_Name("no",	    "No Face Sets"),
     PRM_Name("nonempty",    "Save Non-Empty Groups As Face Sets"),
     PRM_Name("all",	    "Save All Groups As Face Sets"),
+    PRM_Name()
+};
+
+static PRM_Name theNodeFlagChoices[] =
+{
+    PRM_Name("merge",   "Merge"),
+    PRM_Name("replace", "Replace"),
+    PRM_Name("prune",   "Prune"),
+    PRM_Name()
+};
+
+static PRM_Name thePropFlagChoices[] =
+{
+    PRM_Name("replace", "Replace"),
+    PRM_Name("prune",   "Prune"),
     PRM_Name()
 };
 
@@ -270,11 +305,53 @@ static PRM_ChoiceList thePartitionModeMenu(PRM_CHOICELIST_SINGLE, thePartitionMo
 static PRM_ChoiceList thePartitionAttributeMenu(PRM_CHOICELIST_REPLACE, thePartitionAttributeChoices);
 static PRM_ChoiceList thePackedTransformMenu(PRM_CHOICELIST_SINGLE, thePackedTransformChoices);
 static PRM_ChoiceList theFaceSetModeMenu(PRM_CHOICELIST_SINGLE, theFaceSetModeChoices);
+static PRM_ChoiceList theNodeFlagMenu(PRM_CHOICELIST_SINGLE, theNodeFlagChoices);
+static PRM_ChoiceList thePropFlagMenu(PRM_CHOICELIST_SINGLE, thePropFlagChoices);
 
 // Make paths relative to /obj (for the bundle code)
 static PRM_SpareData theObjectList(PRM_SpareArgs()
 		<< PRM_SpareToken("opfilter", "!!OBJ!!")
 		<< PRM_SpareToken("oprelative", "/obj"));
+
+static PRM_Template theMultiNodeTemplate[] =
+{
+    PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT,
+	PRM_TYPE_DYNAMIC_PATH, 1, &theNodePathName),
+    PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
+	1, &theNodeFlagName, 0, &theNodeFlagMenu),
+    PRM_Template()
+};
+
+static PRM_Template theMultiVizTemplate[] =
+{
+    PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT,
+	PRM_TYPE_DYNAMIC_PATH, 1, &theVizPathName),
+    PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
+	1, &theVizFlagName, 0, &thePropFlagMenu),
+    PRM_Template()
+};
+
+static PRM_Template theMultiAttrTemplate[] =
+{
+    PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT,
+	PRM_TYPE_DYNAMIC_PATH, 1, &theAttrPathName),
+    PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT | PRM_TYPE_LABEL_NONE,
+	1, &theAttrPatternName, &theAttrLayerDefault),
+    PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
+	1, &theAttrFlagName, 0, &thePropFlagMenu),
+    PRM_Template()
+};
+
+static PRM_Template theMultiUserTemplate[] =
+{
+    PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT,
+	PRM_TYPE_DYNAMIC_PATH, 1, &theUserPathName),
+    PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT | PRM_TYPE_LABEL_NONE,
+	1, &theUserPatternName, &theStarDefault),
+    PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
+	1, &theUserFlagName, 0, &thePropFlagMenu),
+    PRM_Template()
+};
 
 static PRM_Template theParameters[] =
 {
@@ -284,7 +361,7 @@ static PRM_Template theParameters[] =
     PRM_Template(PRM_TOGGLE, 1, &ROPmkpath, PRMoneDefaults),
     PRM_Template(PRM_TOGGLE, 1, &theRenderFullRange, PRMoneDefaults),
     PRM_Template(PRM_TOGGLE, 1, &theInitSim),
-    PRM_Template(PRM_SWITCHER, 3, &PRMswitcherName, mainSwitcher),
+    PRM_Template(PRM_SWITCHER, 4, &PRMswitcherName, mainSwitcher),
     PRM_Template(PRM_TOGGLE, 1, &theSingleSopModeName),
     PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH, 1, &theSOPPathName,
 		    0, 0, 0, 0, &PRM_SpareData::sopPath),
@@ -320,6 +397,16 @@ static PRM_Template theParameters[] =
     PRM_Template(PRM_STRING, 1, &theUVAttribPatternName),
     PRM_Template(PRM_ORD, 1, &theFaceSetModeName, &theFaceSetModeDefault,
 		    &theFaceSetModeMenu),
+    PRM_Template(PRM_TOGGLE, 1, &theUseLayeringName),
+    PRM_Template(PRM_TOGGLE, 1, &theFullXformName, PRMoneDefaults),
+    PRM_Template(PRM_MULTITYPE_LIST, theMultiNodeTemplate, 2,
+            &theNumNodesName),
+    PRM_Template(PRM_MULTITYPE_LIST, theMultiVizTemplate, 2,
+            &theNumVizsName),
+    PRM_Template(PRM_MULTITYPE_LIST, theMultiAttrTemplate, 2,
+            &theNumAttrsName),
+    PRM_Template(PRM_MULTITYPE_LIST, theMultiUserTemplate, 2,
+            &theNumUsersName),    
     PRM_Template(PRM_TOGGLE, 1, &theMotionBlurName),
     PRM_Template(PRM_INT, 1, &theSampleName, &theSampleDefault),
     PRM_Template(PRM_FLT, 2, &theShutterName, theShutterDefault),
@@ -390,6 +477,7 @@ ROP_AlembicOut::updateParmsFlags()
 {
     bool issop = CAST_SOPNODE(getInput(0)) != NULL;
     bool use_path = (!issop && USE_SOP_PATH(0));
+    bool use_layering = USE_LAYERING(0);
     bool sop_mode = (issop || use_path);
     bool build_from_path = (sop_mode && BUILD_FROM_PATH(0));
     bool partition_mode = (!sop_mode || !build_from_path);
@@ -432,6 +520,11 @@ ROP_AlembicOut::updateParmsFlags()
     changed |= enableParm("force_prim_to_detail", enable_prim_to_detail);
     changed |= enableParm("uvAttributes", save_attributes);
     changed |= enableParm("facesets", shape_nodes);
+    changed |= enableParm("fullancestor", use_layering);
+    changed |= enableParm("numnodes", use_layering);
+    changed |= enableParm("numvizs", use_layering);
+    changed |= enableParm("numattrs", use_layering);
+    changed |= enableParm("numuserprops", use_layering);
     changed |= enableParm("shutter", motionblur);
     changed |= enableParm("samples", motionblur);
     return changed;
@@ -489,6 +582,89 @@ ROP_AlembicOut::getSopNode(fpreal time) const
 	    sop = CAST_SOPNODE(findNode(sop_path));
     }
     return sop;
+}
+
+GABC_LayerOptions
+ROP_AlembicOut::buildLayerOptions(fpreal time) const
+{
+    if(!USE_LAYERING(time))
+    {
+	return GABC_LayerOptions(false);
+    }
+    else
+    {
+	GABC_LayerOptions layerOptions(true, FULL_ANCESTOR(time));
+
+	for(int i = 1; i <= NUM_NODES(time); ++i)
+	{
+	    GABC_AbcLayerFlag gabcFlag;
+	    UT_String path, flag;
+
+	    NODE_PATH(path, i, time);
+	    NODE_FLAG(flag, i, time);
+
+	    if(flag == "merge")
+		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_FULL;
+	    else if(flag == "replace")
+		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_REPLACE;
+	    else if(flag == "prune")
+		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_PRUNE;
+
+	    layerOptions.updateNodePat(path, gabcFlag);
+	}
+
+	for(int i = 1; i <= NUM_VIZS(time); ++i)
+	{
+	    GABC_AbcLayerFlag gabcFlag;
+	    UT_String path, flag;
+
+	    VIZ_PATH(path, i, time);
+	    VIZ_FLAG(flag, i, time);
+
+	    if(flag == "replace")
+		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_FULL;
+	    else if(flag == "prune")
+		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_PRUNE;
+
+	    layerOptions.updateVizPat(path, gabcFlag);
+	}
+
+	for(int i = 1; i <= NUM_ATTRIBUTES(time); ++i)
+	{
+	    GABC_AbcLayerFlag gabcFlag;
+	    UT_String path, pattern, flag;
+
+	    ATTRIBUTE_PATH(path, i, time);
+	    ATTRIBUTE_PATTERN(pattern, i, time);
+	    ATTRIBUTE_FLAG(flag, i, time);
+
+	    if(flag == "replace")
+		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_FULL;
+	    else if(flag == "prune")
+		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_PRUNE;
+
+	    layerOptions.updateAttrPat(path, pattern, gabcFlag);
+	}
+
+	for(int i = 1; i <= NUM_USER_PROPS(time); ++i)
+	{
+	    GABC_AbcLayerFlag gabcFlag;
+	    UT_String path, pattern, flag;
+
+	    USER_PROP_PATH(path, i, time);
+	    USER_PROP_PATTERN(pattern, i, time);
+	    USER_PROP_FLAG(flag, i, time);
+
+	    if(flag == "replace")
+		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_FULL;
+	    else if(flag == "prune")
+		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_PRUNE;
+
+	    layerOptions.updateUserPropPat(path, pattern, gabcFlag);
+	}
+
+	return layerOptions;
+    }
 }
 
 int
@@ -1426,7 +1602,7 @@ ROP_AlembicOut::updateFromSop(
 				use_instancing, shape_nodes, displaysop,
 				save_hidden);
 	if(retval)
-	    myRoot->update();
+	    myRoot->update(buildLayerOptions(myArchive->getCookTime()));
     } 
 
     // post-update
@@ -1667,7 +1843,7 @@ ROP_AlembicOut::updateFromHierarchy(
 	it.second->setVisibility(obj->getObjectDisplay(time));
     }
 
-    myRoot->update();
+    myRoot->update(buildLayerOptions(myArchive->getCookTime()));
 
     // do post-update
     for(auto &it : myObjAssignments)

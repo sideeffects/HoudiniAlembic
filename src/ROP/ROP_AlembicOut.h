@@ -35,6 +35,7 @@
 #include "ROP_AbcNodeShape.h"
 #include "ROP_AbcNodeXform.h"
 
+#include <GABC/GABC_LayerOptions.h>
 #include <GA/GA_Handle.h>
 #include <GA/GA_Range.h>
 #include <UT/UT_Interrupt.h>
@@ -117,6 +118,40 @@ protected:
 		{ evalString(str, "uvAttributes", 0, time); }
     void FACESET_MODE(UT_String &str, fpreal time) const
 		{ evalString(str, "facesets", 0, time); }
+
+    bool USE_LAYERING(fpreal time) const
+		{ return evalInt("uselayering", 0, time) != 0; }
+    bool FULL_ANCESTOR(fpreal time) const
+		{ return evalInt("fullancestor", 0, time) != 0; }
+    int  NUM_NODES(fpreal time) const
+		{ return evalInt("numnodes", 0, time); }
+    void NODE_PATH(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("nodepath#", &idx, str, 0, time); }
+    void NODE_FLAG(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("nodeflag#", &idx, str, 0, time); }
+    int  NUM_VIZS(fpreal time) const
+		{ return evalInt("numvizs", 0, time); }
+    void VIZ_PATH(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("vizpath#", &idx, str, 0, time); }
+    void VIZ_FLAG(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("vizflag#", &idx, str, 0, time); }
+    int  NUM_ATTRIBUTES(fpreal time) const
+		{ return evalInt("numattrs", 0, time); }
+    void ATTRIBUTE_PATH(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("attrpath#", &idx, str, 0, time); }
+    void ATTRIBUTE_PATTERN(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("attrpattern#", &idx, str, 0, time); }
+    void ATTRIBUTE_FLAG(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("attrflag#", &idx, str, 0, time); }
+    int  NUM_USER_PROPS(fpreal time) const
+		{ return evalInt("numuserprops", 0, time); }
+    void USER_PROP_PATH(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("userproppath#", &idx, str, 0, time); }
+    void USER_PROP_PATTERN(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("userproppattern#", &idx, str, 0, time); }
+    void USER_PROP_FLAG(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("userpropflag#", &idx, str, 0, time); }
+
     bool MOTIONBLUR(fpreal time) const
 		{ return evalInt("motionBlur", 0, time) != 0; }
     int SAMPLES(fpreal time) const
@@ -162,6 +197,8 @@ private:
 			     bool shape_nodes, bool displaysop,
 			     bool save_hidden);
     void reportCookErrors(OP_Node *node, fpreal time);
+
+    GABC_LayerOptions buildLayerOptions(fpreal time) const;
 
     // temporary storage when exporting to an Alembic archive
     ROP_AbcArchivePtr myArchive;

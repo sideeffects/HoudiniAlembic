@@ -46,7 +46,7 @@ public:
 
     virtual OObject getOObject();
     virtual void setArchive(const ROP_AbcArchivePtr &archive);
-    virtual void update();
+    virtual void update(const GABC_LayerOptions &layerOptions);
 
     /// sets the current camera settings
     void setData(fpreal focal, fpreal fstop, fpreal focus, fpreal shutter,
