@@ -598,10 +598,9 @@ GABC_PackedAlembic::initVisAnim()
 
 	myAnimType = impl->animationType();
 	if(myAnimType > GEO_ANIMATION_TRANSFORM)
-	{
 	    frame = impl->frame();
-	}
-	else if(myAnimType != GEO_ANIMATION_CONSTANT)
+	
+	if(myAnimType != GEO_ANIMATION_CONSTANT)
 	    myCache.setTransformAnimated(true);
 
 	bool vis = false;
