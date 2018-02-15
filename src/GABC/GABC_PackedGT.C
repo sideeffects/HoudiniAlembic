@@ -552,14 +552,13 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 	    pimpl->setViewportCache(&myCache);
 	    packed->getFullTransform4(transform);
 	    pimpl->setViewportCache(nullptr);
-			
+	    
 	    if(myTransform != transform)
 	    {
 		myTransform = transform;
 		changed = true;
 	    }
 	}
-	
     }
     
     if(GT_GEOPrimPacked::updateGeoPrim(dtl, refine))
@@ -594,10 +593,9 @@ GABC_PackedAlembic::initVisAnim()
 
 	myAnimType = impl->animationType();
 	if(myAnimType > GEO_ANIMATION_TRANSFORM)
-	{
 	    frame = impl->frame();
-	}
-	else if(myAnimType != GEO_ANIMATION_CONSTANT)
+	
+	if(myAnimType != GEO_ANIMATION_CONSTANT)
 	    myCache.setTransformAnimated(true);
 
 	bool vis = false;
