@@ -53,7 +53,7 @@ ROP_AbcNodeCamera::getOObject()
 }
 
 void
-ROP_AbcNodeCamera::update(const GABC_LayerOptions &layerOptions)
+ROP_AbcNodeCamera::update(const GABC_LayerOptions &)
 {
     makeValid();
 

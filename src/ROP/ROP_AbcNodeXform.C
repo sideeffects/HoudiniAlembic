@@ -52,7 +52,7 @@ ROP_AbcNodeXform::preUpdate(bool locked)
 {
     if(!locked)
     {
-	myVisible = false;
+	myVisible = GABC_VisibilityType::GABC_VISIBLE_HIDDEN;
 	myUserPropVals.clear();
 	myUserPropMeta.clear();
     }
@@ -64,12 +64,16 @@ ROP_AbcNodeXform::update(const GABC_LayerOptions &layerOptions)
 {
     makeValid();
 
+    // TODO: Remove this temporary mapping for the visibility.
+    bool visible = (myVisible != GABC_VisibilityType::GABC_VISIBLE_HIDDEN);
+
     myBox.initBounds();
     for(auto &it : myChildren)
     {
 	it.second->update(layerOptions);
 	myBox.enlargeBounds(it.second->getBBox());
     }
+
     Box3d b3 = GABC_Util::getBox(myBox);
     myBox.transform(myMatrix);
 
@@ -82,7 +86,7 @@ ROP_AbcNodeXform::update(const GABC_LayerOptions &layerOptions)
 
 	if(!mySampleCount || cur)
 	{
-	    bool vis = (myVisible && cur);
+	    bool vis = (visible && cur);
 	    XformSample sample;
 	    sample.setMatrix(GABC_Util::getM(myMatrix));
 	    schema.set(sample);

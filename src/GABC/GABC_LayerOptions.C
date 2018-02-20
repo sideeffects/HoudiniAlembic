@@ -30,89 +30,109 @@
 using namespace GABC_NAMESPACE;
 
 void
-GABC_LayerOptions::FlagStorage::append(const UT_String &pattern,
-    GABC_AbcLayerFlag flag)
+GABC_LayerOptions::Rules::append(const UT_String &pattern,
+    GABC_LayerOptions::LayerType type)
 {
-    myData.append(Item(pattern, flag));
+    myData.append(Rule(pattern, type));
 }
 
-GABC_AbcLayerFlag
-GABC_LayerOptions::FlagStorage::match(const UT_String &str)
+GABC_LayerOptions::LayerType
+GABC_LayerOptions::Rules::getLayerType(const UT_String &str) const
 {
     for(auto it = myData.begin(); it != myData.end(); ++it)
-	if(str.multiMatch(it->myPat))
-	    return it->myFlag;
-    return GABC_ALEMBIC_LAYERING_NULL;
+	if(str.multiMatch(it->myNodePat))
+	    return it->myType;
+    return LayerType::DEFER;
 }
 
 void
-GABC_LayerOptions::MultiFlagStorage::append(const UT_String &pat,
-    const UT_String &subPat, GABC_AbcLayerFlag flag)
+GABC_LayerOptions::MultiRules::append(const UT_String &pat,
+    const UT_String &subPat, GABC_LayerOptions::LayerType type)
 {
-    myData.append(Item(pat, subPat, flag));
+    myData.append(Rule(pat, subPat, type));
 }
 
-GABC_AbcLayerFlag
-GABC_LayerOptions::MultiFlagStorage::match(const UT_String &str,
-    const UT_String &subStr)
+GABC_LayerOptions::LayerType
+GABC_LayerOptions::MultiRules::getLayerType(const UT_String &str,
+    const UT_String &subStr) const
 {
-    FlagStorage tmpStorage;
     for(auto it = myData.begin(); it != myData.end(); ++it)
-	if(str.multiMatch(it->myPat))
-	    tmpStorage.append(UT_String(it->mySubPat), it->myFlag);
-    return tmpStorage.match(subStr);
+	if(str.multiMatch(it->myNodePat) && str.multiMatch(it->mySubPat))
+	    return it->myType;
+    return LayerType::DEFER;
+}
+
+bool
+GABC_LayerOptions::MultiRules::matchesNodePattern(const UT_String &str) const
+{
+    for(auto it = myData.begin(); it != myData.end(); ++it)
+	if(str.multiMatch(it->myNodePat))
+	    return true;
+    return false;
 }
 
 void
-GABC_LayerOptions::updateNodePat(const UT_String &nodePat,
-    GABC_AbcLayerFlag flag)
+GABC_LayerOptions::appendNodeRule(const UT_String &nodePat,
+    GABC_LayerOptions::LayerType type)
 {
-    myNodeData.append(nodePat, flag);
+    myNodeData.append(nodePat, type);
 }
 
 void
-GABC_LayerOptions::updateVizPat(const UT_String &nodePat,
-    GABC_AbcLayerFlag flag)
+GABC_LayerOptions::appendVizRule(const UT_String &nodePat,
+    GABC_LayerOptions::LayerType type)
 {
-    myVizData.append(nodePat, flag);
+    myVizData.append(nodePat, type);
 }
 
 void
-GABC_LayerOptions::updateAttrPat(const UT_String &nodePat,
-    const UT_String &attrPat, GABC_AbcLayerFlag flag)
+GABC_LayerOptions::appendAttrRule(const UT_String &nodePat,
+    const UT_String &attrPat, GABC_LayerOptions::LayerType type)
 {
-    myAttrData.append(nodePat, attrPat, flag);
+    myAttrData.append(nodePat, attrPat, type);
 }
 
 void
-GABC_LayerOptions::updateUserPropPat(const UT_String &nodePat,
-    const UT_String &userPropPat, GABC_AbcLayerFlag flag)
+GABC_LayerOptions::appendUserPropRule(const UT_String &nodePat,
+    const UT_String &userPropPat, GABC_LayerOptions::LayerType type)
 {
-    myUserPropData.append(nodePat, userPropPat, flag);
+    myUserPropData.append(nodePat, userPropPat, type);
 }
 
-GABC_AbcLayerFlag
-GABC_LayerOptions::matchNode(const UT_String &nodePath)
+GABC_LayerOptions::LayerType
+GABC_LayerOptions::getNodeType(const UT_String &nodePath) const
 {
-    return myNodeData.match(nodePath);
+    LayerType type = myNodeData.getLayerType(nodePath);
+
+    if(type == LayerType::DEFER)
+    {
+	if(myVizData.getLayerType(nodePath) != LayerType::DEFER
+	    || myAttrData.matchesNodePattern(nodePath)
+	    || myUserPropData.matchesNodePattern(nodePath))
+	{
+	    type = GABC_LayerOptions::LayerType::SPARSE;
+	}
+    }
+
+    return myNodeData.getLayerType(nodePath);
 }
 
-GABC_AbcLayerFlag
-GABC_LayerOptions::matchViz(const UT_String &nodePath)
+GABC_LayerOptions::LayerType
+GABC_LayerOptions::getVizType(const UT_String &nodePath) const
 {
-    return myVizData.match(nodePath);
+    return myVizData.getLayerType(nodePath);
 }
 
-GABC_AbcLayerFlag
-GABC_LayerOptions::matchAttr(const UT_String &nodePath,
-    const UT_String &attrName)
+GABC_LayerOptions::LayerType
+GABC_LayerOptions::getAttrType(const UT_String &nodePath,
+    const UT_String &attrName) const
 {
-    return myAttrData.match(nodePath, attrName);
+    return myAttrData.getLayerType(nodePath, attrName);
 }
 
-GABC_AbcLayerFlag
-GABC_LayerOptions::matchUserProp(const UT_String &nodePath,
-    const UT_String &userPropName)
+GABC_LayerOptions::LayerType
+GABC_LayerOptions::getUserPropType(const UT_String &nodePath,
+    const UT_String &userPropName) const
 {
-    return myUserPropData.match(nodePath, userPropName);
+    return myUserPropData.getLayerType(nodePath, userPropName);
 }

@@ -41,7 +41,7 @@ class ROP_AbcNodeShape : public ROP_AbcNode
 {
 public:
     ROP_AbcNodeShape(const std::string &name)
-	: ROP_AbcNode(name), myVisible(false) {}
+	: ROP_AbcNode(name) {}
 
     virtual OObject getOObject();
     virtual void setArchive(const ROP_AbcArchivePtr &archive);
@@ -54,7 +54,7 @@ public:
 	    { myUserPropVals = vals; myUserPropMeta = meta; }
     /// Sets the current geometry.
     void setData(const GT_PrimitiveHandle &prim, bool visible)
-	    { myPrim = prim; myVisible = visible; }
+	    { myPrim = prim; setVisibility(visible); }
 
 private:
     void clear();
@@ -67,7 +67,6 @@ private:
     ROP_AbcUserProperties myUserProperties;
 
     GT_PrimitiveHandle myPrim;
-    bool myVisible;
     bool myLocked;
 };
 

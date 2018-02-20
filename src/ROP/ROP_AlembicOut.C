@@ -65,7 +65,6 @@ typedef GABC_NAMESPACE::GABC_PackedImpl GABC_PackedImpl;
 typedef GABC_NAMESPACE::GABC_NodeType GABC_NodeType;
 typedef GABC_NAMESPACE::GABC_Util GABC_Util;
 typedef GABC_NAMESPACE::GABC_LayerOptions GABC_LayerOptions;
-typedef GABC_NAMESPACE::GABC_AbcLayerFlag GABC_AbcLayerFlag;
 
 static PRM_Name theFilenameName("filename", "Alembic File");
 static PRM_Name theFormatName("format", "Format");
@@ -582,89 +581,6 @@ ROP_AlembicOut::getSopNode(fpreal time) const
 	    sop = CAST_SOPNODE(findNode(sop_path));
     }
     return sop;
-}
-
-GABC_LayerOptions
-ROP_AlembicOut::buildLayerOptions(fpreal time) const
-{
-    if(!USE_LAYERING(time))
-    {
-	return GABC_LayerOptions(false);
-    }
-    else
-    {
-	GABC_LayerOptions layerOptions(true, FULL_ANCESTOR(time));
-
-	for(int i = 1; i <= NUM_NODES(time); ++i)
-	{
-	    GABC_AbcLayerFlag gabcFlag;
-	    UT_String path, flag;
-
-	    NODE_PATH(path, i, time);
-	    NODE_FLAG(flag, i, time);
-
-	    if(flag == "merge")
-		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_FULL;
-	    else if(flag == "replace")
-		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_REPLACE;
-	    else if(flag == "prune")
-		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_PRUNE;
-
-	    layerOptions.updateNodePat(path, gabcFlag);
-	}
-
-	for(int i = 1; i <= NUM_VIZS(time); ++i)
-	{
-	    GABC_AbcLayerFlag gabcFlag;
-	    UT_String path, flag;
-
-	    VIZ_PATH(path, i, time);
-	    VIZ_FLAG(flag, i, time);
-
-	    if(flag == "replace")
-		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_FULL;
-	    else if(flag == "prune")
-		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_PRUNE;
-
-	    layerOptions.updateVizPat(path, gabcFlag);
-	}
-
-	for(int i = 1; i <= NUM_ATTRIBUTES(time); ++i)
-	{
-	    GABC_AbcLayerFlag gabcFlag;
-	    UT_String path, pattern, flag;
-
-	    ATTRIBUTE_PATH(path, i, time);
-	    ATTRIBUTE_PATTERN(pattern, i, time);
-	    ATTRIBUTE_FLAG(flag, i, time);
-
-	    if(flag == "replace")
-		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_FULL;
-	    else if(flag == "prune")
-		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_PRUNE;
-
-	    layerOptions.updateAttrPat(path, pattern, gabcFlag);
-	}
-
-	for(int i = 1; i <= NUM_USER_PROPS(time); ++i)
-	{
-	    GABC_AbcLayerFlag gabcFlag;
-	    UT_String path, pattern, flag;
-
-	    USER_PROP_PATH(path, i, time);
-	    USER_PROP_PATTERN(pattern, i, time);
-	    USER_PROP_FLAG(flag, i, time);
-
-	    if(flag == "replace")
-		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_FULL;
-	    else if(flag == "prune")
-		gabcFlag = GABC_AbcLayerFlag::GABC_ALEMBIC_LAYERING_PRUNE;
-
-	    layerOptions.updateUserPropPat(path, pattern, gabcFlag);
-	}
-
-	return layerOptions;
-    }
 }
 
 int
@@ -1571,6 +1487,158 @@ ropPostUpdate(ROP_AbcNode *node, bool locked)
     }
 }
 
+static GABC_LayerOptions::LayerType
+ropSetAbcNodeLayerOptions(ROP_AbcNode *node, const char *parentPath,
+    const GABC_LayerOptions &layerOptions, bool isFullAncestor)
+{
+    UT_String path(parentPath);
+    path.append("/");
+    path.append(node->getName());
+
+    GABC_LayerOptions::LayerType selfType = layerOptions.getNodeType(path);
+
+    // Tag the prune on the node and jump over the remaining process.
+    if(selfType != GABC_LayerOptions::LayerType::PRUNE)
+    {
+	GABC_LayerOptions::LayerType kidsType = GABC_LayerOptions::LayerType::DEFER;
+	// Traverse the children and set the layer options, determine the
+	// final layerType by checking the return values of the children.
+	for(auto &it : node->getChildren())
+	{
+	    GABC_LayerOptions::LayerType childType =
+		ropSetAbcNodeLayerOptions(it.second, path.c_str(),
+		    layerOptions, isFullAncestor);
+	    // Always set the kidsType to the highest degree.
+	    if(childType > kidsType)
+		kidsType = childType;
+	}
+
+	if(selfType == GABC_LayerOptions::LayerType::DEFER ||
+	    selfType == GABC_LayerOptions::LayerType::SPARSE)
+	{
+	    // Upgrade the self type to sparse if it do have child node
+	    // and all of its children are sparse.
+	    if(kidsType == GABC_LayerOptions::LayerType::PRUNE
+		|| kidsType == GABC_LayerOptions::LayerType::SPARSE)
+	    {
+		selfType = GABC_LayerOptions::LayerType::SPARSE;
+	    }
+	    else if(kidsType == GABC_LayerOptions::LayerType::FULL
+		    || kidsType == GABC_LayerOptions::LayerType::REPLACE)
+	    {
+		if(isFullAncestor)
+		    selfType = GABC_LayerOptions::LayerType::FULL;
+		else
+		    selfType = GABC_LayerOptions::LayerType::SPARSE;
+	    }
+	}
+    }
+
+    node->setLayerNodeType(selfType);
+    return selfType;
+}
+
+static void
+ropSetAbcNodeFullOptions(ROP_AbcNode *node)
+{
+    node->setLayerNodeType(GABC_LayerOptions::LayerType::FULL);
+    for(auto &it : node->getChildren())
+	ropSetAbcNodeFullOptions(it.second);
+}
+
+void
+ROP_AlembicOut::setLayerOptionsAndSave()
+{
+    GABC_LayerOptions layerOptions;
+    fpreal time = myArchive->getCookTime();
+
+    if(!USE_LAYERING(time))
+	ropSetAbcNodeFullOptions(myRoot.get());
+    else
+    {
+	// Populates the layering parameters from the session. Traverses
+	// and sets the layer options on the tree.
+	// Populates layer node parameters...
+	for(int i = 1; i <= NUM_NODES(time); ++i)
+	{
+	    GABC_LayerOptions::LayerType gabcFlag;
+	    UT_String path, flag;
+
+	    NODE_PATH(path, i, time);
+	    NODE_FLAG(flag, i, time);
+
+	    if(flag == "merge")
+		gabcFlag = GABC_LayerOptions::LayerType::FULL;
+	    else if(flag == "replace")
+		gabcFlag = GABC_LayerOptions::LayerType::REPLACE;
+	    else // if(flag == "prune")
+		gabcFlag = GABC_LayerOptions::LayerType::PRUNE;
+
+	    layerOptions.appendNodeRule(path, gabcFlag);
+	}
+	// Populates layer viz parameters...
+	for(int i = 1; i <= NUM_VIZS(time); ++i)
+	{
+	    GABC_LayerOptions::LayerType gabcFlag;
+	    UT_String path, flag;
+
+	    VIZ_PATH(path, i, time);
+	    VIZ_FLAG(flag, i, time);
+
+	    if(flag == "replace")
+		gabcFlag = GABC_LayerOptions::LayerType::FULL;
+	    else // if(flag == "prune")
+		gabcFlag = GABC_LayerOptions::LayerType::PRUNE;
+
+	    layerOptions.appendVizRule(path, gabcFlag);
+	}
+	// Populates layer attr parameters...
+	for(int i = 1; i <= NUM_ATTRIBUTES(time); ++i)
+	{
+	    GABC_LayerOptions::LayerType gabcFlag;
+	    UT_String path, pattern, flag;
+
+	    ATTRIBUTE_PATH(path, i, time);
+	    ATTRIBUTE_PATTERN(pattern, i, time);
+	    ATTRIBUTE_FLAG(flag, i, time);
+
+	    if(flag == "replace")
+		gabcFlag = GABC_LayerOptions::LayerType::FULL;
+	    else // if(flag == "prune")
+		gabcFlag = GABC_LayerOptions::LayerType::PRUNE;
+
+	    layerOptions.appendAttrRule(path, pattern, gabcFlag);
+	}
+	// Populates layer user prop parameters...
+	for(int i = 1; i <= NUM_USER_PROPS(time); ++i)
+	{
+	    GABC_LayerOptions::LayerType gabcFlag;
+	    UT_String path, pattern, flag;
+
+	    USER_PROP_PATH(path, i, time);
+	    USER_PROP_PATTERN(pattern, i, time);
+	    USER_PROP_FLAG(flag, i, time);
+
+	    if(flag == "replace")
+		gabcFlag = GABC_LayerOptions::LayerType::FULL;
+	    else // if(flag == "prune")
+		gabcFlag = GABC_LayerOptions::LayerType::PRUNE;
+
+	    layerOptions.appendUserPropRule(path, pattern, gabcFlag);
+	}
+	// Sets the layer options...
+	bool fullAncestor = FULL_ANCESTOR(time);
+	for(auto &it : myRoot->getChildren())
+	{
+	    ropSetAbcNodeLayerOptions(it.second, "",
+		layerOptions, fullAncestor);
+	}
+    }
+
+    // Executes the saving process.
+    myRoot->update(layerOptions);
+}
+
 bool
 ROP_AlembicOut::updateFromSop(
     OBJ_Geometry *geo,
@@ -1602,7 +1670,7 @@ ROP_AlembicOut::updateFromSop(
 				use_instancing, shape_nodes, displaysop,
 				save_hidden);
 	if(retval)
-	    myRoot->update(buildLayerOptions(myArchive->getCookTime()));
+	    setLayerOptionsAndSave();
     } 
 
     // post-update
@@ -1843,7 +1911,7 @@ ROP_AlembicOut::updateFromHierarchy(
 	it.second->setVisibility(obj->getObjectDisplay(time));
     }
 
-    myRoot->update(buildLayerOptions(myArchive->getCookTime()));
+    setLayerOptionsAndSave();
 
     // do post-update
     for(auto &it : myObjAssignments)

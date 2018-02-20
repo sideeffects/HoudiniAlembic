@@ -34,6 +34,7 @@
 #include <GABC/GABC_LayerOptions.h>
 #include <GABC/GABC_Util.h>
 
+typedef GABC_NAMESPACE::GABC_VisibilityType GABC_VisibilityType;
 typedef GABC_NAMESPACE::GABC_LayerOptions GABC_LayerOptions;
 typedef GABC_NAMESPACE::GABC_Util::CollisionResolver CollisionResolver;
 
@@ -42,7 +43,8 @@ typedef GABC_NAMESPACE::GABC_Util::CollisionResolver CollisionResolver;
 class ROP_AbcNode
 {
 public:
-    ROP_AbcNode(const std::string &name) : myParent(nullptr), myName(name) {}
+    ROP_AbcNode(const std::string &name) : myParent(nullptr), myName(name),
+	myVisible(GABC_VisibilityType::GABC_VISIBLE_HIDDEN) {}
     virtual ~ROP_AbcNode()
     {
 	for(auto &it : myChildren)
@@ -52,6 +54,15 @@ public:
     /// Returns name of this node.
     const char *getName() const { return myName.c_str(); }
 
+    /// Sets the layer node type of this node.
+    void setLayerNodeType(GABC_LayerOptions::LayerType type)
+	{ myLayerNodeType = type; }
+
+    /// Sets the tag of the visibility of this node.
+    void setVisibility(GABC_VisibilityType vis) { myVisible = vis; }
+    void setVisibility(bool vis)
+	{ myVisible = vis ? GABC_VisibilityType::GABC_VISIBLE_DEFER
+			  : GABC_VisibilityType::GABC_VISIBLE_HIDDEN; }
     /// Updates 'name' to a unique value if this node already has a child with
     /// that name.
     void makeCollisionFreeName(std::string &name) const;
@@ -99,6 +110,10 @@ protected:
     UT_BoundingBox myBox;
     /// this node's children
     UT_SortedMap<std::string, ROP_AbcNode *> myChildren;
+    /// this node's layer node type
+    GABC_LayerOptions::LayerType myLayerNodeType;
+    /// this node's visibility tag
+    GABC_VisibilityType myVisible;
 
 private:
     CollisionResolver myResolver;

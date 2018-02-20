@@ -77,6 +77,10 @@ void
 ROP_AbcNodeShape::update(const GABC_LayerOptions &layerOptions)
 {
     exint nsamples = myArchive->getSampleCount();
+
+    // TODO: Remove this temporary mapping for the visibility.
+    bool visible = (myVisible != GABC_VisibilityType::GABC_VISIBLE_HIDDEN);
+
     for(; mySampleCount < nsamples; ++mySampleCount)
     {
 	if(!myWriter)
@@ -85,7 +89,7 @@ ROP_AbcNodeShape::update(const GABC_LayerOptions &layerOptions)
 	    {
 		// write the first sample
 		mySampleCount = 0;
-		bool vis = (myVisible && nsamples == 1);
+		bool vis = (visible && nsamples == 1);
 		myWriter.reset(new GABC_OGTGeometry(myName));
 		myWriter->start(myPrim, myParent->getOObject(),
 				myArchive->getOOptions(), myArchive->getOError(),
@@ -98,7 +102,7 @@ ROP_AbcNodeShape::update(const GABC_LayerOptions &layerOptions)
 	}
 	else
 	{
-	    bool vis = (myVisible && mySampleCount + 1 == nsamples);
+	    bool vis = (visible && mySampleCount + 1 == nsamples);
 	    if(!myPrim || myLocked)
 	    {
 		myWriter->updateFromPrevious(myArchive->getOError(),
@@ -142,7 +146,7 @@ void
 ROP_AbcNodeShape::clear()
 {
     myPrim = nullptr;
-    myVisible = false;
+    myVisible = GABC_VisibilityType::GABC_VISIBLE_HIDDEN;
     myUserPropVals.clear();
     myUserPropMeta.clear();
 }

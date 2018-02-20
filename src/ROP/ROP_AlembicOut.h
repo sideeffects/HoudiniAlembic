@@ -198,7 +198,8 @@ private:
 			     bool save_hidden);
     void reportCookErrors(OP_Node *node, fpreal time);
 
-    GABC_LayerOptions buildLayerOptions(fpreal time) const;
+    // modify the myRoot by taking the layerOptions then save the file.
+    void setLayerOptionsAndSave();
 
     // temporary storage when exporting to an Alembic archive
     ROP_AbcArchivePtr myArchive;

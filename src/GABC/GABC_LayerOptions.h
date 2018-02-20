@@ -37,93 +37,93 @@
 namespace GABC_NAMESPACE
 {
 
-enum GABC_AbcLayerFlag
-{
-    GABC_ALEMBIC_LAYERING_NULL,
-    GABC_ALEMBIC_LAYERING_FULL,
-    GABC_ALEMBIC_LAYERING_REPLACE,
-    GABC_ALEMBIC_LAYERING_PRUNE
-};
-
 class GABC_API GABC_LayerOptions
 {
-
-    class FlagStorage
+public:
+    enum LayerType
     {
-	struct Item
-	{
-	    Item(UT_StringHolder pat, GABC_AbcLayerFlag flag) :
-		myPat(pat), myFlag(flag) {}
-	    UT_StringHolder	 myPat;
-	    GABC_AbcLayerFlag	 myFlag;
-	};
-
-    public:
-				 FlagStorage() {};
-				~FlagStorage() {};
-
-	void			 append(const UT_String &pattern,
-				    GABC_AbcLayerFlag flag);
-	GABC_AbcLayerFlag	 match(const UT_String &str);
-
-    private:
-	UT_Array<Item>		 myData;
+	DEFER,	// The node won't exist in the archive.
+	PRUNE,	// The empty sparse node with the prune metadata.
+	SPARSE,	// The sparse node with several properties.
+	FULL,	// The traditional full node.
+	REPLACE	// The full node with the replace metadata.
     };
 
-    class MultiFlagStorage
+    class Rules
     {
-	struct Item
+	struct Rule
 	{
-	    Item(UT_StringHolder pat, UT_StringHolder subPat,
-		GABC_AbcLayerFlag flag) :
-		myPat(pat), mySubPat(subPat), myFlag(flag) {}
-	    UT_StringHolder	 myPat;
-	    UT_StringHolder	 mySubPat;
-	    GABC_AbcLayerFlag	 myFlag;
+	    Rule(const UT_StringHolder &pat, LayerType type) :
+		myNodePat(pat), myType(type) {}
+
+	    UT_StringHolder	 myNodePat;
+	    LayerType		 myType;
 	};
 
     public:
-				 MultiFlagStorage() {};
-				~MultiFlagStorage() {};
+				 Rules() {}
+				~Rules() {}
+
+	void			 append(const UT_String &pattern,
+					LayerType type);
+	LayerType		 getLayerType(const UT_String &str) const;
+
+    private:
+	UT_Array<Rule>		 myData;
+    };
+
+    class MultiRules
+    {
+	struct Rule
+	{
+	    Rule(const UT_StringHolder &pat, const UT_StringHolder &subPat,
+		LayerType type) :
+		myNodePat(pat), mySubPat(subPat), myType(type) {}
+
+	    UT_StringHolder	 myNodePat;
+	    UT_StringHolder	 mySubPat;
+	    LayerType		 myType;
+	};
+
+    public:
+				 MultiRules() {}
+				~MultiRules() {}
 
 	void			 append(const UT_String &pat,
 					const UT_String &subPat,
-					GABC_AbcLayerFlag flag);
-	GABC_AbcLayerFlag	 match(const UT_String &str,
-					const UT_String &subStr);
+					LayerType type);
+	LayerType		 getLayerType(const UT_String &str,
+					const UT_String &subStr) const;
+	bool			 matchesNodePattern(const UT_String &str) const;
 
     private:
-	UT_Array<Item>		 myData;
+	UT_Array<Rule>		 myData;
     };
 
-public:
-			 GABC_LayerOptions(bool enable=false, bool full=false) :
-				myIsActived(enable),
-				myIsFullAncestor(full) {};
-			~GABC_LayerOptions() {};
+			 GABC_LayerOptions() {}
+			~GABC_LayerOptions() {}
 
-    void		 updateNodePat(const UT_String &nodePat,
-				GABC_AbcLayerFlag flag);
-    void		 updateVizPat(const UT_String &nodePat,
-				GABC_AbcLayerFlag flag);
-    void		 updateAttrPat(const UT_String &nodePat,
+    void		 appendNodeRule(const UT_String &nodePat,
+				LayerType type);
+    void		 appendVizRule(const UT_String &nodePat,
+				LayerType type);
+    void		 appendAttrRule(const UT_String &nodePat,
 				const UT_String &attrPat,
-				GABC_AbcLayerFlag flag);
-    void		 updateUserPropPat(const UT_String &nodePat,
+				LayerType type);
+    void		 appendUserPropRule(const UT_String &nodePat,
 				const UT_String &userPropPat,
-				GABC_AbcLayerFlag flag);
+				LayerType type);
 
-    GABC_AbcLayerFlag	 matchNode(const UT_String &nodePath);
-    GABC_AbcLayerFlag	 matchViz(const UT_String &nodePath);
-    GABC_AbcLayerFlag	 matchAttr(const UT_String &nodePath,
-				const UT_String &attrName);
-    GABC_AbcLayerFlag	 matchUserProp(const UT_String &nodePath,
-				const UT_String &userPropName);
+    LayerType		 getNodeType(const UT_String &nodePath) const;
+    LayerType		 getVizType(const UT_String &nodePath) const;
+    LayerType		 getAttrType(const UT_String &nodePath,
+				const UT_String &attrName) const;
+    LayerType		 getUserPropType(const UT_String &nodePath,
+				const UT_String &userPropName) const;
 
 private:
-    bool		 myIsActived, myIsFullAncestor;
-    FlagStorage		 myNodeData, myVizData;
-    MultiFlagStorage	 myAttrData, myUserPropData;
+    Rules		 myNodeData, myVizData;
+    MultiRules		 myAttrData, myUserPropData;
 };
 
 } // GABC_NAMESPACE
