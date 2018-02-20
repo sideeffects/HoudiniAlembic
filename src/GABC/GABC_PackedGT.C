@@ -436,8 +436,6 @@ public:
 		result = collect;
 	    }
 
-	    // std::cerr << "# unique instances: " << myInstanceGeo.size()
-	    // 	      << std::endl;
 	    UT_StringMap<GT_PrimitiveHandle> prims;
 	    for(auto name : myAlembicNames)
 		prims[name] = nullptr;
@@ -577,7 +575,8 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
     }
     myColorID = cid;
 
-    myHasChanged = changed;
+    if(changed)
+	myHasChanged = true;
     return changed;
 }
 
@@ -1458,7 +1457,9 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
     // Sort the primitives into buckets based on animation.
     for(auto name : myAlembicObjects)
     {
-	GT_PrimitiveHandle p = prims[name];
+    	GT_PrimitiveHandle p = prims[name];
+	if(!p)
+	    continue;
 	GEO_AnimationType type = GEO_ANIMATION_INVALID;
 	
 	GABC_PackedAlembic *single =dynamic_cast<GABC_PackedAlembic *>(p.get());
@@ -1488,6 +1489,8 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
 	}
 	else
 	    myDeformShapes.append(p);
+
+	prims[name] = nullptr;
     }
 
     if(alem_meshes.entries())
@@ -1784,7 +1787,8 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 	    }
 	}
     }
-    myHasChanged = updated;
+    if(!myHasChanged && updated)
+	myHasChanged = true;
     return updated;
 }
 
