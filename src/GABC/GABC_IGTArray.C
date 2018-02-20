@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -83,6 +83,12 @@ GABC_NAMESPACE::GABCarray(const GABC_IArray &iarray)
 	case Alembic::Abc::kUint8POD:
 	    data = new GABC_IGTArray<uint8>(iarray);
 	    break;
+	case Alembic::Abc::kInt8POD:
+	    data = new GABC_IGTArray<int8>(iarray);
+	    break;
+	case Alembic::Abc::kInt16POD:
+	    data = new GABC_IGTArray<int16>(iarray);
+	    break;
 	case Alembic::Abc::kInt32POD:
 	    data = new GABC_IGTArray<int32>(iarray);
 	    break;
@@ -105,14 +111,8 @@ GABC_NAMESPACE::GABCarray(const GABC_IArray &iarray)
 	case Alembic::Abc::kBooleanPOD:
 	    data = translateStorage<bool, uint8>(iarray);
 	    break;
-	case Alembic::Abc::kInt8POD:
-	    data = translateStorage<int8, int32>(iarray);
-	    break;
 	case Alembic::Abc::kUint16POD:
 	    data = translateStorage<uint16, int32>(iarray);
-	    break;
-	case Alembic::Abc::kInt16POD:
-	    data = translateStorage<int16, int32>(iarray);
 	    break;
 	case Alembic::Abc::kUint32POD:
 	    data = translateStorage<uint32, int64>(iarray);

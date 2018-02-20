@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -143,6 +143,14 @@ namespace
 		REINTERPRET_DATA(getU8);
 		break;
 
+	    case GT_STORE_INT8:
+		REINTERPRET_DATA(getI8);
+		break;
+
+	    case GT_STORE_INT16:
+		REINTERPRET_DATA(getI16);
+		break;
+
 	    case GT_STORE_INT32:
 		REINTERPRET_DATA(getI32);
 		break;
@@ -213,14 +221,6 @@ GABC_OScalarProperty::~GABC_OScalarProperty()
     {
         switch (myPOD)
         {
-            case Alembic::Util::kInt8POD:
-                delete[] (int8 *)(myBuffer);
-                break;
-
-            case Alembic::Util::kInt16POD:
-                delete[] (int16 *)(myBuffer);
-                break;
-
             case Alembic::Util::kUint16POD:
                 delete[] (uint16 *)(myBuffer);
                 break;
@@ -382,6 +382,8 @@ GABC_OScalarProperty::isValidScalarData(const GT_DataArrayHandle &array)
 	switch (storage)
 	{
 	    case GT_STORE_UINT8:
+	    case GT_STORE_INT8:
+	    case GT_STORE_INT16:
 	    case GT_STORE_INT32:
 	    case GT_STORE_INT64:
 	    case GT_STORE_REAL16:
@@ -420,14 +422,6 @@ GABC_OScalarProperty::start(OCompoundProperty &parent,
     myPOD = pod;
     switch (myPOD)
     {
-        case Alembic::Util::kInt8POD:
-            myBuffer = (void *)(new int8[myTupleSize]);
-            break;
-
-        case Alembic::Util::kInt16POD:
-            myBuffer = (void *)(new int16[myTupleSize]);
-            break;
-
         case Alembic::Util::kUint16POD:
             myBuffer = (void *)(new uint16[myTupleSize]);
             break;
@@ -449,7 +443,7 @@ GABC_OScalarProperty::start(OCompoundProperty &parent,
 	    {
 	        if (pod == Alembic::Util::kInt16POD)
 	        {
-                    UT_ASSERT(myStorage == GT_STORE_INT32);
+                    UT_ASSERT(myStorage == GT_STORE_INT16);
                     MAX_AND_MIN_TUPLE_SIZE(3, OP3sProperty, 2, OP2sProperty);
 	        }
 	        else if (pod == Alembic::Util::kInt32POD)
@@ -495,7 +489,7 @@ GABC_OScalarProperty::start(OCompoundProperty &parent,
             {
                 if (pod == Alembic::Util::kInt16POD)
                 {
-                    UT_ASSERT(myStorage == GT_STORE_INT32);
+                    UT_ASSERT(myStorage == GT_STORE_INT16);
                     MAX_AND_MIN_TUPLE_SIZE(3, OV3sProperty, 2, OV2sProperty);
                 }
                 else if (pod == Alembic::Util::kInt32POD)
@@ -720,7 +714,7 @@ GABC_OScalarProperty::start(OCompoundProperty &parent,
             {
                 if (pod == Alembic::Util::kInt16POD)
                 {
-                    UT_ASSERT(myStorage == GT_STORE_INT32);
+                    UT_ASSERT(myStorage == GT_STORE_INT16);
                     MAX_TUPLE_SIZE(6, OBox3sProperty);
                 }
                 else if (pod == Alembic::Util::kInt32POD)
@@ -770,6 +764,14 @@ GABC_OScalarProperty::start(OCompoundProperty &parent,
                         DECL_PARAM(OUcharProperty);
                         break;
 
+                    case GT_STORE_INT8:
+                        DECL_PARAM(OCharProperty);
+                        break;
+
+                    case GT_STORE_INT16:
+                        DECL_PARAM(OInt16Property);
+                        break;
+
                     case GT_STORE_INT32:
                         DECL_PARAM(OInt32Property);
                         break;
@@ -804,7 +806,7 @@ GABC_OScalarProperty::start(OCompoundProperty &parent,
                 break;
 
             case Alembic::Util::kInt8POD:
-                DECL_IF_STORAGE_MATCHES(GT_STORE_INT32, OCharProperty);
+                DECL_IF_STORAGE_MATCHES(GT_STORE_INT8, OCharProperty);
                 break;
 
             case Alembic::Util::kUint8POD:
@@ -812,7 +814,7 @@ GABC_OScalarProperty::start(OCompoundProperty &parent,
                 break;
 
             case Alembic::Util::kInt16POD:
-                DECL_IF_STORAGE_MATCHES(GT_STORE_INT32, OInt16Property);
+                DECL_IF_STORAGE_MATCHES(GT_STORE_INT16, OInt16Property);
                 break;
 
             case Alembic::Util::kUint16POD:
@@ -907,6 +909,14 @@ GABC_OScalarProperty::update(const GT_DataArrayHandle &array,
                     writeProperty<uint8>(myProperty, array);
                     break;
 
+                case GT_STORE_INT8:
+                    writeProperty<int8>(myProperty, array);
+                    break;
+
+                case GT_STORE_INT16:
+                    writeProperty<int16>(myProperty, array);
+                    break;
+
                 case GT_STORE_INT32:
                     writeProperty<int32>(myProperty, array);
                     break;
@@ -938,13 +948,11 @@ GABC_OScalarProperty::update(const GT_DataArrayHandle &array,
             break;
 
         case Alembic::Util::kInt8POD:
-            reinterpretArray<int8>((int8 *)myBuffer, array, myTupleSize);
-            myProperty.set(myBuffer);
+            writeProperty<int8>(myProperty, array);
             break;
 
         case Alembic::Util::kInt16POD:
-            reinterpretArray<int16>((int16 *)myBuffer, array, myTupleSize);
-            myProperty.set(myBuffer);
+            writeProperty<int16>(myProperty, array);
             break;
 
         case Alembic::Util::kUint16POD:

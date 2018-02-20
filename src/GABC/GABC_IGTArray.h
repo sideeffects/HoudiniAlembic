@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -68,6 +68,20 @@ public:
 			}
 
     virtual const uint8		*get(GT_Offset off, uint8 *buf, int sz) const
+				{
+				    off = off * getTupleSize();
+				    for (int i = 0; i < sz; ++i)
+					buf[i] = myData[off+i];
+				    return buf;
+				}
+    virtual const int8		*get(GT_Offset off, int8 *buf, int sz) const
+				{
+				    off = off * getTupleSize();
+				    for (int i = 0; i < sz; ++i)
+					buf[i] = myData[off+i];
+				    return buf;
+				}
+    virtual const int16		*get(GT_Offset off, int16 *buf, int sz) const
 				{
 				    off = off * getTupleSize();
 				    for (int i = 0; i < sz; ++i)
@@ -197,6 +211,10 @@ public:
 
     virtual void doImport(GT_Offset idx, uint8 *data, GT_Size size) const
 			{ importTuple<uint8>(idx, data, size); }
+    virtual void doImport(GT_Offset idx, int8 *data, GT_Size size) const
+			{ importTuple<int8>(idx, data, size); }
+    virtual void doImport(GT_Offset idx, int16 *data, GT_Size size) const
+			{ importTuple<int16>(idx, data, size); }
     virtual void doImport(GT_Offset idx, int32 *data, GT_Size size) const
 			{ importTuple<int32>(idx, data, size); }
     virtual void doImport(GT_Offset idx, int64 *data, GT_Size size) const
@@ -213,6 +231,18 @@ public:
 		 {
 		     t_ABCFill(data, getStorage() == GT_STORE_UINT8,
 				   start, length, tsize, 1, stride);
+		 }
+    virtual void doFillArray(int8 *data, GT_Offset start, GT_Size length,
+			int tsize, int stride) const
+		 {
+		     t_ABCFill(data, getStorage() == GT_STORE_INT8,
+			     start, length, tsize, 1, stride);
+		 }
+    virtual void doFillArray(int16 *data, GT_Offset start, GT_Size length,
+			int tsize, int stride) const
+		 {
+		     t_ABCFill(data, getStorage() == GT_STORE_INT16,
+			     start, length, tsize, 1, stride);
 		 }
     virtual void doFillArray(int32 *data, GT_Offset start, GT_Size length,
 			int tsize, int stride) const
@@ -302,6 +332,8 @@ private:
 };
 
 using GABC_GTUnsigned8Array = GABC_IGTArray<uint8>;
+using GABC_GTInt8Array = GABC_IGTArray<int8>;
+using GABC_GTInt16Array = GABC_IGTArray<int16>;
 using GABC_GTInt32Array = GABC_IGTArray<int32>;
 using GABC_GTInt64Array = GABC_IGTArray<int64>;
 using GABC_GTReal16Array = GABC_IGTArray<fpreal16>;

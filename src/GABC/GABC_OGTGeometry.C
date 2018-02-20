@@ -777,6 +777,10 @@ namespace
 	{
 	    case GT_STORE_UINT8:
 		return isConstantArray(data->getU8Array(buffer), data);
+	    case GT_STORE_INT8:
+		return isConstantArray(data->getI8Array(buffer), data);
+	    case GT_STORE_INT16:
+		return isConstantArray(data->getI16Array(buffer), data);
 	    case GT_STORE_INT32:
 		return isConstantArray(data->getI32Array(buffer), data);
 	    case GT_STORE_INT64:
