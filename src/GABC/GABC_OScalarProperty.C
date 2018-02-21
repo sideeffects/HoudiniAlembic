@@ -676,7 +676,7 @@ GABC_OScalarProperty::start(OCompoundProperty &parent,
             {
                 if (pod == Alembic::Util::kInt16POD)
                 {
-                    UT_ASSERT(myStorage == GT_STORE_INT32);
+                    UT_ASSERT(myStorage == GT_STORE_INT16);
                     MAX_TUPLE_SIZE(4, OBox2sProperty);
                 }
                 else if (pod == Alembic::Util::kInt32POD)
@@ -802,7 +802,7 @@ GABC_OScalarProperty::start(OCompoundProperty &parent,
                 break;
 
             case Alembic::Util::kBooleanPOD:
-                DECL_IF_STORAGE_MATCHES(GT_STORE_UINT8, OBoolProperty);
+                DECL_IF_STORAGE_MATCHES(GT_STORE_INT8, OBoolProperty);
                 break;
 
             case Alembic::Util::kInt8POD:

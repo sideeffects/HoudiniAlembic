@@ -2329,55 +2329,39 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
         GABC_OError &err,
         const GABC_OOptions &ctx)
 {
-    CompoundPropertyWriterPtr   cpw;
-    GABC_OProperty             *prop;
-    GT_DataArrayHandle          data_array;
-    GT_Storage                  gt_storage;
-    GT_Type                     gt_type;
-    OCompoundProperty           parent;
-    PlainOldDataType            pod;
-    PropertyMap::iterator       it;
-    UPSample                   *sample;
-    UPSampleMap                 sample_map;
-    UPSampleMap::iterator       s_it;
-    UT_WorkBuffer               m_key;
-    UT_WorkBuffer               v_key;
-    UT_WorkBuffer               work_buffer;
-    int                         tuple_size;
-    int                         array_size;
-    const char                 *name;
-    const char                 *up_path;
-    bool                        output;
-    bool                        m_finished;
-    bool                        v_finished;
-    bool                        success_parsing = true;
-    bool                        error_parsing = false;
-
     if (!ancestor && !up_map.size())
-    {
         return true;
-    }
 
     // Parse the beginning of the map.
+    bool error_parsing = false;
     if (!meta_data->parseBeginMap(error_parsing)
-            || !vals_data->parseBeginMap(error_parsing))
+	|| !vals_data->parseBeginMap(error_parsing))
     {
         err.warning("Error parsing user properties: no valid JSON map in "
                 "attribute(s).");
         return false;
     }
 
-    m_finished = meta_data->parseEndMap(error_parsing);
-    v_finished = vals_data->parseEndMap(error_parsing);
+    bool m_finished = meta_data->parseEndMap(error_parsing);
+    bool v_finished = vals_data->parseEndMap(error_parsing);
+
+    GABC_OProperty             *prop;
+    OCompoundProperty           parent;
+    UPSampleMap                 sample_map;
+    UT_WorkBuffer               m_key;
+    UT_WorkBuffer               v_key;
+    UT_WorkBuffer               work_buffer;
+    const char                 *name;
+    bool                        success_parsing = true;
 
     // Keep reading the until one of the maps ends.
     while (!m_finished && !v_finished)
     {
-        output = true;
+        bool output = true;
         success_parsing = true;
         error_parsing = false;
-        gt_type = GT_TYPE_NONE;
-        array_size = 0;
+        GT_Type gt_type = GT_TYPE_NONE;
+        int array_size = 0;
 
         // Parse the name of the next user property. The names from both
         // dictionaries should match.
@@ -2395,7 +2379,7 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
             return false;
         }
 
-        it = up_map.find(m_key.buffer());
+        PropertyMap::iterator it = up_map.find(m_key.buffer());
         if (ancestor)
         {
             // If creating a new GABC_OProperty, check that one doesn't
@@ -2413,7 +2397,7 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
             else
             {
                 parent = *ancestor;
-                up_path = m_key.buffer();
+                const char *up_path = m_key.buffer();
 
                 while (true)
                 {
@@ -2423,9 +2407,7 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
 
                     // Exit if no more tokens, we've found the property name.
                     if (!(*up_path))
-                    {
                         break;
-                    }
 
                     // Otherwise, this token is the name of a parent compound
                     // property. Check if a property with that name
@@ -2436,7 +2418,7 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
                     {
                         // If a property exists, check that it is a compound
                         // property.
-                        cpw = bp.getPtr()->asCompoundPtr();
+                        CompoundPropertyWriterPtr cpw = bp.getPtr()->asCompoundPtr();
                         if (cpw.get())
                         {
                             // If so, use the existing property as the parent.
@@ -2487,16 +2469,14 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
         else
         {
             // If updating an existing property, make sure it exists.
-            if (it == up_map.end())
+            if (it != up_map.end())
+                prop = it->second;
+            else
             {
                 err.warning("User property %s was not declared on first frame, "
                         "so it was ignored.",
                         m_key.buffer());
                 output = false;
-            }
-            else
-            {
-                prop = it->second;
             }
         }
 
@@ -2508,13 +2488,13 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
 
         // Read storage type
         success_parsing &= meta_data->parseString(work_buffer);
-        gt_storage = GTstorage(work_buffer.buffer());
 
         // Read Alembic POD
         success_parsing &= meta_data->parseString(work_buffer);
-        pod = AbcPOD(work_buffer.buffer());
+	PlainOldDataType pod = AbcPOD(work_buffer.buffer());
 
         // Read tuple size
+	int tuple_size;
         success_parsing &= meta_data->parseValue(tuple_size);
 
         // Read tuple interpretation
@@ -2524,13 +2504,9 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
             gt_type = GTtype(work_buffer.buffer());
 
             if ((gt_type == GT_TYPE_MATRIX) && (tuple_size == 9))
-            {
                 gt_type = GT_TYPE_MATRIX3;
-            }
             else if ((gt_type == GT_TYPE_BOX) && (tuple_size == 4))
-            {
                 gt_type = GT_TYPE_BOX2;
-            }
         }
 
         // Read array size
@@ -2546,89 +2522,85 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
         //
         //  Read data
         //
+	GT_DataArrayHandle data_array;
+	exint   items = (array_size ? array_size : 1);
 
-        if (gt_storage == GT_STORE_STRING)
-        {
-            // There is no special Alembic data type that is a string tuple.
-            // The equivalent would be an array of strings.
-            UT_ASSERT(tuple_size == 1);
-            int                 items = (array_size ? array_size : 1);
-            GT_DAIndexedString *data = new GT_DAIndexedString(items);
+	switch (pod)
+	{
+	    case Alembic::Util::kBooleanPOD:
+	    case Alembic::Util::kInt8POD:
+		data_array = parseJSONValuesArray<GT_Int8Array>(
+			vals_data, items, tuple_size, gt_type);
+		break;
 
-            success_parsing &= vals_data->parseBeginArray(error_parsing);
-            for (int i = 0; i < items; ++i)
-            {
-                success_parsing &= vals_data->parseString(work_buffer);
-                data->setString(i, 0, work_buffer.buffer());
-            }
-            success_parsing &= vals_data->parseEndArray(error_parsing);
+	    case Alembic::Util::kUint8POD:
+		data_array = parseJSONValuesArray<GT_UInt8Array>(
+			vals_data, items, tuple_size, gt_type);
+		break;
 
-            USER_PROPS_PARSE_ERROR;
+	    case Alembic::Util::kInt16POD:
+		data_array = parseJSONValuesArray<GT_Int16Array>(
+			vals_data, items, tuple_size, gt_type);
+		break;
 
-            data_array = GT_DataArrayHandle(data);
-        }
-        else
-        {
-            exint   items = (array_size ? array_size : 1);
+	    case Alembic::Util::kUint16POD:
+	    case Alembic::Util::kInt32POD:
+		data_array = parseJSONValuesArray<GT_Int32Array>(
+			vals_data, items, tuple_size, gt_type);
+		break;
 
-            switch (gt_storage)
-            {
-                case GT_STORE_UINT8:
-                    data_array = parseJSONValuesArray<GT_UInt8Array>(
-                            vals_data,
-                            items,
-                            tuple_size,
-                            gt_type);
-                    break;
+	    case Alembic::Util::kUint32POD:
+	    case Alembic::Util::kInt64POD:
+	    case Alembic::Util::kUint64POD:
+		data_array = parseJSONValuesArray<GT_Int64Array>(
+			vals_data, items, tuple_size, gt_type);
+		break;
 
-                case GT_STORE_INT32:
-                    data_array = parseJSONValuesArray<GT_Int32Array>(
-                            vals_data,
-                            items,
-                            tuple_size,
-                            gt_type);
-                    break;
+	    case Alembic::Util::kFloat16POD:
+		data_array = parseJSONValuesArray<GT_Real16Array>(
+			vals_data, items, tuple_size, gt_type);
+		break;
 
-                case GT_STORE_INT64:
-                    data_array = parseJSONValuesArray<GT_Int64Array>(
-                            vals_data,
-                            items,
-                            tuple_size,
-                            gt_type);
-                    break;
+	    case Alembic::Util::kFloat32POD:
+		data_array = parseJSONValuesArray<GT_Real32Array>(
+			vals_data, items, tuple_size, gt_type);
+		break;
 
-                case GT_STORE_REAL16:
-                    data_array = parseJSONValuesArray<GT_Real16Array>(
-                            vals_data,
-                            items,
-                            tuple_size,
-                            gt_type);
-                    break;
+	    case Alembic::Util::kFloat64POD:
+		data_array = parseJSONValuesArray<GT_Real64Array>(
+			vals_data, items, tuple_size, gt_type);
+		break;
 
-                case GT_STORE_REAL32:
-                    data_array = parseJSONValuesArray<GT_Real32Array>(
-                            vals_data,
-                            items,
-                            tuple_size,
-                            gt_type);
-                    break;
+	    case Alembic::Util::kStringPOD:
+	    case Alembic::Util::kWstringPOD:
+		{
+		    // There is no special Alembic data type that is a
+		    // string tuple. The equivalent would be an array of
+		    // strings.
+		    UT_ASSERT(tuple_size == 1);
+		    GT_DAIndexedString *data = new GT_DAIndexedString(items);
 
-                case GT_STORE_REAL64:
-                    data_array = parseJSONValuesArray<GT_Real64Array>(
-                            vals_data,
-                            items,
-                            tuple_size,
-                            gt_type);
-                    break;
+		    success_parsing &= vals_data->parseBeginArray(error_parsing);
+		    for (int i = 0; i < items; ++i)
+		    {
+			success_parsing &= vals_data->parseString(work_buffer);
+			data->setString(i, 0, work_buffer.buffer());
+		    }
+		    success_parsing &= vals_data->parseEndArray(error_parsing);
 
-                default:
-                    // Since this is a type error, it has to do with
-                    // reading metadata.
-                    err.warning("Error reading user property metadata: "
-                            "unrecognized Houdini storage type.");
-                    return false;
-            }
-        }
+		    USER_PROPS_PARSE_ERROR;
+
+		    data_array = GT_DataArrayHandle(data);
+		}
+		break;
+
+	    default:
+		// Since this is a type error, it has to do with
+		// reading metadata.
+		err.warning("Error reading user property metadata: "
+			"unrecognized Houdini storage type.");
+		return false;
+	}
 
         if (!data_array)
         {
@@ -2650,22 +2622,14 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
             if (ancestor)
             {
                 if (array_size)
-                {
                     prop = new GABC_OArrayProperty();
-                }
                 else
-                {
                     prop = new GABC_OScalarProperty();
-                }
 
                 if (!prop->start(parent, name, data_array, err, ctx, pod))
-                {
                     err.warning("Skipping property %s.", m_key.buffer());
-                }
                 else
-                {
                     up_map.insert(PropertyMapInsert(m_key.toStdString(), prop));
-                }
             }
             else
             {
@@ -2692,10 +2656,10 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
     // update from the update functions as this solution does.
     if (!ancestor)
     {
-        for (it = up_map.begin(); it != up_map.end(); ++it)
+        for (PropertyMap::iterator it = up_map.begin(); it != up_map.end(); ++it)
         {
             prop = it->second;
-            s_it = sample_map.find(prop);
+	    UPSampleMap::iterator s_it = sample_map.find(prop);
 
             if (s_it == sample_map.end())
             {
@@ -2705,7 +2669,7 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
             }
             else
             {
-                sample = &(s_it->second);
+		UPSample *sample = &s_it->second;
 
                 if (!prop->update(sample->first, err, ctx, sample->second))
                 {

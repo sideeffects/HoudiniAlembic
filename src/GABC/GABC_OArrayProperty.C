@@ -896,7 +896,7 @@ GABC_OArrayProperty::start(OCompoundProperty &parent,
                 break;
 
             case Alembic::Util::kBooleanPOD:
-                DECL_IF_STORAGE_MATCHES(GT_STORE_UINT8, OBoolGeomParam);
+                DECL_IF_STORAGE_MATCHES(GT_STORE_INT8, OBoolGeomParam);
                 break;
 
             case Alembic::Util::kInt8POD:
