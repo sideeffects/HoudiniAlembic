@@ -99,18 +99,18 @@ static PRM_Name theUseLayeringName("uselayering", "Enable Layering");
 static PRM_Name theFullXformName("fullancestor", "Create Full Ancestors for Output Nodes");
 static PRM_Name theNumNodesName("numnodes", "Nodes");
 static PRM_Name theNodePathName("nodepath#", "Path #");
-static PRM_Name theNodeFlagName("nodeflag#", "Flag #");
+static PRM_Name theNodeFlagName("noderule#", "Rule #");
 static PRM_Name theNumVizsName("numvizs", "Visibilities");
 static PRM_Name theVizPathName("vizpath#", "Path #");
-static PRM_Name theVizFlagName("vizflag#", "Flag #");
+static PRM_Name theVizFlagName("vizrule#", "Rule #");
 static PRM_Name theNumAttrsName("numattrs", "Attributes");
 static PRM_Name theAttrPathName("attrpath#", "Path #");
 static PRM_Name theAttrPatternName("attrpattern#", "Pattern #");
-static PRM_Name theAttrFlagName("attrflag#", "Flag #");
+static PRM_Name theAttrFlagName("attrrule#", "Rule #");
 static PRM_Name theNumUsersName("numuserprops", "User Properties");
 static PRM_Name theUserPathName("userproppath#", "Path #");
 static PRM_Name theUserPatternName("userproppattern#", "Pattern #");
-static PRM_Name theUserFlagName("userpropflag#", "Flag #");
+static PRM_Name theUserFlagName("userproprule#", "Rule #");
 static PRM_Name theMotionBlurName("motionBlur", "Use Motion Blur");
 static PRM_Name theSampleName("samples", "Samples");
 static PRM_Name theShutterName("shutter", "Shutter");
@@ -616,8 +616,7 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
     if(!myArchive || (myArchive->getFileName() != filename))
     {
 	// close the previous archive
-	const ROP_AbcArchivePtr dummy;
-	myRoot->setArchive(dummy);
+	myRoot->reset();
 	myArchive.reset();
     }
 
@@ -629,7 +628,7 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	UT_String format;
 	FORMAT(format, time);
 
-	myArchive = UTmakeShared<ROP_AbcArchive>(filename, format != "hdf5", *myErrors.get());
+	myArchive = UTmakeUnique<ROP_AbcArchive>(filename, format != "hdf5", *myErrors);
 	if(!myArchive || !myArchive->isValid())
 	{
 	    myArchive.reset();
@@ -671,8 +670,6 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	    UV_ATTRIBUTE(uv_pattern, time);
 	    options.setUVAttribPattern(uv_pattern);
 	}
-
-	myRoot->setArchive(myArchive);
     }
 
     OBJ_Geometry *geo = nullptr;
@@ -718,10 +715,12 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	// update tree
 	if(sop)
 	{
-	    if(!updateFromSop(geo, sop, packedtransform, facesetmode, use_instancing, shape_nodes, displaysop, save_hidden))
+	    if(!updateFromSop(geo, sop, packedtransform, facesetmode,
+		use_instancing, shape_nodes, displaysop, save_hidden))
 		return ROP_ABORT_RENDER;
 	}
-	else if(!updateFromHierarchy(packedtransform, facesetmode, use_instancing, shape_nodes, displaysop, save_hidden))
+	else if(!updateFromHierarchy(packedtransform, facesetmode,
+	    use_instancing, shape_nodes, displaysop, save_hidden))
 	    return ROP_ABORT_RENDER;
     }
 
@@ -742,9 +741,6 @@ ROP_AlembicOut::endRender()
 
     for(exint i = 0; i < err->myWarnings.entries(); ++i)
 	addWarning(ROP_MESSAGE, err->myWarnings(i));
-
-    myArchive.reset();
-    myRoot.reset(nullptr);
     myErrors.reset(nullptr);
 
     myObjAssignments.clear();
@@ -752,6 +748,9 @@ ROP_AlembicOut::endRender()
     myGeoAssignments.clear();
     myGeos.clear();
     mySopAssignments.reset(nullptr);
+
+    myRoot.reset(nullptr);
+    myArchive.reset();
 
     if (!executePostRenderScript(myEndTime))
 	return ROP_ABORT_RENDER;
@@ -1021,7 +1020,7 @@ ROP_AlembicOut::refineSop(
     ROP_AbcHierarchySample root(nullptr, "");
     UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > instance_map;
 
-    ROP_AbcRefiner refiner(instance_map, myArchive, packedtransform,
+    ROP_AbcRefiner refiner(instance_map, *myErrors, packedtransform,
 			   facesetmode, use_instancing, shape_nodes,
 			   save_hidden);
 
@@ -1067,7 +1066,7 @@ ROP_AlembicOut::refineSop(
 	}
     }
 
-    assignments.update(myArchive, root, instance_map);
+    assignments.update(*myErrors, root, instance_map);
 }
 
 static bool
@@ -1395,7 +1394,7 @@ ROP_AlembicOut::updateFromSop2(
     }
 
     UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > instance_map;
-    ROP_AbcRefiner refiner(instance_map, myArchive, packedtransform,
+    ROP_AbcRefiner refiner(instance_map, *myErrors, packedtransform,
 			   facesetmode, use_instancing, shape_nodes,
 			   save_hidden);
     // build refined hierarchy
@@ -1449,7 +1448,7 @@ ROP_AlembicOut::updateFromSop2(
 	refiner.addPartition(*parent, cname, subd, prim, userprops, userpropsmeta);
     }
 
-    mySopAssignments->update(myArchive, root, instance_map);
+    mySopAssignments->update(*myErrors, root, instance_map);
     return true;
 }
 
@@ -1561,70 +1560,70 @@ ROP_AlembicOut::setLayerOptionsAndSave()
 	// Populates layer node parameters...
 	for(int i = 1; i <= NUM_NODES(time); ++i)
 	{
-	    GABC_LayerOptions::LayerType gabcFlag;
-	    UT_String path, flag;
+	    GABC_LayerOptions::LayerType layerType;
+	    UT_String path, rule;
 
 	    NODE_PATH(path, i, time);
-	    NODE_FLAG(flag, i, time);
+	    NODE_FLAG(rule, i, time);
 
-	    if(flag == "merge")
-		gabcFlag = GABC_LayerOptions::LayerType::FULL;
-	    else if(flag == "replace")
-		gabcFlag = GABC_LayerOptions::LayerType::REPLACE;
-	    else // if(flag == "prune")
-		gabcFlag = GABC_LayerOptions::LayerType::PRUNE;
+	    if(rule == "merge")
+		layerType = GABC_LayerOptions::LayerType::FULL;
+	    else if(rule == "replace")
+		layerType = GABC_LayerOptions::LayerType::REPLACE;
+	    else // if(rule == "prune")
+		layerType = GABC_LayerOptions::LayerType::PRUNE;
 
-	    layerOptions.appendNodeRule(path, gabcFlag);
+	    layerOptions.appendNodeRule(path, layerType);
 	}
 	// Populates layer viz parameters...
 	for(int i = 1; i <= NUM_VIZS(time); ++i)
 	{
-	    GABC_LayerOptions::LayerType gabcFlag;
-	    UT_String path, flag;
+	    GABC_LayerOptions::LayerType layerType;
+	    UT_String path, rule;
 
 	    VIZ_PATH(path, i, time);
-	    VIZ_FLAG(flag, i, time);
+	    VIZ_FLAG(rule, i, time);
 
-	    if(flag == "replace")
-		gabcFlag = GABC_LayerOptions::LayerType::FULL;
-	    else // if(flag == "prune")
-		gabcFlag = GABC_LayerOptions::LayerType::PRUNE;
+	    if(rule == "replace")
+		layerType = GABC_LayerOptions::LayerType::FULL;
+	    else // if(rule == "prune")
+		layerType = GABC_LayerOptions::LayerType::PRUNE;
 
-	    layerOptions.appendVizRule(path, gabcFlag);
+	    layerOptions.appendVizRule(path, layerType);
 	}
 	// Populates layer attr parameters...
 	for(int i = 1; i <= NUM_ATTRIBUTES(time); ++i)
 	{
-	    GABC_LayerOptions::LayerType gabcFlag;
-	    UT_String path, pattern, flag;
+	    GABC_LayerOptions::LayerType layerType;
+	    UT_String path, pattern, rule;
 
 	    ATTRIBUTE_PATH(path, i, time);
 	    ATTRIBUTE_PATTERN(pattern, i, time);
-	    ATTRIBUTE_FLAG(flag, i, time);
+	    ATTRIBUTE_FLAG(rule, i, time);
 
-	    if(flag == "replace")
-		gabcFlag = GABC_LayerOptions::LayerType::FULL;
-	    else // if(flag == "prune")
-		gabcFlag = GABC_LayerOptions::LayerType::PRUNE;
+	    if(rule == "replace")
+		layerType = GABC_LayerOptions::LayerType::FULL;
+	    else // if(rule == "prune")
+		layerType = GABC_LayerOptions::LayerType::PRUNE;
 
-	    layerOptions.appendAttrRule(path, pattern, gabcFlag);
+	    layerOptions.appendAttrRule(path, pattern, layerType);
 	}
 	// Populates layer user prop parameters...
 	for(int i = 1; i <= NUM_USER_PROPS(time); ++i)
 	{
-	    GABC_LayerOptions::LayerType gabcFlag;
-	    UT_String path, pattern, flag;
+	    GABC_LayerOptions::LayerType layerType;
+	    UT_String path, pattern, rule;
 
 	    USER_PROP_PATH(path, i, time);
 	    USER_PROP_PATTERN(pattern, i, time);
-	    USER_PROP_FLAG(flag, i, time);
+	    USER_PROP_FLAG(rule, i, time);
 
-	    if(flag == "replace")
-		gabcFlag = GABC_LayerOptions::LayerType::FULL;
-	    else // if(flag == "prune")
-		gabcFlag = GABC_LayerOptions::LayerType::PRUNE;
+	    if(rule == "replace")
+		layerType = GABC_LayerOptions::LayerType::FULL;
+	    else // if(rule == "prune")
+		layerType = GABC_LayerOptions::LayerType::PRUNE;
 
-	    layerOptions.appendUserPropRule(path, pattern, gabcFlag);
+	    layerOptions.appendUserPropRule(path, pattern, layerType);
 	}
 	// Sets the layer options...
 	bool fullAncestor = FULL_ANCESTOR(time);
@@ -1636,7 +1635,7 @@ ROP_AlembicOut::setLayerOptionsAndSave()
     }
 
     // Executes the saving process.
-    myRoot->update(layerOptions);
+    myRoot->update(*myArchive, layerOptions, *myErrors);
 }
 
 bool
@@ -1765,10 +1764,9 @@ ROP_AlembicOut::updateFromHierarchy(
 		    std::string name(obj->getName());
 
 		    // handle name collisions
-		    parent->makeCollisionFreeName(name);
+		    parent->makeCollisionFreeName(name, *myErrors);
 
 		    ROP_AbcNodeXform *child = new ROP_AbcNodeXform(name);
-		    child->setArchive(myArchive);
 		    parent->addChild(child);
 
 		    myObjAssignments.emplace(obj, child);
@@ -1785,10 +1783,9 @@ ROP_AlembicOut::updateFromHierarchy(
 		    std::string name("cameraProperties");
 
 		    // handle name collisions
-		    parent->makeCollisionFreeName(name);
+		    parent->makeCollisionFreeName(name, *myErrors);
 
 		    ROP_AbcNodeCamera *child = new ROP_AbcNodeCamera(name, cam->RESX(time), cam->RESY(time));
-		    child->setArchive(myArchive);
 		    parent->addChild(child);
 		    myCamAssignments.emplace(cam, child);
 		}
@@ -1934,8 +1931,7 @@ ROP_AlembicOut::reportCookErrors(OP_Node *node, fpreal time)
 {
     UT_WorkBuffer buf;
     node->getFullPath(buf);
-    myArchive->getOError().error("Error cooking %s at time %g.",
-				 buf.buffer(), time);
+    myErrors->error("Error cooking %s at time %g.", buf.buffer(), time);
     UT_String errors;
     node->getErrorMessages(errors);
     addError(ROP_COOK_ERROR, (const char *)errors);

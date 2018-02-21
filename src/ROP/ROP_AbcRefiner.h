@@ -37,7 +37,7 @@ class ROP_AbcRefiner : public GT_Refine
 {
 public:
     ROP_AbcRefiner(UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > &instance_map,
-		   const ROP_AbcArchivePtr &abc,
+		   GABC_OError &err,
 		   ROP_AlembicPackedTransform packedtransform,
 		   exint facesetmode,
 		   bool use_instancing,
@@ -79,7 +79,7 @@ private:
     // when exporting an instance, number of shapes exported so far
     UT_Map<std::string, UT_Map<int, exint> > myInstanceShapeIndex;
 
-    const ROP_AbcArchivePtr &myArchive;
+    GABC_OError &myError;
 
     // refinement options
     ROP_AlembicPackedTransform myPackedTransform;

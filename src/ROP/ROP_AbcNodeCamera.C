@@ -37,27 +37,27 @@ typedef Alembic::AbcGeom::FilmBackXformOp FilmBackXformOp;
 typedef Alembic::AbcGeom::OCamera OCamera;
 
 void
-ROP_AbcNodeCamera::setArchive(const ROP_AbcArchivePtr &archive)
+ROP_AbcNodeCamera::reset()
 {
     myOCamera = OCamera();
-    ROP_AbcNode::setArchive(archive);
+    ROP_AbcNode::reset();
     myIsValid = false;
     mySampleCount = 0;
 }
 
 OObject
-ROP_AbcNodeCamera::getOObject()
+ROP_AbcNodeCamera::getOObject(ROP_AbcArchive &archive, GABC_OError &err)
 {
-    makeValid();
+    makeValid(archive, err);
     return myOCamera;
 }
 
 void
-ROP_AbcNodeCamera::update(const GABC_LayerOptions &)
+ROP_AbcNodeCamera::update(ROP_AbcArchive &archive, const GABC_LayerOptions &, GABC_OError &err)
 {
-    makeValid();
+    makeValid(archive, err);
 
-    exint nsamples = myArchive->getSampleCount();
+    exint nsamples = archive.getSampleCount();
     for(; mySampleCount < nsamples; ++mySampleCount)
     {
 	auto &schema = myOCamera.getSchema();
@@ -84,7 +84,8 @@ ROP_AbcNodeCamera::update(const GABC_LayerOptions &)
 	    sample.setOverScanBottom(0);
 
 	    // We need to output the filmback fit and post projection transform
-	    FilmBackXformOp winsize = FilmBackXformOp(Alembic::AbcGeom::kScaleFilmBackOperation, "winsize");
+	    FilmBackXformOp winsize = FilmBackXformOp(
+		Alembic::AbcGeom::kScaleFilmBackOperation, "winsize");
 	    sample.addOp(winsize);
 	    sample[0].setChannelValue(0, (1.0 / myWinSizeX));
 	    sample[0].setChannelValue(1, (1.0 / myWinSizeY));
@@ -103,33 +104,37 @@ ROP_AbcNodeCamera::update(const GABC_LayerOptions &)
 }
 
 void
-ROP_AbcNodeCamera::makeValid()
+ROP_AbcNodeCamera::makeValid(ROP_AbcArchive &archive, GABC_OError &err)
 {
     if(myIsValid)
 	return;
 
-    myOCamera = OCamera(myParent->getOObject(), myName, myArchive->getTimeSampling());
+    myOCamera = OCamera(myParent->getOObject(archive, err),
+	myName, archive.getTimeSampling());
 
     // XXX: consider merging with general user properties handling
     DataType dtype = DataType(Alembic::Abc::kFloat32POD);
-    CompoundPropertyWriterPtr userPropWrtPtr = GetCompoundPropertyWriterPtr(myOCamera.getSchema().getUserProperties());
-    ScalarPropertyWriterPtr resXWrtPtr = userPropWrtPtr->createScalarProperty("resx", Alembic::Abc::MetaData(), dtype, 0);
+    CompoundPropertyWriterPtr userPropWrtPtr = GetCompoundPropertyWriterPtr(
+	myOCamera.getSchema().getUserProperties());
+    ScalarPropertyWriterPtr resXWrtPtr = userPropWrtPtr->createScalarProperty(
+	"resx", Alembic::Abc::MetaData(), dtype, 0);
     if (resXWrtPtr)
     {
 	Alembic::Util::float32_t sampleResX = myResX; 
 	resXWrtPtr->setSample(&sampleResX);
     }
     else
-	myArchive->getOError().warning("Failed to export camera resolution x");
+	err.warning("Failed to export camera resolution x");
 
-    ScalarPropertyWriterPtr resYWrtPtr = userPropWrtPtr->createScalarProperty("resy", Alembic::Abc::MetaData(), dtype, 0);
+    ScalarPropertyWriterPtr resYWrtPtr = userPropWrtPtr->createScalarProperty(
+	"resy", Alembic::Abc::MetaData(), dtype, 0);
     if (resYWrtPtr)
     {
 	Alembic::Util::float32_t sampleResY = myResY;
 	resYWrtPtr->setSample(&sampleResY);
     }
     else
-	myArchive->getOError().warning("Failed to export camera resolution y");
+	err.warning("Failed to export camera resolution y");
 
     myIsValid = true;
 }

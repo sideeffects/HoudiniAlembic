@@ -37,12 +37,14 @@ public:
     ROP_AbcNodeInstance(const std::string &name, ROP_AbcNodeShape *src)
 	: ROP_AbcNode(name), mySource(src), myIsValid(false) {}
 
-    virtual OObject getOObject();
-    virtual void setArchive(const ROP_AbcArchivePtr &archive);
-    virtual void update(const GABC_LayerOptions &layerOptions);
+    virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
+    virtual void reset();
+    virtual void update(ROP_AbcArchive &archive,
+	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 
 private:
-    void makeValid(const GABC_LayerOptions &layerOptions);
+    void makeValid(ROP_AbcArchive &archive,
+	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 
     ROP_AbcNodeShape *mySource;
     bool myIsValid;

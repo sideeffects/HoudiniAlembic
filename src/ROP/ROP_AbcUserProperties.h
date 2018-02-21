@@ -50,12 +50,12 @@ public:
     /// set a new user property sample, creating the user properties if needed
     void update(OCompoundProperty &props,
 		const UT_StringHolder &vals, const UT_StringHolder &meta,
-		const ROP_AbcArchivePtr &archive);
+		ROP_AbcArchive &archive, GABC_OError &err);
 
 private:
     void exportData(OCompoundProperty *props,
 		    const UT_StringHolder &vals, const UT_StringHolder &meta,
-		    const ROP_AbcArchivePtr &archive);
+		    ROP_AbcArchive &archive, GABC_OError &err);
 
     PropertyMap myProps;
     bool myIsValid;

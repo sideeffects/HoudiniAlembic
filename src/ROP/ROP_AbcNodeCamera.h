@@ -39,14 +39,16 @@ class ROP_AbcNodeCamera : public ROP_AbcNode
 {
 public:
     ROP_AbcNodeCamera(const std::string &name, int resx, int resy)
-	: ROP_AbcNode(name), myResX(resx), myResY(resy), myIsValid(false)
+	: ROP_AbcNode(name), myResX(resx), myResY(resy), myIsValid(false),
+	    mySampleCount(0)
     {
 	myBox.initBounds(0, 0, 0);
     }
 
-    virtual OObject getOObject();
-    virtual void setArchive(const ROP_AbcArchivePtr &archive);
-    virtual void update(const GABC_LayerOptions &layerOptions);
+    virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
+    virtual void reset();
+    virtual void update(ROP_AbcArchive &archive,
+	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 
     /// sets the current camera settings
     void setData(fpreal focal, fpreal fstop, fpreal focus, fpreal shutter,
@@ -70,7 +72,7 @@ public:
 	    }
 
 private:
-    void makeValid();
+    void makeValid(ROP_AbcArchive &archive, GABC_OError &err);
 
     exint mySampleCount;
     OCamera myOCamera;

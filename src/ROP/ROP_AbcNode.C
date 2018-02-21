@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -30,7 +30,7 @@
 #include <UT/UT_WorkBuffer.h>
 
 void
-ROP_AbcNode::makeCollisionFreeName(std::string &name) const
+ROP_AbcNode::makeCollisionFreeName(std::string &name, GABC_OError &err) const
 {
     if(myChildren.find(name) == myChildren.end())
 	return;
@@ -49,7 +49,7 @@ ROP_AbcNode::makeCollisionFreeName(std::string &name) const
     buf.append('/');
     buf.append(name);
 
-    myArchive->getOError().warning("Renaming node to %s to resolve collision.", buf.buffer());
+    err.warning("Renaming node to %s to resolve collision.", buf.buffer());
 }
 
 void
@@ -61,4 +61,25 @@ ROP_AbcNode::addChild(ROP_AbcNode *child)
     child->myParent = this;
     myChildren.emplace(name, child);
     myResolver.add(name);
+}
+
+OObject
+ROP_AbcNodeRoot::getOObject(ROP_AbcArchive &archive, GABC_OError &err)
+{
+    return archive.getTop();
+}
+
+void
+ROP_AbcNodeRoot::update(ROP_AbcArchive &archive,
+    const GABC_LayerOptions &layerOptions, GABC_OError &err)
+{
+    // The root node has no sample data, just update the computed bounding
+    // box.
+    myBox.initBounds();
+    for(auto &it : myChildren)
+    {
+	it.second->update(archive, layerOptions, err);
+	myBox.enlargeBounds(it.second->getBBox());
+    }
+    archive.setBoundingBox(myBox);
 }

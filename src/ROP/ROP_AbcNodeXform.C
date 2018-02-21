@@ -30,20 +30,20 @@
 typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
 
 void
-ROP_AbcNodeXform::setArchive(const ROP_AbcArchivePtr &archive)
+ROP_AbcNodeXform::reset()
 {
     myOXform = OXform();
     myVisibility = OVisibilityProperty();
-    ROP_AbcNode::setArchive(archive);
+    ROP_AbcNode::reset();
     myUserProperties.clear();
     mySampleCount = 0;
     myIsValid = false;
 }
 
 OObject
-ROP_AbcNodeXform::getOObject()
+ROP_AbcNodeXform::getOObject(ROP_AbcArchive &archive, GABC_OError &err)
 {
-    makeValid();
+    makeValid(archive, err);
     return myOXform;
 }
 
@@ -60,9 +60,10 @@ ROP_AbcNodeXform::preUpdate(bool locked)
 }
 
 void
-ROP_AbcNodeXform::update(const GABC_LayerOptions &layerOptions)
+ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
+    const GABC_LayerOptions &layerOptions, GABC_OError &err)
 {
-    makeValid();
+    makeValid(archive, err);
 
     // TODO: Remove this temporary mapping for the visibility.
     bool visible = (myVisible != GABC_VisibilityType::GABC_VISIBLE_HIDDEN);
@@ -70,15 +71,15 @@ ROP_AbcNodeXform::update(const GABC_LayerOptions &layerOptions)
     myBox.initBounds();
     for(auto &it : myChildren)
     {
-	it.second->update(layerOptions);
+	it.second->update(archive, layerOptions, err);
 	myBox.enlargeBounds(it.second->getBBox());
     }
 
     Box3d b3 = GABC_Util::getBox(myBox);
     myBox.transform(myMatrix);
 
-    bool full_bounds = myArchive->getOOptions().fullBounds();
-    exint nsamples = myArchive->getSampleCount();
+    bool full_bounds = archive.getOOptions().fullBounds();
+    exint nsamples = archive.getSampleCount();
     for(; mySampleCount < nsamples; ++mySampleCount)
     {
 	auto &schema = myOXform.getSchema();
@@ -107,18 +108,19 @@ ROP_AbcNodeXform::update(const GABC_LayerOptions &layerOptions)
 	if(!myUserPropVals.empty() && !myUserPropMeta.empty())
 	{
 	    OCompoundProperty props = schema.getUserProperties();
-	    myUserProperties.update(props, myUserPropVals, myUserPropMeta, myArchive);
+	    myUserProperties.update(props, myUserPropVals, myUserPropMeta, archive, err);
 	}
     }
 }
 
 void
-ROP_AbcNodeXform::makeValid()
+ROP_AbcNodeXform::makeValid(ROP_AbcArchive &archive, GABC_OError &err)
 {
     if(myIsValid)
 	return;
 
-    myOXform = OXform(myParent->getOObject(), myName, myArchive->getTimeSampling());
-    myVisibility = CreateVisibilityProperty(myOXform, myArchive->getTimeSampling());
+    myOXform = OXform(myParent->getOObject(archive, err),
+	myName, archive.getTimeSampling());
+    myVisibility = CreateVisibilityProperty(myOXform, archive.getTimeSampling());
     myIsValid = true;
 }

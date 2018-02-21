@@ -28,7 +28,7 @@
 #include "ROP_AbcNodeInstance.h"
 
 OObject
-ROP_AbcNodeInstance::getOObject()
+ROP_AbcNodeInstance::getOObject(ROP_AbcArchive &, GABC_OError &)
 {
     // XXX: this should never be called
     UT_ASSERT(0);
@@ -36,27 +36,29 @@ ROP_AbcNodeInstance::getOObject()
 }
 
 void
-ROP_AbcNodeInstance::setArchive(const ROP_AbcArchivePtr &archive)
+ROP_AbcNodeInstance::reset()
 {
-    ROP_AbcNode::setArchive(archive);
+    ROP_AbcNode::reset();
     myIsValid = false;
 }
 
 void
-ROP_AbcNodeInstance::update(const GABC_LayerOptions &layerOptions)
+ROP_AbcNodeInstance::update(ROP_AbcArchive &archive,
+    const GABC_LayerOptions &layerOptions, GABC_OError &err)
 {
-    makeValid(layerOptions);
-
+    makeValid(archive, layerOptions, err);
     myBox = mySource->getBBox();
 }
 
 void
-ROP_AbcNodeInstance::makeValid(const GABC_LayerOptions &layerOptions)
+ROP_AbcNodeInstance::makeValid(ROP_AbcArchive &archive,
+    const GABC_LayerOptions &layerOptions, GABC_OError &err)
 {
     if(myIsValid)
 	return;
 
-    mySource->update(layerOptions);
-    myParent->getOObject().addChildInstance(mySource->getOObject(), myName);
+    mySource->update(archive, layerOptions, err);
+    myParent->getOObject(archive, err).addChildInstance(
+	mySource->getOObject(archive, err), myName);
     myIsValid = true;
 }

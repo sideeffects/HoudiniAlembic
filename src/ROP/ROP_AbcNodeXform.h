@@ -46,12 +46,13 @@ class ROP_AbcNodeXform : public ROP_AbcNode
 {
 public:
     ROP_AbcNodeXform(const std::string &name)
-	: ROP_AbcNode(name), myMatrix(1), myIsValid(false) {}
+	: ROP_AbcNode(name), myMatrix(1), myIsValid(false), mySampleCount(0) {}
 
-    virtual OObject getOObject();
-    virtual void setArchive(const ROP_AbcArchivePtr &archive);
+    virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
+    virtual void reset();
     virtual void preUpdate(bool locked);
-    virtual void update(const GABC_LayerOptions &layerOptions);
+    virtual void update(ROP_AbcArchive &archive,
+	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 
     /// Sets the current user properties.
     void setUserProperties(const std::string &vals, const std::string &meta)
@@ -62,7 +63,7 @@ public:
     const UT_Matrix4D &getMatrix() const { return myMatrix; }
 
 private:
-    void makeValid();
+    void makeValid(ROP_AbcArchive &archive, GABC_OError &err);
 
     OXform myOXform;
     OVisibilityProperty myVisibility;

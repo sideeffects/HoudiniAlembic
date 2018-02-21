@@ -65,7 +65,7 @@ public:
 			  : GABC_VisibilityType::GABC_VISIBLE_HIDDEN; }
     /// Updates 'name' to a unique value if this node already has a child with
     /// that name.
-    void makeCollisionFreeName(std::string &name) const;
+    void makeCollisionFreeName(std::string &name, GABC_OError &err) const;
 
     // Returns the children of this node.
     const UT_SortedMap<std::string, ROP_AbcNode *> &getChildren() const { return myChildren; }
@@ -78,21 +78,21 @@ public:
 
     /// Returns the OObject from the Alembic archive corresponding to this
     /// node.
-    virtual OObject getOObject() = 0;
+    virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err) = 0;
 
     /// Sets a new current Alembic archive.  All references to the previous
     /// Alembic archive are released.
-    virtual void setArchive(const ROP_AbcArchivePtr &archive)
+    virtual void reset()
     {
-	myArchive = archive;
 	for(auto &it : myChildren)
-	    it.second->setArchive(archive);
+	    it.second->reset();
     }
 
     /// Hook to prepare node for calls to setData().
     virtual void preUpdate(bool locked) {}
     /// Exports the current sample data update the computed bounding box.
-    virtual void update(const GABC_LayerOptions &layerOptions) = 0;
+    virtual void update(ROP_AbcArchive &archive,
+	const GABC_LayerOptions &layerOptions, GABC_OError &err) = 0;
     /// Hook to clean up node after calls to update().
     virtual void postUpdate(bool locked) {}
 
@@ -102,8 +102,6 @@ public:
 protected:
     /// this node's name
     const std::string myName;
-    /// the current Alembic archive
-    ROP_AbcArchivePtr myArchive;
     /// this node's parent
     ROP_AbcNode *myParent;
     /// this node's computed bounding box
@@ -125,19 +123,9 @@ class ROP_AbcNodeRoot : public ROP_AbcNode
 public:
     ROP_AbcNodeRoot() : ROP_AbcNode("") {}
 
-    virtual OObject getOObject() { return myArchive->getTop(); }
-    virtual void update(const GABC_LayerOptions &layerOptions)
-    {
-	// The root node has no sample data, just update the computed bounding
-	// box.
-	myBox.initBounds();
-	for(auto &it : myChildren)
-	{
-	    it.second->update(layerOptions);
-	    myBox.enlargeBounds(it.second->getBBox());
-	}
-        myArchive->setBoundingBox(myBox);
-    }
+    virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
+    virtual void update(ROP_AbcArchive &archive,
+	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 };
 
 #endif

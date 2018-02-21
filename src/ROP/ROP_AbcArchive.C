@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -50,7 +50,6 @@ ROP_AbcArchive::ROP_AbcArchive(
     const char *filename, bool ogawa, GABC_OError &err)
     : mySampleCount(0)
     , myOOptions(myTimeSampling)
-    , myOError(err)
 {
     // Since HDF5 doesn't allow writing to a file already opened for reading,
     // clear any IArchives which might be hanging around.
@@ -126,7 +125,7 @@ ROP_AbcArchive::ROP_AbcArchive(
     }
     catch(const std::exception &e)
     {
-	myOError.error("Error creating archive: %s", e.what());
+	err.error("Error creating archive: %s", e.what());
     }
 }
 

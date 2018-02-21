@@ -41,15 +41,16 @@ ROP_AbcUserProperties::update(
     OCompoundProperty &props,
     const UT_StringHolder &vals,
     const UT_StringHolder &meta,
-    const ROP_AbcArchivePtr &archive)
+    ROP_AbcArchive &archive,
+    GABC_OError &err)
 {
     if(!myIsValid)
     {
-	exportData(&props, vals, meta, archive);
+	exportData(&props, vals, meta, archive, err);
 	myIsValid = true;
     }
 
-    exportData(nullptr, vals, meta, archive);
+    exportData(nullptr, vals, meta, archive, err);
 }
 
 void
@@ -57,7 +58,8 @@ ROP_AbcUserProperties::exportData(
     OCompoundProperty *props,
     const UT_StringHolder &vals,
     const UT_StringHolder &meta,
-    const ROP_AbcArchivePtr &archive)
+    ROP_AbcArchive &archive,
+    GABC_OError &err)
 {
     UT_AutoJSONParser vals_data(vals.buffer(), vals.length());
     UT_AutoJSONParser meta_data(meta.buffer(), meta.length());
@@ -65,5 +67,5 @@ ROP_AbcUserProperties::exportData(
     meta_data->setBinary(false);
 
     GABC_Util::exportUserPropertyDictionary(meta_data, vals_data, myProps,
-		props, archive->getOError(), archive->getOOptions());
+		props, err, archive.getOOptions());
 }

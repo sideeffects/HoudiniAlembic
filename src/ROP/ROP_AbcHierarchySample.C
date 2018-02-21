@@ -87,17 +87,17 @@ ROP_AbcHierarchySample::getNextPackedId(const std::string &name)
 }
 
 void
-ROP_AbcHierarchySample::warnRoot(const ROP_AbcArchivePtr &abc)
+ROP_AbcHierarchySample::warnRoot(GABC_OError &err)
 {
     if(myWarnedRoot)
 	return;
 
-    abc->getOError().warning("Cannot push packed primitive transform to root node.");
+    err.warning("Cannot push packed primitive transform to root node.");
     myWarnedRoot = true;
 }
 
 void
-ROP_AbcHierarchySample::warnChildren(const ROP_AbcArchivePtr &abc)
+ROP_AbcHierarchySample::warnChildren(GABC_OError &err)
 {
     if(myWarnedChildren)
 	return;
@@ -113,6 +113,6 @@ ROP_AbcHierarchySample::warnChildren(const ROP_AbcArchivePtr &abc)
 	buf.append(ancestors(i)->myName);
     }
 
-    abc->getOError().warning("Cannot push multiple packed primitive transforms to %s.", buf.buffer());
+    err.warning("Cannot push multiple packed primitive transforms to %s.", buf.buffer());
     myWarnedChildren = true;
 }

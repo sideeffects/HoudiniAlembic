@@ -30,16 +30,16 @@
 typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
 
 void
-ROP_AbcNodeShape::setArchive(const ROP_AbcArchivePtr &archive)
+ROP_AbcNodeShape::reset()
 {
-    ROP_AbcNode::setArchive(archive);
+    ROP_AbcNode::reset();
     myWriter.reset(nullptr);
     mySampleCount = 0;
     myUserProperties.clear();
 }
 
 OObject
-ROP_AbcNodeShape::getOObject()
+ROP_AbcNodeShape::getOObject(ROP_AbcArchive &, GABC_OError &)
 {
     return myWriter->getOObject();
 }
@@ -74,9 +74,10 @@ ROP_AbcNodeShape::preUpdate(bool locked)
 }
 
 void
-ROP_AbcNodeShape::update(const GABC_LayerOptions &layerOptions)
+ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
+    const GABC_LayerOptions &layerOptions, GABC_OError &err)
 {
-    exint nsamples = myArchive->getSampleCount();
+    exint nsamples = archive.getSampleCount();
 
     // TODO: Remove this temporary mapping for the visibility.
     bool visible = (myVisible != GABC_VisibilityType::GABC_VISIBLE_HIDDEN);
@@ -91,8 +92,8 @@ ROP_AbcNodeShape::update(const GABC_LayerOptions &layerOptions)
 		mySampleCount = 0;
 		bool vis = (visible && nsamples == 1);
 		myWriter.reset(new GABC_OGTGeometry(myName));
-		myWriter->start(myPrim, myParent->getOObject(),
-				myArchive->getOOptions(), myArchive->getOError(),
+		myWriter->start(myPrim, myParent->getOObject(archive, err),
+				archive.getOOptions(), err,
 				vis ? Alembic::AbcGeom::kVisibilityDeferred
 				    : Alembic::AbcGeom::kVisibilityHidden);
 
@@ -105,14 +106,13 @@ ROP_AbcNodeShape::update(const GABC_LayerOptions &layerOptions)
 	    bool vis = (visible && mySampleCount + 1 == nsamples);
 	    if(!myPrim || myLocked)
 	    {
-		myWriter->updateFromPrevious(myArchive->getOError(),
+		myWriter->updateFromPrevious(err,
 				vis ? Alembic::AbcGeom::kVisibilityDeferred
 				    : Alembic::AbcGeom::kVisibilityHidden);
 	    }
 	    else
 	    {
-		myWriter->update(myPrim, myArchive->getOOptions(),
-				 myArchive->getOError(),
+		myWriter->update(myPrim, archive.getOOptions(), err,
 				 vis ? Alembic::AbcGeom::kVisibilityDeferred
 				     : Alembic::AbcGeom::kVisibilityHidden);
 		myBox.initBounds();
@@ -124,7 +124,7 @@ ROP_AbcNodeShape::update(const GABC_LayerOptions &layerOptions)
 	if(myWriter && !myUserPropVals.empty() && !myUserPropMeta.empty())
 	{
 	    OCompoundProperty props = myWriter->getUserProperties();
-	    myUserProperties.update(props, myUserPropVals, myUserPropMeta, myArchive);
+	    myUserProperties.update(props, myUserPropVals, myUserPropMeta, archive, err);
 	}
     }
 }

@@ -32,7 +32,7 @@
 ROP_AbcHierarchy::Node *
 ROP_AbcHierarchy::Node::setChild(
     const std::string &name,
-    const ROP_AbcArchivePtr &arch,
+    GABC_OError &err,
     const UT_Matrix4D &m,
     const std::string &up_vals,
     const std::string &up_meta)
@@ -41,9 +41,8 @@ ROP_AbcHierarchy::Node::setChild(
     if(!xform.myAbcNode)
     {
 	std::string temp_name = name;
-	myAbcNode->makeCollisionFreeName(temp_name);
+	myAbcNode->makeCollisionFreeName(temp_name, err);
 	ROP_AbcNodeXform *child = new ROP_AbcNodeXform(temp_name);
-	child->setArchive(arch);
 	myAbcNode->addChild(child);
 	xform.myAbcNode = child;
     }
@@ -58,7 +57,7 @@ ROP_AbcHierarchy::Node::setShape(
     const std::string &name,
     int type,
     exint i,
-    const ROP_AbcArchivePtr &arch,
+    GABC_OError &err,
     const GT_PrimitiveHandle &prim,
     bool visible,
     const std::string &up_vals,
@@ -68,9 +67,8 @@ ROP_AbcHierarchy::Node::setShape(
     while(i >= shapes.entries())
     {
 	std::string temp_name = name;
-	myAbcNode->makeCollisionFreeName(temp_name);
+	myAbcNode->makeCollisionFreeName(temp_name, err);
 	ROP_AbcNodeShape *child = new ROP_AbcNodeShape(temp_name);
-	child->setArchive(arch);
 	myAbcNode->addChild(child);
 	shapes.append(child);
     }
@@ -84,7 +82,7 @@ ROP_AbcHierarchy::Node::newInstanceSource(
     const std::string &name,
     int type,
     exint key2,
-    const ROP_AbcArchivePtr &arch,
+    GABC_OError &err,
     const GT_PrimitiveHandle &prim,
     const std::string &up_vals,
     const std::string &up_meta)
@@ -93,9 +91,8 @@ ROP_AbcHierarchy::Node::newInstanceSource(
     shapes.append(key2);
 
     std::string temp_name = name;
-    myAbcNode->makeCollisionFreeName(temp_name);
+    myAbcNode->makeCollisionFreeName(temp_name, err);
     ROP_AbcNodeShape *child = new ROP_AbcNodeShape(temp_name);
-    child->setArchive(arch);
     myAbcNode->addChild(child);
     child->setData(prim, true);
     child->setUserProperties(up_vals, up_meta);
@@ -107,16 +104,15 @@ ROP_AbcHierarchy::Node::newInstanceRef(
     const std::string &name,
     int type,
     exint key2,
-    const ROP_AbcArchivePtr &arch,
+    GABC_OError &err,
     ROP_AbcNodeShape *src)
 {
     auto &shapes = myInstancedShapes[name][type];
     shapes.append(key2);
 
     std::string temp_name = name;
-    myAbcNode->makeCollisionFreeName(temp_name);
+    myAbcNode->makeCollisionFreeName(temp_name, err);
     ROP_AbcNodeInstance *child = new ROP_AbcNodeInstance(temp_name, src);
-    child->setArchive(arch);
     myAbcNode->addChild(child);
 }
 
@@ -129,7 +125,7 @@ ROP_AbcHierarchy::Node::setVisibility(bool vis)
 
 void
 ROP_AbcHierarchy::update(
-    ROP_AbcArchivePtr &arch,
+    GABC_OError &err,
     const ROP_AbcHierarchySample &src,
     const UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > &instance_map)
 {
@@ -245,7 +241,7 @@ ROP_AbcHierarchy::update(
 			if(vis)
 			    should_be_visible = true;
 
-			n2->setShape(name, type, i, arch, std::get<0>(shape),
+			n2->setShape(name, type, i, err, std::get<0>(shape),
 				     vis, up_vals, up_meta);
 		    }
 		}
@@ -341,7 +337,7 @@ ROP_AbcHierarchy::update(
 			    exint key2 = myNextInstanceId++;
 			    myInstancedShapes[type][key2] = 
 				    n2->newInstanceSource(name, type, key2,
-							  arch, prim,
+							  err, prim,
 							  up_vals, up_meta);
 			    updated_instances.insert(key2);
 
@@ -365,7 +361,7 @@ ROP_AbcHierarchy::update(
 			    if(it2 == unvisited.end())
 			    {
 				// create new reference
-				n2->newInstanceRef(name, type, key2, arch,
+				n2->newInstanceRef(name, type, key2, err,
 					myInstancedShapes[type][key2]);
 			    }
 			    else if(--it2->second == 0)
@@ -383,7 +379,7 @@ ROP_AbcHierarchy::update(
 	{
 	    if(!root_vis_warned)
 	    {
-		arch->getOError().warning("Cannot set hide some instanced geometry.");
+		err.warning("Cannot set hide some instanced geometry.");
 		root_vis_warned = true;
 	    }
 	}
@@ -397,7 +393,7 @@ ROP_AbcHierarchy::update(
 	{
 	    if(!root_vis_warned)
 	    {
-		arch->getOError().warning("Cannot set hide some instanced geometry.");
+		err.warning("Cannot set hide some instanced geometry.");
 		root_vis_warned = true;
 	    }
 	}
@@ -409,7 +405,7 @@ ROP_AbcHierarchy::update(
 	{
 	    auto &node = it->second;
 	    auto child =
-		n2->setChild(it->first, arch,
+		n2->setChild(it->first, err,
 			     node.getPreXform() * node.getXform(),
 			     node.getUserPropsVals(), node.getUserPropsMeta());
 	    work2.append(std::make_tuple(&node, child, visible));

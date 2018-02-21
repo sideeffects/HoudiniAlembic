@@ -53,7 +53,7 @@ class ROP_AbcHierarchy
 
 	// returns the named child xform node creating one if none existed
 	Node *setChild(const std::string &name,
-		       const ROP_AbcArchivePtr &arch,
+		       GABC_OError &err,
 		       const UT_Matrix4D &m,
 		       const std::string &up_vals,
 		       const std::string &up_meta);
@@ -61,7 +61,7 @@ class ROP_AbcHierarchy
 	// returns the named child non-instanced shape node creating one if
 	// none existed
 	void setShape(const std::string &name, int type, exint i,
-		      const ROP_AbcArchivePtr &arch,
+		      GABC_OError &err,
 		      const GT_PrimitiveHandle &prim, bool visible,
 		      const std::string &up_vals,
 		      const std::string &up_meta);
@@ -70,7 +70,7 @@ class ROP_AbcHierarchy
 	// nodes
 	ROP_AbcNodeShape *
 	newInstanceSource(const std::string &name, int type, exint key2,
-			  const ROP_AbcArchivePtr &arch,
+			  GABC_OError &err,
 			  const GT_PrimitiveHandle &prim,
 			  const std::string &up_vals,
 			  const std::string &up_meta);
@@ -78,7 +78,7 @@ class ROP_AbcHierarchy
 	// adds a child shape node that is an instance of an existing shape
 	// node
 	void newInstanceRef(const std::string &name, int type, exint key2,
-			    const ROP_AbcArchivePtr &arch,
+			    GABC_OError &err,
 			    ROP_AbcNodeShape *src);
 
 	// sets the visibility of the xform node
@@ -105,7 +105,7 @@ public:
     ROP_AbcNode *getRoot() const { return myRoot.getAbcNode(); }
 
     // writes a new sample
-    void update(ROP_AbcArchivePtr &arch,
+    void update(GABC_OError &err,
 		const ROP_AbcHierarchySample &src,
 		const UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > &instance_map);
 

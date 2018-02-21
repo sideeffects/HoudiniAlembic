@@ -119,8 +119,8 @@ public:
     exint getNextPackedId(const std::string &name);
 
     // warn user about problems pushing xforms to parent nodes
-    void warnRoot(const ROP_AbcArchivePtr &abc);
-    void warnChildren(const ROP_AbcArchivePtr &abc);
+    void warnRoot(GABC_OError &err);
+    void warnChildren(GABC_OError &err);
 
 private:
     ROP_AbcHierarchySample *myParent;

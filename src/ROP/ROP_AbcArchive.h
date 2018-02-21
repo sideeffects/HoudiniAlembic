@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -36,7 +36,6 @@
 #include <SYS/SYS_Types.h>
 #include <UT/UT_Array.h>
 #include <UT/UT_BoundingBox.h>
-#include <UT/UT_SharedPtr.h>
 #include <UT/UT_UniquePtr.h>
 
 typedef GABC_NAMESPACE::GABC_OError GABC_OError;
@@ -106,9 +105,6 @@ public:
 
     /// The options used during Alembic archive export
     GABC_OOptions &getOOptions() { return myOOptions; }
-    /// Handler for error messages and warnings during the export of
-    /// Alembic geometry.
-    GABC_OError &getOError() { return myOError; }
 
 private:
     UT_String myFileName;
@@ -122,9 +118,6 @@ private:
     OBox3dProperty myBoxProperty;
 
     rop_OOptions myOOptions;
-    GABC_OError &myOError;
 };
-
-typedef UT_SharedPtr<ROP_AbcArchive> ROP_AbcArchivePtr;
 
 #endif

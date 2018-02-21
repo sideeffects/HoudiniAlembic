@@ -41,12 +41,13 @@ class ROP_AbcNodeShape : public ROP_AbcNode
 {
 public:
     ROP_AbcNodeShape(const std::string &name)
-	: ROP_AbcNode(name) {}
+	: ROP_AbcNode(name), mySampleCount(0) {}
 
-    virtual OObject getOObject();
-    virtual void setArchive(const ROP_AbcArchivePtr &archive);
+    virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
+    virtual void reset();
     virtual void preUpdate(bool locked);
-    virtual void update(const GABC_LayerOptions &layerOptions);
+    virtual void update(ROP_AbcArchive &archive,
+	const GABC_LayerOptions &layerOptions, GABC_OError &err);
     virtual void postUpdate(bool locked);
 
     /// Sets the current user properties.

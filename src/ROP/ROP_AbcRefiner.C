@@ -259,7 +259,7 @@ rop_RefineInstanceHelper::refine(const GT_PrimitiveHandle &prim)
 
 ROP_AbcRefiner::ROP_AbcRefiner(
     UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > &instance_map,
-    const ROP_AbcArchivePtr &abc,
+    GABC_OError &err,
     ROP_AlembicPackedTransform packedtransform,
     exint facesetmode,
     bool use_instancing,
@@ -267,7 +267,7 @@ ROP_AbcRefiner::ROP_AbcRefiner(
     bool save_hidden)
     : myInstanceMap(instance_map)
     , myRoot(nullptr)
-    , myArchive(abc)
+    , myError(err)
     , myPackedTransform(packedtransform)
     , myUseInstancing(use_instancing)
     , myShapeNodes(shape_nodes)
@@ -403,9 +403,9 @@ ROP_AbcRefiner::processInstance(const GT_PrimitiveHandle &prim)
 	    else // if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM)
 	    {
 		if(!new_root->getParent())
-		    new_root->warnRoot(myArchive);
+		    new_root->warnRoot(myError);
 		else if(!new_root->setPreXform(m))
-		    new_root->warnChildren(myArchive);
+		    new_root->warnChildren(myError);
 	    }
 
 	    myRoot = new_root;
@@ -532,9 +532,9 @@ ROP_AbcRefiner::processPacked(const GT_PrimitiveHandle &prim)
     else // if(myPackedTransform == ROP_ALEMBIC_PACKEDTRANSFORM_MERGE_WITH_PARENT_TRANSFORM)
     {
 	if(!new_root->getParent())
-	    new_root->warnRoot(myArchive);
+	    new_root->warnRoot(myError);
 	else if(!new_root->setPreXform(prim_xform))
-	    new_root->warnChildren(myArchive);
+	    new_root->warnChildren(myError);
     }
 
     myRoot = new_root;
