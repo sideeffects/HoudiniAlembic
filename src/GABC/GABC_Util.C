@@ -1026,7 +1026,7 @@ namespace
 		auto it = myItems.begin();
 		for (; d > 0; --d)
 		    ++it;
-		removeCacheEntry(it->first);
+		removeCacheEntry(it->first, false);
 	    }
 
 	    addCacheEntry(paths, entry);
@@ -1044,7 +1044,7 @@ namespace
 		{
 		    auto keys = it->second;
 		    for(auto &paths : keys)
-			removeCacheEntry(paths);
+			removeCacheEntry(paths, true);
 		}
 	    }
 	    else
@@ -1069,7 +1069,7 @@ namespace
 	}
 
 	void
-	removeCacheEntry(const std::vector<std::string> &paths)
+	removeCacheEntry(const std::vector<std::string> &paths, bool purge)
 	{
 	    for(auto &p : paths)
 	    {
@@ -1080,7 +1080,8 @@ namespace
 	    }
 
 	    auto it = myItems.find(paths);
-	    it->second->purge();
+	    if(purge)
+		it->second->purge();
 	    myItems.erase(it);
 	}
 
