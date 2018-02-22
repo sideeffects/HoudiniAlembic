@@ -37,10 +37,10 @@ typedef Alembic::AbcGeom::FilmBackXformOp FilmBackXformOp;
 typedef Alembic::AbcGeom::OCamera OCamera;
 
 void
-ROP_AbcNodeCamera::reset()
+ROP_AbcNodeCamera::purgeObjects()
 {
     myOCamera = OCamera();
-    ROP_AbcNode::reset();
+    ROP_AbcNode::purgeObjects();
     myIsValid = false;
     mySampleCount = 0;
 }

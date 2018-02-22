@@ -46,7 +46,7 @@ public:
     }
 
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
-    virtual void reset();
+    virtual void purgeObjects();
     virtual void update(ROP_AbcArchive &archive,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 

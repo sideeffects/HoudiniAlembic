@@ -44,11 +44,11 @@ public:
 	: ROP_AbcNode(name), mySampleCount(0) {}
 
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
-    virtual void reset();
-    virtual void preUpdate(bool locked);
+    virtual void purgeObjects();
+    virtual void setLocked(bool locked);
+    virtual void updateLocked(bool locked);
     virtual void update(ROP_AbcArchive &archive,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err);
-    virtual void postUpdate(bool locked);
 
     /// Sets the current user properties.
     void setUserProperties(const std::string &vals, const std::string &meta)

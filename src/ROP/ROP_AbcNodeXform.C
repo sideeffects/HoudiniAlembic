@@ -30,11 +30,11 @@
 typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
 
 void
-ROP_AbcNodeXform::reset()
+ROP_AbcNodeXform::purgeObjects()
 {
     myOXform = OXform();
     myVisibility = OVisibilityProperty();
-    ROP_AbcNode::reset();
+    ROP_AbcNode::purgeObjects();
     myUserProperties.clear();
     mySampleCount = 0;
     myIsValid = false;
@@ -48,7 +48,7 @@ ROP_AbcNodeXform::getOObject(ROP_AbcArchive &archive, GABC_OError &err)
 }
 
 void
-ROP_AbcNodeXform::preUpdate(bool locked)
+ROP_AbcNodeXform::setLocked(bool locked)
 {
     if(!locked)
     {
@@ -56,7 +56,7 @@ ROP_AbcNodeXform::preUpdate(bool locked)
 	myUserPropVals.clear();
 	myUserPropMeta.clear();
     }
-    ROP_AbcNode::preUpdate(locked);
+    ROP_AbcNode::setLocked(locked);
 }
 
 void

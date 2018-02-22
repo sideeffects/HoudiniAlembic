@@ -82,19 +82,19 @@ public:
 
     /// Sets a new current Alembic archive.  All references to the previous
     /// Alembic archive are released.
-    virtual void reset()
+    virtual void purgeObjects()
     {
 	for(auto &it : myChildren)
-	    it.second->reset();
+	    it.second->purgeObjects();
     }
 
     /// Hook to prepare node for calls to setData().
-    virtual void preUpdate(bool locked) {}
+    virtual void setLocked(bool locked) {}
+    /// Hook to clean up node after calls to update().
+    virtual void updateLocked(bool locked) {}
     /// Exports the current sample data update the computed bounding box.
     virtual void update(ROP_AbcArchive &archive,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err) = 0;
-    /// Hook to clean up node after calls to update().
-    virtual void postUpdate(bool locked) {}
 
     /// Returns the last computed bounding box.
     const UT_BoundingBox &getBBox() const { return myBox; }

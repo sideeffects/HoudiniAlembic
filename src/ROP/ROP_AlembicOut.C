@@ -616,7 +616,7 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
     if(!myArchive || (myArchive->getFileName() != filename))
     {
 	// close the previous archive
-	myRoot->reset();
+	myRoot->purgeObjects();
 	myArchive.reset();
     }
 
@@ -672,10 +672,75 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	}
     }
 
+    if(BUILD_FROM_PATH(time))
+    {
+	UT_String path_attrib;
+	PATH_ATTRIBUTE(path_attrib, time);
+	myArchive->getOOptions().setPathAttribute(path_attrib);
+    }
+
+    exint n = myArchive->getSamplesPerFrame();
+    for(exint i = 0; i < n; ++i)
+    {
+	myArchive->setCookTime(time, i);
+	fpreal cookTime = myArchive->getCookTime();
+
+	if(!buildAlembicTree(cookTime))
+	    return ROP_ABORT_RENDER;
+	setLayerOptionsAndSave(cookTime);
+    }
+
+    if (!executePostFrameScript(time))
+	return ROP_ABORT_RENDER;
+
+    --myNFrames;
+    return ROP_CONTINUE_RENDER;
+}
+
+ROP_RENDER_CODE
+ROP_AlembicOut::endRender()
+{
+    // report errors
+    rop_OError *err = myErrors.get();
+    for(exint i = 0; i < err->myErrors.entries(); ++i)
+	addError(ROP_MESSAGE, err->myErrors(i));
+
+    for(exint i = 0; i < err->myWarnings.entries(); ++i)
+	addWarning(ROP_MESSAGE, err->myWarnings(i));
+
+    myErrors.reset(nullptr);
+    clearAlembicTree();
+    myArchive.reset();
+
+    if (!executePostRenderScript(myEndTime))
+	return ROP_ABORT_RENDER;
+
+    if (INITSIM(myEndTime))
+	OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
+
+    return ROP_CONTINUE_RENDER;
+}
+
+void
+ROP_AlembicOut::clearAlembicTree()
+{
+    myObjAssignments.clear();
+    myCamAssignments.clear();
+    myGeoAssignments.clear();
+    myObjLocks.clear();
+    myGeoLocks.clear();
+    myGeos.clear();
+    mySopAssignments.reset(nullptr);
+    myRoot.reset(nullptr);
+}
+
+bool
+ROP_AlembicOut::buildAlembicTree(fpreal time)
+{
     OBJ_Geometry *geo = nullptr;
     SOP_Node *sop = getSopNode(time);
     myFromSOP = (sop != nullptr);
-    if(sop)
+    if(myFromSOP)
     {
 	OBJ_Node *obj = CAST_OBJNODE(sop->getCreator());
 	if(obj)
@@ -707,58 +772,14 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
     bool displaysop = DISPLAYSOP(time);
     bool save_hidden = SAVE_HIDDEN(time);
 
-    exint n = myArchive->getSamplesPerFrame();
-    for(exint i = 0; i < n; ++i)
+    // update tree
+    if(myFromSOP)
     {
-	myArchive->setCookTime(time, i);
-
-	// update tree
-	if(sop)
-	{
-	    if(!updateFromSop(geo, sop, packedtransform, facesetmode,
-		use_instancing, shape_nodes, displaysop, save_hidden))
-		return ROP_ABORT_RENDER;
-	}
-	else if(!updateFromHierarchy(packedtransform, facesetmode,
-	    use_instancing, shape_nodes, displaysop, save_hidden))
-	    return ROP_ABORT_RENDER;
+	return updateFromSop(geo, sop, packedtransform, facesetmode,
+	    use_instancing, shape_nodes, displaysop, save_hidden, time);
     }
-
-    if (!executePostFrameScript(time))
-	return ROP_ABORT_RENDER;
-
-    --myNFrames;
-    return ROP_CONTINUE_RENDER;
-}
-
-ROP_RENDER_CODE
-ROP_AlembicOut::endRender()
-{
-    // report errors
-    rop_OError *err = myErrors.get();
-    for(exint i = 0; i < err->myErrors.entries(); ++i)
-	addError(ROP_MESSAGE, err->myErrors(i));
-
-    for(exint i = 0; i < err->myWarnings.entries(); ++i)
-	addWarning(ROP_MESSAGE, err->myWarnings(i));
-    myErrors.reset(nullptr);
-
-    myObjAssignments.clear();
-    myCamAssignments.clear();
-    myGeoAssignments.clear();
-    myGeos.clear();
-    mySopAssignments.reset(nullptr);
-
-    myRoot.reset(nullptr);
-    myArchive.reset();
-
-    if (!executePostRenderScript(myEndTime))
-	return ROP_ABORT_RENDER;
-
-    if (INITSIM(myEndTime))
-	OPgetDirector()->bumpSkipPlaybarBasedSimulationReset(-1);
-
-    return ROP_CONTINUE_RENDER;
+    return updateFromHierarchy(packedtransform, facesetmode,
+	use_instancing, shape_nodes, displaysop, save_hidden, time);
 }
 
 static bool
@@ -1087,7 +1108,7 @@ ropIsShape(GABC_NodeType type)
 }
 
 bool
-ROP_AlembicOut::updateFromSop2(
+ROP_AlembicOut::updateFromSop(
     OBJ_Geometry *geo,
     SOP_Node *sop,
     ROP_AlembicPackedTransform packedtransform,
@@ -1095,9 +1116,12 @@ ROP_AlembicOut::updateFromSop2(
     bool use_instancing,
     bool shape_nodes,
     bool displaysop,
-    bool save_hidden)
+    bool save_hidden,
+    fpreal time)
 {
-    fpreal time = myArchive->getCookTime();
+    if(!mySopAssignments)
+	mySopAssignments.reset(new ROP_AbcHierarchy(myRoot.get()));
+
     OP_Context context(time);
     OP_Node *creator = sop->getCreator();
 
@@ -1119,7 +1143,6 @@ ROP_AlembicOut::updateFromSop2(
     {
 	UT_String path_attrib;
 	PATH_ATTRIBUTE(path_attrib, time);
-	myArchive->getOOptions().setPathAttribute(path_attrib);
 	path_handle.bind(gdp, GA_ATTRIB_PRIMITIVE, path_attrib);
     }
     else if(creator)
@@ -1363,7 +1386,8 @@ ROP_AlembicOut::updateFromSop2(
 	}
 
 	GA_Range r(gdp->getPrimitiveMap(), it.second);
-	gt_part.emplace(it.first, std::make_tuple(GT_GEODetail::makeDetail(gdh, &r), userprops, userpropsmeta));
+	gt_part.emplace(it.first, std::make_tuple(
+	    GT_GEODetail::makeDetail(gdh, &r), userprops, userpropsmeta));
     }
 
     // unused points
@@ -1454,7 +1478,7 @@ ROP_AlembicOut::updateFromSop2(
 
 // recursively call preUpdate on hierarchy
 static void
-ropPreUpdate(ROP_AbcNode *node, bool locked)
+ropSetLocked(ROP_AbcNode *node, bool locked)
 {
     UT_Array<ROP_AbcNode *> work;
     work.append(node);
@@ -1463,7 +1487,7 @@ ropPreUpdate(ROP_AbcNode *node, bool locked)
 	node = work.last();
 	work.removeLast();
 
-	node->preUpdate(locked);
+	node->setLocked(locked);
 	for(auto &it : node->getChildren())
 	    work.append(it.second);
     }
@@ -1471,7 +1495,7 @@ ropPreUpdate(ROP_AbcNode *node, bool locked)
 
 // recursively call postUpdate on hierarchy
 static void
-ropPostUpdate(ROP_AbcNode *node, bool locked)
+ropUpdateLocked(ROP_AbcNode *node, bool locked)
 {
     UT_Array<ROP_AbcNode *> work;
     work.append(node);
@@ -1480,7 +1504,7 @@ ropPostUpdate(ROP_AbcNode *node, bool locked)
 	node = work.last();
 	work.removeLast();
 
-	node->postUpdate(locked);
+	node->updateLocked(locked);
 	for(auto &it : node->getChildren())
 	    work.append(it.second);
     }
@@ -1546,10 +1570,9 @@ ropSetAbcNodeFullOptions(ROP_AbcNode *node)
 }
 
 void
-ROP_AlembicOut::setLayerOptionsAndSave()
+ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
 {
     GABC_LayerOptions layerOptions;
-    fpreal time = myArchive->getCookTime();
 
     if(!USE_LAYERING(time))
 	ropSetAbcNodeFullOptions(myRoot.get());
@@ -1564,7 +1587,7 @@ ROP_AlembicOut::setLayerOptionsAndSave()
 	    UT_String path, rule;
 
 	    NODE_PATH(path, i, time);
-	    NODE_FLAG(rule, i, time);
+	    NODE_RULE(rule, i, time);
 
 	    if(rule == "merge")
 		layerType = GABC_LayerOptions::LayerType::FULL;
@@ -1582,7 +1605,7 @@ ROP_AlembicOut::setLayerOptionsAndSave()
 	    UT_String path, rule;
 
 	    VIZ_PATH(path, i, time);
-	    VIZ_FLAG(rule, i, time);
+	    VIZ_RULE(rule, i, time);
 
 	    if(rule == "replace")
 		layerType = GABC_LayerOptions::LayerType::FULL;
@@ -1599,7 +1622,7 @@ ROP_AlembicOut::setLayerOptionsAndSave()
 
 	    ATTRIBUTE_PATH(path, i, time);
 	    ATTRIBUTE_PATTERN(pattern, i, time);
-	    ATTRIBUTE_FLAG(rule, i, time);
+	    ATTRIBUTE_RULE(rule, i, time);
 
 	    if(rule == "replace")
 		layerType = GABC_LayerOptions::LayerType::FULL;
@@ -1616,7 +1639,7 @@ ROP_AlembicOut::setLayerOptionsAndSave()
 
 	    USER_PROP_PATH(path, i, time);
 	    USER_PROP_PATTERN(pattern, i, time);
-	    USER_PROP_FLAG(rule, i, time);
+	    USER_PROP_RULE(rule, i, time);
 
 	    if(rule == "replace")
 		layerType = GABC_LayerOptions::LayerType::FULL;
@@ -1635,46 +1658,21 @@ ROP_AlembicOut::setLayerOptionsAndSave()
     }
 
     // Executes the saving process.
-    myRoot->update(*myArchive, layerOptions, *myErrors);
-}
-
-bool
-ROP_AlembicOut::updateFromSop(
-    OBJ_Geometry *geo,
-    SOP_Node *sop,
-    ROP_AlembicPackedTransform packedtransform,
-    exint facesetmode,
-    bool use_instancing,
-    bool shape_nodes,
-    bool displaysop,
-    bool save_hidden)
-{
-    if(!mySopAssignments)
-	mySopAssignments.reset(new ROP_AbcHierarchy(myRoot.get()));
-
-    OP_Node *creator = sop->getCreator();
-    int locked = 0;
-    if(creator)
+    if(myFromSOP)
     {
-	creator->evalParameterOrProperty(
-			GABC_Util::theLockGeometryParameter, 0, 0, locked);
+	ropSetLocked(mySopAssignments->getRoot(), false);
+	myRoot->update(*myArchive, layerOptions, *myErrors);
+        ropUpdateLocked(mySopAssignments->getRoot(), false);
     }
-
-    // pre-update
-    bool retval = true;
-    ropPreUpdate(mySopAssignments->getRoot(), locked != 0);
-    if(!mySopAssignments->getLocked() || !locked)
+    else
     {
-	retval = updateFromSop2(geo, sop, packedtransform, facesetmode,
-				use_instancing, shape_nodes, displaysop,
-				save_hidden);
-	if(retval)
-	    setLayerOptionsAndSave();
-    } 
+	myRoot->update(*myArchive, layerOptions, *myErrors);
 
-    // post-update
-    ropPostUpdate(mySopAssignments->getRoot(), locked != 0);
-    return retval;
+	for(auto &it : myGeoLocks)
+	    it.first->getRoot()->updateLocked(it.second);
+	for(auto &it : myObjLocks)
+	    it.first->updateLocked(it.second);
+    }
 }
 
 bool
@@ -1684,10 +1682,9 @@ ROP_AlembicOut::updateFromHierarchy(
     bool use_instancing,
     bool shape_nodes,
     bool displaysop,
-    bool save_hidden)
+    bool save_hidden,
+    fpreal time)
 {
-    fpreal time = myArchive->getCookTime();
-
     UT_String root;
     ROOT(root, time);
     root.trimBoundingSpace();
@@ -1747,7 +1744,8 @@ ROP_AlembicOut::updateFromHierarchy(
 	ancestors.clear();
 	for(;;)
 	{
-	    if(!obj || rootnode == obj || myObjAssignments.find(obj) != myObjAssignments.end())
+	    if(!obj || rootnode == obj 
+		|| myObjAssignments.find(obj) != myObjAssignments.end())
 	    {
 		// reached root or an assigned node
 		ROP_AbcNode *parent = nullptr;
@@ -1785,7 +1783,8 @@ ROP_AlembicOut::updateFromHierarchy(
 		    // handle name collisions
 		    parent->makeCollisionFreeName(name, *myErrors);
 
-		    ROP_AbcNodeCamera *child = new ROP_AbcNodeCamera(name, cam->RESX(time), cam->RESY(time));
+		    ROP_AbcNodeCamera *child = new ROP_AbcNodeCamera(name,
+			cam->RESX(time), cam->RESY(time));
 		    parent->addChild(child);
 		    myCamAssignments.emplace(cam, child);
 		}
@@ -1798,8 +1797,12 @@ ROP_AlembicOut::updateFromHierarchy(
 	    // skip collapsed objects
 	    int abc_collapse = 0;
 	    obj->evalParameterOrProperty("abc_collapse", 0, time, abc_collapse);
-	    if(!abc_collapse && ((!collapse_on && (!collapse_geo || !obj->castToOBJGeometry())) || !rop_isStaticIdentity(obj, time)))
+	    if(!abc_collapse && ((!collapse_on && (!collapse_geo 
+		|| !obj->castToOBJGeometry())) 
+		|| !rop_isStaticIdentity(obj, time)))
+	    {
 		ancestors.append(obj);
+	    }
 
 	    // continue towards root
 	    OP_Node *parent = obj->getInput(0);
@@ -1817,7 +1820,6 @@ ROP_AlembicOut::updateFromHierarchy(
     }
 
     // add data sources for the geometry
-    UT_Set<OBJ_Geometry *> locked_geos;
     for(exint i = 0; i < myGeos.entries(); ++i)
     {
 	OBJ_Geometry *geo = myGeos(i);
@@ -1828,23 +1830,21 @@ ROP_AlembicOut::updateFromHierarchy(
 	    auto it = myGeoAssignments.find(geo);
 	    if(it != myGeoAssignments.end())
 	    {
+		bool was_locked = it->second.getLocked();
+
 		int locked = 0;
 		geo->evalParameterOrProperty(
 			GABC_Util::theLockGeometryParameter, 0, 0, locked);
+		myGeoLocks[&it->second] = (locked != 0);
+		it->second.getRoot()->setLocked(locked != 0);
+		it->second.setLocked(locked != 0);
 
-		if(locked)
-		    locked_geos.insert(geo);
-
-		// do pre-update
-		ropPreUpdate(it->second.getRoot(), locked != 0);
-
-		if(!it->second.getLocked() || !locked)
+		if(!it->second.getLocked() || !was_locked)
 		{
 		    refineSop(it->second, packedtransform, facesetmode,
 			      use_instancing, shape_nodes, displaysop,
 			      save_hidden, geo, sop, time);
 		}
-		it->second.setLocked(locked != 0);
 	    }
 	    else
 	    {
@@ -1858,7 +1858,6 @@ ROP_AlembicOut::updateFromHierarchy(
     for(auto &it : myCamAssignments)
     {
 	auto cam = it.first;
-	it.second->preUpdate(false);
 
 	fpreal aspect = cam->ASPECT(time);
 	// Alembic stores value in cm. (not mm.)
@@ -1884,7 +1883,8 @@ ROP_AlembicOut::updateFromHierarchy(
     for(auto &it : myObjAssignments)
     {
 	auto obj = it.first;
-	it.second->preUpdate(false);
+	myObjLocks[it.second] = false;
+	it.second->setLocked(false);
 
 	UT_Matrix4D m;
 	if(obj->isSubNetwork(false))
@@ -1906,21 +1906,6 @@ ROP_AlembicOut::updateFromHierarchy(
 
 	it.second->setData(m);
 	it.second->setVisibility(obj->getObjectDisplay(time));
-    }
-
-    setLayerOptionsAndSave();
-
-    // do post-update
-    for(auto &it : myObjAssignments)
-	it.second->postUpdate(false);
-    for(auto &it : myCamAssignments)
-	it.second->postUpdate(false);
-    for(exint i = 0; i < myGeos.entries(); ++i)
-    {
-	OBJ_Geometry *geo = myGeos(i);
-	auto it = myGeoAssignments.find(geo);
-	if(it != myGeoAssignments.end())
-	    ropPostUpdate(it->second.getRoot(), locked_geos.contains(geo));
     }
 
     return true;

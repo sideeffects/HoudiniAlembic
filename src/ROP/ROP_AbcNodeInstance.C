@@ -36,9 +36,9 @@ ROP_AbcNodeInstance::getOObject(ROP_AbcArchive &, GABC_OError &)
 }
 
 void
-ROP_AbcNodeInstance::reset()
+ROP_AbcNodeInstance::purgeObjects()
 {
-    ROP_AbcNode::reset();
+    ROP_AbcNode::purgeObjects();
     myIsValid = false;
 }
 

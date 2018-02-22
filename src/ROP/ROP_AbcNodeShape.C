@@ -30,9 +30,9 @@
 typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
 
 void
-ROP_AbcNodeShape::reset()
+ROP_AbcNodeShape::purgeObjects()
 {
-    ROP_AbcNode::reset();
+    ROP_AbcNode::purgeObjects();
     myWriter.reset(nullptr);
     mySampleCount = 0;
     myUserProperties.clear();
@@ -65,12 +65,25 @@ ropEnlargeBounds(UT_BoundingBox &box, const GT_PrimitiveHandle &prim)
 }
 
 void
-ROP_AbcNodeShape::preUpdate(bool locked)
+ROP_AbcNodeShape::setLocked(bool locked)
 {
     myLocked = locked;
     if(!locked)
 	clear();
-    ROP_AbcNode::preUpdate(locked);
+    ROP_AbcNode::setLocked(locked);
+}
+
+void
+ROP_AbcNodeShape::updateLocked(bool locked)
+{
+    if(!locked)
+	clear();
+    else if(!myLocked)
+    {
+	if(myPrim)
+	    myPrim = myPrim->harden();
+    }
+    ROP_AbcNode::updateLocked(locked);
 }
 
 void
@@ -127,19 +140,6 @@ ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
 	    myUserProperties.update(props, myUserPropVals, myUserPropMeta, archive, err);
 	}
     }
-}
-
-void
-ROP_AbcNodeShape::postUpdate(bool locked)
-{
-    if(!locked)
-	clear();
-    else if(!myLocked)
-    {
-	if(myPrim)
-	    myPrim = myPrim->harden();
-    }
-    ROP_AbcNode::postUpdate(locked);
 }
 
 void

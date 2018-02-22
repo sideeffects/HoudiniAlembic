@@ -127,13 +127,13 @@ protected:
 		{ return evalInt("numnodes", 0, time); }
     void NODE_PATH(UT_String &str, int idx, fpreal time) const
 		{ evalStringInst("nodepath#", &idx, str, 0, time); }
-    void NODE_FLAG(UT_String &str, int idx, fpreal time) const
+    void NODE_RULE(UT_String &str, int idx, fpreal time) const
 		{ evalStringInst("noderule#", &idx, str, 0, time); }
     int  NUM_VIZS(fpreal time) const
 		{ return evalInt("numvizs", 0, time); }
     void VIZ_PATH(UT_String &str, int idx, fpreal time) const
 		{ evalStringInst("vizpath#", &idx, str, 0, time); }
-    void VIZ_FLAG(UT_String &str, int idx, fpreal time) const
+    void VIZ_RULE(UT_String &str, int idx, fpreal time) const
 		{ evalStringInst("vizrule#", &idx, str, 0, time); }
     int  NUM_ATTRIBUTES(fpreal time) const
 		{ return evalInt("numattrs", 0, time); }
@@ -141,7 +141,7 @@ protected:
 		{ evalStringInst("attrpath#", &idx, str, 0, time); }
     void ATTRIBUTE_PATTERN(UT_String &str, int idx, fpreal time) const
 		{ evalStringInst("attrpattern#", &idx, str, 0, time); }
-    void ATTRIBUTE_FLAG(UT_String &str, int idx, fpreal time) const
+    void ATTRIBUTE_RULE(UT_String &str, int idx, fpreal time) const
 		{ evalStringInst("attrrule#", &idx, str, 0, time); }
     int  NUM_USER_PROPS(fpreal time) const
 		{ return evalInt("numuserprops", 0, time); }
@@ -149,7 +149,7 @@ protected:
 		{ evalStringInst("userproppath#", &idx, str, 0, time); }
     void USER_PROP_PATTERN(UT_String &str, int idx, fpreal time) const
 		{ evalStringInst("userproppattern#", &idx, str, 0, time); }
-    void USER_PROP_FLAG(UT_String &str, int idx, fpreal time) const
+    void USER_PROP_RULE(UT_String &str, int idx, fpreal time) const
 		{ evalStringInst("userproprule#", &idx, str, 0, time); }
 
     bool MOTIONBLUR(fpreal time) const
@@ -184,22 +184,21 @@ private:
 		   bool displaysop, bool save_hidden, OBJ_Geometry *geo,
 		   SOP_Node *sop, fpreal time);
 
-    bool updateFromSop2(OBJ_Geometry *geo, SOP_Node *sop,
-		       ROP_AlembicPackedTransform packedtransform,
-		       exint facesetmode, bool use_instancing,
-		       bool shape_nodes, bool displaysop, bool save_hidden);
     bool updateFromSop(OBJ_Geometry *geo, SOP_Node *sop,
 		       ROP_AlembicPackedTransform packedtransform,
 		       exint facesetmode, bool use_instancing,
-		       bool shape_nodes, bool displaysop, bool save_hidden);
+		       bool shape_nodes, bool displaysop,
+		       bool save_hidden, fpreal time);
     bool updateFromHierarchy(ROP_AlembicPackedTransform packedtransform,
 			     exint facesetmode, bool use_instancing,
 			     bool shape_nodes, bool displaysop,
-			     bool save_hidden);
+			     bool save_hidden, fpreal time);
     void reportCookErrors(OP_Node *node, fpreal time);
 
     // modify the myRoot by taking the layerOptions then save the file.
-    void setLayerOptionsAndSave();
+    bool buildAlembicTree(fpreal time);
+    void clearAlembicTree();
+    void setLayerOptionsAndSave(fpreal time);
 
     // temporary storage when exporting to an Alembic archive
     UT_UniquePtr<ROP_AbcArchive> myArchive;
@@ -214,6 +213,8 @@ private:
     UT_Map<OBJ_Node *, ROP_AbcNodeXform *> myObjAssignments;
     UT_Map<OBJ_Camera *, ROP_AbcNodeCamera *> myCamAssignments;
     UT_Map<OBJ_Geometry *, ROP_AbcHierarchy> myGeoAssignments;
+    UT_Map<ROP_AbcNodeXform *, bool> myObjLocks;
+    UT_Map<ROP_AbcHierarchy *, bool> myGeoLocks;
     // keys of myGeoAssignments for deterministic OBJ_Geometry traversal
     UT_Array<OBJ_Geometry *> myGeos;
 

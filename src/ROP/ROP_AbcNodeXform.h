@@ -49,8 +49,8 @@ public:
 	: ROP_AbcNode(name), myMatrix(1), myIsValid(false), mySampleCount(0) {}
 
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
-    virtual void reset();
-    virtual void preUpdate(bool locked);
+    virtual void purgeObjects();
+    virtual void setLocked(bool locked);
     virtual void update(ROP_AbcArchive &archive,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 
