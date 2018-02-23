@@ -41,7 +41,7 @@ class ROP_AbcNodeShape : public ROP_AbcNode
 {
 public:
     ROP_AbcNodeShape(const std::string &name)
-	: ROP_AbcNode(name), mySampleCount(0) {}
+	: ROP_AbcNode(name), mySampleCount(0), myLocked(false) {}
 
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
     virtual void purgeObjects();

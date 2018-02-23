@@ -708,7 +708,6 @@ ROP_AlembicOut::endRender()
     for(exint i = 0; i < err->myWarnings.entries(); ++i)
 	addWarning(ROP_MESSAGE, err->myWarnings(i));
 
-    myErrors.reset(nullptr);
     clearAlembicTree();
     myArchive.reset();
 
@@ -724,6 +723,7 @@ ROP_AlembicOut::endRender()
 void
 ROP_AlembicOut::clearAlembicTree()
 {
+    myErrors.reset();
     myObjAssignments.clear();
     myCamAssignments.clear();
     myGeoAssignments.clear();
@@ -1107,6 +1107,40 @@ ropIsShape(GABC_NodeType type)
     }
 }
 
+// recursively call preUpdate on hierarchy
+static void
+ropSetLocked(ROP_AbcNode *node, bool locked)
+{
+    UT_Array<ROP_AbcNode *> work;
+    work.append(node);
+    while(work.entries())
+    {
+	node = work.last();
+	work.removeLast();
+
+	node->setLocked(locked);
+	for(auto &it : node->getChildren())
+	    work.append(it.second);
+    }
+}
+
+// recursively call postUpdate on hierarchy
+static void
+ropUpdateLocked(ROP_AbcNode *node, bool locked)
+{
+    UT_Array<ROP_AbcNode *> work;
+    work.append(node);
+    while(work.entries())
+    {
+	node = work.last();
+	work.removeLast();
+
+	node->updateLocked(locked);
+	for(auto &it : node->getChildren())
+	    work.append(it.second);
+    }
+}
+
 bool
 ROP_AlembicOut::updateFromSop(
     OBJ_Geometry *geo,
@@ -1121,6 +1155,15 @@ ROP_AlembicOut::updateFromSop(
 {
     if(!mySopAssignments)
 	mySopAssignments.reset(new ROP_AbcHierarchy(myRoot.get()));
+
+    if(geo)
+    {
+	int locked = 0;
+	geo->evalParameterOrProperty(
+		GABC_Util::theLockGeometryParameter, 0, 0, locked);
+	myGeoLocks[mySopAssignments.get()] = (locked != 0);
+	ropSetLocked(mySopAssignments->getRoot(), (locked != 0));
+    }
 
     OP_Context context(time);
     OP_Node *creator = sop->getCreator();
@@ -1476,40 +1519,6 @@ ROP_AlembicOut::updateFromSop(
     return true;
 }
 
-// recursively call preUpdate on hierarchy
-static void
-ropSetLocked(ROP_AbcNode *node, bool locked)
-{
-    UT_Array<ROP_AbcNode *> work;
-    work.append(node);
-    while(work.entries())
-    {
-	node = work.last();
-	work.removeLast();
-
-	node->setLocked(locked);
-	for(auto &it : node->getChildren())
-	    work.append(it.second);
-    }
-}
-
-// recursively call postUpdate on hierarchy
-static void
-ropUpdateLocked(ROP_AbcNode *node, bool locked)
-{
-    UT_Array<ROP_AbcNode *> work;
-    work.append(node);
-    while(work.entries())
-    {
-	node = work.last();
-	work.removeLast();
-
-	node->updateLocked(locked);
-	for(auto &it : node->getChildren())
-	    work.append(it.second);
-    }
-}
-
 static GABC_LayerOptions::LayerType
 ropSetAbcNodeLayerOptions(ROP_AbcNode *node, const char *parentPath,
     const GABC_LayerOptions &layerOptions, bool isFullAncestor)
@@ -1658,21 +1667,12 @@ ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
     }
 
     // Executes the saving process.
-    if(myFromSOP)
-    {
-	ropSetLocked(mySopAssignments->getRoot(), false);
-	myRoot->update(*myArchive, layerOptions, *myErrors);
-        ropUpdateLocked(mySopAssignments->getRoot(), false);
-    }
-    else
-    {
-	myRoot->update(*myArchive, layerOptions, *myErrors);
+    myRoot->update(*myArchive, layerOptions, *myErrors);
 
-	for(auto &it : myGeoLocks)
-	    it.first->getRoot()->updateLocked(it.second);
-	for(auto &it : myObjLocks)
-	    it.first->updateLocked(it.second);
-    }
+    for(auto &it : myGeoLocks)
+	ropUpdateLocked(it.first->getRoot(), it.second);
+    for(auto &it : myObjLocks)
+	it.first->updateLocked(it.second);
 }
 
 bool
@@ -1836,7 +1836,7 @@ ROP_AlembicOut::updateFromHierarchy(
 		geo->evalParameterOrProperty(
 			GABC_Util::theLockGeometryParameter, 0, 0, locked);
 		myGeoLocks[&it->second] = (locked != 0);
-		it->second.getRoot()->setLocked(locked != 0);
+		ropSetLocked(it->second.getRoot(), locked != 0);
 		it->second.setLocked(locked != 0);
 
 		if(!it->second.getLocked() || !was_locked)
