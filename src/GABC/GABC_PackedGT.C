@@ -95,21 +95,28 @@ class gabc_CreateInstanceGeos
 public:
     // Mantra & other non-viewport uses 
     gabc_CreateInstanceGeos(
-	const UT_StringMap< UT_Array<const GU_PrimPacked*> > &geo,
-	const GT_GEODetailListHandle &geometry,
-	UT_Array<GT_PrimitiveHandle> &gt_prims)
-	: myGeos(geo), myGeometry(geometry), myRefineParms(nullptr),
-	  myPrims(nullptr), myFlatPrims(&gt_prims), myViewportProcessing(false)
+	    const UT_StringMap< UT_Array<const GU_PrimPacked*> > &geo,
+	    const GT_GEODetailListHandle &geometry,
+	    UT_Array<GT_PrimitiveHandle> &gt_prims)
+	: myGeos(geo), myGeometry(geometry)
+	, myRefineParms(nullptr)
+	, myPrims(nullptr)
+	, myFlatPrims(&gt_prims)
+	, myViewportProcessing(false)
 	{}
 
     // Viewport constructor
     gabc_CreateInstanceGeos(
-	const UT_StringMap< UT_Array<const GU_PrimPacked*> > &geo,
-	const GT_GEODetailListHandle &geometry,
-	const GT_RefineParms *ref_parms,
-	UT_StringMap<GT_PrimitiveHandle> &gt_prims)
-      : myGeos(geo), myGeometry(geometry), myRefineParms(ref_parms),
-	myPrims(&gt_prims), myFlatPrims(nullptr), myViewportProcessing(true)
+	    const UT_StringMap< UT_Array<const GU_PrimPacked*> > &geo,
+	    const GT_GEODetailListHandle &geometry,
+	    const GT_RefineParms *ref_parms,
+	    UT_StringMap<GT_PrimitiveHandle> &gt_prims)
+      : myGeos(geo)
+      , myGeometry(geometry)
+      , myRefineParms(ref_parms)
+      , myPrims(&gt_prims)
+      , myFlatPrims(nullptr)
+      , myViewportProcessing(true)
 	{}
     
     void	operator()(const UT_BlockedRange<exint> &range) const
@@ -352,7 +359,6 @@ public:
 	, myUseViewportLOD(GT_GEOPrimPacked::useViewportLOD(parms))
 	, mySkipInvisible(GT_RefineParms::getAlembicSkipInvisible(parms))
 	, myAlembicInstancing(GT_RefineParms::getAlembicInstancing(parms))
-	, myRefineParms(parms)
     { }
     virtual ~CollectData() {}
 
@@ -574,7 +580,6 @@ public:
 
 private:
     const GT_GEODetailListHandle	myGeometry;
-    const GT_RefineParms	       *myRefineParms;
     UT_StringMap<GT_PrimitiveHandle>	myViewportArchives;
     
     // Viewport
