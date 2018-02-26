@@ -65,12 +65,12 @@ ropEnlargeBounds(UT_BoundingBox &box, const GT_PrimitiveHandle &prim)
 }
 
 void
-ROP_AbcNodeShape::setLocked(bool locked)
+ROP_AbcNodeShape::clearData(bool locked)
 {
     myLocked = locked;
     if(!locked)
 	clear();
-    ROP_AbcNode::setLocked(locked);
+    ROP_AbcNode::clearData(locked);
 }
 
 void

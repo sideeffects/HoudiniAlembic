@@ -48,7 +48,7 @@ ROP_AbcNodeXform::getOObject(ROP_AbcArchive &archive, GABC_OError &err)
 }
 
 void
-ROP_AbcNodeXform::setLocked(bool locked)
+ROP_AbcNodeXform::clearData(bool locked)
 {
     if(!locked)
     {
@@ -56,7 +56,7 @@ ROP_AbcNodeXform::setLocked(bool locked)
 	myUserPropVals.clear();
 	myUserPropMeta.clear();
     }
-    ROP_AbcNode::setLocked(locked);
+    ROP_AbcNode::clearData(locked);
 }
 
 void

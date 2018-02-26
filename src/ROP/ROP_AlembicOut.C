@@ -1109,7 +1109,7 @@ ropIsShape(GABC_NodeType type)
 
 // recursively call preUpdate on hierarchy
 static void
-ropSetLocked(ROP_AbcNode *node, bool locked)
+ropClearData(ROP_AbcNode *node, bool locked)
 {
     UT_Array<ROP_AbcNode *> work;
     work.append(node);
@@ -1118,7 +1118,7 @@ ropSetLocked(ROP_AbcNode *node, bool locked)
 	node = work.last();
 	work.removeLast();
 
-	node->setLocked(locked);
+	node->clearData(locked);
 	for(auto &it : node->getChildren())
 	    work.append(it.second);
     }
@@ -1162,7 +1162,7 @@ ROP_AlembicOut::updateFromSop(
 	geo->evalParameterOrProperty(
 		GABC_Util::theLockGeometryParameter, 0, 0, locked);
 	myGeoLocks[mySopAssignments.get()] = (locked != 0);
-	ropSetLocked(mySopAssignments->getRoot(), (locked != 0));
+	ropClearData(mySopAssignments->getRoot(), (locked != 0));
     }
 
     OP_Context context(time);
@@ -1836,7 +1836,7 @@ ROP_AlembicOut::updateFromHierarchy(
 		geo->evalParameterOrProperty(
 			GABC_Util::theLockGeometryParameter, 0, 0, locked);
 		myGeoLocks[&it->second] = (locked != 0);
-		ropSetLocked(it->second.getRoot(), locked != 0);
+		ropClearData(it->second.getRoot(), locked != 0);
 		it->second.setLocked(locked != 0);
 
 		if(!it->second.getLocked() || !was_locked)
@@ -1884,7 +1884,7 @@ ROP_AlembicOut::updateFromHierarchy(
     {
 	auto obj = it.first;
 	myObjLocks[it.second] = false;
-	it.second->setLocked(false);
+	it.second->clearData(false);
 
 	UT_Matrix4D m;
 	if(obj->isSubNetwork(false))

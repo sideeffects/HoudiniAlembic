@@ -89,7 +89,7 @@ public:
     }
 
     /// Hook to prepare node for calls to setData().
-    virtual void setLocked(bool locked) {}
+    virtual void clearData(bool locked) {}
     /// Hook to clean up node after calls to update().
     virtual void updateLocked(bool locked) {}
     /// Exports the current sample data update the computed bounding box.
