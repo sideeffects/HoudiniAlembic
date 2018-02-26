@@ -46,7 +46,7 @@ namespace
 {
 
 static bool
-ropGetInstanceKey(std::string &key, const GU_PrimPacked *packed)
+ropGetInstanceKey(std::string &key, bool subd, const GU_PrimPacked *packed)
 {
     GA_PrimitiveTypeId type_id = packed->getTypeId();
     if(type_id == GU_PackedFragment::typeId())
@@ -55,7 +55,7 @@ ropGetInstanceKey(std::string &key, const GU_PrimPacked *packed)
 	auto attrib = impl->attribute();
 	auto name = impl->name();
 	UT_WorkBuffer buf;
-	buf.sprintf("f:%d:%d:%s%s", int(impl->geometryId()),
+	buf.sprintf("f:%d:%d:%d:%s%s", int(subd), int(impl->geometryId()),
 		    int(attrib.length()), attrib.c_str(),
 		    name.c_str());
 	key = buf.buffer();
@@ -66,7 +66,7 @@ ropGetInstanceKey(std::string &key, const GU_PrimPacked *packed)
     {
 	auto impl = static_cast<const GU_PackedGeometry *>(packed->implementation());
 	UT_WorkBuffer buf;
-	buf.sprintf("g:%d", int(impl->geometryId()));
+	buf.sprintf("g:%d:%d", int(subd), int(impl->geometryId()));
 	key = buf.buffer();
 	return true;
     }
@@ -75,7 +75,7 @@ ropGetInstanceKey(std::string &key, const GU_PrimPacked *packed)
     {
 	auto impl = static_cast<const GU_PackedDisk *>(packed->implementation());
 	UT_WorkBuffer buf;
-	buf.sprintf("d:%s", impl->filename().c_str());
+	buf.sprintf("d:%d:%s", int(subd), impl->filename().c_str());
 	key = buf.buffer();
 	return true;
     }
@@ -84,14 +84,16 @@ ropGetInstanceKey(std::string &key, const GU_PrimPacked *packed)
     {
 	auto impl = static_cast<const GU_PackedDiskSequence *>(packed->implementation());
 	UT_WorkBuffer buf;
-	buf.sprintf("ds:%d:%g:",
+	buf.sprintf("ds:%d:%d:%g:",
+		    int(subd),
 		    int(impl->wrapMode()),
 		    impl->index());
 	UT_StringArray files;
 	impl->filenames(files);
 	for(exint i = 0; i < files.entries(); ++i)
 	{
-	    buf.appendSprintf("%ds%s",
+	    buf.appendSprintf("%d:%ds%s",
+			      int(subd),
 			      int(files(i).length()),
 			      files(i).c_str());
 	}
@@ -112,7 +114,8 @@ ropGetInstanceKey(std::string &key, const GU_PrimPacked *packed)
 	auto faceset_attr = impl->intrinsicFaceSet(packed);
 
 	UT_WorkBuffer buf;
-	buf.sprintf("a:%s:%ds%s%g:%ds%s%ds%s%ds%s%ds%s%s",
+	buf.sprintf("a:%d:%s:%ds%s%g:%ds%s%ds%s%ds%s%ds%s%s",
+		int(subd),
 		filenames.c_str(),
 		int(sourcepath.length()), sourcepath.c_str(),
 		impl->frame(),
@@ -258,7 +261,7 @@ rop_RefineInstanceHelper::refine(const GT_PrimitiveHandle &prim)
 }
 
 ROP_AbcRefiner::ROP_AbcRefiner(
-    UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > &instance_map,
+    ROP_AbcHierarchySample::InstanceMap &instance_map,
     GABC_OError &err,
     ROP_AlembicPackedTransform packedtransform,
     exint facesetmode,
@@ -273,6 +276,7 @@ ROP_AbcRefiner::ROP_AbcRefiner(
     , myShapeNodes(shape_nodes)
     , mySaveHidden(save_hidden)
     , myVisible(true)
+    , mySubd(false)
 {
     myParms.setCoalesceFragments(false);
     myParms.setFastPolyCompacting(false);
@@ -321,6 +325,7 @@ ROP_AbcRefiner::addPartition(
     myName = name;
     myUserPropsVals = up_vals;
     myUserPropsMeta = up_meta;
+    mySubd = subd;
     myParms.setPolysAsSubdivision(subd);
     addPrimitive(prim);
 }
@@ -433,7 +438,7 @@ ROP_AbcRefiner::processInstance(const GT_PrimitiveHandle &prim)
 	}
 
 	std::string saved_key = myInstanceKey;
-	ropGetInstanceKey(myInstanceKey, pr);
+	ropGetInstanceKey(myInstanceKey, mySubd, pr);
 
 	// use the packed primitive's pivot as the geometry's origin
 	UT_Matrix4D prim_xform;
@@ -491,7 +496,7 @@ ROP_AbcRefiner::processPacked(const GT_PrimitiveHandle &prim)
 	static_cast<const GU_PrimPacked *>(packed->getPrim());
 
     std::string saved_key = myInstanceKey;
-    ropGetInstanceKey(myInstanceKey, pr);
+    ropGetInstanceKey(myInstanceKey, mySubd, pr);
 
     bool saved_vis = myVisible;
     if(type == GT_PRIM_ALEMBIC_SHAPE)

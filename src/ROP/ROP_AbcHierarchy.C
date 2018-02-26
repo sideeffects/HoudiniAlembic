@@ -124,10 +124,10 @@ ROP_AbcHierarchy::Node::setVisibility(bool vis)
 }
 
 void
-ROP_AbcHierarchy::update(
+ROP_AbcHierarchy::merge(
     GABC_OError &err,
     const ROP_AbcHierarchySample &src,
-    const UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > &instance_map)
+    const ROP_AbcHierarchySample::InstanceMap &instance_map)
 {
 
     // assign existing instances if possible

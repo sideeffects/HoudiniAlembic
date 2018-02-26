@@ -46,6 +46,8 @@ enum ROP_AlembicPackedTransform
 class ROP_AbcHierarchySample
 {
 public:
+    typedef UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > InstanceMap;
+
     ROP_AbcHierarchySample(ROP_AbcHierarchySample *parent,
 			   const std::string &name)
 	: myParent(parent)

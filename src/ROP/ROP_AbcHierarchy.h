@@ -105,9 +105,9 @@ public:
     ROP_AbcNode *getRoot() const { return myRoot.getAbcNode(); }
 
     // writes a new sample
-    void update(GABC_OError &err,
-		const ROP_AbcHierarchySample &src,
-		const UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > &instance_map);
+    void merge(GABC_OError &err,
+	       const ROP_AbcHierarchySample &src,
+	       const ROP_AbcHierarchySample::InstanceMap &instance_map);
 
     // get/set a flag indicating if the last written sample was locked
     void setLocked(bool locked) { myLocked = locked; }

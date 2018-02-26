@@ -1087,7 +1087,7 @@ ROP_AlembicOut::refineSop(
 	}
     }
 
-    assignments.update(*myErrors, root, instance_map);
+    assignments.merge(*myErrors, root, instance_map);
 }
 
 static bool
@@ -1515,7 +1515,7 @@ ROP_AlembicOut::updateFromSop(
 	refiner.addPartition(*parent, cname, subd, prim, userprops, userpropsmeta);
     }
 
-    mySopAssignments->update(*myErrors, root, instance_map);
+    mySopAssignments->merge(*myErrors, root, instance_map);
     return true;
 }
 

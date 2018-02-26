@@ -36,7 +36,7 @@
 class ROP_AbcRefiner : public GT_Refine
 {
 public:
-    ROP_AbcRefiner(UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > &instance_map,
+    ROP_AbcRefiner(ROP_AbcHierarchySample::InstanceMap &instance_map,
 		   GABC_OError &err,
 		   ROP_AlembicPackedTransform packedtransform,
 		   exint facesetmode,
@@ -68,7 +68,7 @@ private:
 
     GT_RefineParms myParms;
     // shapes for a given instance source
-    UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > &myInstanceMap;
+    ROP_AbcHierarchySample::InstanceMap &myInstanceMap;
     ROP_AbcHierarchySample *myRoot;
     std::string myName;
     std::string myUserPropsVals;
@@ -87,6 +87,7 @@ private:
     bool myShapeNodes;
     bool mySaveHidden;
     bool myVisible;
+    bool mySubd;
 };
 
 #endif
