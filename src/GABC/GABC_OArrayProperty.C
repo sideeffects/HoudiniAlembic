@@ -485,6 +485,10 @@ GABC_OArrayProperty::start(OCompoundProperty &parent,
     exint                   time = 0;
     bool                    valid = false;
 
+    UT_ASSERT(myLayerType == GABC_LayerOptions::LayerType::PRUNE
+	|| myLayerType == GABC_LayerOptions::LayerType::FULL);
+    GABC_LayerOptions::getMetadata(md, myLayerType);
+
     myStorage = array->getStorage();
     myTupleSize = array->getTupleSize();
     myType = array->getTypeInfo();
@@ -966,6 +970,10 @@ GABC_OArrayProperty::update(const GT_DataArrayHandle &array,
 	const GABC_OOptions &ctx,
         const PlainOldDataType pod)
 {
+    if(myLayerType == GABC_LayerOptions::LayerType::PRUNE)
+	return true;
+    UT_ASSERT(myLayerType == GABC_LayerOptions::LayerType::FULL);
+
     if ((myPOD != pod)
             || (myStorage != array->getStorage())
             || (myType != array->getTypeInfo()))

@@ -319,13 +319,14 @@ ROP_AbcRefiner::addPartition(
     bool subd,
     const GT_PrimitiveHandle &prim,
     const std::string &up_vals,
-    const std::string &up_meta)
+    const std::string &up_meta,
+    const std::string &subd_grp)
 {
     myRoot = &root;
     myName = name;
     myUserPropsVals = up_vals;
     myUserPropsMeta = up_meta;
-    mySubd = subd;
+    mySubdGroup = subd_grp;
     myParms.setPolysAsSubdivision(subd);
     addPrimitive(prim);
 }
@@ -339,7 +340,7 @@ ROP_AbcRefiner::appendShape(const GT_PrimitiveHandle &prim)
     if(myInstanceKey.empty())
     {
 	myRoot->appendShape(myName, prim, myVisible,
-			    myUserPropsVals, myUserPropsMeta);
+			    myUserPropsVals, myUserPropsMeta, mySubdGroup);
 	return;
     }
 
@@ -360,7 +361,7 @@ ROP_AbcRefiner::appendShape(const GT_PrimitiveHandle &prim)
     }
     myRoot->appendInstancedShape(myName, prim->getPrimitiveType(),
 				 myInstanceKey, idx, myVisible,
-				 myUserPropsVals, myUserPropsMeta);
+				 myUserPropsVals, myUserPropsMeta, mySubdGroup);
 }
 
 bool

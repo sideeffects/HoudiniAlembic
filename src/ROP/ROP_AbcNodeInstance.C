@@ -47,6 +47,7 @@ ROP_AbcNodeInstance::update(ROP_AbcArchive &archive,
     const GABC_LayerOptions &layerOptions, GABC_OError &err)
 {
     makeValid(archive, layerOptions, err);
+    mySource->update(archive, layerOptions, err);
     myBox = mySource->getBBox();
 }
 
@@ -57,8 +58,26 @@ ROP_AbcNodeInstance::makeValid(ROP_AbcArchive &archive,
     if(myIsValid)
 	return;
 
-    mySource->update(archive, layerOptions, err);
-    myParent->getOObject(archive, err).addChildInstance(
-	mySource->getOObject(archive, err), myName);
+    switch(myLayerNodeType)
+    {
+	case GABC_LayerOptions::LayerType::FULL:
+	    myParent->getOObject(archive, err).addChildInstance(
+		mySource->getOObject(archive, err), myName);
+	    break;
+
+	case GABC_LayerOptions::LayerType::SPARSE:
+	    err.warning("Cannot export sparse instance node %s.", myPath.c_str());
+	    break;
+
+	case GABC_LayerOptions::LayerType::PRUNE:
+	    err.warning("Cannot export prune instance node %s.", myPath.c_str());
+	    break;
+
+	case GABC_LayerOptions::LayerType::REPLACE:
+	    err.warning("Cannot export replace instance node %s.", myPath.c_str());
+
+	case GABC_LayerOptions::LayerType::DEFER:
+	    break;
+    }
     myIsValid = true;
 }

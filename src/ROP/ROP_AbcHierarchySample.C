@@ -56,9 +56,11 @@ ROP_AbcHierarchySample::appendShape(
     const GT_PrimitiveHandle &prim,
     bool visible,
     const std::string &userprops,
-    const std::string &userpropsmeta)
+    const std::string &userpropsmeta,
+    const std::string &subdgrp)
 {
-    myShapes[name][prim->getPrimitiveType()].append(std::make_tuple(prim, visible, userprops, userpropsmeta));
+    myShapes[name][prim->getPrimitiveType()].append(
+	std::make_tuple(prim, visible, userprops, userpropsmeta, subdgrp));
 }
 
 void
@@ -69,9 +71,11 @@ ROP_AbcHierarchySample::appendInstancedShape(
     exint idx,
     bool visible,
     const std::string &up_vals,
-    const std::string &up_meta)
+    const std::string &up_meta,
+    const std::string &subdgrp)
 {
-    myInstancedShapes[name][type].append(std::make_tuple(key, idx, visible, up_vals, up_meta));
+    myInstancedShapes[name][type].append(
+	std::make_tuple(key, idx, visible, up_vals, up_meta, subdgrp));
 }
 
 exint

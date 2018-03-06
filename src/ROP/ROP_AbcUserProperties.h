@@ -50,12 +50,16 @@ public:
     /// set a new user property sample, creating the user properties if needed
     void update(OCompoundProperty &props,
 		const UT_StringHolder &vals, const UT_StringHolder &meta,
-		ROP_AbcArchive &archive, GABC_OError &err);
+		ROP_AbcArchive &archive, GABC_OError &err,
+		const GABC_LayerOptions &lopt,
+		GABC_LayerOptions::LayerType ltype);
 
 private:
     void exportData(OCompoundProperty *props,
 		    const UT_StringHolder &vals, const UT_StringHolder &meta,
-		    ROP_AbcArchive &archive, GABC_OError &err);
+		    ROP_AbcArchive &archive, GABC_OError &err,
+		    const GABC_LayerOptions &lopt,
+		    GABC_LayerOptions::LayerType ltype);
 
     PropertyMap myProps;
     bool myIsValid;

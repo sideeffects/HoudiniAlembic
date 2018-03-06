@@ -52,6 +52,7 @@
 #include <SOP/SOP_Node.h>
 #include <UT/UT_DSOVersion.h>
 #include <UT/UT_JSONWriter.h>
+#include <UT/UT_UndoManager.h>
 
 #if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
     #define CUSTOM_ALEMBIC_TOKEN_PREFIX ""
@@ -99,16 +100,20 @@ static PRM_Name theUseLayeringName("uselayering", "Enable Layering");
 static PRM_Name theFullXformName("fullancestor", "Create Full Ancestors for Output Nodes");
 static PRM_Name theNumNodesName("numnodes", "Nodes");
 static PRM_Name theNodePathName("nodepath#", "Path #");
+static PRM_Name thePickNodePathName("picknodepath#", "Picker #");
 static PRM_Name theNodeFlagName("noderule#", "Rule #");
 static PRM_Name theNumVizsName("numvizs", "Visibilities");
 static PRM_Name theVizPathName("vizpath#", "Path #");
+static PRM_Name thePickVizPathName("pickvizpath#", "Picker #");
 static PRM_Name theVizFlagName("vizrule#", "Rule #");
 static PRM_Name theNumAttrsName("numattrs", "Attributes");
 static PRM_Name theAttrPathName("attrpath#", "Path #");
+static PRM_Name thePickAttrPathName("pickattrpath#", "Picker #");
 static PRM_Name theAttrPatternName("attrpattern#", "Pattern #");
 static PRM_Name theAttrFlagName("attrrule#", "Rule #");
 static PRM_Name theNumUsersName("numuserprops", "User Properties");
 static PRM_Name theUserPathName("userproppath#", "Path #");
+static PRM_Name thePickUserPathName("pickuserproppath#", "Picker #");
 static PRM_Name theUserPatternName("userproppattern#", "Pattern #");
 static PRM_Name theUserFlagName("userproprule#", "Rule #");
 static PRM_Name theMotionBlurName("motionBlur", "Use Motion Blur");
@@ -295,6 +300,51 @@ buildAttribMenu(void *data, PRM_Name *menu_entries, int menu_size,
     menu_entries[i].setLabel(0);
 }
 
+static int
+ropNodePickerCallback(void *data, int index, fpreal t, const PRM_Template *tplate)
+{
+    UT_WorkBuffer	 cmd;
+    ROP_AlembicOut	*rop = static_cast<ROP_AlembicOut *>(data);
+    UT_String		 attrStr;
+    UT_String		 attrName = tplate->getNamePtr()->getToken();
+
+    UT_StringArray	 choicesArray;
+    rop->getOutputNodesArray(choicesArray, t);
+
+    // Strip the "pick" part of the parm name away to leave the name of
+    // the object path parm we want to modify.
+    attrName.eraseHead(4);
+    rop->evalString(attrStr, attrName, 0, t);
+
+    cmd.strcpy("treechooser -c");
+
+    if (attrStr.isstring())
+    {
+	cmd.strcat(" -s ");
+	cmd.protectedStrcat(attrStr.c_str());
+    }
+
+    for (exint i = 0; i < choicesArray.size(); ++i)
+    {
+	cmd.strcat(" ");
+	cmd.protectedStrcat(choicesArray[i].c_str());
+    }
+
+    CMD_Manager	*mgr = CMDgetManager();
+    UT_OStringStream	 os;
+    mgr->execute(cmd.buffer(), 0, &os);
+    UT_String	result(os.str().buffer());
+    result.trimBoundingSpace();
+
+    if(result.isstring())
+    {
+	UT_AutoUndoBlock u("Undo Set Node Pattern", ANYLEVEL);
+	rop->setChRefString(result, CH_STRING_LITERAL, attrName, 0, t);
+    }
+
+    return 0;
+}
+
 static PRM_ChoiceList theFormatMenu(PRM_CHOICELIST_SINGLE, theFormatChoices);
 static PRM_ChoiceList theSubdGroupMenu(PRM_CHOICELIST_REPLACE, buildGroupMenu);
 static PRM_ChoiceList thePathAttribMenu(PRM_CHOICELIST_REPLACE, buildAttribMenu);
@@ -312,10 +362,17 @@ static PRM_SpareData theObjectList(PRM_SpareArgs()
 		<< PRM_SpareToken("opfilter", "!!OBJ!!")
 		<< PRM_SpareToken("oprelative", "/obj"));
 
+static PRM_SpareData theTreeButtonSpareData(
+    PRM_SpareArgs() <<
+    PRM_SpareToken(PRM_SpareData::getButtonIconToken(), "BUTTONS_tree"));
+
+
 static PRM_Template theMultiNodeTemplate[] =
 {
     PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT,
-	PRM_TYPE_DYNAMIC_PATH, 1, &theNodePathName),
+	1, &theNodePathName),
+    PRM_Template(PRM_CALLBACK | PRM_TYPE_JOIN_NEXT, PRM_TYPE_NO_LABEL,
+	1, &thePickNodePathName, 0, 0, 0, ropNodePickerCallback, &theTreeButtonSpareData),
     PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
 	1, &theNodeFlagName, 0, &theNodeFlagMenu),
     PRM_Template()
@@ -324,7 +381,9 @@ static PRM_Template theMultiNodeTemplate[] =
 static PRM_Template theMultiVizTemplate[] =
 {
     PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT,
-	PRM_TYPE_DYNAMIC_PATH, 1, &theVizPathName),
+	1, &theVizPathName),
+    PRM_Template(PRM_CALLBACK | PRM_TYPE_JOIN_NEXT, PRM_TYPE_NO_LABEL,
+	1, &thePickVizPathName, 0, 0, 0, ropNodePickerCallback, &theTreeButtonSpareData),
     PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
 	1, &theVizFlagName, 0, &thePropFlagMenu),
     PRM_Template()
@@ -333,7 +392,9 @@ static PRM_Template theMultiVizTemplate[] =
 static PRM_Template theMultiAttrTemplate[] =
 {
     PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT,
-	PRM_TYPE_DYNAMIC_PATH, 1, &theAttrPathName),
+	1, &theAttrPathName),
+    PRM_Template(PRM_CALLBACK | PRM_TYPE_JOIN_NEXT, PRM_TYPE_NO_LABEL,
+	1, &thePickAttrPathName, 0, 0, 0, ropNodePickerCallback, &theTreeButtonSpareData),
     PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT | PRM_TYPE_LABEL_NONE,
 	1, &theAttrPatternName, &theAttrLayerDefault),
     PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
@@ -344,7 +405,9 @@ static PRM_Template theMultiAttrTemplate[] =
 static PRM_Template theMultiUserTemplate[] =
 {
     PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT,
-	PRM_TYPE_DYNAMIC_PATH, 1, &theUserPathName),
+	1, &theUserPathName),
+    PRM_Template(PRM_CALLBACK | PRM_TYPE_JOIN_NEXT, PRM_TYPE_NO_LABEL,
+	1, &thePickUserPathName, 0, 0, 0, ropNodePickerCallback, &theTreeButtonSpareData),
     PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT | PRM_TYPE_LABEL_NONE,
 	1, &theUserPatternName, &theStarDefault),
     PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
@@ -581,6 +644,30 @@ ROP_AlembicOut::getSopNode(fpreal time) const
 	    sop = CAST_SOPNODE(findNode(sop_path));
     }
     return sop;
+}
+
+static void
+ropAppendNodeNames(UT_StringArray &array, ROP_AbcNode *node)
+{
+    const char *path = node->getPath();
+    if(path[0] != '\0')
+	array.append(path);
+
+    for(auto &it : node->getChildren())
+	ropAppendNodeNames(array, it.second);
+}
+
+void
+ROP_AlembicOut::getOutputNodesArray(UT_StringArray &array, fpreal time)
+{
+    UT_ASSERT(!myRoot);
+    myRoot.reset(new ROP_AbcNodeRoot());
+    myErrors.reset(new rop_OError());
+
+    array.clear();
+    buildAlembicTree(time);
+    ropAppendNodeNames(array, myRoot.get());
+    clearAlembicTree();
 }
 
 int
@@ -974,7 +1061,10 @@ ROP_AlembicOut::refineSop(
 
     // identify subd
     bool subd_all;
+    std::string subd_name;
     const GA_PrimitiveGroup *grp = getSubdGroup(subd_all, geo, gdp, time);
+    if(grp)
+	subd_name = grp->getName().toStdString();
 
     UT_String partition_mode;
     PARTITION_MODE(partition_mode, time);
@@ -1082,7 +1172,8 @@ ROP_AlembicOut::refineSop(
 		    userpropsmeta = up_meta.get(offsets(0));
 		}
 
-		refiner.addPartition(root, cname, subd, prim, userprops, userpropsmeta);
+		refiner.addPartition(root, cname, subd, prim, userprops, userpropsmeta,
+				     subd_name);
 	    }
 	}
     }
@@ -1206,7 +1297,10 @@ ROP_AlembicOut::updateFromSop(
 
     // identify subd
     bool subd_all;
+    std::string subd_name;
     const GA_PrimitiveGroup *grp = getSubdGroup(subd_all, geo, gdp, time);
+    if(grp)
+	subd_name = grp->getName().toStdString();
 
     auto &&alembic_def = GUgetFactory().lookupDefinition("AlembicRef"_sh);
     UT_SortedMap<std::string, const GU_PrimPacked *> abc_prims;
@@ -1512,70 +1606,86 @@ ROP_AlembicOut::updateFromSop(
 	    prim = prim->copyTransformed(new GT_Transform(&m, 1));
 	}
 
-	refiner.addPartition(*parent, cname, subd, prim, userprops, userpropsmeta);
+	refiner.addPartition(*parent, cname, subd, prim, userprops, userpropsmeta, 
+			     subd_name);
     }
 
     mySopAssignments->merge(*myErrors, root, instance_map);
     return true;
 }
 
+static void
+ropRecursiveSetLayerType(ROP_AbcNode *node,
+    GABC_LayerOptions::LayerType type)
+{
+    node->setLayerNodeType(type);
+    for(auto &it : node->getChildren())
+	ropRecursiveSetLayerType(it.second, type);
+}
+
 static GABC_LayerOptions::LayerType
-ropSetAbcNodeLayerOptions(ROP_AbcNode *node, const char *parentPath,
+ropSetAbcNodeLayerOptions(ROP_AbcNode *node,
     const GABC_LayerOptions &layerOptions, bool isFullAncestor)
 {
-    UT_String path(parentPath);
-    path.append("/");
-    path.append(node->getName());
+    auto selfType = layerOptions.getNodeType(node->getPath());
 
-    GABC_LayerOptions::LayerType selfType = layerOptions.getNodeType(path);
-
-    // Tag the prune on the node and jump over the remaining process.
-    if(selfType != GABC_LayerOptions::LayerType::PRUNE)
+    if(selfType == GABC_LayerOptions::LayerType::PRUNE)
     {
-	GABC_LayerOptions::LayerType kidsType = GABC_LayerOptions::LayerType::DEFER;
-	// Traverse the children and set the layer options, determine the
-	// final layerType by checking the return values of the children.
-	for(auto &it : node->getChildren())
+	node->setLayerNodeType(selfType);
+        for(auto &it : node->getChildren())
 	{
-	    GABC_LayerOptions::LayerType childType =
-		ropSetAbcNodeLayerOptions(it.second, path.c_str(),
-		    layerOptions, isFullAncestor);
-	    // Always set the kidsType to the highest degree.
-	    if(childType > kidsType)
-		kidsType = childType;
+	    ropRecursiveSetLayerType(it.second,
+		GABC_LayerOptions::LayerType::DEFER);
 	}
+	return selfType;
+    }
 
-	if(selfType == GABC_LayerOptions::LayerType::DEFER ||
-	    selfType == GABC_LayerOptions::LayerType::SPARSE)
+    if(selfType == GABC_LayerOptions::LayerType::REPLACE)
+    {
+	node->setLayerNodeType(selfType);
+        for(auto &it : node->getChildren())
 	{
-	    // Upgrade the self type to sparse if it do have child node
-	    // and all of its children are sparse.
-	    if(kidsType == GABC_LayerOptions::LayerType::PRUNE
-		|| kidsType == GABC_LayerOptions::LayerType::SPARSE)
-	    {
+	    ropRecursiveSetLayerType(it.second,
+		GABC_LayerOptions::LayerType::FULL);
+	}
+	return selfType;
+    }
+
+    auto kidsType = GABC_LayerOptions::LayerType::DEFER;
+    // Traverse the children and set the layer options, determine the
+    // final layerType by checking the return values of the children.
+    for(auto &it : node->getChildren())
+    {
+	GABC_LayerOptions::LayerType childType =
+	    ropSetAbcNodeLayerOptions(it.second,
+		layerOptions, isFullAncestor);
+	// Always set the kidsType to the highest degree.
+	if(childType > kidsType)
+	    kidsType = childType;
+    }
+
+    if(selfType == GABC_LayerOptions::LayerType::DEFER ||
+	selfType == GABC_LayerOptions::LayerType::SPARSE)
+    {
+	// Upgrade the self type to sparse if it do have child node
+	// and all of its children are sparse.
+	if(kidsType == GABC_LayerOptions::LayerType::PRUNE
+	    || kidsType == GABC_LayerOptions::LayerType::SPARSE)
+	{
+	    selfType = GABC_LayerOptions::LayerType::SPARSE;
+	}
+	else if(kidsType == GABC_LayerOptions::LayerType::FULL
+		|| kidsType == GABC_LayerOptions::LayerType::REPLACE)
+	{
+	    if(isFullAncestor)
+		selfType = GABC_LayerOptions::LayerType::FULL;
+	    else
 		selfType = GABC_LayerOptions::LayerType::SPARSE;
-	    }
-	    else if(kidsType == GABC_LayerOptions::LayerType::FULL
-		    || kidsType == GABC_LayerOptions::LayerType::REPLACE)
-	    {
-		if(isFullAncestor)
-		    selfType = GABC_LayerOptions::LayerType::FULL;
-		else
-		    selfType = GABC_LayerOptions::LayerType::SPARSE;
-	    }
 	}
     }
 
     node->setLayerNodeType(selfType);
     return selfType;
-}
-
-static void
-ropSetAbcNodeFullOptions(ROP_AbcNode *node)
-{
-    node->setLayerNodeType(GABC_LayerOptions::LayerType::FULL);
-    for(auto &it : node->getChildren())
-	ropSetAbcNodeFullOptions(it.second);
 }
 
 void
@@ -1584,7 +1694,10 @@ ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
     GABC_LayerOptions layerOptions;
 
     if(!USE_LAYERING(time))
-	ropSetAbcNodeFullOptions(myRoot.get());
+    {
+	ropRecursiveSetLayerType(myRoot.get(),
+	    GABC_LayerOptions::LayerType::FULL);
+    }
     else
     {
 	// Populates the layering parameters from the session. Traverses
@@ -1660,10 +1773,7 @@ ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
 	// Sets the layer options...
 	bool fullAncestor = FULL_ANCESTOR(time);
 	for(auto &it : myRoot->getChildren())
-	{
-	    ropSetAbcNodeLayerOptions(it.second, "",
-		layerOptions, fullAncestor);
-	}
+	    ropSetAbcNodeLayerOptions(it.second, layerOptions, fullAncestor);
     }
 
     // Executes the saving process.

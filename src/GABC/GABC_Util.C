@@ -2328,7 +2328,9 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
         PropertyMap &up_map,
         OCompoundProperty *ancestor,
         GABC_OError &err,
-        const GABC_OOptions &ctx)
+        const GABC_OOptions &ctx,
+	const GABC_LayerOptions &lopt,
+	GABC_LayerOptions::LayerType ltype)
 {
     if (!ancestor && !up_map.size())
         return true;
@@ -2622,15 +2624,22 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
         {
             if (ancestor)
             {
-                if (array_size)
-                    prop = new GABC_OArrayProperty();
-                else
-                    prop = new GABC_OScalarProperty();
+		auto propltype = lopt.getUserPropType(
+		    ancestor->getObject().getFullName().c_str(),
+		    UT_String(m_key.buffer()), ltype);
 
-                if (!prop->start(parent, name, data_array, err, ctx, pod))
-                    err.warning("Skipping property %s.", m_key.buffer());
-                else
-                    up_map.insert(PropertyMapInsert(m_key.toStdString(), prop));
+		if (propltype != GABC_LayerOptions::LayerType::DEFER)
+		{
+		    if (array_size)
+			prop = new GABC_OArrayProperty(propltype);
+		    else
+			prop = new GABC_OScalarProperty(propltype);
+
+		    if (!prop->start(parent, name, data_array, err, ctx, pod))
+			err.warning("Skipping property %s.", m_key.buffer());
+		    else
+			up_map.insert(PropertyMapInsert(m_key.toStdString(), prop));
+		}
             }
             else
             {

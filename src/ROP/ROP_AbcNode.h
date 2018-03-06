@@ -44,7 +44,7 @@ class ROP_AbcNode
 {
 public:
     ROP_AbcNode(const std::string &name) : myParent(nullptr), myName(name),
-	myVisible(GABC_VisibilityType::GABC_VISIBLE_HIDDEN) {}
+	myPath(name), myVisible(GABC_VisibilityType::GABC_VISIBLE_HIDDEN) {}
     virtual ~ROP_AbcNode()
     {
 	for(auto &it : myChildren)
@@ -53,6 +53,7 @@ public:
 
     /// Returns name of this node.
     const char *getName() const { return myName.c_str(); }
+    const char *getPath() const { return myPath.c_str(); };
 
     /// Sets the layer node type of this node.
     void setLayerNodeType(GABC_LayerOptions::LayerType type)
@@ -102,6 +103,8 @@ public:
 protected:
     /// this node's name
     const std::string myName;
+    /// this node's full path
+    std::string myPath;
     /// this node's parent
     ROP_AbcNode *myParent;
     /// this node's computed bounding box

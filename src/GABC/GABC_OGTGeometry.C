@@ -321,6 +321,8 @@ namespace
 	    const RiXlate &rixlate,
             GABC_OError &err,
             const GABC_OOptions &ctx,
+	    const GABC_LayerOptions &lopt,
+	    GABC_LayerOptions::LayerType ltype,
             const IgnoreList &skips,
 	    GABC_Util::CollisionResolver &collision_resolver,
 	    UT_Set<std::string> &known_attribs)
@@ -343,10 +345,15 @@ namespace
 	    auto	&data = attribs->get(i);
 	    auto	 scope = rixlate.getScope(name, owner);
 
+	    auto attrltype = lopt.getAttrType(
+		cp.getObject().getFullName().c_str(),
+		UT_String(exp_name), ltype);
+
             if (!data
                     || skips.contains(exp_name)
                     || default_skips.contains(exp_name.c_str())
                     || !ctx.matchAttribute(scope, exp_name.c_str())
+		    || attrltype == GABC_LayerOptions::LayerType::DEFER
                     || data->getTupleSize() < 1
                     || data->getTypeInfo() == GT_TYPE_HIDDEN
                     || arb_map.count(exp_name.c_str()))
@@ -364,10 +371,10 @@ namespace
 	    if(scope == Alembic::AbcGeom::kConstantScope
 		&& GABC_OScalarProperty::isValidScalarData(data))
 	    {
-		prop = new GABC_OScalarProperty();
+		prop = new GABC_OScalarProperty(attrltype);
 	    }
 	    else
-		prop = new GABC_OArrayProperty(scope);
+		prop = new GABC_OArrayProperty(attrltype, scope);
             if (!prop->start(cp, exp_name.c_str(), data, err, ctx))
             {
                 delete prop;
@@ -554,23 +561,44 @@ namespace
 	return true;
     }
 
-    static bool
-    matchAttribute(const GABC_OOptions &ctx,
-	    const char *name,
+    static GABC_LayerOptions::LayerType
+    getAttrLayerType(const GABC_OOptions &ctx,
+	    const GABC_LayerOptions &lopt,
+	    GABC_LayerOptions::LayerType ltype,
+	    const char *nodeName,
+	    const char *attrName,
 	    const GT_AttributeListHandle &point,
 	    const GT_AttributeListHandle &vertex = GT_AttributeListHandle(),
 	    const GT_AttributeListHandle &uniform = GT_AttributeListHandle(),
 	    const GT_AttributeListHandle &detail = GT_AttributeListHandle())
     {
-	if (point && point->getIndex(name) >= 0)
-	    return ctx.matchAttribute(GA_ATTRIB_POINT, name);
-	if (vertex && vertex->getIndex(name) >= 0)
-	    return ctx.matchAttribute(GA_ATTRIB_VERTEX, name);
-	if (uniform && uniform->getIndex(name) >= 0)
-	    return ctx.matchAttribute(GA_ATTRIB_PRIMITIVE, name);
-	if (detail && detail->getIndex(name) >= 0)
-	    return ctx.matchAttribute(GA_ATTRIB_DETAIL, name);
-	return true;
+	bool matches = true;
+
+	if (point && point->getIndex(attrName) >= 0)
+	    matches = ctx.matchAttribute(GA_ATTRIB_POINT, attrName);
+	else if (vertex && vertex->getIndex(attrName) >= 0)
+	    matches = ctx.matchAttribute(GA_ATTRIB_VERTEX, attrName);
+	else if (uniform && uniform->getIndex(attrName) >= 0)
+	    matches = ctx.matchAttribute(GA_ATTRIB_PRIMITIVE, attrName);
+	else if (detail && detail->getIndex(attrName) >= 0)
+	    matches = ctx.matchAttribute(GA_ATTRIB_DETAIL, attrName);
+
+	if(matches == false)
+	    return GABC_LayerOptions::LayerType::DEFER;
+
+	return lopt.getAttrType(nodeName, attrName, ltype);
+    }
+
+    static void
+    pruneAttribute(const OCompoundProperty &ancestor,
+	const char *name)
+    {
+	if(ancestor.getPropertyHeader(name) == nullptr)
+	{
+	    auto md = Alembic::Abc::MetaData();
+	    Alembic::AbcCoreLayer::SetPrune(md, true);
+	    OCompoundProperty(ancestor, name, md);
+	}
     }
 
     template <typename GeomParamSample, typename TRAITS>
@@ -882,7 +910,9 @@ namespace
     fillPolyMesh(OPolyMesh &dest,
 	    const GT_PrimitiveHandle &src_prim,
 	    IntrinsicCache &cache,
-	    const GABC_OOptions &ctx)
+	    const GABC_OOptions &ctx,
+	    const GABC_LayerOptions &lopt,
+	    GABC_LayerOptions::LayerType ltype)
     {
 	GT_PrimitiveHandle		tmpprim;
 	auto &&src = promotePrimToDetail<GT_PrimPolygonMesh>(src_prim,
@@ -901,33 +931,57 @@ namespace
 	const GT_AttributeListHandle   &uniform = uniformAttributes(src);
 	RiXlate				rixlate(src, GT_PRIM_POLYGON_MESH);
 
-	counts = src.getFaceCountArray().extractCounts();
-	if (cache.needVertex(ctx, src.getVertexList()))
-	    iInd = int32Array(src.getVertexList(), storage.vertexList());
+	if (ltype == GABC_LayerOptions::LayerType::FULL
+	    || ltype == GABC_LayerOptions::LayerType::REPLACE)
+	{
+	    counts = src.getFaceCountArray().extractCounts();
+	    if (cache.needVertex(ctx, src.getVertexList()))
+		iInd = int32Array(src.getVertexList(), storage.vertexList());
 
-	if (cache.needCounts(ctx, counts))
-	    iCnt = int32Array(counts, storage.counts());
+	    if (cache.needCounts(ctx, counts))
+		iCnt = int32Array(counts, storage.counts());
+	}
+	if (getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", pt)
+	    == GABC_LayerOptions::LayerType::FULL)
+	    fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, pt);
 
-	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, pt);
+	OPolyMeshSchema::Sample	sample(iPos.getVals(), iInd, iCnt);
+
+	auto uv_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "uv", pt, vtx, uniform);
+	auto normal_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "N", pt, vtx);
+	auto vel_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "v", pt, vtx);
 
 	UT_ValArray<uint32> uv_idx_storage;
 	UT_Fpreal32Array uv_data_storage;
-	if (matchAttribute(ctx, "uv", pt, vtx, uniform))
+	if (uv_layer_type == GABC_LayerOptions::LayerType::FULL)
 	{
 	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), rixlate, pt, vtx,
 		    uniform, GT_AttributeListHandle(),
 		    &uv_idx_storage, &uv_data_storage);
+	    sample.setUVs(iUVs);
 	}
+	else if (uv_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), "uv");
 
-	if (matchAttribute(ctx, "N", pt, vtx))
+	if (normal_layer_type == GABC_LayerOptions::LayerType::FULL)
+	{
 	    fillN3f(iNml, cache, ctx, "N", storage.N(), rixlate, pt, vtx);
+	    sample.setNormals(iNml);
+	}
+	else if (normal_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), "N");
 
-	if (matchAttribute(ctx, "v", pt, vtx))
+	if (vel_layer_type == GABC_LayerOptions::LayerType::FULL)
+	{
 	    fillV3f(iVel, cache, ctx, "v", storage.v(), rixlate, pt, vtx);
-
-	OPolyMeshSchema::Sample	sample(iPos.getVals(), iInd, iCnt, iUVs, iNml);
-	if (iVel.valid())
 	    sample.setVelocities(iVel.getVals());
+	}
+	else if (vel_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), ".velocities");
+
 	dest.getSchema().set(sample);
 	return tmpprim;
     }
@@ -936,7 +990,9 @@ namespace
     fillSubD(GABC_OGTGeometry &geo, OSubD &dest,
 	    const GT_PrimitiveHandle &src_prim,
 	    IntrinsicCache &cache,
-	    const GABC_OOptions &ctx)
+	    const GABC_OOptions &ctx,
+	    const GABC_LayerOptions &lopt,
+	    GABC_LayerOptions::LayerType ltype)
     {
 	GT_PrimitiveHandle	tmpprim;
 	auto &&src = promotePrimToDetail<GT_PrimSubdivisionMesh>(src_prim,
@@ -960,123 +1016,147 @@ namespace
 	const GT_AttributeListHandle   &vtx = vertexAttributes(src);
 	const GT_AttributeListHandle   &uniform = uniformAttributes(src);
 	RiXlate				rixlate(src, GT_PRIM_SUBDIVISION_MESH);
+	const GT_PrimSubdivisionMesh::Tag	*tag;
 
-	counts = src.getFaceCountArray().extractCounts();
-	if (cache.needVertex(ctx, src.getVertexList()))
-	    iInd = int32Array(src.getVertexList(), storage.vertexList());
-	if (cache.needCounts(ctx, counts))
-	    iCnt = int32Array(counts, storage.counts());
-	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, pt);
+	if (ltype == GABC_LayerOptions::LayerType::FULL
+	    || ltype == GABC_LayerOptions::LayerType::REPLACE)
+	{
+	    counts = src.getFaceCountArray().extractCounts();
+	    if (cache.needVertex(ctx, src.getVertexList()))
+		iInd = int32Array(src.getVertexList(), storage.vertexList());
+	    if (cache.needCounts(ctx, counts))
+		iCnt = int32Array(counts, storage.counts());
+
+	    tag = src.findTag("crease");
+	    if (tag && tag->intCount() == 1 && tag->realCount() == 1)
+	    {
+		SecondaryCache		&cache2 = geo.getSecondaryCache();
+		const GT_DataArrayHandle	&idx = tag->intArray(0);
+		const GT_DataArrayHandle	&sharp = tag->realArray(0);
+		bool			 needcounts = false;
+		if (cache2.needCreaseIndices(ctx, idx))
+		{
+		    iCreaseIndices = int32Array(idx, tstorage.creaseIndices());
+		    needcounts = true;
+		}
+		if (cache2.needCreaseSharpnesses(ctx, sharp))
+		{
+		    iCreaseSharpnesses = floatArray(sharp,
+				    tstorage.creaseSharpnesses());
+		}
+		if (needcounts)
+		{
+		    // Counts need to be an array of 2's -- one for each sharpness
+		    GT_DataArrayHandle	two;
+		    two.reset(new GT_IntConstant(sharp->entries(), 2));
+		    iCreaseLengths = int32Array(two, tstorage.creaseLengths());
+		}
+	    }
+	    tag = src.findTag("corner");
+	    if (tag && tag->intCount() == 1 && tag->realCount() == 1)
+	    {
+		SecondaryCache		&cache2 = geo.getSecondaryCache();
+		const GT_DataArrayHandle	&idx = tag->intArray(0);
+		const GT_DataArrayHandle	&sharp = tag->realArray(0);
+		if (cache2.needCornerIndices(ctx, idx))
+		{
+		    iCornerIndices = int32Array(idx, tstorage.cornerIndices());
+		}
+		if (cache2.needCornerSharpnesses(ctx, sharp))
+		{
+		    iCornerSharpnesses = floatArray(sharp,
+				    tstorage.cornerSharpnesses());
+		}
+	    }
+	    tag = src.findTag("hole");
+	    if (tag && tag->intCount() == 1)
+	    {
+		SecondaryCache		&cache2 = geo.getSecondaryCache();
+		const GT_DataArrayHandle	&idx = tag->intArray(0);
+		if (cache2.needHoleIndices(ctx, idx))
+		    iHoles = int32Array(idx, tstorage.holeIndices());
+	    }
+	}
+
+	if (getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", pt)
+	    == GABC_LayerOptions::LayerType::FULL)
+	    fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, pt);
+
+	OSubDSchema::Sample	sample(iPos.getVals(), iInd, iCnt,
+			iCreaseIndices, iCreaseLengths, iCreaseSharpnesses,
+			iCornerIndices, iCornerSharpnesses, iHoles);
+
+	if (ltype == GABC_LayerOptions::LayerType::FULL
+	    || ltype == GABC_LayerOptions::LayerType::REPLACE)
+	{
+	    switch (src.scheme())
+	    {
+		case GT_LOOP:
+		    sample.setSubdivisionScheme("loop");
+		    break;
+		case GT_BILINEAR:
+		    sample.setSubdivisionScheme("bilinear");
+		    break;
+		default:
+		    break;	// Default is "catmull-clark"
+	    }
+	    tag = src.findTag("interpolateboundary");
+	    if (tag && tag->intCount() == 1)
+	    {
+		const GT_DataArrayHandle	&val = tag->intArray(0);
+		if (val && val->entries() == 1)
+		    sample.setInterpolateBoundary(val->getI32(0));
+	    }
+	    tag = src.findTag("facevaryinginterpolateboundary");
+	    if (tag && tag->intCount() == 1)
+	    {
+		const GT_DataArrayHandle	&val = tag->intArray(0);
+		if (val && val->entries() == 1)
+		    sample.setFaceVaryingInterpolateBoundary(val->getI32(0));
+	    }
+	    tag = src.findTag("facevaryingpropagatecorners");
+	    if (tag && tag->intCount() == 1)
+	    {
+		const GT_DataArrayHandle	&val = tag->intArray(0);
+		if (val && val->entries() == 1)
+		    sample.setFaceVaryingPropagateCorners(val->getI32(0));
+	    }
+	}
+
+	auto uv_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "uv", pt, vtx, uniform);
+	auto vel_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "v", pt, vtx);
+
 	UT_ValArray<uint32> uv_idx_storage;
 	UT_Fpreal32Array uv_data_storage;
-	if (matchAttribute(ctx, "uv", pt, vtx, uniform))
+	if (uv_layer_type == GABC_LayerOptions::LayerType::FULL)
 	{
 	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), rixlate, pt, vtx,
 		    uniform, GT_AttributeListHandle(),
 		    &uv_idx_storage, &uv_data_storage);
-	}
-	if (matchAttribute(ctx, "v", pt, vtx))
-	    fillV3f(iVel, cache, ctx, "v", storage.v(), rixlate, pt, vtx);
-
-	const GT_PrimSubdivisionMesh::Tag	*tag;
-	tag = src.findTag("crease");
-	if (tag && tag->intCount() == 1 && tag->realCount() == 1)
-	{
-	    SecondaryCache		&cache2 = geo.getSecondaryCache();
-	    const GT_DataArrayHandle	&idx = tag->intArray(0);
-	    const GT_DataArrayHandle	&sharp = tag->realArray(0);
-	    bool			 needcounts = false;
-	    if (cache2.needCreaseIndices(ctx, idx))
-	    {
-		iCreaseIndices = int32Array(idx, tstorage.creaseIndices());
-		needcounts = true;
-	    }
-	    if (cache2.needCreaseSharpnesses(ctx, sharp))
-	    {
-		iCreaseSharpnesses = floatArray(sharp,
-				tstorage.creaseSharpnesses());
-	    }
-	    if (needcounts)
-	    {
-		// Counts need to be an array of 2's -- one for each sharpness
-		GT_DataArrayHandle	two;
-		two.reset(new GT_IntConstant(sharp->entries(), 2));
-		iCreaseLengths = int32Array(two, tstorage.creaseLengths());
-	    }
-	}
-	tag = src.findTag("corner");
-	if (tag && tag->intCount() == 1 && tag->realCount() == 1)
-	{
-	    SecondaryCache		&cache2 = geo.getSecondaryCache();
-	    const GT_DataArrayHandle	&idx = tag->intArray(0);
-	    const GT_DataArrayHandle	&sharp = tag->realArray(0);
-	    if (cache2.needCornerIndices(ctx, idx))
-	    {
-		iCornerIndices = int32Array(idx, tstorage.cornerIndices());
-	    }
-	    if (cache2.needCornerSharpnesses(ctx, sharp))
-	    {
-		iCornerSharpnesses = floatArray(sharp,
-				tstorage.cornerSharpnesses());
-	    }
-	}
-	tag = src.findTag("hole");
-	if (tag && tag->intCount() == 1)
-	{
-	    SecondaryCache		&cache2 = geo.getSecondaryCache();
-	    const GT_DataArrayHandle	&idx = tag->intArray(0);
-	    if (cache2.needHoleIndices(ctx, idx))
-		iHoles = int32Array(idx, tstorage.holeIndices());
-	}
-
-	OSubDSchema::Sample	sample(iPos.getVals(), iInd, iCnt,
-			iCreaseIndices, iCreaseLengths, iCreaseSharpnesses,
-			iCornerIndices, iCornerSharpnesses,
-			iHoles);
-
-	switch (src.scheme())
-	{
-	    case GT_LOOP:
-		sample.setSubdivisionScheme("loop");
-		break;
-	    case GT_BILINEAR:
-		sample.setSubdivisionScheme("bilinear");
-		break;
-	    default:
-		break;	// Default is "catmull-clark"
-	}
-	tag = src.findTag("interpolateboundary");
-	if (tag && tag->intCount() == 1)
-	{
-	    const GT_DataArrayHandle	&val = tag->intArray(0);
-	    if (val && val->entries() == 1)
-		sample.setInterpolateBoundary(val->getI32(0));
-	}
-	tag = src.findTag("facevaryinginterpolateboundary");
-	if (tag && tag->intCount() == 1)
-	{
-	    const GT_DataArrayHandle	&val = tag->intArray(0);
-	    if (val && val->entries() == 1)
-		sample.setFaceVaryingInterpolateBoundary(val->getI32(0));
-	}
-	tag = src.findTag("facevaryingpropagatecorners");
-	if (tag && tag->intCount() == 1)
-	{
-	    const GT_DataArrayHandle	&val = tag->intArray(0);
-	    if (val && val->entries() == 1)
-		sample.setFaceVaryingPropagateCorners(val->getI32(0));
-	}
-	if (iUVs.valid())
 	    sample.setUVs(iUVs);
-	if (iVel.valid())
+	}
+	else if (uv_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), "uv");
+
+	if (vel_layer_type == GABC_LayerOptions::LayerType::FULL)
+	{
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), rixlate, pt, vtx);
 	    sample.setVelocities(iVel.getVals());
+	}
+	else if (vel_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), ".velocities");
+
 	dest.getSchema().set(sample);
 	return tmpprim;
     }
 
     static void
     fillPoints(OPoints &dest, const GT_PrimPointMesh &src,
-	    IntrinsicCache &cache, const GABC_OOptions &ctx)
+	    IntrinsicCache &cache, const GABC_OOptions &ctx,
+	    const GABC_LayerOptions &lopt,
+	    GABC_LayerOptions::LayerType ltype)
     {
 	OP3fGeomParam::Sample           iPos;
 	UInt64ArraySample               iId;
@@ -1099,51 +1179,55 @@ namespace
 		    ids.reset(new GT_DARange(0, src.getPointCount()));
 	    }
 	}
-	iId = uint64Array(ids, storage.id());
-	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, pt);
-	if (matchAttribute(ctx, "v", pt))
+
+	if (getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "id", pt)
+	    == GABC_LayerOptions::LayerType::FULL)
+	    iId = uint64Array(ids, storage.id());
+
+	if (getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", pt)
+	    == GABC_LayerOptions::LayerType::FULL)
+	    fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, pt);
+
+	OPointsSchema::Sample sample(iPos.getVals(), iId);
+
+	auto vel_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "v", pt);
+	auto width_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "width", pt,
+	    GT_AttributeListHandle(), GT_AttributeListHandle(), detail);
+
+	if (vel_layer_type == GABC_LayerOptions::LayerType::FULL)
+	{
 	    fillV3f(iVel, cache, ctx, "v", storage.v(), rixlate, pt);
-	if (matchAttribute(ctx,
-	        "width",
-	        pt,
-		GT_AttributeListHandle(),
-		GT_AttributeListHandle(),
-		detail))
-	{
-	    fillF32(iWidths,
-	            cache,
-	            ctx,
-	            "width",
-	            storage.width(),
-		    rixlate,
-	            pt,
-		    GT_AttributeListHandle(),
-		    GT_AttributeListHandle(),
-		    detail);
+	    sample.setVelocities(iVel.getVals());
 	}
-	if (cache.needWrite(ctx, "id", ids))
+	else if (vel_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), ".velocities");
+
+	if (width_layer_type == GABC_LayerOptions::LayerType::FULL)
 	{
-	    // Topology changed
-	    OPointsSchema::Sample   sample(iPos.getVals(),
-                                            iId,
-                                            iVel.getVals(),
-                                            iWidths);
-	    dest.getSchema().set(sample);
+	    fillF32(iWidths, cache, ctx, "width", storage.width(), rixlate,
+		pt, GT_AttributeListHandle(), GT_AttributeListHandle(), detail);
+	    sample.setWidths(iWidths);
 	}
-	else
-	{
-	    // Topology unchanged
-	    OPointsSchema::Sample   sample(iPos.getVals(),
-                                            iVel.getVals(),
-                                            iWidths);
-	    dest.getSchema().set(sample);
-	}
+	else if (width_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), ".widths");
+
+	dest.getSchema().set(sample);
     }
 
     static void
     fillCurves(OCurves &dest, const GT_PrimCurveMesh &src,
-	    IntrinsicCache &cache, const GABC_OOptions &ctx)
+	    IntrinsicCache &cache, const GABC_OOptions &ctx,
+	    const GABC_LayerOptions &lopt,
+	    GABC_LayerOptions::LayerType ltype)
     {
+	/*
+	TODO: The function will always create several properties on the node
+	even it's marked as sparse. For fixing that, we need to wait for some
+	promotions from Alembic repository.
+	*/
+
 	OP3fGeomParam::Sample			 iPos;
 	FloatArraySample			 iPosWeight;
 	Int32ArraySample			 iCnt;
@@ -1216,108 +1300,106 @@ namespace
 		iOrders = uint8Array(orders, order_storage);
 		break;
 	}
+
 	iPeriod = src.getWrap()
 			? Alembic::AbcGeom::kPeriodic
 			: Alembic::AbcGeom::kNonPeriodic;
 
-	counts = src.getCurveCountArray().extractCounts();
-	if (cache.needCounts(ctx, counts))
-	    iCnt = int32Array(counts, storage.counts());
+	if (ltype == GABC_LayerOptions::LayerType::FULL
+	    || ltype == GABC_LayerOptions::LayerType::REPLACE)
+	{
+	    counts = src.getCurveCountArray().extractCounts();
+	    if (cache.needCounts(ctx, counts))
+		iCnt = int32Array(counts, storage.counts());
+
+	    if (Pw && cache.needWrite(ctx, "Pw", Pw))
+	    {
+		iPosWeight = floatArray(Pw, storage.Pw());
+		homogenized_vals = homogenize(iPos, iPosWeight);
+
+		if(homogenized_vals)
+		    iPos.setVals(*homogenized_vals);
+	    }
+
+	    if (knots)
+		iKnots = floatArray(knots, storage.uknots());
+	}
 
 	// We pass in "vtx" for the point attributes since we can't
 	// differentiate between them at this point.
-	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, vtx);
-
-	UT_ValArray<uint32> uv_idx_storage;
-	UT_Fpreal32Array uv_data_storage;
-	if (matchAttribute(ctx,
-                "uv",
-                GT_AttributeListHandle(),
-                vtx,
-                uniform))
-        {
-            fillV2f(iUVs,
-                    cache,
-                    ctx,
-                    "uv",
-                    storage.uv(),
-		    rixlate, 
-                    GT_AttributeListHandle(),
-                    vtx,
-                    uniform,
-		    GT_AttributeListHandle(),
-		    &uv_idx_storage,
-		    &uv_data_storage);
-        }
-
-	if (matchAttribute(ctx, "N", vtx))
-        {
-	    fillN3f(iNml,
-	            cache,
-	            ctx,
-	            "N",
-	            storage.N(),
-		    rixlate,
-	            GT_AttributeListHandle(),
-	            vtx);
-        }
-
-	if (matchAttribute(ctx, "v", vtx))
-	{
-	    fillV3f(iVel,
-	            cache,
-	            ctx,
-	            "v",
-	            storage.v(),
-		    rixlate,
-	            GT_AttributeListHandle(),
-	            vtx);
-        }
-
-	if (matchAttribute(ctx,
-	        "width",
-	        GT_AttributeListHandle(),
-	        vtx,
-	        uniform,
-	        detail))
-	{
-	    fillF32(iWidths,
-	            cache,
-	            ctx,
-	            "width",
-	            storage.width(),
-		    rixlate,
-	            GT_AttributeListHandle(),
-		    vtx,
-		    uniform,
-		    detail);
-	}
-
-	if (Pw && cache.needWrite(ctx, "Pw", Pw))
-	{
-	    iPosWeight = floatArray(Pw, storage.Pw());
-            homogenized_vals = homogenize(iPos, iPosWeight);
-
-            if(homogenized_vals)
-                iPos.setVals(*homogenized_vals);
-        }
-
-	if (knots)
-	    iKnots = floatArray(knots, storage.uknots());
+	if (getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", vtx)
+	    == GABC_LayerOptions::LayerType::FULL)
+	    fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, vtx);
 
 	OCurvesSchema::Sample	sample(iPos.getVals(), iCnt,
 		iOrder, iPeriod, iWidths, iUVs, iNml, iBasis,
 		iPosWeight, iOrders, iKnots);
-	if (iVel.valid())
+
+	auto uv_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "uv", GT_AttributeListHandle(), vtx, uniform);
+	auto normal_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "N", vtx);
+	auto vel_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "v", vtx);
+	auto width_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "width", GT_AttributeListHandle(), vtx, uniform, detail);
+
+	UT_ValArray<uint32> uv_idx_storage;
+	UT_Fpreal32Array uv_data_storage;
+	if (uv_layer_type == GABC_LayerOptions::LayerType::FULL)
+        {
+	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), rixlate,
+		GT_AttributeListHandle(), vtx, uniform,
+		GT_AttributeListHandle(), &uv_idx_storage, &uv_data_storage);
+	    sample.setUVs(iUVs);
+        }
+	else if (uv_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), "uv");
+
+	if (normal_layer_type == GABC_LayerOptions::LayerType::FULL)
+        {
+	    fillN3f(iNml, cache, ctx, "N", storage.N(), rixlate,
+		GT_AttributeListHandle(), vtx);
+	    sample.setNormals(iNml);
+        }
+	else if (normal_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), "N");
+
+	if (vel_layer_type == GABC_LayerOptions::LayerType::FULL)
+	{
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), rixlate,
+		GT_AttributeListHandle(), vtx);
 	    sample.setVelocities(iVel.getVals());
+        }
+	else if (vel_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), ".velocities");
+
+	if (width_layer_type == GABC_LayerOptions::LayerType::FULL)
+	{
+	    fillF32(iWidths, cache, ctx, "width", storage.width(), rixlate,
+		GT_AttributeListHandle(), vtx, uniform, detail);
+	    sample.setWidths(iWidths);
+	}
+	else if (width_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), ".widths");
+
 	dest.getSchema().set(sample);
     }
 
     static void
     fillNuPatch(GABC_OGTGeometry &geo,
 	    ONuPatch &dest, const GT_PrimNuPatch &src,
-	    IntrinsicCache &cache, const GABC_OOptions &ctx)
+	    IntrinsicCache &cache, const GABC_OOptions &ctx,
+	    const GABC_LayerOptions &lopt,
+	    GABC_LayerOptions::LayerType ltype)
     {
+
+	/*
+	TODO: The function will always create several properties on the node
+	even it's marked as sparse. For fixing that, we need to wait for some
+	promotions from Alembic repository.
+	*/
+    
 	FloatArraySample                iUKnot;
 	FloatArraySample                iVKnot;
 	FloatArraySample                iPosWeight;
@@ -1336,49 +1418,28 @@ namespace
 	// differentiate between them at this point.
 	//
 	// Also pass in "detail" for primitive attributes.
-	fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, vtx);
+	if (getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", vtx)
+	    == GABC_LayerOptions::LayerType::FULL)
+	    fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, vtx);
 
-	UT_ValArray<uint32> uv_idx_storage;
-	UT_Fpreal32Array uv_data_storage;
-	if (matchAttribute(ctx,
-	        "uv",
-	        GT_AttributeListHandle(),
-	        vtx,
-	        detail))
+	// if (ltype == GABC_LayerOptions::LayerType::FULL
+	    // || ltype == GABC_LayerOptions::LayerType::REPLACE)
+	if (true)
 	{
-	    fillV2f(iUVs,
-	            cache,
-	            ctx,
-	            "uv",
-	            storage.uv(),
-		    rixlate,
-	            GT_AttributeListHandle(),
-	            vtx,
-	            detail,
-		    GT_AttributeListHandle(),
-		    &uv_idx_storage,
-		    &uv_data_storage);
-        }
+	    if (cache.needWrite(ctx, "uknots", src.getUKnots()))
+		iUKnot = floatArray(src.getUKnots(), storage.uknots());
 
-	if (matchAttribute(ctx, "N", vtx, vtx))
-	    fillN3f(iNml, cache, ctx, "N", storage.N(), rixlate, vtx, vtx);
+	    if (cache.needWrite(ctx, "vknots", src.getVKnots()))
+		iVKnot = floatArray(src.getVKnots(), storage.vknots());
 
-	if (matchAttribute(ctx, "v", vtx, vtx))
-	    fillV3f(iVel, cache, ctx, "v", storage.v(), rixlate, vtx, vtx);
+	    if (Pw && cache.needWrite(ctx, "Pw", Pw))
+	    {
+		iPosWeight = floatArray(Pw, storage.Pw());
+		homogenized_vals = homogenize(iPos, iPosWeight);
 
-	if (cache.needWrite(ctx, "uknots", src.getUKnots()))
-	    iUKnot = floatArray(src.getUKnots(), storage.uknots());
-
-	if (cache.needWrite(ctx, "vknots", src.getVKnots()))
-	    iVKnot = floatArray(src.getVKnots(), storage.vknots());
-
-	if (Pw && cache.needWrite(ctx, "Pw", Pw))
-	{
-	    iPosWeight = floatArray(Pw, storage.Pw());
-            homogenized_vals = homogenize(iPos, iPosWeight);
-
-            if(homogenized_vals)
-                iPos.setVals(*homogenized_vals);
+		if(homogenized_vals)
+		    iPos.setVals(*homogenized_vals);
+	    }
 	}
 
 	ONuPatchSchema::Sample	sample(iPos.getVals(),
@@ -1386,14 +1447,48 @@ namespace
 			src.getUOrder(), src.getVOrder(),
 			iUKnot, iVKnot,
 			iNml, iUVs, iPosWeight);
-	if (iVel.valid())
+
+	auto uv_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "uv", GT_AttributeListHandle(), vtx, detail);
+	auto normal_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "N", vtx);
+	auto vel_layer_type = getAttrLayerType(ctx, lopt, ltype,
+	    dest.getFullName().c_str(), "v", vtx);
+
+	UT_ValArray<uint32> uv_idx_storage;
+	UT_Fpreal32Array uv_data_storage;
+	if (uv_layer_type == GABC_LayerOptions::LayerType::FULL)
+	{
+	    fillV2f(iUVs, cache, ctx, "uv", storage.uv(), rixlate,
+		GT_AttributeListHandle(), vtx, detail,
+		GT_AttributeListHandle(), &uv_idx_storage, &uv_data_storage);
+	    sample.setUVs(iUVs);
+        }
+	else if (uv_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), "uv");
+
+	if (normal_layer_type == GABC_LayerOptions::LayerType::FULL)
+	{
+	    fillN3f(iNml, cache, ctx, "N", storage.N(), rixlate, vtx);
+	    sample.setNormals(iNml);
+	}
+	else if (normal_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), "N");
+
+	if (vel_layer_type == GABC_LayerOptions::LayerType::FULL)
+	{
+	    fillV3f(iVel, cache, ctx, "v", storage.v(), rixlate, vtx);
 	    sample.setVelocities(iVel.getVals());
+	}
+	else if (vel_layer_type == GABC_LayerOptions::LayerType::PRUNE)
+	    pruneAttribute(dest.getSchema(), ".velocities");
 
 	// The trim storage needs to be declared out of the trim scope since it
 	// needs to be maintained until the sample is written.
 	SecondaryCache		tstore;
 	GT_DataArrayHandle	trimNcurves, trimN, trimU, trimV, trimW;
-	if (src.isTrimmed())
+	if (src.isTrimmed() && (ltype == GABC_LayerOptions::LayerType::FULL
+	    || ltype == GABC_LayerOptions::LayerType::REPLACE))
 	{
 	    SecondaryCache		&cache2=geo.getSecondaryCache();
 	    const GT_TrimNuCurves	*trims;
@@ -1603,11 +1698,13 @@ GABC_OGTGeometry::getDefaultSkip()
     return *def;
 }
 
-GABC_OGTGeometry::GABC_OGTGeometry(const std::string &name)
+GABC_OGTGeometry::GABC_OGTGeometry(const std::string &name,
+    GABC_LayerOptions::LayerType type)
     : myName(name)
     , myType(GT_PRIM_UNDEFINED)
     , mySecondaryCache(NULL)
     , myElapsedFrames(0)
+    , myLayerNodeType(type)
 {
     myShape.myVoidPtr = NULL;
 }
@@ -1781,7 +1878,8 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
 bool
 GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
         GABC_OError &err,
-        const GABC_OOptions &ctx)
+        const GABC_OOptions &ctx,
+	const GABC_LayerOptions &lopt)
 {
     clearArbProperties();
 
@@ -1823,23 +1921,27 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
     }
 
     result = result && makeGeomParams(myArbProperties[POINT_PROPERTIES],
-                prim->getPointAttributes(),
-                cp,
-                GT_OWNER_POINT,
+		prim->getPointAttributes(),
+		cp,
+		GT_OWNER_POINT,
 		rixlate,
-                err,
-                ctx,
-                *skip,
+		err,
+		ctx,
+		lopt,
+		myLayerNodeType,
+		*skip,
 		myKnownArbCollisionResolver,
 		myKnownArbProperties);
     result = result && makeGeomParams(myArbProperties[VERTEX_PROPERTIES],
-                prim->getVertexAttributes(),
-                cp,
-                GT_OWNER_VERTEX,
+		prim->getVertexAttributes(),
+		cp,
+		GT_OWNER_VERTEX,
 		rixlate,
-                err,
-                ctx,
-                *skip,
+		err,
+		ctx,
+		lopt,
+		myLayerNodeType,
+		*skip,
 		myKnownArbCollisionResolver,
 		myKnownArbProperties);
     result = result && makeGeomParams(myArbProperties[UNIFORM_PROPERTIES],
@@ -1849,6 +1951,8 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 		rixlate,
 		err,
 		ctx,
+		lopt,
+		myLayerNodeType,
 		*skip,
 		myKnownArbCollisionResolver,
 		myKnownArbProperties);
@@ -1859,6 +1963,8 @@ GABC_OGTGeometry::makeArbProperties(const GT_PrimitiveHandle &prim,
 		rixlate,
 		err,
 		ctx,
+		lopt,
+		myLayerNodeType,
 		*skip,
 		myKnownArbCollisionResolver,
 		myKnownArbProperties);
@@ -1928,6 +2034,7 @@ bool
 GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 	const OObject &parent,
 	const GABC_OOptions &ctx,
+	const GABC_LayerOptions &lopt,
 	GABC_OError &err,
 	ObjectVisibility vis)
 {
@@ -1944,6 +2051,11 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 	return false;
     }
 
+    UT_ASSERT(myLayerNodeType != GABC_LayerOptions::LayerType::DEFER);
+    auto metadata = Alembic::Abc::MetaData();
+    auto sparseFlag = GABC_LayerOptions::getSparseFlag(myLayerNodeType);
+    GABC_LayerOptions::getMetadata(metadata, myLayerNodeType);
+
     switch (myType)
     {
 	// Direct mapping to Alembic primitives
@@ -1952,7 +2064,9 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 	    promotePrimToDetail<GT_PrimPolygonMesh>(prim, ctx, prim);
             myShape.myPolyMesh = new OPolyMesh(parent,
                     myName,
-                    ctx.timeSampling());
+                    ctx.timeSampling(),
+		    metadata,
+		    sparseFlag);
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myPolyMesh),
                     ctx.timeSampling());
@@ -1964,7 +2078,9 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 	    promotePrimToDetail<GT_PrimSubdivisionMesh>(prim, ctx, prim);
             myShape.mySubD = new OSubD(parent,
                     myName,
-                    ctx.timeSampling());
+                    ctx.timeSampling(),
+		    metadata,
+		    sparseFlag);
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.mySubD),
                     ctx.timeSampling());
@@ -1974,7 +2090,9 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 	case GT_PRIM_POINT_MESH:
             myShape.myPoints = new OPoints(parent,
                     myName,
-                    ctx.timeSampling());
+                    ctx.timeSampling(),
+		    metadata,
+		    sparseFlag);
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myPoints),
                     ctx.timeSampling());
@@ -1983,7 +2101,9 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 	case GT_PRIM_CURVE_MESH:
             myShape.myCurves = new OCurves(parent,
                     myName,
-                    ctx.timeSampling());
+                    ctx.timeSampling(),
+		    metadata,
+		    sparseFlag);
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myCurves),
                     ctx.timeSampling());
@@ -1992,7 +2112,9 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 	case GT_PRIM_NUPATCH:
             myShape.myNuPatch = new ONuPatch(parent,
                     myName,
-                    ctx.timeSampling());
+                    ctx.timeSampling(),
+		    metadata,
+		    sparseFlag);
 	    myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
                     *(myShape.myNuPatch),
                     ctx.timeSampling());
@@ -2003,22 +2125,26 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
             return false;
     }
 
-    if (!makeArbProperties(prim, err, ctx))
+    if (!makeArbProperties(prim, err, ctx, lopt))
     {
         err.error("Error saving attributes: ");
         return false;
     }
 
-    return update(prim, ctx, err, vis);
+    return update(prim, ctx, lopt, err, vis);
 }
 
 bool
 GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
 	const GABC_OOptions &ctx,
+	const GABC_LayerOptions &lopt,
 	GABC_OError &err,
 	ObjectVisibility vis)
 {
     UT_ASSERT(src);
+    if(myLayerNodeType == GABC_LayerOptions::LayerType::PRUNE)
+	return true;
+
     if (myType == GT_PRIM_UNDEFINED)
     {
 	err.error("Need to save first frame!");
@@ -2035,14 +2161,16 @@ GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
     switch (myType)
     {
 	case GT_PRIM_POLYGON_MESH:
-	    prim = fillPolyMesh(*myShape.myPolyMesh, prim, myCache, ctx);
+	    prim = fillPolyMesh(*myShape.myPolyMesh,
+				prim, myCache, ctx, lopt, myLayerNodeType);
 	    fillFaceSets(myFaceSetNames,
 			myShape.myPolyMesh->getSchema(),
 			((GT_PrimPolygonMesh *)(prim.get()))->faceSetMap());
 	    break;
 
 	case GT_PRIM_SUBDIVISION_MESH:
-	    prim = fillSubD(*this, *myShape.mySubD, prim, myCache, ctx);
+	    prim = fillSubD(*this, *myShape.mySubD,
+			    prim, myCache, ctx, lopt, myLayerNodeType);
 	    fillFaceSets(myFaceSetNames,
 			myShape.mySubD->getSchema(),
 			((GT_PrimSubdivisionMesh *)(prim.get()))->faceSetMap());
@@ -2051,19 +2179,19 @@ GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
 	case GT_PRIM_POINT_MESH:
 	    fillPoints(*myShape.myPoints,
 			*(GT_PrimPointMesh *)(prim.get()),
-			myCache, ctx);
+			myCache, ctx, lopt, myLayerNodeType);
 	    break;
 
 	case GT_PRIM_CURVE_MESH:
 	    fillCurves(*myShape.myCurves,
 			*(GT_PrimCurveMesh *)(prim.get()),
-			myCache, ctx);
+			myCache, ctx, lopt, myLayerNodeType);
 	    break;
 
 	case GT_PRIM_NUPATCH:
 	    fillNuPatch(*this, *myShape.myNuPatch,
 			*(GT_PrimNuPatch *)(prim.get()),
-			myCache, ctx);
+			myCache, ctx, lopt, myLayerNodeType);
 	    break;
 
 	default:
@@ -2085,6 +2213,9 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
         ObjectVisibility vis,
         exint frames)
 {
+    if(myLayerNodeType == GABC_LayerOptions::LayerType::PRUNE)
+	return true;
+
     if (myType == GT_PRIM_UNDEFINED)
     {
 	err.error("Need to save first frame!");

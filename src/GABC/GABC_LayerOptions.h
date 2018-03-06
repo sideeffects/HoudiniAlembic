@@ -30,6 +30,8 @@
 
 #include "GABC_API.h"
 
+#include <Alembic/Abc/Foundation.h>
+#include <Alembic/AbcCoreLayer/Util.h>
 #include <UT/UT_Array.h>
 #include <UT/UT_String.h>
 #include <UT/UT_StringHolder.h>
@@ -40,13 +42,26 @@ namespace GABC_NAMESPACE
 class GABC_API GABC_LayerOptions
 {
 public:
+    // The LayerType is being widely used for exporting layering archive
+    // and it has different meaning for the nodes and the props.
+    // In the case of the nodes:
+    //     DEFER   : The node won't exist in the archive.
+    //     PRUNE   : The empty sparse node with the prune metadata.
+    //     SPARSE  : The sparse node with several props.
+    //     FULL    : The common full node.
+    //     REPLACE : The full node with the replace metadata.
+    // And for the props:
+    //     DEFER   : The property won't exist in the archive.
+    //     PRUNE   : The empty property with the prune metadata.
+    //     FULL    : The common property.
+    // NOTE: Presently, the REPLACE and the SPARSE are illegal on the props.
     enum LayerType
     {
-	DEFER,	// The node won't exist in the archive.
-	PRUNE,	// The empty sparse node with the prune metadata.
-	SPARSE,	// The sparse node with several properties.
-	FULL,	// The traditional full node.
-	REPLACE	// The full node with the replace metadata.
+	DEFER,
+	PRUNE,
+	SPARSE,
+	FULL,
+	REPLACE
     };
 
     class Rules
@@ -103,6 +118,11 @@ public:
 			 GABC_LayerOptions() {}
 			~GABC_LayerOptions() {}
 
+    static void		 getMetadata(Alembic::Abc::MetaData &md,
+				LayerType type);
+    static Alembic::Abc::SparseFlag
+			 getSparseFlag(LayerType type);
+
     void		 appendNodeRule(const UT_String &nodePat,
 				LayerType type);
     void		 appendVizRule(const UT_String &nodePat,
@@ -114,12 +134,20 @@ public:
 				const UT_String &userPropPat,
 				LayerType type);
 
+    // The method should never be called in saving process. The ROP_AbcNode
+    // should always hold the actual node type.
     LayerType		 getNodeType(const UT_String &nodePath) const;
-    LayerType		 getVizType(const UT_String &nodePath) const;
+
+    // These methods accept an extra node type then map it as proper property
+    // type before match the pattern.
+    LayerType		 getVizType(const UT_String &nodePath,
+				LayerType nodeType) const;
     LayerType		 getAttrType(const UT_String &nodePath,
-				const UT_String &attrName) const;
+				const UT_String &attrName,
+				LayerType nodeType) const;
     LayerType		 getUserPropType(const UT_String &nodePath,
-				const UT_String &userPropName) const;
+				const UT_String &userPropName,
+				LayerType nodeType) const;
 
 private:
     Rules		 myNodeData, myVizData;

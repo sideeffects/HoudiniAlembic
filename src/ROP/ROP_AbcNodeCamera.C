@@ -53,9 +53,18 @@ ROP_AbcNodeCamera::getOObject(ROP_AbcArchive &archive, GABC_OError &err)
 }
 
 void
-ROP_AbcNodeCamera::update(ROP_AbcArchive &archive, const GABC_LayerOptions &, GABC_OError &err)
+ROP_AbcNodeCamera::update(ROP_AbcArchive &archive, const GABC_LayerOptions &,
+    GABC_OError &err)
 {
+    // The defer node won't be exported.
+    if(myLayerNodeType == GABC_LayerOptions::LayerType::DEFER)
+	return;
+
     makeValid(archive, err);
+
+    // The prune node doesn't need further implementation.
+    if(myLayerNodeType == GABC_LayerOptions::LayerType::PRUNE)
+	return;
 
     exint nsamples = archive.getSampleCount();
     for(; mySampleCount < nsamples; ++mySampleCount)
@@ -106,11 +115,19 @@ ROP_AbcNodeCamera::update(ROP_AbcArchive &archive, const GABC_LayerOptions &, GA
 void
 ROP_AbcNodeCamera::makeValid(ROP_AbcArchive &archive, GABC_OError &err)
 {
+    UT_ASSERT(myLayerNodeType != GABC_LayerOptions::LayerType::DEFER);
+
     if(myIsValid)
 	return;
 
+    if(myLayerNodeType == GABC_LayerOptions::LayerType::SPARSE)
+	err.warning("Cannot export sparse camera node %s.", myPath.c_str());
+
+    auto metadata = Alembic::Abc::MetaData();
+    GABC_LayerOptions::getMetadata(metadata, myLayerNodeType);
+
     myOCamera = OCamera(myParent->getOObject(archive, err),
-	myName, archive.getTimeSampling());
+	myName, archive.getTimeSampling(), metadata);
 
     // XXX: consider merging with general user properties handling
     DataType dtype = DataType(Alembic::Abc::kFloat32POD);

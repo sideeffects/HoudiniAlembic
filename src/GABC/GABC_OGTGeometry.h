@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -31,7 +31,9 @@
 #include "GABC_API.h"
 #include "GABC_Include.h"
 #include "GABC_Util.h"
+#include "GABC_LayerOptions.h"
 #include <Alembic/AbcGeom/All.h>
+#include <Alembic/AbcCoreLayer/Util.h>
 #include <GT/GT_Primitive.h>
 #include <UT/UT_StringSet.h>
 
@@ -253,7 +255,8 @@ public:
 
     static const IgnoreList &getDefaultSkip();
 
-     GABC_OGTGeometry(const std::string &name);
+     GABC_OGTGeometry(const std::string &name,
+	 GABC_LayerOptions::LayerType type);
     ~GABC_OGTGeometry();
 
     /// Return true if the primitive can be processed
@@ -264,12 +267,14 @@ public:
     bool            start(const GT_PrimitiveHandle &prim,
                             const OObject &parent,
                             const GABC_OOptions &ctx,
+			    const GABC_LayerOptions &lopt,
                             GABC_OError &err,
                             ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
     // Output geometry, attribute, and user property samples to Alembic for the
     // current frame.
     bool            update(const GT_PrimitiveHandle &prim,
                             const GABC_OOptions &ctx,
+			    const GABC_LayerOptions &lopt,
                             GABC_OError &err,
                             ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
     // Output samples to Alembic, reusing the samples for the previous frame.
@@ -297,7 +302,8 @@ protected:
     // Make Alembic arbGeomProperties from Houdini attributes.
     bool        makeArbProperties(const GT_PrimitiveHandle &prim,
                         GABC_OError &err,
-			const GABC_OOptions &ctx);
+			const GABC_OOptions &ctx,
+			const GABC_LayerOptions &lopt);
     // Output samples of attribute data to Alembic for current frame.
     bool        writeArbProperties(const GT_PrimitiveHandle &prim,
                         GABC_OError &err,
@@ -330,16 +336,17 @@ private:
 	void		   *myVoidPtr;
     } myShape;
 
-    IntrinsicCache          myCache; // Cache for space optimization
-    OVisibilityProperty     myVisibility;
-    CollisionResolver	    myKnownArbCollisionResolver;
-    UT_Set<std::string>	    myKnownArbProperties;
-    PropertyMap             myArbProperties[MAX_PROPERTIES];
-    SecondaryCache         *mySecondaryCache;
-    UT_StringArray          myFaceSetNames;
-    std::string             myName;
-    exint                   myElapsedFrames;
-    int                     myType;
+    IntrinsicCache		 myCache; // Cache for space optimization
+    OVisibilityProperty		 myVisibility;
+    CollisionResolver		 myKnownArbCollisionResolver;
+    UT_Set<std::string>		 myKnownArbProperties;
+    PropertyMap			 myArbProperties[MAX_PROPERTIES];
+    SecondaryCache		*mySecondaryCache;
+    UT_StringArray		 myFaceSetNames;
+    std::string			 myName;
+    exint			 myElapsedFrames;
+    int				 myType;
+    GABC_LayerOptions::LayerType myLayerNodeType;
 };
 
 } // GABC_NAMESPACE

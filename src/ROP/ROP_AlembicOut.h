@@ -57,6 +57,7 @@ public:
     virtual void buildRenderDependencies(const ROP_RenderDepParms &p);
 
     SOP_Node *getSopNode(fpreal time) const;
+    void getOutputNodesArray(UT_StringArray &array, fpreal time);
 
 protected:
     ROP_AlembicOut(OP_Network *net, const char *name, OP_Operator *entry);

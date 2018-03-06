@@ -54,8 +54,9 @@ public:
     void setUserProperties(const std::string &vals, const std::string &meta)
 	    { myUserPropVals = vals; myUserPropMeta = meta; }
     /// Sets the current geometry.
-    void setData(const GT_PrimitiveHandle &prim, bool visible)
-	    { myPrim = prim; setVisibility(visible); }
+    void setData(const GT_PrimitiveHandle &prim, bool visible,
+	const std::string &subd)
+	    { myPrim = prim; setVisibility(visible); mySubdGrp = subd; }
 
 private:
     void clear();
@@ -69,6 +70,7 @@ private:
 
     GT_PrimitiveHandle myPrim;
     bool myLocked;
+    std::string mySubdGrp;
 };
 
 #endif

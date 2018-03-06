@@ -58,6 +58,11 @@ ROP_AbcNode::addChild(ROP_AbcNode *child)
     const std::string &name = child->myName;
 
     UT_ASSERT(!child->myParent);
+    UT_WorkBuffer buf;
+    buf.append(getPath());
+    buf.append("/");
+    buf.append(name);
+    child->myPath = buf.buffer();
     child->myParent = this;
     myChildren.emplace(name, child);
     myResolver.add(name);

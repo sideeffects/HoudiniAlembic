@@ -59,7 +59,8 @@ public:
     // adds geometry to 'root' with the provided name
     void addPartition(ROP_AbcHierarchySample &root, const std::string &name,
 		      bool subd, const GT_PrimitiveHandle &prim,
-		      const std::string &up_vals, const std::string &up_meta);
+		      const std::string &up_vals, const std::string &up_meta,
+		      const std::string &subd_grp);
 
 private:
     void appendShape(const GT_PrimitiveHandle &prim);
@@ -73,6 +74,7 @@ private:
     std::string myName;
     std::string myUserPropsVals;
     std::string myUserPropsMeta;
+    std::string mySubdGroup;
 
     // name of current instance being defined
     std::string myInstanceKey;

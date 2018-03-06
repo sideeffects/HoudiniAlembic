@@ -37,7 +37,8 @@ using namespace GABC_NAMESPACE;
 namespace
 {
     typedef Alembic::AbcCoreAbstract::DataType      DataType;
-    
+    typedef Alembic::AbcCoreAbstract::MetaData      MetaData;
+
     typedef Alembic::Abc::OCompoundProperty         OCompoundProperty;
     typedef Alembic::Abc::OScalarProperty           OScalarProperty;
     typedef Alembic::Abc::TimeSamplingPtr           TimeSamplingPtr;
@@ -238,7 +239,7 @@ GABC_OScalarProperty::~GABC_OScalarProperty()
 #define DECL_PARAM(TYPE) \
 do \
 { \
-    myProperty = Alembic::Abc::TYPE(parent, name, ts); \
+    myProperty = Alembic::Abc::TYPE(parent, name, ts, md); \
     valid = true; \
 } while(false)
 
@@ -415,6 +416,11 @@ GABC_OScalarProperty::start(OCompoundProperty &parent,
 
     const TimeSamplingPtr  &ts = options.timeSampling();
     bool                    valid = false;
+    MetaData                md;
+
+    UT_ASSERT(myLayerType == GABC_LayerOptions::LayerType::PRUNE
+	|| myLayerType == GABC_LayerOptions::LayerType::FULL);
+    GABC_LayerOptions::getMetadata(md, myLayerType);
 
     myStorage = array->getStorage();
     myTupleSize = array->getTupleSize();
@@ -884,6 +890,10 @@ GABC_OScalarProperty::update(const GT_DataArrayHandle &array,
 	const GABC_OOptions &ctx,
         const PlainOldDataType pod)
 {
+    if(myLayerType == GABC_LayerOptions::LayerType::PRUNE)
+	return true;
+    UT_ASSERT(myLayerType == GABC_LayerOptions::LayerType::FULL);
+
     if ((myPOD != pod)
             || (myStorage != array->getStorage())
             || (myTupleSize != array->getTupleSize())

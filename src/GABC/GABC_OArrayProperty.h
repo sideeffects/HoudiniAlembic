@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -57,13 +57,16 @@ public:
     using PlainOldDataType = Alembic::Util::PlainOldDataType;
 
     /// This constructor is used if we're creating a user property.
-    GABC_OArrayProperty()
-        : myScope(Alembic::AbcGeom::kUnknownScope)
+    GABC_OArrayProperty(GABC_LayerOptions::LayerType ltype)
+	: GABC_OProperty(ltype)
+        , myScope(Alembic::AbcGeom::kUnknownScope)
         , myIsGeomParam(false)
     {}
     /// This constructor is used if we're creating an attribute.
-    explicit GABC_OArrayProperty(GeometryScope scope)
-        : myScope(scope)
+    explicit GABC_OArrayProperty(GABC_LayerOptions::LayerType ltype,
+	GeometryScope scope)
+	: GABC_OProperty(ltype)
+        , myScope(scope)
         , myIsGeomParam(true)
     {}
 
@@ -89,10 +92,10 @@ public:
             }
 
 private:
-    GeometryScope           myScope;
-    OArrayProperty          myProperty;
-    OUInt32ArrayProperty    myIndexProperty;
-    bool                    myIsGeomParam;
+    GeometryScope		 myScope;
+    OArrayProperty		 myProperty;
+    OUInt32ArrayProperty	 myIndexProperty;
+    bool			 myIsGeomParam;
 };
 
 } // GABC_NAMESPACE

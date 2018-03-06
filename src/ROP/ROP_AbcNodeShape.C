@@ -91,12 +91,23 @@ ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
     const GABC_LayerOptions &layerOptions, GABC_OError &err)
 {
     exint nsamples = archive.getSampleCount();
+    archive.getOOptions().setSubdGroup(mySubdGrp.c_str());
 
     // TODO: Remove this temporary mapping for the visibility.
     bool visible = (myVisible != GABC_VisibilityType::GABC_VISIBLE_HIDDEN);
 
     for(; mySampleCount < nsamples; ++mySampleCount)
     {
+	if(myPrim)
+	{
+	    myBox.initBounds();
+	    ropEnlargeBounds(myBox, myPrim);
+	}
+
+	// The defer node won't be exported.
+	if(myLayerNodeType == GABC_LayerOptions::LayerType::DEFER)
+	    continue;
+
 	if(!myWriter)
 	{
 	    if(myPrim)
@@ -104,14 +115,11 @@ ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
 		// write the first sample
 		mySampleCount = 0;
 		bool vis = (visible && nsamples == 1);
-		myWriter.reset(new GABC_OGTGeometry(myName));
+		myWriter.reset(new GABC_OGTGeometry(myName, myLayerNodeType));
 		myWriter->start(myPrim, myParent->getOObject(archive, err),
-				archive.getOOptions(), err,
+				archive.getOOptions(), layerOptions, err,
 				vis ? Alembic::AbcGeom::kVisibilityDeferred
 				    : Alembic::AbcGeom::kVisibilityHidden);
-
-		myBox.initBounds();
-		ropEnlargeBounds(myBox, myPrim);
 	    }
 	}
 	else
@@ -125,11 +133,9 @@ ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
 	    }
 	    else
 	    {
-		myWriter->update(myPrim, archive.getOOptions(), err,
+		myWriter->update(myPrim, archive.getOOptions(), layerOptions, err,
 				 vis ? Alembic::AbcGeom::kVisibilityDeferred
 				     : Alembic::AbcGeom::kVisibilityHidden);
-		myBox.initBounds();
-		ropEnlargeBounds(myBox, myPrim);
 	    }
 	}
 
@@ -137,7 +143,8 @@ ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
 	if(myWriter && !myUserPropVals.empty() && !myUserPropMeta.empty())
 	{
 	    OCompoundProperty props = myWriter->getUserProperties();
-	    myUserProperties.update(props, myUserPropVals, myUserPropMeta, archive, err);
+	    myUserProperties.update(props, myUserPropVals, myUserPropMeta,
+		archive, err, layerOptions, myLayerNodeType);
 	}
     }
 }

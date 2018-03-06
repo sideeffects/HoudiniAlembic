@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -31,6 +31,7 @@
 #include "GABC_API.h"
 #include "GABC_Include.h"
 #include "GABC_OError.h"
+#include "GABC_LayerOptions.h"
 #include <Alembic/AbcGeom/All.h>
 #include <GT/GT_Handles.h>
 #include <GT/GT_Types.h>
@@ -63,7 +64,9 @@ public:
     typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
     typedef Alembic::Util::PlainOldDataType PlainOldDataType;
 
-    virtual         ~GABC_OProperty() {}
+		    GABC_OProperty(GABC_LayerOptions::LayerType ltype)
+			: myLayerType(ltype) {}
+    virtual        ~GABC_OProperty() {}
 
     /// Creates the appropriate child object, based on the array's storage
     /// type, tuple size, and interpretation, and the Alembic POD (if provided)
@@ -89,15 +92,13 @@ public:
     virtual exint   getNumSamples() const = 0;
 
 protected:
-    /// Can't have just a GABC_OProperty
-    GABC_OProperty() {}
-
-    GT_DataArrayHandle  myCache;
-    GT_Size             myTupleSize;
-    GT_Storage          myStorage;
-    GT_Type             myType;
-    PlainOldDataType    myPOD;
-    void               *myBuffer;
+    GT_DataArrayHandle		 myCache;
+    GT_Size			 myTupleSize;
+    GT_Storage			 myStorage;
+    GT_Type			 myType;
+    PlainOldDataType		 myPOD;
+    void			*myBuffer;
+    GABC_LayerOptions::LayerType myLayerType;
 };
 
 } // GABC_NAMESPACE

@@ -31,7 +31,7 @@ using namespace GABC_NAMESPACE;
 
 void
 GABC_LayerOptions::Rules::append(const UT_String &pattern,
-    GABC_LayerOptions::LayerType type)
+    LayerType type)
 {
     myData.append(Rule(pattern, type));
 }
@@ -47,7 +47,7 @@ GABC_LayerOptions::Rules::getLayerType(const UT_String &str) const
 
 void
 GABC_LayerOptions::MultiRules::append(const UT_String &pat,
-    const UT_String &subPat, GABC_LayerOptions::LayerType type)
+    const UT_String &subPat, LayerType type)
 {
     myData.append(Rule(pat, subPat, type));
 }
@@ -57,7 +57,7 @@ GABC_LayerOptions::MultiRules::getLayerType(const UT_String &str,
     const UT_String &subStr) const
 {
     for(auto it = myData.begin(); it != myData.end(); ++it)
-	if(str.multiMatch(it->myNodePat) && str.multiMatch(it->mySubPat))
+	if(str.multiMatch(it->myNodePat) && subStr.multiMatch(it->mySubPat))
 	    return it->myType;
     return LayerType::DEFER;
 }
@@ -72,29 +72,49 @@ GABC_LayerOptions::MultiRules::matchesNodePattern(const UT_String &str) const
 }
 
 void
+GABC_LayerOptions::getMetadata(Alembic::Abc::MetaData &md, LayerType type)
+{
+    UT_ASSERT(type != LayerType::DEFER);
+    if(type == LayerType::PRUNE)
+	Alembic::AbcCoreLayer::SetPrune(md, true);
+    else if(type == LayerType::REPLACE)
+	Alembic::AbcCoreLayer::SetReplace(md, true);
+}
+
+Alembic::Abc::SparseFlag
+GABC_LayerOptions::getSparseFlag(LayerType type)
+{
+    UT_ASSERT(type != LayerType::DEFER);
+    if(type == LayerType::PRUNE || type == LayerType::SPARSE)
+	return Alembic::Abc::SparseFlag::kSparse;
+    // (type == LayerType::FULL || type == LayerType::REPLACE)
+    return Alembic::Abc::SparseFlag::kFull;
+}
+
+void
 GABC_LayerOptions::appendNodeRule(const UT_String &nodePat,
-    GABC_LayerOptions::LayerType type)
+    LayerType type)
 {
     myNodeData.append(nodePat, type);
 }
 
 void
 GABC_LayerOptions::appendVizRule(const UT_String &nodePat,
-    GABC_LayerOptions::LayerType type)
+    LayerType type)
 {
     myVizData.append(nodePat, type);
 }
 
 void
 GABC_LayerOptions::appendAttrRule(const UT_String &nodePat,
-    const UT_String &attrPat, GABC_LayerOptions::LayerType type)
+    const UT_String &attrPat, LayerType type)
 {
     myAttrData.append(nodePat, attrPat, type);
 }
 
 void
 GABC_LayerOptions::appendUserPropRule(const UT_String &nodePat,
-    const UT_String &userPropPat, GABC_LayerOptions::LayerType type)
+    const UT_String &userPropPat, LayerType type)
 {
     myUserPropData.append(nodePat, userPropPat, type);
 }
@@ -110,29 +130,60 @@ GABC_LayerOptions::getNodeType(const UT_String &nodePath) const
 	    || myAttrData.matchesNodePattern(nodePath)
 	    || myUserPropData.matchesNodePattern(nodePath))
 	{
-	    type = GABC_LayerOptions::LayerType::SPARSE;
+	    type = LayerType::SPARSE;
 	}
     }
 
-    return myNodeData.getLayerType(nodePath);
+    return type;
 }
 
 GABC_LayerOptions::LayerType
-GABC_LayerOptions::getVizType(const UT_String &nodePath) const
+GABC_LayerOptions::getVizType(const UT_String &nodePath,
+    LayerType nodeType) const
 {
-    return myVizData.getLayerType(nodePath);
+    auto type = myVizData.getLayerType(nodePath);
+
+    if(type != LayerType::PRUNE)
+    {
+	if(nodeType == LayerType::FULL || nodeType == LayerType::REPLACE)
+	    return LayerType::FULL;
+	if(nodeType == LayerType::DEFER || nodeType == LayerType::PRUNE)
+	    return LayerType::DEFER;
+    }
+
+    return type;
 }
 
 GABC_LayerOptions::LayerType
 GABC_LayerOptions::getAttrType(const UT_String &nodePath,
-    const UT_String &attrName) const
+    const UT_String &attrName, LayerType nodeType) const
 {
-    return myAttrData.getLayerType(nodePath, attrName);
+    auto type = myAttrData.getLayerType(nodePath, attrName);
+
+    if(type != LayerType::PRUNE)
+    {
+	if(nodeType == LayerType::FULL || nodeType == LayerType::REPLACE)
+	    return LayerType::FULL;
+	if(nodeType == LayerType::DEFER || nodeType == LayerType::PRUNE)
+	    return LayerType::DEFER;
+    }
+
+    return type;
 }
 
 GABC_LayerOptions::LayerType
 GABC_LayerOptions::getUserPropType(const UT_String &nodePath,
-    const UT_String &userPropName) const
+    const UT_String &userPropName, LayerType nodeType) const
 {
-    return myUserPropData.getLayerType(nodePath, userPropName);
+    auto type = myUserPropData.getLayerType(nodePath, userPropName);
+
+    if(type != LayerType::PRUNE)
+    {
+	if(nodeType == LayerType::FULL || nodeType == LayerType::REPLACE)
+	    return LayerType::FULL;
+	if(nodeType == LayerType::DEFER || nodeType == LayerType::PRUNE)
+	    return LayerType::DEFER;
+    }
+
+    return type;
 }

@@ -347,7 +347,9 @@ public:
                                 PropertyMap &up_map,
                                 OCompoundProperty *ancestor,
                                 GABC_OError &err,
-                                const GABC_OOptions &ctx);
+                                const GABC_OOptions &ctx,
+				const GABC_LayerOptions &lopt,
+				GABC_LayerOptions::LayerType ltype);
 
     static const UT_StringHolder	theLockGeometryParameter;
     static const UT_StringHolder	theUserPropsValsAttrib;

@@ -42,15 +42,17 @@ ROP_AbcUserProperties::update(
     const UT_StringHolder &vals,
     const UT_StringHolder &meta,
     ROP_AbcArchive &archive,
-    GABC_OError &err)
+    GABC_OError &err,
+    const GABC_LayerOptions &lopt,
+    GABC_LayerOptions::LayerType ltype)
 {
     if(!myIsValid)
     {
-	exportData(&props, vals, meta, archive, err);
+	exportData(&props, vals, meta, archive, err, lopt, ltype);
 	myIsValid = true;
     }
 
-    exportData(nullptr, vals, meta, archive, err);
+    exportData(nullptr, vals, meta, archive, err, lopt, ltype);
 }
 
 void
@@ -59,7 +61,9 @@ ROP_AbcUserProperties::exportData(
     const UT_StringHolder &vals,
     const UT_StringHolder &meta,
     ROP_AbcArchive &archive,
-    GABC_OError &err)
+    GABC_OError &err,
+    const GABC_LayerOptions &lopt,
+    GABC_LayerOptions::LayerType ltype)
 {
     UT_AutoJSONParser vals_data(vals.buffer(), vals.length());
     UT_AutoJSONParser meta_data(meta.buffer(), meta.length());
@@ -67,5 +71,5 @@ ROP_AbcUserProperties::exportData(
     meta_data->setBinary(false);
 
     GABC_Util::exportUserPropertyDictionary(meta_data, vals_data, myProps,
-		props, err, archive.getOOptions());
+		props, err, archive.getOOptions(), lopt, ltype);
 }

@@ -43,6 +43,7 @@ ROP_AbcNodeXform::purgeObjects()
 OObject
 ROP_AbcNodeXform::getOObject(ROP_AbcArchive &archive, GABC_OError &err)
 {
+    UT_ASSERT(myLayerNodeType != GABC_LayerOptions::LayerType::DEFER);
     makeValid(archive, err);
     return myOXform;
 }
@@ -63,11 +64,6 @@ void
 ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
     const GABC_LayerOptions &layerOptions, GABC_OError &err)
 {
-    makeValid(archive, err);
-
-    // TODO: Remove this temporary mapping for the visibility.
-    bool visible = (myVisible != GABC_VisibilityType::GABC_VISIBLE_HIDDEN);
-
     myBox.initBounds();
     for(auto &it : myChildren)
     {
@@ -77,6 +73,19 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
 
     Box3d b3 = GABC_Util::getBox(myBox);
     myBox.transform(myMatrix);
+
+    // TODO: Remove this temporary mapping for the visibility.
+    bool visible = (myVisible != GABC_VisibilityType::GABC_VISIBLE_HIDDEN);
+
+    // The defer node won't be exported.
+    if(myLayerNodeType == GABC_LayerOptions::LayerType::DEFER)
+	return;
+
+    makeValid(archive, err);
+
+    // The prune node doesn't need further implementation.
+    if(myLayerNodeType == GABC_LayerOptions::LayerType::PRUNE)
+	return;
 
     bool full_bounds = archive.getOOptions().fullBounds();
     exint nsamples = archive.getSampleCount();
@@ -88,9 +97,14 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
 	if(!mySampleCount || cur)
 	{
 	    bool vis = (visible && cur);
-	    XformSample sample;
-	    sample.setMatrix(GABC_Util::getM(myMatrix));
-	    schema.set(sample);
+
+	    if(myLayerNodeType == GABC_LayerOptions::LayerType::FULL
+		|| myLayerNodeType == GABC_LayerOptions::LayerType::REPLACE)
+	    {
+		XformSample sample;
+		sample.setMatrix(GABC_Util::getM(myMatrix));
+		schema.set(sample);
+	    }
 	    myVisibility.set(vis ? Alembic::AbcGeom::kVisibilityDeferred
 				 : Alembic::AbcGeom::kVisibilityHidden);
 	}
@@ -108,7 +122,8 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
 	if(!myUserPropVals.empty() && !myUserPropMeta.empty())
 	{
 	    OCompoundProperty props = schema.getUserProperties();
-	    myUserProperties.update(props, myUserPropVals, myUserPropMeta, archive, err);
+	    myUserProperties.update(props, myUserPropVals, myUserPropMeta,
+		archive, err, layerOptions, myLayerNodeType);
 	}
     }
 }
@@ -116,11 +131,17 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
 void
 ROP_AbcNodeXform::makeValid(ROP_AbcArchive &archive, GABC_OError &err)
 {
+    UT_ASSERT(myLayerNodeType != GABC_LayerOptions::LayerType::DEFER);
+
     if(myIsValid)
 	return;
 
+    auto metadata = Alembic::Abc::MetaData();
+    auto sparseFlag = GABC_LayerOptions::getSparseFlag(myLayerNodeType);
+    GABC_LayerOptions::getMetadata(metadata, myLayerNodeType);
+
     myOXform = OXform(myParent->getOObject(archive, err),
-	myName, archive.getTimeSampling());
+	myName, archive.getTimeSampling(), metadata, sparseFlag);
     myVisibility = CreateVisibilityProperty(myOXform, archive.getTimeSampling());
     myIsValid = true;
 }

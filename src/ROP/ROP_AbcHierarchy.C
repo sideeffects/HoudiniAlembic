@@ -61,7 +61,8 @@ ROP_AbcHierarchy::Node::setShape(
     const GT_PrimitiveHandle &prim,
     bool visible,
     const std::string &up_vals,
-    const std::string &up_meta)
+    const std::string &up_meta,
+    const std::string &subd_grp)
 {
     auto &shapes = myShapes[name][type];
     while(i >= shapes.entries())
@@ -73,7 +74,7 @@ ROP_AbcHierarchy::Node::setShape(
 	shapes.append(child);
     }
     auto shape = shapes(i);
-    shape->setData(prim, visible);
+    shape->setData(prim, visible, subd_grp);
     shape->setUserProperties(up_vals, up_meta);
 }
 
@@ -85,7 +86,8 @@ ROP_AbcHierarchy::Node::newInstanceSource(
     GABC_OError &err,
     const GT_PrimitiveHandle &prim,
     const std::string &up_vals,
-    const std::string &up_meta)
+    const std::string &up_meta,
+    const std::string &subd_grp)
 {
     auto &shapes = myInstancedShapes[name][type];
     shapes.append(key2);
@@ -94,7 +96,7 @@ ROP_AbcHierarchy::Node::newInstanceSource(
     myAbcNode->makeCollisionFreeName(temp_name, err);
     ROP_AbcNodeShape *child = new ROP_AbcNodeShape(temp_name);
     myAbcNode->addChild(child);
-    child->setData(prim, true);
+    child->setData(prim, true, subd_grp);
     child->setUserProperties(up_vals, up_meta);
     return child;
 }
@@ -238,11 +240,12 @@ ROP_AbcHierarchy::merge(
 			bool vis = std::get<1>(shape);
 			auto &up_vals = std::get<2>(shape);
 			auto &up_meta = std::get<3>(shape);
+			auto &subd_grp = std::get<4>(shape);
 			if(vis)
 			    should_be_visible = true;
 
 			n2->setShape(name, type, i, err, std::get<0>(shape),
-				     vis, up_vals, up_meta);
+				     vis, up_vals, up_meta, subd_grp);
 		    }
 		}
 	    }
@@ -260,7 +263,8 @@ ROP_AbcHierarchy::merge(
 	{
 	    UT_SortedSet<int> types;
 
-	    const UT_Map<int, UT_Array<std::tuple<std::string, exint, bool, std::string, std::string> > > *n1data = nullptr;
+	    const UT_Map<int, UT_Array<std::tuple<std::string, exint, bool,
+		std::string, std::string,std::string> > > *n1data = nullptr;
 	    if(n1)
 	    {
 		auto &inst_shapes = n1->getInstancedShapes();
@@ -286,7 +290,8 @@ ROP_AbcHierarchy::merge(
 
 	    for(int type : types)
 	    {
-		const UT_Array<std::tuple<std::string, exint, bool, std::string, std::string> > *n1data2 = nullptr;
+		const UT_Array<std::tuple<std::string, exint, bool,
+		    std::string, std::string, std::string> > *n1data2 = nullptr;
 		if(n1data)
 		{
 		    auto it = n1data->find(type);
@@ -321,6 +326,7 @@ ROP_AbcHierarchy::merge(
 			bool vis = std::get<2>(inst);
 			auto &up_vals = std::get<3>(inst);
 			auto &up_meta = std::get<4>(inst);
+			auto &subd_grp = std::get<5>(inst);
 			auto &prim = instance_map.find(key1)->second.find(type)->second(idx1);
 
 			if(vis)
@@ -338,7 +344,8 @@ ROP_AbcHierarchy::merge(
 			    myInstancedShapes[type][key2] = 
 				    n2->newInstanceSource(name, type, key2,
 							  err, prim,
-							  up_vals, up_meta);
+							  up_vals, up_meta,
+							  subd_grp);
 			    updated_instances.insert(key2);
 
 			    mapping.emplace(key, key2);
@@ -352,7 +359,7 @@ ROP_AbcHierarchy::merge(
 			    {
 				// update instance
 				auto shape = myInstancedShapes[type][key2];
-				shape->setData(prim, true);
+				shape->setData(prim, true, subd_grp);
 				shape->setUserProperties(up_vals, up_meta);
 				updated_instances.insert(key2);
 			    }

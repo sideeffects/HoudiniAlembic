@@ -46,10 +46,12 @@ class ROP_AbcHierarchy
 	UT_Map<std::string, Node> &getChildren() { return myChildren; }
 
 	// returns child non-instanced shape nodes
-	const UT_Map<std::string, UT_Map<int, UT_Array<ROP_AbcNodeShape *> > > &getShapes() const { return myShapes; }
+	const UT_Map<std::string, UT_Map<int, UT_Array<ROP_AbcNodeShape *> > >
+	    &getShapes() const { return myShapes; }
 
 	// returns child instanced shape nodes
-	const UT_Map<std::string, UT_Map<int, UT_Array<exint> > > &getInstancedShapes() const { return myInstancedShapes; }
+	const UT_Map<std::string, UT_Map<int, UT_Array<exint> > >
+	    &getInstancedShapes() const { return myInstancedShapes; }
 
 	// returns the named child xform node creating one if none existed
 	Node *setChild(const std::string &name,
@@ -64,7 +66,8 @@ class ROP_AbcHierarchy
 		      GABC_OError &err,
 		      const GT_PrimitiveHandle &prim, bool visible,
 		      const std::string &up_vals,
-		      const std::string &up_meta);
+		      const std::string &up_meta,
+		      const std::string &subd_grp);
 
 	// adds a child shape node that can be the source of instanced shape
 	// nodes
@@ -73,7 +76,8 @@ class ROP_AbcHierarchy
 			  GABC_OError &err,
 			  const GT_PrimitiveHandle &prim,
 			  const std::string &up_vals,
-			  const std::string &up_meta);
+			  const std::string &up_meta,
+			  const std::string &subd_grp);
 
 	// adds a child shape node that is an instance of an existing shape
 	// node

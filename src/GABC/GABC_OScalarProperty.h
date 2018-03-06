@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -54,7 +54,8 @@ public:
 
     typedef Alembic::Util::PlainOldDataType PlainOldDataType;
 
-    GABC_OScalarProperty() {}
+    GABC_OScalarProperty(GABC_LayerOptions::LayerType ltype)
+	: GABC_OProperty(ltype) {}
     ~GABC_OScalarProperty();
 
     /// true if 'array' can be represented as an Alembic scalar
@@ -80,8 +81,8 @@ public:
             }
 
 private:
-    OScalarProperty     myProperty;
-    void               *myBuffer;
+    OScalarProperty		 myProperty;
+    void			*myBuffer;
 };
 
 } // GABC_NAMESPACE
