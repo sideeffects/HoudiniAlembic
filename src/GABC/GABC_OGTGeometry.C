@@ -1305,6 +1305,12 @@ namespace
 			? Alembic::AbcGeom::kPeriodic
 			: Alembic::AbcGeom::kNonPeriodic;
 
+	// We pass in "vtx" for the point attributes since we can't
+	// differentiate between them at this point.
+	if (getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", vtx)
+	    == GABC_LayerOptions::LayerType::FULL)
+	    fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, vtx);
+
 	if (ltype == GABC_LayerOptions::LayerType::FULL
 	    || ltype == GABC_LayerOptions::LayerType::REPLACE)
 	{
@@ -1324,12 +1330,6 @@ namespace
 	    if (knots)
 		iKnots = floatArray(knots, storage.uknots());
 	}
-
-	// We pass in "vtx" for the point attributes since we can't
-	// differentiate between them at this point.
-	if (getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", vtx)
-	    == GABC_LayerOptions::LayerType::FULL)
-	    fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, vtx);
 
 	OCurvesSchema::Sample	sample(iPos.getVals(), iCnt,
 		iOrder, iPeriod, iWidths, iUVs, iNml, iBasis,
