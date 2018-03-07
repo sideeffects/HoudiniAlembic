@@ -53,7 +53,7 @@ ROP_AbcNodeXform::clearData(bool locked)
 {
     if(!locked)
     {
-	myVisible = GABC_VisibilityType::GABC_VISIBLE_HIDDEN;
+	myVisible = GABC_LayerOptions::VizType::HIDDEN;
 	myUserPropVals.clear();
 	myUserPropMeta.clear();
     }
@@ -74,9 +74,6 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
     Box3d b3 = GABC_Util::getBox(myBox);
     myBox.transform(myMatrix);
 
-    // TODO: Remove this temporary mapping for the visibility.
-    bool visible = (myVisible != GABC_VisibilityType::GABC_VISIBLE_HIDDEN);
-
     // The defer node won't be exported.
     if(myLayerNodeType == GABC_LayerOptions::LayerType::DEFER)
 	return;
@@ -87,16 +84,22 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
     if(myLayerNodeType == GABC_LayerOptions::LayerType::PRUNE)
 	return;
 
+    auto visibility = layerOptions.getVizType(myPath, myLayerNodeType);
+    if(visibility == GABC_LayerOptions::VizType::DEFAULT)
+	visibility = myVisible;
+
     bool full_bounds = archive.getOOptions().fullBounds();
     exint nsamples = archive.getSampleCount();
     for(; mySampleCount < nsamples; ++mySampleCount)
     {
 	auto &schema = myOXform.getSchema();
 	bool cur = (mySampleCount + 1 == nsamples);
+	auto viz = visibility;
 
 	if(!mySampleCount || cur)
 	{
-	    bool vis = (visible && cur);
+	    if(!cur)
+		viz = GABC_LayerOptions::VizType::HIDDEN;
 
 	    if(myLayerNodeType == GABC_LayerOptions::LayerType::FULL
 		|| myLayerNodeType == GABC_LayerOptions::LayerType::REPLACE)
@@ -105,14 +108,14 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
 		sample.setMatrix(GABC_Util::getM(myMatrix));
 		schema.set(sample);
 	    }
-	    myVisibility.set(vis ? Alembic::AbcGeom::kVisibilityDeferred
-				 : Alembic::AbcGeom::kVisibilityHidden);
 	}
 	else
 	{
 	    schema.setFromPrevious();
-	    myVisibility.set(Alembic::AbcGeom::kVisibilityHidden);
+	    viz = GABC_LayerOptions::VizType::HIDDEN;
 	}
+
+	myVisibility.set(GABC_LayerOptions::getOVisibility(viz));
 
 	// update computed bounding box
 	if(full_bounds)

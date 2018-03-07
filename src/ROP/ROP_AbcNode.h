@@ -34,7 +34,6 @@
 #include <GABC/GABC_LayerOptions.h>
 #include <GABC/GABC_Util.h>
 
-typedef GABC_NAMESPACE::GABC_VisibilityType GABC_VisibilityType;
 typedef GABC_NAMESPACE::GABC_LayerOptions GABC_LayerOptions;
 typedef GABC_NAMESPACE::GABC_Util::CollisionResolver CollisionResolver;
 
@@ -43,8 +42,18 @@ typedef GABC_NAMESPACE::GABC_Util::CollisionResolver CollisionResolver;
 class ROP_AbcNode
 {
 public:
+
+    enum NodeType
+    {
+    	ROOT,
+	XFORM,
+	SHAPE,
+	CAMERA,
+	INSTANCE
+    };
+
     ROP_AbcNode(const std::string &name) : myParent(nullptr), myName(name),
-	myPath(name), myVisible(GABC_VisibilityType::GABC_VISIBLE_HIDDEN) {}
+	myPath(name), myVisible(GABC_LayerOptions::VizType::HIDDEN) {}
     virtual ~ROP_AbcNode()
     {
 	for(auto &it : myChildren)
@@ -58,12 +67,24 @@ public:
     /// Sets the layer node type of this node.
     void setLayerNodeType(GABC_LayerOptions::LayerType type)
 	{ myLayerNodeType = type; }
+    GABC_LayerOptions::LayerType getLayerNodeType() const
+	{ return myLayerNodeType; }
 
     /// Sets the tag of the visibility of this node.
-    void setVisibility(GABC_VisibilityType vis) { myVisible = vis; }
+    void setVisibility(GABC_LayerOptions::VizType vis) 
+    { 
+	// The node should always holds a valid viztype, the
+	// DEFAULT only used in layerOption, then guide the 
+	// program to obtain the real viztype from the node.
+	UT_ASSERT(vis != GABC_LayerOptions::VizType::DEFAULT);
+	myVisible = vis;
+    }
     void setVisibility(bool vis)
-	{ myVisible = vis ? GABC_VisibilityType::GABC_VISIBLE_DEFER
-			  : GABC_VisibilityType::GABC_VISIBLE_HIDDEN; }
+    {
+	myVisible = vis ? GABC_LayerOptions::VizType::DEFER
+			: GABC_LayerOptions::VizType::HIDDEN;
+    }
+
     /// Updates 'name' to a unique value if this node already has a child with
     /// that name.
     void makeCollisionFreeName(std::string &name, GABC_OError &err) const;
@@ -80,6 +101,7 @@ public:
     /// Returns the OObject from the Alembic archive corresponding to this
     /// node.
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err) = 0;
+    virtual NodeType getNodeType() const = 0;
 
     /// Sets a new current Alembic archive.  All references to the previous
     /// Alembic archive are released.
@@ -114,7 +136,7 @@ protected:
     /// this node's layer node type
     GABC_LayerOptions::LayerType myLayerNodeType;
     /// this node's visibility tag
-    GABC_VisibilityType myVisible;
+    GABC_LayerOptions::VizType myVisible;
 
 private:
     CollisionResolver myResolver;
@@ -127,6 +149,7 @@ public:
     ROP_AbcNodeRoot() : ROP_AbcNode("") {}
 
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
+    virtual NodeType getNodeType() const { return NodeType::ROOT; }
     virtual void update(ROP_AbcArchive &archive,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 };

@@ -202,6 +202,15 @@ static PRM_Name theNodeFlagChoices[] =
     PRM_Name()
 };
 
+static PRM_Name theVizFlagChoices[] =
+{
+    PRM_Name("default", "Default"),
+    PRM_Name("defer",   "Defer"),
+    PRM_Name("hidden",  "Hidden"),
+    PRM_Name("visible", "Visible"),
+    PRM_Name()
+};
+
 static PRM_Name thePropFlagChoices[] =
 {
     PRM_Name("replace", "Replace"),
@@ -316,7 +325,7 @@ ropNodePickerCallback(void *data, int index, fpreal t, const PRM_Template *tplat
     attrName.eraseHead(4);
     rop->evalString(attrStr, attrName, 0, t);
 
-    cmd.strcpy("treechooser -c");
+    cmd.strcpy("treechooser -c -h \"Instance nodes not shown.\"");
 
     if (attrStr.isstring())
     {
@@ -355,6 +364,7 @@ static PRM_ChoiceList thePartitionAttributeMenu(PRM_CHOICELIST_REPLACE, theParti
 static PRM_ChoiceList thePackedTransformMenu(PRM_CHOICELIST_SINGLE, thePackedTransformChoices);
 static PRM_ChoiceList theFaceSetModeMenu(PRM_CHOICELIST_SINGLE, theFaceSetModeChoices);
 static PRM_ChoiceList theNodeFlagMenu(PRM_CHOICELIST_SINGLE, theNodeFlagChoices);
+static PRM_ChoiceList theVizFlagMenu(PRM_CHOICELIST_SINGLE, theVizFlagChoices);
 static PRM_ChoiceList thePropFlagMenu(PRM_CHOICELIST_SINGLE, thePropFlagChoices);
 
 // Make paths relative to /obj (for the bundle code)
@@ -385,7 +395,7 @@ static PRM_Template theMultiVizTemplate[] =
     PRM_Template(PRM_CALLBACK | PRM_TYPE_JOIN_NEXT, PRM_TYPE_NO_LABEL,
 	1, &thePickVizPathName, 0, 0, 0, ropNodePickerCallback, &theTreeButtonSpareData),
     PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
-	1, &theVizFlagName, 0, &thePropFlagMenu),
+	1, &theVizFlagName, 0, &theVizFlagMenu),
     PRM_Template()
 };
 
@@ -650,8 +660,14 @@ static void
 ropAppendNodeNames(UT_StringArray &array, ROP_AbcNode *node)
 {
     const char *path = node->getPath();
-    if(path[0] != '\0')
+    auto type = node->getNodeType();
+
+    // We don't want the user to select root or instance node in layering mode.
+    if(type != ROP_AbcNode::NodeType::ROOT
+	&& type != ROP_AbcNode::NodeType::INSTANCE)
+    {
 	array.append(path);
+    }
 
     for(auto &it : node->getChildren())
 	ropAppendNodeNames(array, it.second);
@@ -1007,7 +1023,6 @@ ROP_AlembicOut::getSubdGroup(
 	grp = gdp->findPrimitiveGroup(subdgroup);
     else if(subd)
 	subd_all = true;
-    myArchive->getOOptions().setSubdGroup(subdgroup);
     return grp;
 }
 
@@ -1723,16 +1738,20 @@ ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
 	// Populates layer viz parameters...
 	for(int i = 1; i <= NUM_VIZS(time); ++i)
 	{
-	    GABC_LayerOptions::LayerType layerType;
+	    GABC_LayerOptions::VizType layerType;
 	    UT_String path, rule;
 
 	    VIZ_PATH(path, i, time);
 	    VIZ_RULE(rule, i, time);
 
-	    if(rule == "replace")
-		layerType = GABC_LayerOptions::LayerType::FULL;
-	    else // if(rule == "prune")
-		layerType = GABC_LayerOptions::LayerType::PRUNE;
+	    if(rule == "default")
+		layerType = GABC_LayerOptions::VizType::DEFAULT;
+	    else if(rule == "defer")
+		layerType = GABC_LayerOptions::VizType::DEFER;
+	    else if(rule == "hidden")
+		layerType = GABC_LayerOptions::VizType::HIDDEN;
+	    else // if(rule == "visible")
+		layerType = GABC_LayerOptions::VizType::VISIBLE;
 
 	    layerOptions.appendVizRule(path, layerType);
 	}

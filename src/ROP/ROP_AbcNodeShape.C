@@ -93,8 +93,9 @@ ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
     exint nsamples = archive.getSampleCount();
     archive.getOOptions().setSubdGroup(mySubdGrp.c_str());
 
-    // TODO: Remove this temporary mapping for the visibility.
-    bool visible = (myVisible != GABC_VisibilityType::GABC_VISIBLE_HIDDEN);
+    auto visibility = layerOptions.getVizType(myPath, myLayerNodeType);
+    if(visibility == GABC_LayerOptions::VizType::DEFAULT)
+	visibility = myVisible;
 
     for(; mySampleCount < nsamples; ++mySampleCount)
     {
@@ -108,34 +109,36 @@ ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
 	if(myLayerNodeType == GABC_LayerOptions::LayerType::DEFER)
 	    continue;
 
+	auto viz = visibility;
 	if(!myWriter)
 	{
 	    if(myPrim)
 	    {
 		// write the first sample
 		mySampleCount = 0;
-		bool vis = (visible && nsamples == 1);
+		if(nsamples != 1)
+		    viz = GABC_LayerOptions::VizType::HIDDEN;
+
 		myWriter.reset(new GABC_OGTGeometry(myName, myLayerNodeType));
 		myWriter->start(myPrim, myParent->getOObject(archive, err),
 				archive.getOOptions(), layerOptions, err,
-				vis ? Alembic::AbcGeom::kVisibilityDeferred
-				    : Alembic::AbcGeom::kVisibilityHidden);
+				GABC_LayerOptions::getOVisibility(viz));
 	    }
 	}
 	else
 	{
-	    bool vis = (visible && mySampleCount + 1 == nsamples);
+	    if(mySampleCount + 1 != nsamples)
+		viz = GABC_LayerOptions::VizType::HIDDEN;
+
 	    if(!myPrim || myLocked)
 	    {
 		myWriter->updateFromPrevious(err,
-				vis ? Alembic::AbcGeom::kVisibilityDeferred
-				    : Alembic::AbcGeom::kVisibilityHidden);
+				GABC_LayerOptions::getOVisibility(viz));
 	    }
 	    else
 	    {
 		myWriter->update(myPrim, archive.getOOptions(), layerOptions, err,
-				 vis ? Alembic::AbcGeom::kVisibilityDeferred
-				     : Alembic::AbcGeom::kVisibilityHidden);
+				GABC_LayerOptions::getOVisibility(viz));
 	    }
 	}
 
@@ -153,7 +156,7 @@ void
 ROP_AbcNodeShape::clear()
 {
     myPrim = nullptr;
-    myVisible = GABC_VisibilityType::GABC_VISIBLE_HIDDEN;
+    myVisible = GABC_LayerOptions::VizType::HIDDEN;
     myUserPropVals.clear();
     myUserPropMeta.clear();
 }

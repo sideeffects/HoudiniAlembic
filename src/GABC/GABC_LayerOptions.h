@@ -32,6 +32,7 @@
 
 #include <Alembic/Abc/Foundation.h>
 #include <Alembic/AbcCoreLayer/Util.h>
+#include <Alembic/AbcGeom/Visibility.h>
 #include <UT/UT_Array.h>
 #include <UT/UT_String.h>
 #include <UT/UT_StringHolder.h>
@@ -42,6 +43,10 @@ namespace GABC_NAMESPACE
 class GABC_API GABC_LayerOptions
 {
 public:
+
+    // IMPORTANT: The order of the following two enums are significative.
+    // Make sure you know how them works before you change them.
+
     // The LayerType is being widely used for exporting layering archive
     // and it has different meaning for the nodes and the props.
     // In the case of the nodes:
@@ -55,7 +60,7 @@ public:
     //     PRUNE   : The empty property with the prune metadata.
     //     FULL    : The common property.
     // NOTE: Presently, the REPLACE and the SPARSE are illegal on the props.
-    enum LayerType
+    enum class LayerType
     {
 	DEFER,
 	PRUNE,
@@ -64,55 +69,15 @@ public:
 	REPLACE
     };
 
-    class Rules
+    // Flag the visibility of the Alembic node. It contains all of the
+    // ObjectVisibilities and a DEFAULT. Which means setting the visibility
+    // by populating it from the houdini session.
+    enum class VizType
     {
-	struct Rule
-	{
-	    Rule(const UT_StringHolder &pat, LayerType type) :
-		myNodePat(pat), myType(type) {}
-
-	    UT_StringHolder	 myNodePat;
-	    LayerType		 myType;
-	};
-
-    public:
-				 Rules() {}
-				~Rules() {}
-
-	void			 append(const UT_String &pattern,
-					LayerType type);
-	LayerType		 getLayerType(const UT_String &str) const;
-
-    private:
-	UT_Array<Rule>		 myData;
-    };
-
-    class MultiRules
-    {
-	struct Rule
-	{
-	    Rule(const UT_StringHolder &pat, const UT_StringHolder &subPat,
-		LayerType type) :
-		myNodePat(pat), mySubPat(subPat), myType(type) {}
-
-	    UT_StringHolder	 myNodePat;
-	    UT_StringHolder	 mySubPat;
-	    LayerType		 myType;
-	};
-
-    public:
-				 MultiRules() {}
-				~MultiRules() {}
-
-	void			 append(const UT_String &pat,
-					const UT_String &subPat,
-					LayerType type);
-	LayerType		 getLayerType(const UT_String &str,
-					const UT_String &subStr) const;
-	bool			 matchesNodePattern(const UT_String &str) const;
-
-    private:
-	UT_Array<Rule>		 myData;
+	DEFAULT,
+	DEFER,
+	HIDDEN,
+	VISIBLE
     };
 
 			 GABC_LayerOptions() {}
@@ -122,36 +87,136 @@ public:
 				LayerType type);
     static Alembic::Abc::SparseFlag
 			 getSparseFlag(LayerType type);
+    static Alembic::AbcGeom::ObjectVisibility
+			 getOVisibility(VizType type);
 
-    void		 appendNodeRule(const UT_String &nodePat,
+    void		 appendNodeRule(const UT_StringRef &nodePat,
 				LayerType type);
-    void		 appendVizRule(const UT_String &nodePat,
+    void		 appendVizRule(const UT_StringRef &nodePat,
+				VizType type);
+    void		 appendAttrRule(const UT_StringRef &nodePat,
+				const UT_StringRef &attrPat,
 				LayerType type);
-    void		 appendAttrRule(const UT_String &nodePat,
-				const UT_String &attrPat,
-				LayerType type);
-    void		 appendUserPropRule(const UT_String &nodePat,
-				const UT_String &userPropPat,
+    void		 appendUserPropRule(const UT_StringRef &nodePat,
+				const UT_StringRef &userPropPat,
 				LayerType type);
 
-    // The method should never be called in saving process. The ROP_AbcNode
+    // The method should never be called in the saving process. The ROP_AbcNode
     // should always hold the actual node type.
-    LayerType		 getNodeType(const UT_String &nodePath) const;
+    LayerType		 getNodeType(const UT_StringRef &nodePath) const;
 
     // These methods accept an extra node type then map it as proper property
-    // type before match the pattern.
-    LayerType		 getVizType(const UT_String &nodePath,
+    // type before matching the pattern.
+    VizType		 getVizType(const UT_StringRef &nodePath,
 				LayerType nodeType) const;
-    LayerType		 getAttrType(const UT_String &nodePath,
-				const UT_String &attrName,
+    LayerType		 getAttrType(const UT_StringRef &nodePath,
+				const UT_StringRef &attrName,
 				LayerType nodeType) const;
-    LayerType		 getUserPropType(const UT_String &nodePath,
-				const UT_String &userPropName,
+    LayerType		 getUserPropType(const UT_StringRef &nodePath,
+				const UT_StringRef &userPropName,
 				LayerType nodeType) const;
 
 private:
-    Rules		 myNodeData, myVizData;
-    MultiRules		 myAttrData, myUserPropData;
+    template <typename RULETYPE>
+    class Rules
+    {
+	struct Rule
+	{
+	    Rule(const UT_StringHolder &pat, RULETYPE type) :
+		myNodePat(pat), myType(type) {}
+
+	    UT_StringHolder	 myNodePat;
+	    RULETYPE		 myType;
+	};
+
+    public:
+			 Rules() {}
+			~Rules() {}
+
+	void		 append(const UT_StringRef &pattern, RULETYPE type)
+			 { myData.append(Rule(pattern, type)); }
+
+	RULETYPE	 getRule(const UT_StringRef &str) const
+			 {
+			     for(auto it = myData.begin();
+				 it != myData.end(); ++it)
+			     {
+				 if(str.multiMatch(it->myNodePat))
+				     return it->myType;
+			     }
+			     return (RULETYPE) 0;
+			 }
+
+	bool		 matchesNodePattern(const UT_StringRef &str) const
+			 {
+			     for(auto it = myData.begin();
+				 it != myData.end(); ++it)
+			     {
+				 if(str.multiMatch(it->myNodePat))
+				     return true;
+			     }
+			     return false;
+			 }
+
+    private:
+	UT_Array<Rule>	 myData;
+    };
+
+    template <typename RULETYPE>
+    class MultiRules
+    {
+	struct Rule
+	{
+	    Rule(const UT_StringHolder &pat, const UT_StringHolder &subPat,
+		RULETYPE type) :
+		myNodePat(pat), mySubPat(subPat), myType(type) {}
+
+	    UT_StringHolder	 myNodePat;
+	    UT_StringHolder	 mySubPat;
+	    RULETYPE		 myType;
+	};
+
+    public:
+			 MultiRules() {}
+			~MultiRules() {}
+
+	void		 append(const UT_StringRef &pat,
+				const UT_StringRef &subPat,
+				RULETYPE type)
+			 { myData.append(Rule(pat, subPat, type)); }
+
+	RULETYPE	 getRule(const UT_StringRef &str,
+				const UT_StringRef &subStr) const
+			 {
+			     for(auto it = myData.begin();
+				 it != myData.end(); ++it)
+			     {
+				 if(str.multiMatch(it->myNodePat) &&
+				     subStr.multiMatch(it->mySubPat))
+				     return it->myType;
+			     }
+			     return (RULETYPE) 0;
+			 }
+
+	bool		 matchesNodePattern(const UT_StringRef &str) const
+			 {
+			     for(auto it = myData.begin();
+				 it != myData.end(); ++it)
+			     {
+				 if(str.multiMatch(it->myNodePat))
+				     return true;
+			     }
+			     return false;
+			 }
+
+    private:
+	UT_Array<Rule>	 myData;
+    };
+
+    Rules<LayerType>	     myNodeData;
+    Rules<VizType>	     myVizData;
+    MultiRules<LayerType>    myAttrData;
+    MultiRules<LayerType>    myUserPropData;
 };
 
 } // GABC_NAMESPACE

@@ -61,20 +61,22 @@ ROP_AbcNodeInstance::makeValid(ROP_AbcArchive &archive,
     switch(myLayerNodeType)
     {
 	case GABC_LayerOptions::LayerType::FULL:
-	    myParent->getOObject(archive, err).addChildInstance(
-		mySource->getOObject(archive, err), myName);
+	    // Stop setting instance if the source node doesn't
+	    // show up in the archive.
+	    if(myParent->getLayerNodeType() == GABC_LayerOptions::LayerType::FULL
+		|| myParent->getLayerNodeType() == GABC_LayerOptions::LayerType::REPLACE
+		|| myParent->getLayerNodeType() == GABC_LayerOptions::LayerType::SPARSE)
+	    {
+		myParent->getOObject(archive, err).addChildInstance(
+		    mySource->getOObject(archive, err), myName);
+	    }
 	    break;
 
 	case GABC_LayerOptions::LayerType::SPARSE:
-	    err.warning("Cannot export sparse instance node %s.", myPath.c_str());
-	    break;
-
 	case GABC_LayerOptions::LayerType::PRUNE:
-	    err.warning("Cannot export prune instance node %s.", myPath.c_str());
-	    break;
-
 	case GABC_LayerOptions::LayerType::REPLACE:
-	    err.warning("Cannot export replace instance node %s.", myPath.c_str());
+	    err.warning("Cannot modify instance node %s.", myPath.c_str());
+	    break;
 
 	case GABC_LayerOptions::LayerType::DEFER:
 	    break;

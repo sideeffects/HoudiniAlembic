@@ -30,48 +30,6 @@
 using namespace GABC_NAMESPACE;
 
 void
-GABC_LayerOptions::Rules::append(const UT_String &pattern,
-    LayerType type)
-{
-    myData.append(Rule(pattern, type));
-}
-
-GABC_LayerOptions::LayerType
-GABC_LayerOptions::Rules::getLayerType(const UT_String &str) const
-{
-    for(auto it = myData.begin(); it != myData.end(); ++it)
-	if(str.multiMatch(it->myNodePat))
-	    return it->myType;
-    return LayerType::DEFER;
-}
-
-void
-GABC_LayerOptions::MultiRules::append(const UT_String &pat,
-    const UT_String &subPat, LayerType type)
-{
-    myData.append(Rule(pat, subPat, type));
-}
-
-GABC_LayerOptions::LayerType
-GABC_LayerOptions::MultiRules::getLayerType(const UT_String &str,
-    const UT_String &subStr) const
-{
-    for(auto it = myData.begin(); it != myData.end(); ++it)
-	if(str.multiMatch(it->myNodePat) && subStr.multiMatch(it->mySubPat))
-	    return it->myType;
-    return LayerType::DEFER;
-}
-
-bool
-GABC_LayerOptions::MultiRules::matchesNodePattern(const UT_String &str) const
-{
-    for(auto it = myData.begin(); it != myData.end(); ++it)
-	if(str.multiMatch(it->myNodePat))
-	    return true;
-    return false;
-}
-
-void
 GABC_LayerOptions::getMetadata(Alembic::Abc::MetaData &md, LayerType type)
 {
     UT_ASSERT(type != LayerType::DEFER);
@@ -91,42 +49,58 @@ GABC_LayerOptions::getSparseFlag(LayerType type)
     return Alembic::Abc::SparseFlag::kFull;
 }
 
+Alembic::AbcGeom::ObjectVisibility
+GABC_LayerOptions::getOVisibility(VizType type)
+{
+    switch(type)
+    {
+	default:
+	    UT_ASSERT(0);
+	case VizType::DEFER:
+	    return Alembic::AbcGeom::kVisibilityDeferred;
+	case VizType::HIDDEN:
+	    return Alembic::AbcGeom::kVisibilityHidden;
+	case VizType::VISIBLE:
+	    return Alembic::AbcGeom::kVisibilityVisible;
+    }
+}
+
 void
-GABC_LayerOptions::appendNodeRule(const UT_String &nodePat,
+GABC_LayerOptions::appendNodeRule(const UT_StringRef &nodePat,
     LayerType type)
 {
     myNodeData.append(nodePat, type);
 }
 
 void
-GABC_LayerOptions::appendVizRule(const UT_String &nodePat,
-    LayerType type)
+GABC_LayerOptions::appendVizRule(const UT_StringRef &nodePat,
+    VizType type)
 {
     myVizData.append(nodePat, type);
 }
 
 void
-GABC_LayerOptions::appendAttrRule(const UT_String &nodePat,
-    const UT_String &attrPat, LayerType type)
+GABC_LayerOptions::appendAttrRule(const UT_StringRef &nodePat,
+    const UT_StringRef &attrPat, LayerType type)
 {
     myAttrData.append(nodePat, attrPat, type);
 }
 
 void
-GABC_LayerOptions::appendUserPropRule(const UT_String &nodePat,
-    const UT_String &userPropPat, LayerType type)
+GABC_LayerOptions::appendUserPropRule(const UT_StringRef &nodePat,
+    const UT_StringRef &userPropPat, LayerType type)
 {
     myUserPropData.append(nodePat, userPropPat, type);
 }
 
 GABC_LayerOptions::LayerType
-GABC_LayerOptions::getNodeType(const UT_String &nodePath) const
+GABC_LayerOptions::getNodeType(const UT_StringRef &nodePath) const
 {
-    LayerType type = myNodeData.getLayerType(nodePath);
+    LayerType type = myNodeData.getRule(nodePath);
 
     if(type == LayerType::DEFER)
     {
-	if(myVizData.getLayerType(nodePath) != LayerType::DEFER
+	if(myVizData.matchesNodePattern(nodePath)
 	    || myAttrData.matchesNodePattern(nodePath)
 	    || myUserPropData.matchesNodePattern(nodePath))
 	{
@@ -137,11 +111,21 @@ GABC_LayerOptions::getNodeType(const UT_String &nodePath) const
     return type;
 }
 
-GABC_LayerOptions::LayerType
-GABC_LayerOptions::getVizType(const UT_String &nodePath,
+GABC_LayerOptions::VizType
+GABC_LayerOptions::getVizType(const UT_StringRef &nodePath,
     LayerType nodeType) const
 {
-    auto type = myVizData.getLayerType(nodePath);
+    if(nodeType == LayerType::DEFER || nodeType == LayerType::PRUNE)
+	return VizType::DEFAULT;
+
+    return myVizData.getRule(nodePath);
+}
+
+GABC_LayerOptions::LayerType
+GABC_LayerOptions::getAttrType(const UT_StringRef &nodePath,
+    const UT_StringRef &attrName, LayerType nodeType) const
+{
+    auto type = myAttrData.getRule(nodePath, attrName);
 
     if(type != LayerType::PRUNE)
     {
@@ -155,27 +139,10 @@ GABC_LayerOptions::getVizType(const UT_String &nodePath,
 }
 
 GABC_LayerOptions::LayerType
-GABC_LayerOptions::getAttrType(const UT_String &nodePath,
-    const UT_String &attrName, LayerType nodeType) const
+GABC_LayerOptions::getUserPropType(const UT_StringRef &nodePath,
+    const UT_StringRef &userPropName, LayerType nodeType) const
 {
-    auto type = myAttrData.getLayerType(nodePath, attrName);
-
-    if(type != LayerType::PRUNE)
-    {
-	if(nodeType == LayerType::FULL || nodeType == LayerType::REPLACE)
-	    return LayerType::FULL;
-	if(nodeType == LayerType::DEFER || nodeType == LayerType::PRUNE)
-	    return LayerType::DEFER;
-    }
-
-    return type;
-}
-
-GABC_LayerOptions::LayerType
-GABC_LayerOptions::getUserPropType(const UT_String &nodePath,
-    const UT_String &userPropName, LayerType nodeType) const
-{
-    auto type = myUserPropData.getLayerType(nodePath, userPropName);
+    auto type = myUserPropData.getRule(nodePath, userPropName);
 
     if(type != LayerType::PRUNE)
     {

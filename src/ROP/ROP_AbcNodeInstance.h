@@ -38,6 +38,7 @@ public:
 	: ROP_AbcNode(name), mySource(src), myIsValid(false) {}
 
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
+    virtual NodeType getNodeType() const { return NodeType::INSTANCE; }
     virtual void purgeObjects();
     virtual void update(ROP_AbcArchive &archive,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err);

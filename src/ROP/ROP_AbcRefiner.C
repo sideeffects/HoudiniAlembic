@@ -497,7 +497,8 @@ ROP_AbcRefiner::processPacked(const GT_PrimitiveHandle &prim)
 	static_cast<const GU_PrimPacked *>(packed->getPrim());
 
     std::string saved_key = myInstanceKey;
-    ropGetInstanceKey(myInstanceKey, mySubd, pr);
+    if(myUseInstancing)
+	ropGetInstanceKey(myInstanceKey, mySubd, pr);
 
     bool saved_vis = myVisible;
     if(type == GT_PRIM_ALEMBIC_SHAPE)

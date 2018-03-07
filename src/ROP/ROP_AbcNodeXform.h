@@ -49,6 +49,7 @@ public:
 	: ROP_AbcNode(name), myMatrix(1), myIsValid(false), mySampleCount(0) {}
 
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
+    virtual NodeType getNodeType() const { return NodeType::XFORM; }
     virtual void purgeObjects();
     virtual void clearData(bool locked);
     virtual void update(ROP_AbcArchive &archive,

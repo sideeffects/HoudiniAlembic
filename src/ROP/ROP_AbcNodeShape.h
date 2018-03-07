@@ -44,6 +44,7 @@ public:
 	: ROP_AbcNode(name), mySampleCount(0), myLocked(false) {}
 
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
+    virtual NodeType getNodeType() const { return NodeType::SHAPE; }
     virtual void purgeObjects();
     virtual void clearData(bool locked);
     virtual void updateLocked(bool locked);
