@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -704,7 +704,6 @@ SOP_AlembicIn2::reloadGeo(void *data, int index, float time, const PRM_Template 
     UT_String fileName;
     me->evalString(fileName, "fileName", 0, time);
     GABC_Util::clearCache(fileName);
-    me->unloadData();
     return 1;
 }
 
@@ -1008,6 +1007,7 @@ SOP_AlembicIn2::archiveClearEvent()
     // Clear out the lasst-cook parameters
     myLastParms = Parms();
     myConstantUniqueId = -1;
+    unloadData();
     forceRecook();
 }
 
