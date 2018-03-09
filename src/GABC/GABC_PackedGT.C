@@ -445,7 +445,8 @@ public:
 	    if(entry == myViewportArchives.end())
 	    {
 		archive = new GABC_PackedArchive(arch, myGeometry,
-						 impl->object().archive());
+						 impl->object().archive(),
+						 myViewportArchives.size());
 		myViewportArchives[ arch ] = archive;
 	    }
 	    else
@@ -572,8 +573,20 @@ public:
 	if(boxes)
 	    collect->appendPrimitive(boxes);
 
-	for( auto p : myViewportArchives)
-	    collect->appendPrimitive(p.second);
+	// This ensures that the order that the archives were added in is
+	// preserved.
+	if(myViewportArchives.size())
+	{
+	    UT_Array<GABC_PackedArchive *> archives;
+	    archives.entries(myViewportArchives.size());
+	    for( auto p : myViewportArchives)
+	    {
+		auto aa = static_cast<GABC_PackedArchive*>(p.second.get());
+		archives(aa->getIndex()) = aa;
+	    }
+	    for(auto p : archives)
+		collect->appendPrimitive(p);
+	}
 
 	return collecth;
     }
@@ -1455,9 +1468,11 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 
 GABC_PackedArchive::GABC_PackedArchive(const UT_StringHolder &arch,
 				       const GT_GEODetailListHandle &dlist,
-				       const GABC_IArchivePtr &archive)
+				       const GABC_IArchivePtr &archive,
+				       int index)
     : GT_PackedAlembicArchive(arch, dlist),
-      myArchive(archive)
+      myArchive(archive),
+      myIndex(index)
 {
 }
 
