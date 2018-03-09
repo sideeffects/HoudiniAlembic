@@ -70,7 +70,8 @@ class GABC_API GABC_PackedArchive : public GT_PackedAlembicArchive
 public:
     GABC_PackedArchive(const UT_StringHolder &archive_name,
 		       const GT_GEODetailListHandle &source_list,
-		       const GABC_NAMESPACE::GABC_IArchivePtr &archive);
+		       const GABC_NAMESPACE::GABC_IArchivePtr &archive,
+		       int index);
 
     virtual const char	*className() const { return "GABC_PackedArchive"; }
 
@@ -79,11 +80,14 @@ public:
 			    bool force_update);
 
     virtual GT_PrimitiveHandle	doSoftCopy() const { return nullptr; }
-
+    
+    int			getIndex() const { return myIndex; }
+    
 private:
     virtual bool archiveMatch(const GT_PackedAlembicArchive *archive) const;
 
     GABC_NAMESPACE::GABC_IArchivePtr myArchive;
+    int myIndex;
 };
 
 /// Single Alembic shape (non-instanced)
