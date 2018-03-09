@@ -135,7 +135,8 @@ public:
     virtual bool		updateGeoPrim(const GU_ConstDetailHandle &dtl,
 					      const GT_RefineParms &refine);
 private:
-    int64			     myColorID;
+    int64	     myColorID;
+    UT_Matrix4D	     myTransform;
 };
 
 /// Packed instance with alembic extensions

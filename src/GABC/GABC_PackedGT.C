@@ -604,13 +604,15 @@ GABC_PackedAlembic::GABC_PackedAlembic(const GU_ConstDetailHandle &prim_gdh,
 				       const GT_DataArrayHandle &vp_remap,
 				       bool build_packed_attribs)
     : GT_PackedAlembic(prim_gdh, prim, vp_mat, vp_remap, build_packed_attribs),
-      myColorID(-2)
+      myColorID(-2),
+      myTransform(1)
 {
 }
 
 GABC_PackedAlembic::GABC_PackedAlembic(const GABC_PackedAlembic &src)
     : GT_PackedAlembic(src),
-      myColorID(src.myColorID)
+      myColorID(src.myColorID),
+      myTransform(src.myTransform)
 {
 }
 
