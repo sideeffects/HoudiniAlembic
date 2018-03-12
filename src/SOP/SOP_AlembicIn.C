@@ -395,7 +395,7 @@ static PRM_Name prm_addfile("addfile", "Add Filename Attribute");
 static PRM_Name prm_fileattrib("fileattrib", "Filename Attribute");
 static PRM_Name prm_remapAttribName("remapAttributes", "Remap Attributes");
 
-static PRM_Default prm_filenameDefault(0, "$HH/geo/default.abc");
+static PRM_Default prm_filenameDefault(0, "default.abc");
 static PRM_Default prm_frameDefault(1, "$FF");
 static PRM_Default prm_objectPathDefault(0, "");
 static PRM_Default prm_fpsDefault(24, "$FPS");
@@ -1039,6 +1039,17 @@ SOP_AlembicIn2::archiveClearEvent()
     forceRecook();
 }
 
+static void
+sopAppendFile(std::vector<std::string> &filenames, const char *name)
+{
+    UT_String realname;
+
+    // complete a path search in case it is in the geometry path
+    UT_PathSearch::getInstance(UT_HOUDINI_GEOMETRY_PATH)->
+	    findFile(realname, name);
+    filenames.push_back(realname.toStdString());
+}
+
 void
 SOP_AlembicIn2::appendFileNames(std::vector<std::string> &filenames, fpreal t)
 {
@@ -1050,14 +1061,14 @@ SOP_AlembicIn2::appendFileNames(std::vector<std::string> &filenames, fpreal t)
 	    UT_String fileName;
 	    evalStringInst("layer#", &i, fileName, 0, t);
 	    if (fileName.isstring())
-		filenames.push_back(fileName.toStdString());
+		sopAppendFile(filenames, fileName);
 	}
     }
 
     UT_String name;
     evalString(name, "fileName", 0, t);
     if(name.isstring())
-	filenames.push_back(name.toStdString());
+	sopAppendFile(filenames, name);
 }
 
 //-*****************************************************************************

@@ -119,6 +119,17 @@ namespace
     static const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
     static void
+    appendFile(std::vector<std::string> &filenames, const char *name)
+    {
+	UT_String realname;
+
+	// complete a path search in case it is in the geometry path
+	UT_PathSearch::getInstance(UT_HOUDINI_GEOMETRY_PATH)->
+		findFile(realname, name);
+	filenames.push_back(realname.toStdString());
+    }
+
+    static void
     appendFileList(std::vector<std::string> &filenames, PY_PyObject *fileList)
     {
 	if (!fileList)
@@ -128,7 +139,7 @@ namespace
 	{
 	    const char *fileStr = PY_PyString_AsString(fileList);
 	    if (fileStr && strlen(fileStr))
-		filenames.push_back(fileStr);
+		appendFile(filenames, fileStr);
 	}
 	else if (PY_PySequence_Check(fileList))
 	{
@@ -140,7 +151,7 @@ namespace
 		{
 		    const char *fileStr = PY_PyString_AsString(fileObj);
 		    if (fileStr && strlen(fileStr))
-			filenames.push_back(fileStr);
+			appendFile(filenames, fileStr);
 		}
 	    }
 	}
