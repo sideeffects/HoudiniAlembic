@@ -1670,15 +1670,14 @@ GABC_OGTGeometry::IgnoreList::IgnoreList(const char *arg0, ...)
 //-----------------------------------------------
 
 const GABC_OGTGeometry::IgnoreList &
-GABC_OGTGeometry::getDefaultSkip()
+GABC_OGTGeometry::getLayerSkip()
 {
     // Construct on first use to avoid the static initialization order fiasco
     static IgnoreList *def = NULL;
     
     if (!def)
     {
-	def = new IgnoreList("P",
-            "v",
+	def = new IgnoreList(
             "__topology",
             "__primitivelist",
             "__primitive_id",
@@ -1693,6 +1692,21 @@ GABC_OGTGeometry::getDefaultSkip()
 	// Add these after the initial construction.
 	def->addSkip(GABC_Util::theUserPropsValsAttrib);
 	def->addSkip(GABC_Util::theUserPropsMetaAttrib);
+    }
+
+    return *def;
+}
+
+const GABC_OGTGeometry::IgnoreList &
+GABC_OGTGeometry::getDefaultSkip()
+{
+    static IgnoreList *def = NULL;
+
+    if (!def)
+    {
+	def = new IgnoreList(getLayerSkip());
+	def->addSkip("P");
+	def->addSkip("v");
     }
 
     return *def;

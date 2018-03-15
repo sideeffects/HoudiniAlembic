@@ -31,6 +31,7 @@
 #include "ROP_AbcArchive.h"
 
 #include <UT/UT_Map.h>
+#include <UT/UT_StringSet.h>
 #include <GABC/GABC_LayerOptions.h>
 #include <GABC/GABC_Util.h>
 
@@ -110,6 +111,10 @@ public:
 	for(auto &it : myChildren)
 	    it.second->purgeObjects();
     }
+
+    /// Appends the choices inside the given string set.
+    virtual void getAttrNames(UT_SortedStringSet &) const {};
+    virtual void getUserPropNames(UT_SortedStringSet &, GABC_OError &) const {};
 
     /// Hook to prepare node for calls to setData().
     virtual void clearData(bool locked) {}

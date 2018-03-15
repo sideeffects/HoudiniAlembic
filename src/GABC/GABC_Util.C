@@ -2712,6 +2712,43 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
 }
 
 void
+GABC_Util::getUserPropertyTokens(UT_SortedStringSet &tokens,
+    UT_AutoJSONParser &meta_data,
+    UT_AutoJSONParser &vals_data,
+    GABC_OError &err)
+{
+    UT_WorkBuffer   meta_key;
+    UT_WorkBuffer   vals_key;
+
+    auto meta_it = meta_data->beginMap();
+    auto vals_it = vals_data->beginMap();
+
+    for(; !meta_it.atEnd() && !vals_it.atEnd(); ++meta_it, ++vals_it)
+    {
+	if(!meta_it.getKey(meta_key) || !vals_it.getKey(vals_key))
+	{
+	    err.warning("Missing key while parsing user property map");
+	    break;
+	}
+
+	if(meta_key != vals_key)
+	{
+	    err.warning("Error parsing user properties: order mismatch between "
+		"maps (%s vs %s).", meta_key.buffer(), vals_key.buffer());
+	    break;
+	}
+
+	tokens.insert(meta_key.buffer());
+
+	for(auto val_it = meta_data->beginArray(); !val_it.atEnd(); ++val_it)
+	    meta_data->skipNextObject();
+
+    	for(auto val_it = vals_data->beginArray(); !val_it.atEnd(); ++val_it)
+	    vals_data->skipNextObject();
+    }
+}
+
+void
 GABC_Util::CollisionResolver::resolve(std::string &name) const
 {
     auto it = myMaxId.find(name);

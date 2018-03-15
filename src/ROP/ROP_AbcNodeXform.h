@@ -51,6 +51,10 @@ public:
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
     virtual NodeType getNodeType() const { return NodeType::XFORM; }
     virtual void purgeObjects();
+
+    virtual void getUserPropNames(UT_SortedStringSet &names,
+	GABC_OError &err) const;
+
     virtual void clearData(bool locked);
     virtual void update(ROP_AbcArchive &archive,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err);

@@ -309,6 +309,74 @@ buildAttribMenu(void *data, PRM_Name *menu_entries, int menu_size,
     menu_entries[i].setLabel(0);
 }
 
+static void
+buildLayerAttribMenu(void *data, PRM_Name *menu_entries, int menu_size,
+		    const PRM_SpareData *, const PRM_Parm *parm)
+{
+    int i = 0;
+    fpreal		 time = CHgetEvalTime();
+    ROP_AlembicOut	*rop = static_cast<ROP_AlembicOut *>(data);
+    UT_String		 attrStr;
+    UT_String		 attrName(parm->getToken());
+
+    // Replace the "attrpattern#" to the "attrpath#".
+    attrName.replace(4, 7, "path");
+    rop->evalString(attrStr, attrName, 0, time);
+
+    if(attrStr.isstring())
+    {
+	UT_SortedStringSet vals;
+	rop->getAttrNamesByPattern(vals, attrStr, time);
+
+	for(auto it = vals.begin(); it != vals.end(); ++it)
+	{
+	    if(i + 1 == menu_size)
+		break;
+
+	    menu_entries[i].setToken(*it);
+	    menu_entries[i].setLabel(*it);
+	    ++i;
+	}
+    }
+
+    menu_entries[i].setToken(0);
+    menu_entries[i].setLabel(0);
+}
+
+static void
+buildLayerUserPropMenu(void *data, PRM_Name *menu_entries, int menu_size,
+		    const PRM_SpareData *, const PRM_Parm *parm)
+{
+    int i = 0;
+    fpreal		 time = CHgetEvalTime();
+    ROP_AlembicOut	*rop = static_cast<ROP_AlembicOut *>(data);
+    UT_String		 attrStr;
+    UT_String		 attrName(parm->getToken());
+
+    // Replace the "userproppattern#" to the "userproppath#".
+    attrName.replace(8, 7, "path");
+    rop->evalString(attrStr, attrName, 0, time);
+
+    if(attrStr.isstring())
+    {
+	UT_SortedStringSet vals;
+	rop->getUserPropNamesByPattern(vals, attrStr, time);
+
+	for(auto it = vals.begin(); it != vals.end(); ++it)
+	{
+	    if(i + 1 == menu_size)
+		break;
+
+	    menu_entries[i].setToken(*it);
+	    menu_entries[i].setLabel(*it);
+	    ++i;
+	}
+    }
+
+    menu_entries[i].setToken(0);
+    menu_entries[i].setLabel(0);
+}
+
 static int
 ropNodePickerCallback(void *data, int index, fpreal t, const PRM_Template *tplate)
 {
@@ -366,6 +434,12 @@ static PRM_ChoiceList theFaceSetModeMenu(PRM_CHOICELIST_SINGLE, theFaceSetModeCh
 static PRM_ChoiceList theNodeFlagMenu(PRM_CHOICELIST_SINGLE, theNodeFlagChoices);
 static PRM_ChoiceList theVizFlagMenu(PRM_CHOICELIST_SINGLE, theVizFlagChoices);
 static PRM_ChoiceList thePropFlagMenu(PRM_CHOICELIST_SINGLE, thePropFlagChoices);
+static PRM_ChoiceList theLayerAttribMenu(
+    (PRM_ChoiceListType) (PRM_CHOICELIST_TOGGLE | PRM_CHOICELIST_WILD),
+    buildLayerAttribMenu);
+static PRM_ChoiceList theLayerUserPropMenu(
+    (PRM_ChoiceListType) (PRM_CHOICELIST_TOGGLE | PRM_CHOICELIST_WILD),
+    buildLayerUserPropMenu);
 
 // Make paths relative to /obj (for the bundle code)
 static PRM_SpareData theObjectList(PRM_SpareArgs()
@@ -406,7 +480,7 @@ static PRM_Template theMultiAttrTemplate[] =
     PRM_Template(PRM_CALLBACK | PRM_TYPE_JOIN_NEXT, PRM_TYPE_NO_LABEL,
 	1, &thePickAttrPathName, 0, 0, 0, ropNodePickerCallback, &theTreeButtonSpareData),
     PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT | PRM_TYPE_LABEL_NONE,
-	1, &theAttrPatternName, &theAttrLayerDefault),
+	1, &theAttrPatternName, 0, &theLayerAttribMenu),
     PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
 	1, &theAttrFlagName, 0, &thePropFlagMenu),
     PRM_Template()
@@ -419,7 +493,7 @@ static PRM_Template theMultiUserTemplate[] =
     PRM_Template(PRM_CALLBACK | PRM_TYPE_JOIN_NEXT, PRM_TYPE_NO_LABEL,
 	1, &thePickUserPathName, 0, 0, 0, ropNodePickerCallback, &theTreeButtonSpareData),
     PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT | PRM_TYPE_LABEL_NONE,
-	1, &theUserPatternName, &theStarDefault),
+	1, &theUserPatternName, 0, &theLayerUserPropMenu),
     PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
 	1, &theUserFlagName, 0, &thePropFlagMenu),
     PRM_Template()
@@ -683,6 +757,63 @@ ROP_AlembicOut::getOutputNodesArray(UT_StringArray &array, fpreal time)
     array.clear();
     buildAlembicTree(time);
     ropAppendNodeNames(array, myRoot.get());
+
+    clearAlembicTree();
+}
+
+static void
+ropAddAttrNames(UT_SortedStringSet &attrs, const UT_String &pattern,
+    ROP_AbcNode *node)
+{
+    UT_String path(node->getPath());
+
+    if(path.multiMatch(pattern))
+	node->getAttrNames(attrs);    
+
+    for(auto &it : node->getChildren())
+	ropAddAttrNames(attrs, pattern, it.second);
+}
+
+void
+ROP_AlembicOut::getAttrNamesByPattern(UT_SortedStringSet &attrs,
+    const UT_String &pattern, fpreal time)
+{
+    UT_ASSERT(!myRoot);
+    myRoot.reset(new ROP_AbcNodeRoot());
+    myErrors.reset(new rop_OError());
+
+    attrs.clear();
+    buildAlembicTree(time);
+    ropAddAttrNames(attrs, pattern, myRoot.get());
+
+    clearAlembicTree();
+}
+
+static void
+ropAddUserPropNames(UT_SortedStringSet &props, const UT_String &pattern,
+    ROP_AbcNode *node, GABC_OError *err)
+{
+    UT_String path(node->getPath());
+
+    if(path.multiMatch(pattern))
+	node->getUserPropNames(props, *err);    
+
+    for(auto &it : node->getChildren())
+	ropAddUserPropNames(props, pattern, it.second, err);
+}
+
+void
+ROP_AlembicOut::getUserPropNamesByPattern(UT_SortedStringSet &props,
+    const UT_String &pattern, fpreal time)
+{
+    UT_ASSERT(!myRoot);
+    myRoot.reset(new ROP_AbcNodeRoot());
+    myErrors.reset(new rop_OError());
+
+    props.clear();
+    buildAlembicTree(time);
+    ropAddUserPropNames(props, pattern, myRoot.get(), myErrors.get());
+
     clearAlembicTree();
 }
 

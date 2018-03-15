@@ -254,6 +254,7 @@ public:
     };
 
     static const IgnoreList &getDefaultSkip();
+    static const IgnoreList &getLayerSkip();
 
      GABC_OGTGeometry(const std::string &name,
 	 GABC_LayerOptions::LayerType type);

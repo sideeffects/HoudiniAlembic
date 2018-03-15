@@ -46,6 +46,11 @@ public:
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
     virtual NodeType getNodeType() const { return NodeType::SHAPE; }
     virtual void purgeObjects();
+
+    virtual void getAttrNames(UT_SortedStringSet &names) const;
+    virtual void getUserPropNames(UT_SortedStringSet &names,
+	GABC_OError &err) const;
+
     virtual void clearData(bool locked);
     virtual void updateLocked(bool locked);
     virtual void update(ROP_AbcArchive &archive,

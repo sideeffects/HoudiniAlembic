@@ -49,6 +49,14 @@ ROP_AbcNodeXform::getOObject(ROP_AbcArchive &archive, GABC_OError &err)
 }
 
 void
+ROP_AbcNodeXform::getUserPropNames(UT_SortedStringSet &names,
+    GABC_OError &err) const
+{
+    ROP_AbcUserProperties::getTokens(
+	names, myUserPropVals, myUserPropMeta, err);
+}
+
+void
 ROP_AbcNodeXform::clearData(bool locked)
 {
     if(!locked)

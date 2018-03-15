@@ -56,6 +56,24 @@ ROP_AbcUserProperties::update(
 }
 
 void
+ROP_AbcUserProperties::getTokens(
+    UT_SortedStringSet &tokens,
+    const UT_StringHolder &meta,
+    const UT_StringHolder &vals,
+    GABC_OError &err)
+{
+    if(meta.isstring() && vals.isstring())
+    {
+	UT_AutoJSONParser vals_data(vals.buffer(), vals.length());
+	UT_AutoJSONParser meta_data(meta.buffer(), meta.length());
+	vals_data->setBinary(false);
+	meta_data->setBinary(false);
+
+	GABC_Util::getUserPropertyTokens(tokens, meta_data, vals_data, err);
+    }
+}
+
+void
 ROP_AbcUserProperties::exportData(
     OCompoundProperty *props,
     const UT_StringHolder &vals,

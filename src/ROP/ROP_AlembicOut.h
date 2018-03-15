@@ -58,6 +58,10 @@ public:
 
     SOP_Node *getSopNode(fpreal time) const;
     void getOutputNodesArray(UT_StringArray &array, fpreal time);
+    void getAttrNamesByPattern(UT_SortedStringSet &names,
+	const UT_String &pattern, fpreal time);
+    void getUserPropNamesByPattern(UT_SortedStringSet &names,
+	const UT_String &pattern, fpreal time);
 
 protected:
     ROP_AlembicOut(OP_Network *net, const char *name, OP_Operator *entry);

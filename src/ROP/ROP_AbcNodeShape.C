@@ -45,6 +45,41 @@ ROP_AbcNodeShape::getOObject(ROP_AbcArchive &, GABC_OError &)
 }
 
 static void
+ropAddAttrNames(UT_SortedStringSet &names, const GT_AttributeList *lst)
+{
+    if(lst != nullptr)
+    {
+	const UT_StringArray &curNames = lst->getNames();
+
+	for(auto it = curNames.begin(); it != curNames.end(); ++it)
+	{
+	    if(!GABC_OGTGeometry::getLayerSkip().contains(it.item()))
+		names.insert(it.item());
+	}
+    }
+}
+
+void
+ROP_AbcNodeShape::getAttrNames(UT_SortedStringSet &names) const
+{
+    if(myPrim)
+    {
+	ropAddAttrNames(names, myPrim->getPointAttributes().get());
+	ropAddAttrNames(names, myPrim->getVertexAttributes().get());
+	ropAddAttrNames(names, myPrim->getUniformAttributes().get());
+	ropAddAttrNames(names, myPrim->getDetailAttributes().get());
+    }
+}
+
+void
+ROP_AbcNodeShape::getUserPropNames(UT_SortedStringSet &names,
+    GABC_OError &err) const
+{
+    ROP_AbcUserProperties::getTokens(
+	names, myUserPropVals, myUserPropMeta, err);
+}
+
+static void
 ropEnlargeBounds(UT_BoundingBox &box, const GT_PrimitiveHandle &prim)
 {
     GT_TransformHandle xform = prim->getPrimitiveTransform();

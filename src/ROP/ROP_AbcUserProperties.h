@@ -45,6 +45,11 @@ public:
     ROP_AbcUserProperties() : myIsValid(false) {}
     ~ROP_AbcUserProperties() { clear(); }
 
+    static void getTokens(UT_SortedStringSet &tokens,
+			  const UT_StringHolder &meta,
+			  const UT_StringHolder &vals,
+			  GABC_OError &err);
+
     /// releases all references to user property data
     void clear();
     /// set a new user property sample, creating the user properties if needed

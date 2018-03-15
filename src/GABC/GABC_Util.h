@@ -40,6 +40,7 @@
 #include <UT/UT_Matrix4.h>
 #include <UT/UT_SharedPtr.h>
 #include <UT/UT_WorkBuffer.h>
+#include <UT/UT_StringSet.h>
 
 class UT_StringArray;
 
@@ -350,6 +351,11 @@ public:
                                 const GABC_OOptions &ctx,
 				const GABC_LayerOptions &lopt,
 				GABC_LayerOptions::LayerType ltype);
+
+    static void		getUserPropertyTokens(UT_SortedStringSet &tokens,
+				UT_AutoJSONParser &meta_data,
+				UT_AutoJSONParser &vals_data,
+				GABC_OError &err);
 
     static const UT_StringHolder	theLockGeometryParameter;
     static const UT_StringHolder	theUserPropsValsAttrib;
