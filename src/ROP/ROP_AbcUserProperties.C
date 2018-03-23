@@ -58,8 +58,8 @@ ROP_AbcUserProperties::update(
 void
 ROP_AbcUserProperties::getTokens(
     UT_SortedStringSet &tokens,
-    const UT_StringHolder &meta,
     const UT_StringHolder &vals,
+    const UT_StringHolder &meta,
     GABC_OError &err)
 {
     if(meta.isstring() && vals.isstring())
@@ -89,5 +89,5 @@ ROP_AbcUserProperties::exportData(
     meta_data->setBinary(false);
 
     GABC_Util::exportUserPropertyDictionary(meta_data, vals_data, myProps,
-		props, err, archive.getOOptions(), lopt, ltype);
+	props, err, archive.getOOptions(), lopt, ltype);
 }

@@ -28,6 +28,7 @@
 #include "GABC_Util.h"
 #include "GABC_OArrayProperty.h"
 #include "GABC_OScalarProperty.h"
+#include <Alembic/Abc/TypedPropertyTraits.h>
 #include <Alembic/AbcGeom/All.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 #include <GT/GT_PackedGeoCache.h>
@@ -46,6 +47,7 @@
 #include <UT/UT_SymbolTable.h>
 #include <UT/UT_SysClone.h>
 #include <UT/UT_WorkBuffer.h>
+#include <UT/UT_UniquePtr.h>
 #include <FS/FS_Info.h>
 #include <hboost/tokenizer.hpp>
 
@@ -941,6 +943,700 @@ namespace
 	UT_Lock			myTransformLock;
     };
 
+    struct AlembicTraitEquivalence
+    {
+	AlembicTraitEquivalence(const char *n, const char *i,
+	    int e, GT_Type g, PlainOldDataType p)
+	    : myName(n), myInterpretation(i), myExtent(e),
+	      myGtType(g), myPodEnum(p) {}
+
+	const char	*myName;
+	const char	*myInterpretation;
+	int		 myExtent;
+	GT_Type		 myGtType;
+	PlainOldDataType myPodEnum;
+    };
+
+    #define GABC_TRAIT_EQUIVALENCE(NAME, GTTYPE)		\
+	AlembicTraitEquivalence(#NAME,				\
+	    Alembic::Abc::NAME##TPTraits::interpretation(),	\
+	    Alembic::Abc::NAME##TPTraits::extent, GTTYPE,	\
+	    Alembic::Abc::NAME##TPTraits::pod_enum)
+
+    static AlembicTraitEquivalence theEquivalanceArray[] =
+    {
+	GABC_TRAIT_EQUIVALENCE(Boolean,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(Int8,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(Int16,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(Int32,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(Int64,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(Uint8,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(Uint16,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(Uint32,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(Uint64,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(Float16,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(Float32,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(Float64,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(String,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(Wstring,		GT_TYPE_NONE),
+	GABC_TRAIT_EQUIVALENCE(V2s,		GT_TYPE_VECTOR),
+	GABC_TRAIT_EQUIVALENCE(V2i,		GT_TYPE_VECTOR),
+	GABC_TRAIT_EQUIVALENCE(V2f,		GT_TYPE_VECTOR),
+	GABC_TRAIT_EQUIVALENCE(V2d,		GT_TYPE_VECTOR),
+	GABC_TRAIT_EQUIVALENCE(V3s,		GT_TYPE_VECTOR),
+	GABC_TRAIT_EQUIVALENCE(V3i,		GT_TYPE_VECTOR),
+	GABC_TRAIT_EQUIVALENCE(V3f,		GT_TYPE_VECTOR),
+	GABC_TRAIT_EQUIVALENCE(V3d,		GT_TYPE_VECTOR),
+	GABC_TRAIT_EQUIVALENCE(P2s,		GT_TYPE_POINT),
+	GABC_TRAIT_EQUIVALENCE(P2i,		GT_TYPE_POINT),
+	GABC_TRAIT_EQUIVALENCE(P2f,		GT_TYPE_POINT),
+	GABC_TRAIT_EQUIVALENCE(P2d,		GT_TYPE_POINT),
+	GABC_TRAIT_EQUIVALENCE(P3s,		GT_TYPE_POINT),
+	GABC_TRAIT_EQUIVALENCE(P3i,		GT_TYPE_POINT),
+	GABC_TRAIT_EQUIVALENCE(P3f,		GT_TYPE_POINT),
+	GABC_TRAIT_EQUIVALENCE(P3d,		GT_TYPE_POINT),
+	GABC_TRAIT_EQUIVALENCE(Box2s,		GT_TYPE_BOX2),
+	GABC_TRAIT_EQUIVALENCE(Box2i,		GT_TYPE_BOX2),
+	GABC_TRAIT_EQUIVALENCE(Box2f,		GT_TYPE_BOX2),
+	GABC_TRAIT_EQUIVALENCE(Box2d,		GT_TYPE_BOX2),
+	GABC_TRAIT_EQUIVALENCE(Box3s,		GT_TYPE_BOX),
+	GABC_TRAIT_EQUIVALENCE(Box3i,		GT_TYPE_BOX),
+	GABC_TRAIT_EQUIVALENCE(Box3f,		GT_TYPE_BOX),
+	GABC_TRAIT_EQUIVALENCE(Box3d,		GT_TYPE_BOX),
+	GABC_TRAIT_EQUIVALENCE(M33f,		GT_TYPE_MATRIX3),
+	GABC_TRAIT_EQUIVALENCE(M33d,		GT_TYPE_MATRIX3),
+	GABC_TRAIT_EQUIVALENCE(M44f,		GT_TYPE_MATRIX),
+	GABC_TRAIT_EQUIVALENCE(M44d,		GT_TYPE_MATRIX),
+	GABC_TRAIT_EQUIVALENCE(Quatf,		GT_TYPE_QUATERNION),
+	GABC_TRAIT_EQUIVALENCE(Quatd,		GT_TYPE_QUATERNION),
+	GABC_TRAIT_EQUIVALENCE(C3h,		GT_TYPE_COLOR),
+	GABC_TRAIT_EQUIVALENCE(C3f,		GT_TYPE_COLOR),
+	GABC_TRAIT_EQUIVALENCE(C3c,		GT_TYPE_COLOR),
+	GABC_TRAIT_EQUIVALENCE(C4h,		GT_TYPE_COLOR),
+	GABC_TRAIT_EQUIVALENCE(C4f,		GT_TYPE_COLOR),
+	GABC_TRAIT_EQUIVALENCE(C4c,		GT_TYPE_COLOR),
+	GABC_TRAIT_EQUIVALENCE(N2f,		GT_TYPE_NORMAL),
+	GABC_TRAIT_EQUIVALENCE(N2d,		GT_TYPE_NORMAL),
+	GABC_TRAIT_EQUIVALENCE(N3f,		GT_TYPE_NORMAL),
+	GABC_TRAIT_EQUIVALENCE(N3d,		GT_TYPE_NORMAL),
+    };
+
+    #undef GABC_TRAIT_EQUIVALENCE
+
+    class UserPropStorage
+    {
+    public:
+	UserPropStorage(UT_AutoJSONParser &meta_data,
+	    UT_AutoJSONParser &vals_data, GABC_OError &err)
+	{
+	    bool dummy;
+	    bool succ_parsing = true;
+	    bool err_parsing  = false;
+	    UT_WorkBuffer key;
+
+	    // Parse the meta data.
+	    for(auto meta_it = meta_data->beginMap();
+		!meta_it.atEnd(); meta_it.advance())
+	    {
+		if(!meta_it.getKey(key))
+		{
+		    err.warning("Invalid key while parsing "
+			"user property metadatas.");
+		    break;
+		}
+
+		myProps[key.buffer()].reset(new Item());
+
+		// Populates type identifier.
+		if(!meta_data->parseBeginArray(dummy))
+		{
+		    UT_WorkBuffer typeName;
+		    succ_parsing &= meta_data->parseString(typeName);
+		    myProps[key.buffer()]->setDataType(typeName.buffer());
+		}
+		// For backward compatibility.
+		else
+		{
+		    int extent, array_size = 0;
+		    UT_WorkBuffer pod, interpretation;
+
+		    // Read storage type
+		    succ_parsing &= meta_data->parseString(pod);
+		    // Read Alembic POD
+		    succ_parsing &= meta_data->parseString(pod);
+		    // Read tuple size
+		    succ_parsing &= meta_data->parseValue(extent);
+		    // Read tuple interpretation
+		    if(extent > 1)
+			succ_parsing &= meta_data->parseString(interpretation);
+		    // Read array size
+		    if (!meta_data->parseEndArray(dummy))
+		    {
+			succ_parsing &= meta_data->parseValue(array_size);
+			succ_parsing &= meta_data->parseEndArray(err_parsing);
+		    }
+
+		    myProps[key.buffer()]->setDataType(pod.buffer(),
+			interpretation.buffer(), extent,
+			array_size > 0 ? true : false);
+
+		}
+
+		if(!succ_parsing || err_parsing)
+		{
+		    err.warning("Error parsing user property metadata "
+			"occurred while parsing %s.", key.buffer());
+		    break;
+		}
+	    }
+
+	    // Parse the values
+	    for(auto vals_it = vals_data->beginMap();
+		!vals_it.atEnd(); vals_it.advance())
+	    {
+		if(!vals_it.getKey(key))
+		{
+		    err.warning("Invalid key while parsing "
+			"user property values.");
+		    break;
+		}
+
+		auto iter = myProps.find(key.buffer());
+
+		if(iter == myProps.end() || !iter->second->isMetaValid())
+		{
+		    err.warning("Invalid metadata while parsing the "
+			"value of %s.", key.buffer());
+		    break;
+		}
+
+		iter->second->setDataValue(vals_data, err);
+	    }
+
+	    // Sweep the bad data
+	    for(auto it = myProps.begin(); it != myProps.end();)
+	    {
+		if(!it->second->isDataValid())
+		{
+		    err.warning("Error parsing user property value "
+			"occurred while parsing %s.", it->first.c_str());
+		    it = myProps.erase(it);
+		}
+		else
+		    ++it;
+	    }
+	}
+
+	UserPropStorage(const GABC_IObject &obj, fpreal time)
+	{
+	    ICompoundProperty userProps = obj.getUserProperties();
+	    importCompoundProps(obj, userProps,
+		UT_String::getEmptyString(), time);
+
+	    // Sweep the bad data
+	    for(auto it = myProps.begin(); it != myProps.end();)
+	    {
+		if(!it->second->isMetaValid() || !it->second->isDataValid())
+		    it = myProps.erase(it);
+		else
+		    ++it;
+	    }
+	}
+
+	void getKeys(UT_SortedStringSet &tokens) const
+	{
+	    for(auto it = myProps.begin(); it != myProps.end(); ++it)
+		tokens.insert(it->first);
+	}
+
+	void writeJSONMetas(UT_JSONWriter &meta_writer)
+	{
+	    meta_writer.jsonBeginMap();
+
+	    for(auto it = myProps.begin(); it != myProps.end(); ++it)
+	    {
+		UT_String typeName;
+		it->second->getDataType(typeName);
+
+		meta_writer.jsonKey(it->first.c_str());
+		meta_writer.jsonString(typeName.c_str());
+	    }
+
+	    meta_writer.jsonEndMap();
+	}
+
+	void writeJSONValues(UT_JSONWriter &vals_writer)
+	{
+	    vals_writer.jsonBeginMap();
+
+	    for(auto it = myProps.begin(); it != myProps.end(); ++it)
+	    {
+		vals_writer.jsonKey(it->first.c_str());
+		it->second->getDataValue()->save(vals_writer, false);
+	    }
+
+	    vals_writer.jsonEndMap();
+	}
+
+	void updateOProperty(PropertyMap &propMap,
+			     OCompoundProperty *ancestor,
+			     const GABC_OOptions &ctx,
+			     const GABC_LayerOptions &lopt,
+			     GABC_LayerOptions::LayerType ltype,
+			     GABC_OError &err)
+	{
+	    // Creates new properties
+	    if(ancestor)
+	    {
+		for(auto it = myProps.begin(); it != myProps.end(); ++it)
+		{
+		    GABC_OProperty *prop;
+		    auto propltype = lopt.getUserPropType(
+			ancestor->getObject().getFullName().c_str(),
+			it->first, ltype);
+
+		    if(propltype == GABC_LayerOptions::LayerType::DEFER)
+			continue;
+
+		    if (propMap.find(it->first.c_str()) != propMap.end())
+		    {
+			err.warning("User property %s declared multiple "
+			    "times, ignoring multiple declarations.",
+			    it->first.c_str());
+			continue;
+		    }
+
+		    UT_WorkBuffer name;
+		    const char *path = it->first.c_str();
+		    OCompoundProperty parent = *ancestor;
+		    while(true)
+		    {
+			name.getNextToken(path, "/");
+
+			if(!(*path))
+			    break;
+
+			OBaseProperty baseProp = parent.getProperty(
+			    name.toStdString());
+
+			if(baseProp.valid())
+			{
+			    auto compPtr = baseProp.getPtr()->asCompoundPtr();
+			    if(compPtr.get())
+			    {
+				parent = OCompoundProperty(compPtr,
+				    gabcWrapExisting,
+				    GetErrorHandlerPolicy(parent));
+			    }
+			    else
+			    {
+				err.warning("User property %s already "
+				    "exists as simple property. Ignoring %s.",
+				    name.buffer(), it->first.c_str());
+				parent = OCompoundProperty();
+				break;
+			    }
+			}
+			else
+			{
+			    // If no existing property found, make one.
+			    parent = OCompoundProperty(
+				parent, name.toStdString());
+			}
+		    }
+		    if(!parent.valid())
+			continue;
+
+		    if(it->second->isArray())
+			prop = new GABC_OArrayProperty(propltype);
+		    else // IsScalar
+			prop = new GABC_OScalarProperty(propltype);
+
+		    if (!prop->start(parent, name.buffer(),
+			it->second->getDataValue(), err,
+			ctx, it->second->getPodEnum()))
+		    {
+			err.warning("Skipping property %s.",
+			    it->first.c_str());
+			continue;
+		    }
+
+		    propMap.insert(PropertyMapInsert(
+			it->first.toStdString(), prop));
+		}
+	    }
+
+	    // Update existing properties
+	    else
+	    {
+		for(auto it = propMap.begin(); it != propMap.end(); ++it)
+		{
+		    const char *name = it->first.c_str();
+		    GABC_OProperty *prop = it->second;
+		    auto dataPair = myProps.find(name);
+
+		    if(dataPair == myProps.end())
+		    {
+			err.warning("Could not find property %s. "
+			    "Reusing previous sample.", name);
+			prop->updateFromPrevious();
+		    }
+		    else
+		    {
+			if(!prop->update(dataPair->second->getDataValue(),
+			    err, ctx, dataPair->second->getPodEnum()))
+			{
+			    err.warning("Could not update property %s. "
+				"Reusing previous sample.", name);
+			    prop->updateFromPrevious();
+			}
+		    }
+		}
+	    }
+	}
+
+    private:
+	void importCompoundProps(const GABC_IObject &obj,
+				 ICompoundProperty &folder,
+				 const UT_StringRef &prefix,
+				 fpreal time)
+	{
+	    exint	 numProps = folder.valid() ?
+				    folder.getNumProperties() : 0;
+
+	    for(exint i = 0; i < numProps; ++i)
+	    {
+		const PropertyHeader &header = folder.getPropertyHeader(i);
+
+		UT_WorkBuffer name(header.getName().c_str());
+		if(prefix.isstring())
+		{
+		    name.prepend("/");
+		    name.prepend(prefix.c_str());
+		}
+
+		if(header.isCompound())
+		{
+		    ICompoundProperty child(folder.getPtr()->
+			getCompoundProperty(header.getName()),
+			gabcWrapExisting);
+
+		    importCompoundProps(obj, child, name.buffer(), time);
+		    continue;
+		}
+
+		myProps[name.buffer()].reset(new Item());
+		myProps[name.buffer()]->setDataType(header);
+		myProps[name.buffer()]->setDataValue(obj.convertIProperty(
+		    folder, header, time, GEO_PackedNameMapPtr()));
+	    }
+	}
+
+	class Item
+	{
+	public:
+	     Item() : myIsArray(false) {}
+	    ~Item() {}
+
+	    bool isArray() const { return myIsArray; }
+	    bool isMetaValid() const { return myTraitPtr ? true : false; }
+	    bool isDataValid() const { return myData ? true : false; }
+
+	    void
+	    getDataType(UT_String &typeName) const
+	    {
+		UT_ASSERT(isMetaValid());
+		typeName.harden(myTraitPtr->myName);
+		if(myIsArray)
+		    typeName.append("[]");
+	    }
+
+	    PlainOldDataType
+	    getPodEnum()
+	    {
+		UT_ASSERT(isMetaValid());
+		return myTraitPtr->myPodEnum;
+	    }
+
+	    const GT_DataArrayHandle &
+	    getDataValue() const
+	    {
+		UT_ASSERT(isDataValid());
+		return myData;
+	    }
+
+	    void
+	    setDataType(const PropertyHeader &header)
+	    {
+		if(header.isCompound())
+		{
+		    myTraitPtr = nullptr;
+		    myIsArray = false;
+		}
+		else
+		{
+		    myTraitPtr = getTraitPtr(header);
+		    myIsArray = header.isArray();
+		}
+	    }
+
+	    void
+	    setDataType(const UT_String &typeName)
+	    {
+		if(typeName.endsWith("[]"))
+		{
+		    UT_String scalarName(typeName);
+		    scalarName.eraseTail(2);
+		    myTraitPtr = getTraitPtr(scalarName);
+		    myIsArray = true;
+
+		}
+		else
+		{
+		    myTraitPtr = getTraitPtr(typeName);
+		    myIsArray = false;
+		}
+	    }
+
+	    void
+	    setDataType(const UT_String &pod,
+		const UT_String &interpretation,
+		int extent, bool isArray)
+	    {
+		// Corresponds to PlainOldDataType in PlainOldDataType.h
+		//
+		// Contains an entry for wide strings (kWstringPOD), though
+		// we never use it.
+		static UT_FSATable  theAlembicPODTable(
+		    Alembic::Util::kBooleanPOD,     "bool",
+		    Alembic::Util::kInt8POD,	    "int8",
+		    Alembic::Util::kUint8POD,       "uint8",
+		    Alembic::Util::kInt16POD,       "int16",
+		    Alembic::Util::kUint16POD,      "uint16",
+		    Alembic::Util::kInt32POD,       "int32",
+		    Alembic::Util::kUint32POD,      "uint32",
+		    Alembic::Util::kInt64POD,       "int64",
+		    Alembic::Util::kUint64POD,      "uint64",
+		    Alembic::Util::kFloat16POD,     "float16",
+		    Alembic::Util::kFloat32POD,     "float32",
+		    Alembic::Util::kFloat64POD,     "float64",
+		    Alembic::Util::kStringPOD,      "string",
+		    Alembic::Util::kWstringPOD,     "wstring",
+
+		    -1,				    NULL
+		);
+
+		auto abcPod = (PlainOldDataType) 
+		    theAlembicPODTable.findSymbol(pod.c_str());
+		myTraitPtr = getTraitPtr(abcPod, interpretation, extent);
+		myIsArray = isArray;
+	    }
+
+	    void
+	    setDataValue(const GT_DataArrayHandle &data)
+	    {
+		myData = data;
+	    }
+
+	    void
+	    setDataValue(UT_AutoJSONParser &parser, GABC_OError &err)
+	    {
+		switch(myTraitPtr->myPodEnum)
+		{
+		    case Alembic::Util::kBooleanPOD:
+		    case Alembic::Util::kInt8POD:
+			myData = parseJSONNumericArray<GT_Int8Array>(
+			    parser, myTraitPtr->myExtent, myTraitPtr->myGtType);
+			break;
+
+		    case Alembic::Util::kUint8POD:
+			myData = parseJSONNumericArray<GT_UInt8Array>(
+			    parser, myTraitPtr->myExtent, myTraitPtr->myGtType);
+			break;
+
+		    case Alembic::Util::kInt16POD:
+			myData = parseJSONNumericArray<GT_Int16Array>(
+			    parser, myTraitPtr->myExtent, myTraitPtr->myGtType);
+			break;
+
+		    case Alembic::Util::kUint16POD:
+		    case Alembic::Util::kInt32POD:
+			myData = parseJSONNumericArray<GT_Int32Array>(
+			    parser, myTraitPtr->myExtent, myTraitPtr->myGtType);
+			break;
+
+		    case Alembic::Util::kUint32POD:
+		    case Alembic::Util::kInt64POD:
+		    case Alembic::Util::kUint64POD:
+			myData = parseJSONNumericArray<GT_Int64Array>(
+			    parser, myTraitPtr->myExtent, myTraitPtr->myGtType);
+			break;
+
+		    case Alembic::Util::kFloat16POD:
+			myData = parseJSONNumericArray<GT_Real16Array>(
+			    parser, myTraitPtr->myExtent, myTraitPtr->myGtType);
+			break;
+
+		    case Alembic::Util::kFloat32POD:
+			myData = parseJSONNumericArray<GT_Real32Array>(
+			    parser, myTraitPtr->myExtent, myTraitPtr->myGtType);
+			break;
+
+		    case Alembic::Util::kFloat64POD:
+			myData = parseJSONNumericArray<GT_Real64Array>(
+			    parser, myTraitPtr->myExtent, myTraitPtr->myGtType);
+			break;
+
+		    case Alembic::Util::kStringPOD:
+		    case Alembic::Util::kWstringPOD:
+			// There is no special Alembic data type that is a
+			// string tuple. The equivalent would be an array of
+			// strings.
+			UT_ASSERT(myTraitPtr->myExtent == 1);
+			myData = parseJSONStringArray(parser);
+			break;
+
+		    default:
+			// Since this is a type error, it has to do with
+			// reading metadata.
+			err.warning("Error reading user property metadata: "
+			    "unrecognized Houdini storage type.");
+		}
+
+		if (!myData)
+		{
+		    err.warning("Error parsing user property values: "
+			"no valid JSON map in attribute(s).");  
+		}
+	    }
+
+	private:
+	    static AlembicTraitEquivalence *
+	    getTraitPtr(const UT_StringRef &typeName)
+	    {
+		for(auto &trait : theEquivalanceArray)
+		{
+		    if(::strcmp(trait.myName, typeName.c_str()) == 0)
+			return &trait;
+		}
+		return nullptr;
+	    }
+
+	    static AlembicTraitEquivalence *
+	    getTraitPtr(PlainOldDataType pod,
+		const UT_StringRef &interpretation, int extent)
+	    {
+		for(auto &trait : theEquivalanceArray)
+		{
+		    if(trait.myPodEnum == pod
+		    && ::strcmp(trait.myInterpretation,
+			interpretation.c_str()) == 0
+		    && trait.myExtent == extent)
+		    {
+			return &trait;
+		    }
+		}
+		return nullptr;
+	    }
+
+	    static AlembicTraitEquivalence *
+	    getTraitPtr(const PropertyHeader &header)
+	    {
+		return getTraitPtr(header.getDataType().getPod(),
+		    header.getMetaData().get("interpretation"),
+		    header.getDataType().getExtent());
+	    }
+
+	    static GT_DataArrayHandle
+	    parseJSONStringArray(UT_AutoJSONParser &parser)
+	    {
+		UT_WorkBuffer buffer;
+		GT_DAIndexedString *data = new GT_DAIndexedString(0);
+		bool succ_parsing = true;
+		bool err_parsing = false;
+
+		int index = 0;
+		for(auto array_it = parser->beginArray();
+		    !array_it.atEnd(); array_it.advance(), ++index)
+		{
+		    succ_parsing &= parser->parseString(buffer);
+
+		    // Efficiently bumps the array size.
+		    if(data->entries() <= index)
+			data->resize(UTbumpAlloc(index + 1));
+
+		    data->setString(index, 0, buffer.buffer());
+		}
+
+		// Since the IndexedString doesn't holds the capacity,
+		// we set the precise size for the correct displaying.
+		if(data->entries() > index)
+		    data->resize(index);
+
+		if (!succ_parsing || err_parsing)
+		{
+		    return GT_DataArrayHandle();
+		}
+
+		return GT_DataArrayHandle(data);
+	    }
+
+	    template <typename T>
+	    static GT_DataArrayHandle
+	    parseJSONNumericArray(UT_AutoJSONParser &parser,
+				  int tuple_size,
+				  GT_Type gt_type)
+	    {
+		T			*data = new T(0, tuple_size, gt_type);
+		typename T::data_type	 value;
+		bool			 succ_parsing = true;
+		bool			 err_parsing = false;
+
+		int index = 0;
+		for(auto array_it = parser->beginArray();
+		    !array_it.atEnd(); array_it.advance(), ++index)
+		{
+		    if(tuple_size > 1)
+		    {
+			succ_parsing &= parser->parseBeginArray(err_parsing);
+
+			// Expands the array.
+			succ_parsing &= parser->parseValue(value);
+			data->append(value);
+
+			// Fills out the rest of the elements.
+			for(int j = 1; j < tuple_size; ++j)
+			{
+			    succ_parsing &= parser->parseValue(value);
+			    data->set(value, index, j);
+			}
+
+			succ_parsing &= parser->parseEndArray(err_parsing);
+		    }
+		    else
+		    {
+			succ_parsing &= parser->parseValue(value);
+			data->append(value);
+		    }
+		}
+
+		if (!succ_parsing || err_parsing)
+		{
+		    return GT_DataArrayHandle();
+		}
+
+		return GT_DataArrayHandle(data);
+	    }
+
+	    bool				 myIsArray;
+	    AlembicTraitEquivalence		*myTraitPtr;
+	    GT_DataArrayHandle			 myData;
+	};
+
+	typedef UT_UniquePtr<Item>		    ItemHandle;
+	UT_SortedMap<UT_StringHolder, ItemHandle>   myProps;
+    };
+
     //-*************************************************************************
 
     size_t g_maxCache = 50;
@@ -1093,735 +1789,6 @@ namespace
     // for now, leak the pointer to the archive cache so we don't
     // crash at shutdown
     ArchiveCache *g_archiveCache(new ArchiveCache);
-
-    static std::string
-    getInterpretation(const PropertyHeader &head, const DataType &dt)
-    {
-        PlainOldDataType    pod = dt.getPod();
-        std::string         interpretation = "UNIDENTIFIED";
-        int                 extent = dt.getExtent();
-
-        if (head.isArray())
-        {
-            if (extent == 1)
-            {
-                interpretation = "";
-            }
-            else if (extent == 2)
-            {
-                if (pod == Alembic::Abc::kInt16POD)
-                {
-                    if (IV2sArrayProperty::matches(head))
-                    {
-                        interpretation = IV2sArrayProperty::getInterpretation();
-                    }
-                    else if (IP2sArrayProperty::matches(head))
-                    {
-                        interpretation = IP2sArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kInt32POD)
-                {
-                    if (IV2iArrayProperty::matches(head))
-                    {
-                        interpretation = IV2iArrayProperty::getInterpretation();
-                    }
-                    else if (IP2iArrayProperty::matches(head))
-                    {
-                        interpretation = IP2iArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat32POD)
-                {
-                    if (IV2fArrayProperty::matches(head))
-                    {
-                        interpretation = IV2fArrayProperty::getInterpretation();
-                    }
-                    else if (IP2fArrayProperty::matches(head))
-                    {
-                        interpretation = IP2fArrayProperty::getInterpretation();
-                    }
-                    else if (IN2fArrayProperty::matches(head))
-                    {
-                        interpretation = IN2fArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat64POD)
-                {
-                    if (IV2dArrayProperty::matches(head))
-                    {
-                        interpretation = IV2dArrayProperty::getInterpretation();
-                    }
-                    else if (IP2dArrayProperty::matches(head))
-                    {
-                        interpretation = IP2dArrayProperty::getInterpretation();
-                    }
-                    else if (IN2dArrayProperty::matches(head))
-                    {
-                        interpretation = IN2dArrayProperty::getInterpretation();
-                    }
-                }
-            }
-            else if (extent == 3)
-            {
-                if (pod == Alembic::Abc::kUint8POD)
-                {
-                    if (IC3cArrayProperty::matches(head))
-                    {
-                        interpretation = IC3cArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kInt16POD)
-                {
-                    if (IV3sArrayProperty::matches(head))
-                    {
-                        interpretation = IV3sArrayProperty::getInterpretation();
-                    }
-                    else if (IP3sArrayProperty::matches(head))
-                    {
-                        interpretation = IP3sArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kInt32POD)
-                {
-                    if (IV3iArrayProperty::matches(head))
-                    {
-                        interpretation = IV3iArrayProperty::getInterpretation();
-                    }
-                    else if (IP3iArrayProperty::matches(head))
-                    {
-                        interpretation = IP3iArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat16POD)
-                {
-                    if (IC3hArrayProperty::matches(head))
-                    {
-                        interpretation = IC3hArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat32POD)
-                {
-                    if (IV3fArrayProperty::matches(head))
-                    {
-                        interpretation = IV3fArrayProperty::getInterpretation();
-                    }
-                    else if (IP3fArrayProperty::matches(head))
-                    {
-                        interpretation = IP3fArrayProperty::getInterpretation();
-                    }
-                    else if (IN3fArrayProperty::matches(head))
-                    {
-                        interpretation = IN3fArrayProperty::getInterpretation();
-                    }
-                    else if (IC3fArrayProperty::matches(head))
-                    {
-                        interpretation = IC3fArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat64POD)
-                {
-                    if (IV3dArrayProperty::matches(head))
-                    {
-                        interpretation = IV3dArrayProperty::getInterpretation();
-                    }
-                    else if (IP3dArrayProperty::matches(head))
-                    {
-                        interpretation = IP3dArrayProperty::getInterpretation();
-                    }
-                    else if (IN3dArrayProperty::matches(head))
-                    {
-                        interpretation = IN3dArrayProperty::getInterpretation();
-                    }
-                }
-            }
-            else if (extent == 4)
-            {
-                if (pod == Alembic::Abc::kUint8POD)
-                {
-                    if (IC4cArrayProperty::matches(head))
-                    {
-                        interpretation = IC4cArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kInt16POD)
-                {
-                    if (IBox2sArrayProperty::matches(head))
-                    {
-                        interpretation = IBox2sArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kInt32POD)
-                {
-                    if (IBox2iArrayProperty::matches(head))
-                    {
-                        interpretation = IBox2iArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat16POD)
-                {
-                    if (IC4hArrayProperty::matches(head))
-                    {
-                        interpretation = IC4hArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat32POD)
-                {
-                    if (IBox2fArrayProperty::matches(head))
-                    {
-                        interpretation = IBox2fArrayProperty::getInterpretation();
-                    }
-                    else if (IQuatfArrayProperty::matches(head))
-                    {
-                        interpretation = IQuatfArrayProperty::getInterpretation();
-                    }
-                    else if (IC4fArrayProperty::matches(head))
-                    {
-                        interpretation = IC4fArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat64POD)
-                {
-                    if (IBox2dArrayProperty::matches(head))
-                    {
-                        interpretation = IBox2dArrayProperty::getInterpretation();
-                    }
-                    else if (IQuatdArrayProperty::matches(head))
-                    {
-                        interpretation = IQuatdArrayProperty::getInterpretation();
-                    }
-                }
-            }
-            else if (extent == 6)
-            {
-                if (pod == Alembic::Abc::kInt16POD)
-                {
-                    if (IBox3sArrayProperty::matches(head))
-                    {
-                        interpretation = IBox3sArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kInt32POD)
-                {
-                    if (IBox3iArrayProperty::matches(head))
-                    {
-                        interpretation = IBox3iArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat32POD)
-                {
-                    if (IBox3fArrayProperty::matches(head))
-                    {
-                        interpretation = IBox3fArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat64POD)
-                {
-                    if (IBox3dArrayProperty::matches(head))
-                    {
-                        interpretation = IBox3dArrayProperty::getInterpretation();
-                    }
-                }
-            }
-            else if (extent == 9)
-            {
-                if (pod == Alembic::Abc::kFloat32POD)
-                {
-                    if (IM33fArrayProperty::matches(head))
-                    {
-                        interpretation = IM33fArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat64POD)
-                {
-                    if (IM33dArrayProperty::matches(head))
-                    {
-                        interpretation = IM33dArrayProperty::getInterpretation();
-                    }
-                }
-            }
-            else if (extent == 16)
-            {
-                if (pod == Alembic::Abc::kFloat32POD)
-                {
-                    if (IM44fArrayProperty::matches(head))
-                    {
-                        interpretation = IM44fArrayProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat64POD)
-                {
-                    if (IM44dArrayProperty::matches(head))
-                    {
-                        interpretation = IM44dArrayProperty::getInterpretation();
-                    }
-                }
-            }
-        }
-        else
-        {
-            UT_ASSERT(head.isScalar());
-
-            if (extent == 1)
-            {
-                interpretation = "";
-            }
-            else if (extent == 2)
-            {
-                if (pod == Alembic::Abc::kInt16POD)
-                {
-                    if (IV2sProperty::matches(head))
-                    {
-                        interpretation = IV2sProperty::getInterpretation();
-                    }
-                    else if (IP2sProperty::matches(head))
-                    {
-                        interpretation = IP2sProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kInt32POD)
-                {
-                    if (IV2iProperty::matches(head))
-                    {
-                        interpretation = IV2iProperty::getInterpretation();
-                    }
-                    else if (IP2iProperty::matches(head))
-                    {
-                        interpretation = IP2iProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat32POD)
-                {
-                    if (IV2fProperty::matches(head))
-                    {
-                        interpretation = IV2fProperty::getInterpretation();
-                    }
-                    else if (IP2fProperty::matches(head))
-                    {
-                        interpretation = IP2fProperty::getInterpretation();
-                    }
-                    else if (IN2fProperty::matches(head))
-                    {
-                        interpretation = IN2fProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat64POD)
-                {
-                    if (IV2dProperty::matches(head))
-                    {
-                        interpretation = IV2dProperty::getInterpretation();
-                    }
-                    else if (IP2dProperty::matches(head))
-                    {
-                        interpretation = IP2dProperty::getInterpretation();
-                    }
-                    else if (IN2dProperty::matches(head))
-                    {
-                        interpretation = IN2dProperty::getInterpretation();
-                    }
-                }
-            }
-            else if (extent == 3)
-            {
-                if (pod == Alembic::Abc::kUint8POD)
-                {
-                    if (IC3cProperty::matches(head))
-                    {
-                        interpretation = IC3cProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kInt16POD)
-                {
-                    if (IV3sProperty::matches(head))
-                    {
-                        interpretation = IV3sProperty::getInterpretation();
-                    }
-                    else if (IP3sProperty::matches(head))
-                    {
-                        interpretation = IP3sProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kInt32POD)
-                {
-                    if (IV3iProperty::matches(head))
-                    {
-                        interpretation = IV3iProperty::getInterpretation();
-                    }
-                    else if (IP3iProperty::matches(head))
-                    {
-                        interpretation = IP3iProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat16POD)
-                {
-                    if (IC3hProperty::matches(head))
-                    {
-                        interpretation = IC3hProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat32POD)
-                {
-                    if (IV3fProperty::matches(head))
-                    {
-                        interpretation = IV3fProperty::getInterpretation();
-                    }
-                    else if (IP3fProperty::matches(head))
-                    {
-                        interpretation = IP3fProperty::getInterpretation();
-                    }
-                    else if (IN3fProperty::matches(head))
-                    {
-                        interpretation = IN3fProperty::getInterpretation();
-                    }
-                    else if (IC3fProperty::matches(head))
-                    {
-                        interpretation = IC3fProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat64POD)
-                {
-                    if (IV3dProperty::matches(head))
-                    {
-                        interpretation = IV3dProperty::getInterpretation();
-                    }
-                    else if (IP3dProperty::matches(head))
-                    {
-                        interpretation = IP3dProperty::getInterpretation();
-                    }
-                    else if (IN3dProperty::matches(head))
-                    {
-                        interpretation = IN3dProperty::getInterpretation();
-                    }
-                }
-            }
-            else if (extent == 4)
-            {
-                if (pod == Alembic::Abc::kUint8POD)
-                {
-                    if (IC4cProperty::matches(head))
-                    {
-                        interpretation = IC4cProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kInt16POD)
-                {
-                    if (IBox2sProperty::matches(head))
-                    {
-                        interpretation = IBox2sProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kInt32POD)
-                {
-                    if (IBox2iProperty::matches(head))
-                    {
-                        interpretation = IBox2iProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat16POD)
-                {
-                    if (IC4hProperty::matches(head))
-                    {
-                        interpretation = IC4hProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat32POD)
-                {
-                    if (IBox2fProperty::matches(head))
-                    {
-                        interpretation = IBox2fProperty::getInterpretation();
-                    }
-                    else if (IQuatfProperty::matches(head))
-                    {
-                        interpretation = IQuatfProperty::getInterpretation();
-                    }
-                    else if (IC4fProperty::matches(head))
-                    {
-                        interpretation = IC4fProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat64POD)
-                {
-                    if (IBox2dProperty::matches(head))
-                    {
-                        interpretation = IBox2dProperty::getInterpretation();
-                    }
-                    else if (IQuatdProperty::matches(head))
-                    {
-                        interpretation = IQuatdProperty::getInterpretation();
-                    }
-                }
-            }
-            else if (extent == 6)
-            {
-                if (pod == Alembic::Abc::kInt16POD)
-                {
-                    if (IBox3sProperty::matches(head))
-                    {
-                        interpretation = IBox3sProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kInt32POD)
-                {
-                    if (IBox3iProperty::matches(head))
-                    {
-                        interpretation = IBox3iProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat32POD)
-                {
-                    if (IBox3fProperty::matches(head))
-                    {
-                        interpretation = IBox3fProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat64POD)
-                {
-                    if (IBox3dProperty::matches(head))
-                    {
-                        interpretation = IBox3dProperty::getInterpretation();
-                    }
-                }
-            }
-            else if (extent == 9)
-            {
-                if (pod == Alembic::Abc::kFloat32POD)
-                {
-                    if (IM33fProperty::matches(head))
-                    {
-                        interpretation = IM33fProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat64POD)
-                {
-                    if (IM33dProperty::matches(head))
-                    {
-                        interpretation = IM33dProperty::getInterpretation();
-                    }
-                }
-            }
-            else if (extent == 16)
-            {
-                if (pod == Alembic::Abc::kFloat32POD)
-                {
-                    if (IM44fProperty::matches(head))
-                    {
-                        interpretation = IM44fProperty::getInterpretation();
-                    }
-                }
-                else if (pod == Alembic::Abc::kFloat64POD)
-                {
-                    if (IM44dProperty::matches(head))
-                    {
-                        interpretation = IM44dProperty::getInterpretation();
-                    }
-                }
-            }
-        }
-
-        return interpretation;
-    }
-
-    // Corresponds to PlainOldDataType in Alembic::Util::PlainOldDataType.h
-    //
-    // Contains an entry for wide strings (kWstringPOD), though we never
-    // use it.
-    static UT_FSATable  theAlembicPODTable(
-        Alembic::Util::kBooleanPOD,     "bool",
-        Alembic::Util::kInt8POD,        "int8",
-        Alembic::Util::kUint8POD,       "uint8",
-        Alembic::Util::kInt16POD,       "int16",
-        Alembic::Util::kUint16POD,      "uint16",
-        Alembic::Util::kInt32POD,       "int32",
-        Alembic::Util::kUint32POD,      "uint32",
-        Alembic::Util::kInt64POD,       "int64",
-        Alembic::Util::kUint64POD,      "uint64",
-        Alembic::Util::kFloat16POD,     "float16",
-        Alembic::Util::kFloat32POD,     "float32",
-        Alembic::Util::kFloat64POD,     "float64",
-        Alembic::Util::kStringPOD,      "string",
-        Alembic::Util::kWstringPOD,     "wstring",
-
-        -1,                             NULL
-    );
-    static const char *
-    AbcPOD(PlainOldDataType pod)
-    {
-        return theAlembicPODTable.getToken(pod);
-    }
-    static PlainOldDataType
-    AbcPOD(const char *pod)
-    {
-        return (PlainOldDataType)theAlembicPODTable.findSymbol(pod);
-    }
-
-    static bool
-    importUserPropertyHelper(UT_JSONWriter *data_writer,
-            UT_JSONWriter *meta_writer,
-            const GABC_IObject &obj,
-            ICompoundProperty &uprops,
-            std::string &base,
-            fpreal time)
-    {
-        CompoundPropertyReaderPtr   cprp = GetCompoundPropertyReaderPtr(uprops);
-        HeaderMap                   hmap;
-        const PropertyHeader       *header;
-        UT_WorkBuffer               metadata;
-        std::string                 interpretation;
-        std::string                 name;
-        exint                       num_props = uprops
-                                            ? uprops.getNumProperties()
-                                            : 0;
-        bool                        success = true;
-
-        // Go through every user property and map the name of the property
-        // to the property header in a sorted map.
-        //
-        // In HDF5 Alembic files, the order that user properties are
-        // declared is not preserved. However, the order is preserved in Ogawa.
-        // Since both formats are valid for using to store an Alembic
-        // archive, and what type of format is used is not exposed to the
-        // user, it likely means that the order of the user properties has
-        // no significance in Alembic and the behaviour is undefined. Thus,
-        // we order the properties ourselves in alphabetical order.
-        for (exint i = 0; i < num_props; ++i)
-        {
-            const PropertyHeader    &head = uprops.getPropertyHeader(i);
-            hmap.insert(HeaderMapInsert(head.getName(), &head));
-        }
-
-        for (HeaderMap::iterator it = hmap.begin(); it != hmap.end(); ++it)
-        {
-            // The name of a user property is constructed as a path:
-            // the names of the compound properties that a property is
-            // nested within are delimited by the '/' character, and the
-            // final token is the name of the property.
-            //
-            // EX:  Property C inside compound property B, itself inside
-            //      compound property A     =   A/B/C
-            name = base.empty() ? it->first : base + "/" + it->first;
-            header = it->second;
-
-            // Recurse for compound properties
-            if (header->isCompound())
-            {
-                ICompoundProperty   child(cprp->getCompoundProperty(it->first),
-                                            gabcWrapExisting);
-
-                success = importUserPropertyHelper(data_writer,
-                        meta_writer,
-                        obj,
-                        child,
-                        name,
-                        time);
-            }
-            else
-            {
-                const DataType     &dt = header->getDataType();
-                GT_DataArrayHandle  da = obj.convertIProperty(uprops,
-                                            *header,
-                                            time,
-					    GEO_PackedNameMapPtr());
-
-                // Writes GT_DataArray to JSON array, creating nested arrays
-                // if tuple size is greater than 1.
-                if (data_writer)
-                {
-                    // User property name
-                    success = data_writer->jsonKey(name.c_str());
-
-                    // Array values
-                    if (!success || !da || !da->save(*data_writer, false)) {
-                        return false;
-                    }
-                }
-
-                if (meta_writer)
-                {
-                    int tuple_size = dt.getExtent();
-
-                    // User property name
-                    success = meta_writer->jsonKey(name.c_str());
-
-                    success &= meta_writer->jsonBeginArray();
-                    // Houdini GT storage type
-                    success &= meta_writer->jsonString(
-                            GTstorage(da->getStorage()));
-                    // Alembic storage type
-                    success &= meta_writer->jsonString(AbcPOD(dt.getPod()));
-                    // Tuple size
-                    success &= meta_writer->jsonInt(tuple_size);
-                    // Tuple interpretation
-                    if (tuple_size > 1)
-                    {
-                        success &= meta_writer->jsonString(
-                                getInterpretation(*header, dt).c_str());
-                    }
-                    // Array size
-                    if (header->isArray())
-                    {
-                        success &= meta_writer->jsonInt(da->entries());
-                    }
-
-                    success &= meta_writer->jsonEndArray(false);
-                }
-            }
-
-            if (!success)
-            {
-                break;
-            }
-        }
-
-        return success;
-    }
-
-    // Parse numeric JSON values into a GT_DANumeric data array.
-    template <typename T>
-    static GT_DataArrayHandle
-    parseJSONValuesArray(UT_AutoJSONParser &parser,
-            int items,
-            int tuple_size,
-            GT_Type gt_type)
-    {
-        T                      *data = new T(items,
-                                        tuple_size,
-                                        gt_type);
-        typename T::data_type  *direct = data->data();
-        bool                    success_parsing = true;
-        bool                    error_parsing = false;
-
-        success_parsing &= parser->parseBeginArray(error_parsing);
-        if (tuple_size > 1)
-        {
-            for (int i = 0; i < items; ++i)
-            {
-                success_parsing &= parser->parseBeginArray(error_parsing);
-                for (int j = 0; j < tuple_size; ++j)
-                {
-                    success_parsing &= parser->parseValue(*direct);
-                    ++direct;
-                }
-                success_parsing &= parser->parseEndArray(error_parsing);
-            }
-        }
-        else
-        {
-            items *= tuple_size;
-            for (int i = 0; i < items; ++i)
-            {
-                success_parsing &= parser->parseValue(*direct);
-                ++direct;
-            }
-        }
-        success_parsing &= parser->parseEndArray(error_parsing);
-
-        if (!success_parsing || error_parsing)
-        {
-            return GT_DataArrayHandle();
-        }
-
-        return GT_DataArrayHandle(data);
-    }
 }
 
 //-----------------------------------------------
@@ -2266,63 +2233,23 @@ GABC_Util::isABCPropertyConstant(ICompoundProperty arb)
 }
 
 bool
-GABC_Util::importUserPropertyDictionary(UT_JSONWriter *data_writer,
-        UT_JSONWriter *meta_writer,
+GABC_Util::importUserPropertyDictionary(UT_JSONWriter *vals_writer,
+	UT_JSONWriter *meta_writer,
         const GABC_IObject &obj,
         fpreal time)
 {
-    std::string base;
-    bool        success = true;
+    UserPropStorage storage(obj, time);
+    
+    if(meta_writer)
+	storage.writeJSONMetas(*meta_writer);
 
-    // At least one of the writers should not be NULL
-    if (!(data_writer || meta_writer))
-    {
-        return false;
-    }
+    if(vals_writer)
+	storage.writeJSONValues(*vals_writer);
 
-    if (data_writer)
-    {
-        success = data_writer->jsonBeginMap();
-    }
-    if (meta_writer)
-    {
-        success &= meta_writer->jsonBeginMap();
-    }
-    if (!success)
-        return false;
-
-    auto uprops = obj.getUserProperties();
-    success = importUserPropertyHelper(data_writer,
-            meta_writer,
-            obj,
-            uprops,
-            base,
-            time);
-
-    if (data_writer)
-    {
-        success &= data_writer->jsonEndMap();
-    }
-    if (meta_writer)
-    {
-        success &= meta_writer->jsonEndMap();
-    }
-
-    return success;
+    return true;
 }
 
-// Report an error when parsing the user properties maps is unsuccessful.
-#define USER_PROPS_PARSE_ERROR \
-do { \
-    if (!success_parsing || error_parsing) \
-    { \
-        err.warning("Error parsing user properties occurred while parsing %s.", \
-                m_key.buffer()); \
-        return false; \
-    } \
-} while(false)
-
-bool
+void
 GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
         UT_AutoJSONParser &vals_data,
         PropertyMap &up_map,
@@ -2332,420 +2259,18 @@ GABC_Util::exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
 	const GABC_LayerOptions &lopt,
 	GABC_LayerOptions::LayerType ltype)
 {
-    if (!ancestor && !up_map.size())
-        return true;
-
-    // Parse the beginning of the map.
-    bool error_parsing = false;
-    if (!meta_data->parseBeginMap(error_parsing)
-	|| !vals_data->parseBeginMap(error_parsing))
-    {
-        err.warning("Error parsing user properties: no valid JSON map in "
-                "attribute(s).");
-        return false;
-    }
-
-    bool m_finished = meta_data->parseEndMap(error_parsing);
-    bool v_finished = vals_data->parseEndMap(error_parsing);
-
-    GABC_OProperty             *prop;
-    OCompoundProperty           parent;
-    UPSampleMap                 sample_map;
-    UT_WorkBuffer               m_key;
-    UT_WorkBuffer               v_key;
-    UT_WorkBuffer               work_buffer;
-    const char                 *name;
-    bool                        success_parsing = true;
-
-    // Keep reading the until one of the maps ends.
-    while (!m_finished && !v_finished)
-    {
-        bool output = true;
-        success_parsing = true;
-        error_parsing = false;
-        GT_Type gt_type = GT_TYPE_NONE;
-        int array_size = 0;
-
-        // Parse the name of the next user property. The names from both
-        // dictionaries should match.
-        success_parsing &= meta_data->parseKey(m_key);
-        success_parsing &= vals_data->parseKey(v_key);
-
-        USER_PROPS_PARSE_ERROR;
-
-        if (m_key != v_key)
-        {
-            err.warning("Error parsing user properties: order mismatch between "
-                    "maps (%s vs %s).",
-                    m_key.buffer(),
-                    v_key.buffer());
-            return false;
-        }
-
-        PropertyMap::iterator it = up_map.find(m_key.buffer());
-        if (ancestor)
-        {
-            // If creating a new GABC_OProperty, check that one doesn't
-            // already exist with the path given. Next, parse the name of
-            // of the property from the path. While parsing, create any
-            // parent compound properties that need to be created, reuse
-            // existing properties if they have already been created.
-            if (it != up_map.end())
-            {
-                err.warning("User property %s declared multiple times, ignoring"
-                        " multiple declarations.",
-                        m_key.buffer());
-                output = false;
-            }
-            else
-            {
-                parent = *ancestor;
-                const char *up_path = m_key.buffer();
-
-                while (true)
-                {
-                    name = up_path;
-                    work_buffer.clear();
-                    work_buffer.getNextToken(up_path, "/");
-
-                    // Exit if no more tokens, we've found the property name.
-                    if (!(*up_path))
-                        break;
-
-                    // Otherwise, this token is the name of a parent compound
-                    // property. Check if a property with that name
-                    // already exists.
-                    OBaseProperty   bp = parent.getProperty(
-                                            work_buffer.toStdString());
-                    if (bp.valid())
-                    {
-                        // If a property exists, check that it is a compound
-                        // property.
-                        CompoundPropertyWriterPtr cpw = bp.getPtr()->asCompoundPtr();
-                        if (cpw.get())
-                        {
-                            // If so, use the existing property as the parent.
-                            parent = OCompoundProperty(
-                                    cpw,
-                                    gabcWrapExisting,
-                                    GetErrorHandlerPolicy(parent));
-                        }
-                        else
-                        {
-                            // Otherwise, we have an overlap: user is trying
-                            // to create simple and compound properties with
-                            // the same name.
-                            err.warning("User property %s already exists as "
-                                    "simple property. Ignoring %s.",
-                                    work_buffer.buffer(),
-                                    m_key.buffer());
-                            output = false;
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        // If no existing property found, make one.
-                        parent = OCompoundProperty(parent,
-                                work_buffer.toStdString());
-                    }
-                }
-
-            }
-
-            // If we've found the property name and parent without error,
-            // check that no compound property exists with that name under
-            // this parent, otherwise we have a similar overlap as above.
-            if (output)
-            {
-                OBaseProperty bp = parent.getProperty(work_buffer.toStdString());
-                if (bp.valid())
-                {
-                    err.warning("User property %s already exists as compound "
-                            "property. Ignoring %s.",
-                            name,
-                            m_key.buffer());
-                    output = false;
-                }
-            }
-        }
-        else
-        {
-            // If updating an existing property, make sure it exists.
-            if (it != up_map.end())
-                prop = it->second;
-            else
-            {
-                err.warning("User property %s was not declared on first frame, "
-                        "so it was ignored.",
-                        m_key.buffer());
-                output = false;
-            }
-        }
-
-        //
-        //  Read metadata
-        //
-
-        success_parsing &= meta_data->parseBeginArray(error_parsing);
-
-        // Read storage type
-        success_parsing &= meta_data->parseString(work_buffer);
-
-        // Read Alembic POD
-        success_parsing &= meta_data->parseString(work_buffer);
-	PlainOldDataType pod = AbcPOD(work_buffer.buffer());
-
-        // Read tuple size
-	int tuple_size;
-        success_parsing &= meta_data->parseValue(tuple_size);
-
-        // Read tuple interpretation
-        if (tuple_size > 1)
-        {
-            success_parsing &= meta_data->parseString(work_buffer);
-            gt_type = GTtype(work_buffer.buffer());
-
-            if ((gt_type == GT_TYPE_MATRIX) && (tuple_size == 9))
-                gt_type = GT_TYPE_MATRIX3;
-            else if ((gt_type == GT_TYPE_BOX) && (tuple_size == 4))
-                gt_type = GT_TYPE_BOX2;
-        }
-
-        // Read array size
-        if (!meta_data->parseEndArray(error_parsing))
-        {
-            success_parsing &= meta_data->parseValue(array_size);
-
-            success_parsing &= meta_data->parseEndArray(error_parsing);
-        }
-
-        USER_PROPS_PARSE_ERROR;
-
-        //
-        //  Read data
-        //
-	GT_DataArrayHandle data_array;
-	exint   items = (array_size ? array_size : 1);
-
-	switch (pod)
-	{
-	    case Alembic::Util::kBooleanPOD:
-	    case Alembic::Util::kInt8POD:
-		data_array = parseJSONValuesArray<GT_Int8Array>(
-			vals_data, items, tuple_size, gt_type);
-		break;
-
-	    case Alembic::Util::kUint8POD:
-		data_array = parseJSONValuesArray<GT_UInt8Array>(
-			vals_data, items, tuple_size, gt_type);
-		break;
-
-	    case Alembic::Util::kInt16POD:
-		data_array = parseJSONValuesArray<GT_Int16Array>(
-			vals_data, items, tuple_size, gt_type);
-		break;
-
-	    case Alembic::Util::kUint16POD:
-	    case Alembic::Util::kInt32POD:
-		data_array = parseJSONValuesArray<GT_Int32Array>(
-			vals_data, items, tuple_size, gt_type);
-		break;
-
-	    case Alembic::Util::kUint32POD:
-	    case Alembic::Util::kInt64POD:
-	    case Alembic::Util::kUint64POD:
-		data_array = parseJSONValuesArray<GT_Int64Array>(
-			vals_data, items, tuple_size, gt_type);
-		break;
-
-	    case Alembic::Util::kFloat16POD:
-		data_array = parseJSONValuesArray<GT_Real16Array>(
-			vals_data, items, tuple_size, gt_type);
-		break;
-
-	    case Alembic::Util::kFloat32POD:
-		data_array = parseJSONValuesArray<GT_Real32Array>(
-			vals_data, items, tuple_size, gt_type);
-		break;
-
-	    case Alembic::Util::kFloat64POD:
-		data_array = parseJSONValuesArray<GT_Real64Array>(
-			vals_data, items, tuple_size, gt_type);
-		break;
-
-	    case Alembic::Util::kStringPOD:
-	    case Alembic::Util::kWstringPOD:
-		{
-		    // There is no special Alembic data type that is a
-		    // string tuple. The equivalent would be an array of
-		    // strings.
-		    UT_ASSERT(tuple_size == 1);
-		    GT_DAIndexedString *data = new GT_DAIndexedString(items);
-
-		    success_parsing &= vals_data->parseBeginArray(error_parsing);
-		    for (int i = 0; i < items; ++i)
-		    {
-			success_parsing &= vals_data->parseString(work_buffer);
-			data->setString(i, 0, work_buffer.buffer());
-		    }
-		    success_parsing &= vals_data->parseEndArray(error_parsing);
-
-		    USER_PROPS_PARSE_ERROR;
-
-		    data_array = GT_DataArrayHandle(data);
-		}
-		break;
-
-	    default:
-		// Since this is a type error, it has to do with
-		// reading metadata.
-		err.warning("Error reading user property metadata: "
-			"unrecognized Houdini storage type.");
-		return false;
-	}
-
-        if (!data_array)
-        {
-            err.warning("Error occured while parsing user property %s.",
-                    m_key.buffer());
-            return false;
-        }
-
-        //
-        //  Start/update properties with data
-        //
-
-        // If a non-fatal error occurs, we want to continue, and thus must
-        // parse the remaining data. However, we don't want to output the
-        // data we parsed. Use the 'output' flag to keep track if the parsed
-        // data should be used or not.
-        if (output)
-        {
-            if (ancestor)
-            {
-		auto propltype = lopt.getUserPropType(
-		    ancestor->getObject().getFullName().c_str(),
-		    UT_String(m_key.buffer()), ltype);
-
-		if (propltype != GABC_LayerOptions::LayerType::DEFER)
-		{
-		    if (array_size)
-			prop = new GABC_OArrayProperty(propltype);
-		    else
-			prop = new GABC_OScalarProperty(propltype);
-
-		    if (!prop->start(parent, name, data_array, err, ctx, pod))
-			err.warning("Skipping property %s.", m_key.buffer());
-		    else
-			up_map.insert(PropertyMapInsert(m_key.toStdString(), prop));
-		}
-            }
-            else
-            {
-                // When updating existing properties, the parsed data arrays
-                // are stored. If the entire map was parsed without
-                // incident, then the updates are applied. Otherwise, they
-                // are discarded.
-                sample_map.insert(UPSampleMapInsert(prop,
-                        UPSample(data_array, pod)));
-            }
-        }
-
-        m_finished = meta_data->parseEndMap(error_parsing);
-        v_finished = vals_data->parseEndMap(error_parsing);
-    }
-
-    USER_PROPS_PARSE_ERROR;
-
-    // If this turns out to be too slow/inefficient, it can be moved into the
-    // GABC_OProperties by creating a second cache that stores potential
-    // updates, and applying them once the JSON map has been successfully
-    // parsed. This would be faster (cache created and destroyed with property,
-    // no extra map, etc.) but doesn't abstract the conditions under which to
-    // update from the update functions as this solution does.
-    if (!ancestor)
-    {
-        for (PropertyMap::iterator it = up_map.begin(); it != up_map.end(); ++it)
-        {
-            prop = it->second;
-	    UPSampleMap::iterator s_it = sample_map.find(prop);
-
-            if (s_it == sample_map.end())
-            {
-                err.warning("Could not find property %s. Reusing previous sample.",
-                        it->first.c_str());
-                prop->updateFromPrevious();
-            }
-            else
-            {
-		UPSample *sample = &s_it->second;
-
-                if (!prop->update(sample->first, err, ctx, sample->second))
-                {
-                    err.warning("Updating property %s using previous sample.",
-                            it->first.c_str());
-                    prop->updateFromPrevious();
-                }
-            }
-        }
-    }
-
-    // TODO: Since we stop checking after one of the dictionaries ends,
-    //       it's possible that the dictionary with extra entries is malformed
-    //       beyond the point we stop checking, but we read it "correctly".
-    // TODO: It's also possible that both maps in the dictionary end correctly,
-    //       then are followed by lots of garbage data, but we stopped checking
-    //       after the maps ended.
-    if (!m_finished)
-    {
-        err.warning("More metadata entries than data entries, extra entries "
-                "were ignored.");
-    }
-    if (!v_finished)
-    {
-        err.warning("More data entries than metadata entries, extra entries "
-                "were ignored.");
-    }
-
-    return true;
+    UserPropStorage storage(meta_data, vals_data, err);
+    storage.updateOProperty(up_map, ancestor, ctx, lopt, ltype, err);
 }
 
 void
 GABC_Util::getUserPropertyTokens(UT_SortedStringSet &tokens,
-    UT_AutoJSONParser &meta_data,
-    UT_AutoJSONParser &vals_data,
-    GABC_OError &err)
+	UT_AutoJSONParser &meta_data,
+	UT_AutoJSONParser &vals_data,
+	GABC_OError &err)
 {
-    UT_WorkBuffer   meta_key;
-    UT_WorkBuffer   vals_key;
-
-    auto meta_it = meta_data->beginMap();
-    auto vals_it = vals_data->beginMap();
-
-    for(; !meta_it.atEnd() && !vals_it.atEnd(); ++meta_it, ++vals_it)
-    {
-	if(!meta_it.getKey(meta_key) || !vals_it.getKey(vals_key))
-	{
-	    err.warning("Missing key while parsing user property map");
-	    break;
-	}
-
-	if(meta_key != vals_key)
-	{
-	    err.warning("Error parsing user properties: order mismatch between "
-		"maps (%s vs %s).", meta_key.buffer(), vals_key.buffer());
-	    break;
-	}
-
-	tokens.insert(meta_key.buffer());
-
-	for(auto val_it = meta_data->beginArray(); !val_it.atEnd(); ++val_it)
-	    meta_data->skipNextObject();
-
-    	for(auto val_it = vals_data->beginArray(); !val_it.atEnd(); ++val_it)
-	    vals_data->skipNextObject();
-    }
+    UserPropStorage storage(meta_data, vals_data, err);
+    storage.getKeys(tokens);
 }
 
 void

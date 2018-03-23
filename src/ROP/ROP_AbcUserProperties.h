@@ -46,8 +46,8 @@ public:
     ~ROP_AbcUserProperties() { clear(); }
 
     static void getTokens(UT_SortedStringSet &tokens,
-			  const UT_StringHolder &meta,
 			  const UT_StringHolder &vals,
+			  const UT_StringHolder &meta,
 			  GABC_OError &err);
 
     /// releases all references to user property data

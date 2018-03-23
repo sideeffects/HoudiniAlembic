@@ -335,7 +335,7 @@ public:
 
     /// Import user properties into two JSON dictionaries, one containing
     /// values and another containing the metadata for the properties.
-    static bool         importUserPropertyDictionary(UT_JSONWriter *data_writer,
+    static bool         importUserPropertyDictionary(UT_JSONWriter *vals_writer,
                                 UT_JSONWriter *meta_writer,
                                 const GABC_IObject &obj,
                                 fpreal time);
@@ -343,7 +343,7 @@ public:
     /// Export user properties from two JSON dictionaries (one containing
     /// values, the other containing metadata used to interpret the values)
     /// to GABC_OProperties, and store them in the given map.
-    static bool         exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
+    static void         exportUserPropertyDictionary(UT_AutoJSONParser &meta_data,
                                 UT_AutoJSONParser &vals_data,
                                 PropertyMap &up_map,
                                 OCompoundProperty *ancestor,
