@@ -28,11 +28,12 @@
 #include "GABC_PackedImpl.h"
 #include "GABC_PackedGT.h"
 
-#include <UT/UT_JSONParser.h>
 #include <UT/UT_Debug.h>
-#include <UT/UT_MemoryCounter.h>
+#include <UT/UT_JSONParser.h>
 #include <UT/UT_JSONValue.h>
 #include <UT/UT_JSONWriter.h>
+#include <UT/UT_MemoryCounter.h>
+#include <UT/UT_StdUtil.h>
 #include <GU/GU_PackedFactory.h>
 #include <GU/GU_PrimPacked.h>
 #include <GT/GT_Primitive.h>
@@ -627,7 +628,7 @@ GABC_PackedImpl::object() const
     if (!myObject.valid())
     {
 	std::vector<std::string> filenames;
-	myFilenames.toStdVectorOfStrings(filenames);
+	UTarrayToStdVectorOfStrings(myFilenames, filenames);
 	myObject = GABC_Util::findObject(filenames,
 					myObjectPath.toStdString());
     }

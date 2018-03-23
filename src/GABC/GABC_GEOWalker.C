@@ -39,6 +39,7 @@
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_JSONWriter.h>
 #include <UT/UT_StackBuffer.h>
+#include <UT/UT_StdUtil.h>
 #include <UT/UT_WorkArgs.h>
 #include <algorithm>
 
@@ -1382,7 +1383,7 @@ namespace {
 		return;	// Invalid primitive type
 	}
 	UT_StringArray filenames;
-	filenames.fromStdVectorOfStrings(walk.filenames());
+	UTarrayFromStdVectorOfStrings(filenames, walk.filenames());
 	GU_PrimPacked	*packed = GABC_PackedImpl::build(walk.detail(),
 				filenames,
 				obj,
