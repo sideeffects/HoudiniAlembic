@@ -1732,12 +1732,15 @@ GABC_OGTGeometry::getLayerSkip()
             "__topology",
             "__primitivelist",
             "__primitive_id",
+	    "__nested_prim_id",
             "__point_id",
             "__vertex_id",
 	    "__filename",
 	    "__object_name",
 	    "__time",
 	    "__cache_name",
+	    "__bboxmin",
+	    "__bboxmax",
             "varmap",
             (void *)NULL);
 	// Add these after the initial construction.
