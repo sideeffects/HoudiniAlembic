@@ -845,10 +845,10 @@ namespace
     static const char	*Doc_AlembicBoundingBox =
 	"(value, isConstant) = alembicBoundingBox(abcPath, objectPath, sampleTime)\n"
 	"\n"
-	"Returns None or a tuple (value,isConstant).  The tuple contains the\n"
+	"Returns None or a tuple (value,isConstant). The tuple contains the\n"
 	"boundingBox for the object, and a boolean flag indicating whether\n"
 	"boundingBox is constant over the animation.\n"
-	"The boundingBox returnedis a tuple with six elements.\n";
+	"The boundingBox returned is a tuple with six elements.\n";
 
     PY_PyObject *
     Py_AlembicBoundingBox(PY_PyObject *self, PY_PyObject *args)

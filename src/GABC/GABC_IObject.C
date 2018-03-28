@@ -2576,7 +2576,7 @@ namespace
 	IArchive	  archive = obj.getArchive();
 	IBox3dProperty    bounds = Alembic::AbcGeom::GetIArchiveBounds(archive);
 
-	// The archive bound is an optional property of IXform, return
+	// The archive bound is an optional property of Root, return
 	// false when it doesn't exist.
 	if (!bounds.valid())
 	    return false;
