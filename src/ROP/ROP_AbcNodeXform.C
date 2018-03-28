@@ -72,15 +72,20 @@ void
 ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
     const GABC_LayerOptions &layerOptions, GABC_OError &err)
 {
-    myBox.initBounds();
-    for(auto &it : myChildren)
-    {
-	it.second->update(archive, layerOptions, err);
-	myBox.enlargeBounds(it.second->getBBox());
-    }
+    Box3d bbox;
 
-    Box3d b3 = GABC_Util::getBox(myBox);
-    myBox.transform(myMatrix);
+    myBox.initBounds();
+    if(myLayerNodeType != GABC_LayerOptions::LayerType::PRUNE)
+    {
+	for(auto &it : myChildren)
+	{
+	    it.second->update(archive, layerOptions, err);
+	    myBox.enlargeBounds(it.second->getBBox());
+	}
+
+	bbox = GABC_Util::getBox(myBox);
+	myBox.transform(myMatrix);
+    }
 
     // The defer node won't be exported.
     if(myLayerNodeType == GABC_LayerOptions::LayerType::DEFER)
@@ -127,7 +132,7 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
 
 	// update computed bounding box
 	if(full_bounds)
-	    schema.getChildBoundsProperty().set(b3);
+	    schema.getChildBoundsProperty().set(bbox);
 
 	// update user properties
 	if(!myUserPropVals.empty() && !myUserPropMeta.empty())

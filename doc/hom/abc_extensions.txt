@@ -96,6 +96,13 @@ To use the functions in this module, launch `hython` and import `_alembic_hom_ex
     
     If you pass `check_ancestor=True`, the function will check the visibility of ancestor objects to return a known value (`0` or `1`) instead of `-1` as the first item.
 
+::`alembicBoundingBox(abcPath, objectPath, sampleTime)` -> `(value, isConstant)`:
+    Gets the bounding box of an object. Returns `None` or a tuple of a bbox tuple and a boolean:
+
+    * The bounding box as a tuple of 6 floats.
+    * The bounding box is an optional property of the Xform and the Root node. If it doesn't exist on the given object path, the retval will be None.
+    * The second item is `True` if the bounding box is constant over time.
+
 ::`getLocalXform(abcPath, objectPath, sampleTime)` -> `(xform, isConstant, inherits)`:
     Gets the local transform of an object. Returns a tuple of:
     

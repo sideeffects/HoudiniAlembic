@@ -842,6 +842,57 @@ namespace
 	return rcode;
     }
 
+    static const char	*Doc_AlembicBoundingBox =
+	"(value, isConstant) = alembicBoundingBox(abcPath, objectPath, sampleTime)\n"
+	"\n"
+	"Returns None or a tuple (value,isConstant).  The tuple contains the\n"
+	"boundingBox for the object, and a boolean flag indicating whether\n"
+	"boundingBox is constant over the animation.\n"
+	"The boundingBox returnedis a tuple with six elements.\n";
+
+    PY_PyObject *
+    Py_AlembicBoundingBox(PY_PyObject *self, PY_PyObject *args)
+    {
+	PY_PyObject			*fileList;
+	const char			*objectPath;
+	double				 sampleTime;
+	UT_BoundingBox			 bbox;
+
+    	if (!PY_PyArg_ParseTuple(args, "Osd", &fileList, &objectPath,
+    	    &sampleTime))	
+	{
+	    return nullptr;
+	}
+
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+	    PY_Py_RETURN_NONE;
+
+	bool isConstant = false;
+	GABC_IObject obj = GABC_Util::findObject(filenames, objectPath);
+	if (!obj.valid())
+	    PY_Py_RETURN_NONE;
+
+	if (!obj.getBoundingBox(bbox, sampleTime, isConstant))
+	    PY_Py_RETURN_NONE;
+
+	PY_PyObject* bboxTuple = PY_PyTuple_New(6);
+	PY_PyTuple_SET_ITEM(bboxTuple, 0, PY_PyFloat_FromDouble(bbox.xmin()));
+	PY_PyTuple_SET_ITEM(bboxTuple, 1, PY_PyFloat_FromDouble(bbox.ymin()));
+	PY_PyTuple_SET_ITEM(bboxTuple, 2, PY_PyFloat_FromDouble(bbox.zmin()));
+	PY_PyTuple_SET_ITEM(bboxTuple, 3, PY_PyFloat_FromDouble(bbox.xmax()));
+	PY_PyTuple_SET_ITEM(bboxTuple, 4, PY_PyFloat_FromDouble(bbox.ymax()));
+	PY_PyTuple_SET_ITEM(bboxTuple, 5, PY_PyFloat_FromDouble(bbox.zmax()));
+
+	PY_PyObject *result = PY_PyTuple_New(2);
+	PY_PyTuple_SetItem(result, 0, bboxTuple);
+	PY_PyTuple_SetItem(result, 1,
+	    isConstant ? PY_Py_False() : PY_Py_True());
+	PY_Py_INCREF(result);
+	return result;
+    }
+
     //-*************************************************************************
     static const char	*Doc_AlembicGetSceneHierarchy =
 	"alembicGetSceneHierarchy(abcPath, objectPath)\n"
@@ -1277,6 +1328,8 @@ HOMextendLibrary()
         { "alembicUserPropertyValuesAndMetadata", Py_AlembicUserPropertyValuesAndMetadata,
                 PY_METH_VARARGS(), Doc_AlembicUserPropertyValuesAndMetadata},
 
+	{ "alembicBoundingBox", Py_AlembicBoundingBox,
+		PY_METH_VARARGS(), Doc_AlembicBoundingBox },
 	{ "alembicVisibility",	Py_AlembicVisibility,
 		PY_METH_VARARGS(), Doc_AlembicVisibility },
 	{ "alembicTimeRange", Py_AlembicTimeRange,

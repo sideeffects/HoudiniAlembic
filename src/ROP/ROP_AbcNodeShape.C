@@ -137,7 +137,8 @@ ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
 	if(myPrim)
 	{
 	    myBox.initBounds();
-	    ropEnlargeBounds(myBox, myPrim);
+	    if(myLayerNodeType != GABC_LayerOptions::LayerType::PRUNE)
+		ropEnlargeBounds(myBox, myPrim);
 	}
 
 	// The defer node won't be exported.

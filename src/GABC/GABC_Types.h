@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -48,6 +48,7 @@ enum GABC_NodeType
     GABC_NUPATCH,
     GABC_LIGHT,		// Added in Alembic1.1
     GABC_MATERIAL,	// Added in Alembic1.1
+    GABC_ROOT,
 
     GABC_NUM_NODE_TYPES	// Sentinal
 };

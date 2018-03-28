@@ -51,6 +51,7 @@
 #include <GT/GT_PrimNuPatch.h>
 #include <GT/GT_TrimNuCurves.h>
 #include <GA/GA_Names.h>
+#include <Alembic/AbcGeom/ArchiveBounds.h>
 #include <Alembic/AbcGeom/All.h>
 #include <Alembic/AbcMaterial/All.h>
 #include <Alembic/AbcCoreHDF5/All.h>
@@ -69,6 +70,7 @@ namespace
     using V3d = Alembic::Abc::V3d;
     using Quatd = Alembic::Abc::Quatd;
     using IObject = Alembic::Abc::IObject;
+    using IArchive = Alembic::Abc::IArchive;
     using ICompoundProperty = Alembic::Abc::ICompoundProperty;
     using ISampleSelector = Alembic::Abc::ISampleSelector;
     using ObjectHeader = Alembic::Abc::ObjectHeader;
@@ -2517,7 +2519,7 @@ namespace
     abcBounds(const IObject &obj, UT_BoundingBox &box, fpreal t, bool &isconst)
     {
 	ABC_T		 prim(obj, gabcWrapExisting);
-	const typename ABC_T::schema_type	&ss = prim.getSchema();
+	const typename	 ABC_T::schema_type	&ss = prim.getSchema();
 	IBox3dProperty	 bounds = ss.getSelfBoundsProperty();
 	index_t		 i0, i1;
 	fpreal		 bias = GABC_Util::getSampleIndex(t,
@@ -2533,6 +2535,68 @@ namespace
 	}
 	return box.isValid();
     }
+
+    template <>
+    bool
+    abcBounds<IXform>(const IObject &obj, UT_BoundingBox &box,
+	fpreal t, bool &isconst)
+    {
+	IXform		 prim(obj, gabcWrapExisting);
+	const typename	 IXform::schema_type	&ss = prim.getSchema();
+	IBox3dProperty	 bounds = ss.getChildBoundsProperty();
+	
+	// The child bound is an optional property of IXform, return
+	// false when it doesn't exist.
+	if (!bounds.valid())
+	    return false;
+
+	index_t		 i0, i1;
+	fpreal		 bias = GABC_Util::getSampleIndex(t,
+					ss.getTimeSampling(),
+					ss.getNumSamples(), i0, i1);
+	isconst = bounds.isConstant();
+	box = GABC_Util::getBox(bounds.getValue(ISampleSelector(i0)));
+	if (box.isValid() && i0 != i1)
+	{
+	    UT_BoundingBox	b1;
+	    b1 = GABC_Util::getBox(bounds.getValue(ISampleSelector(i1)));
+	    box = blendBox(box, b1, bias);
+	}
+	return box.isValid();
+    }
+
+    template <>
+    bool
+    abcBounds<IObject>(const IObject &obj, UT_BoundingBox &box,
+	fpreal t, bool &isconst)
+    {
+	// This specialization accepts an IObject then populates the
+	// archive bounding from its archive.
+
+	IArchive	  archive = obj.getArchive();
+	IBox3dProperty    bounds = Alembic::AbcGeom::GetIArchiveBounds(archive);
+
+	// The archive bound is an optional property of IXform, return
+	// false when it doesn't exist.
+	if (!bounds.valid())
+	    return false;
+
+	index_t		 i0, i1;
+	fpreal		 bias = GABC_Util::getSampleIndex(t,
+					bounds.getTimeSampling(),
+					bounds.getNumSamples(), i0, i1);
+
+	isconst = bounds.isConstant();
+	box = GABC_Util::getBox(bounds.getValue(ISampleSelector(i0)));
+	if (box.isValid() && i0 != i1)
+	{
+	    UT_BoundingBox	b1;
+	    b1 = GABC_Util::getBox(bounds.getValue(ISampleSelector(i1)));
+	    box = blendBox(box, b1, bias);
+	}
+	return box.isValid();
+    }
+
 
     template <typename ABC_T>
     static TimeSamplingPtr
@@ -2850,8 +2914,8 @@ GABC_IObject::nodeType() const
     if (!myObject.valid())
 	return GABC_UNKNOWN;
     GABC_NodeType retval = gabcNodeType(myObject.getHeader());
-    if(retval == GABC_UNKNOWN)
-	UT_ASSERT(!myObject.getParent().valid());
+    if(retval == GABC_UNKNOWN && !myObject.getParent())
+	return GABC_ROOT;
     return retval;
 }
 
@@ -2961,8 +3025,9 @@ GABC_IObject::getBoundingBox(UT_BoundingBox &box, fpreal t, bool &isconst) const
 	    case GABC_NUPATCH:
 		return abcBounds<INuPatch>(object(), box, t, isconst);
 	    case GABC_XFORM:
-		box.initBounds(0, 0, 0);
-		return true;
+		return abcBounds<IXform>(object(), box, t, isconst);
+	    case GABC_ROOT:
+		return abcBounds<IObject>(object(), box, t, isconst);
 	    default:
 		break;
 	}
