@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1583,8 +1583,10 @@ GABC_OGTGeometry::getDefaultSkip()
             "__topology",
             "__primitivelist",
             "__primitive_id",
+	    "__nested_prim_id",
             "__point_id",
             "__vertex_id",
+	    "__nested_vertex_id",
             "varmap",
             (void *)NULL);
 	// Add these after the initial construction.
