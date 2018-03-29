@@ -1735,6 +1735,7 @@ GABC_OGTGeometry::getLayerSkip()
 	    "__nested_prim_id",
             "__point_id",
             "__vertex_id",
+	    "__nested_vertex_id",
 	    "__filename",
 	    "__object_name",
 	    "__time",
