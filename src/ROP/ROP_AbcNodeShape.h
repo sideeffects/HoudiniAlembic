@@ -54,6 +54,7 @@ public:
     virtual void clearData(bool locked);
     virtual void updateLocked(bool locked);
     virtual void update(ROP_AbcArchive &archive,
+	bool displayed, UT_BoundingBox &box,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 
     /// Sets the current user properties.

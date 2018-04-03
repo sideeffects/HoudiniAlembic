@@ -1195,7 +1195,7 @@ namespace
 			ancestor->getObject().getFullName().c_str(),
 			it->first, ltype);
 
-		    if(propltype == GABC_LayerOptions::LayerType::DEFER)
+		    if(propltype == GABC_LayerOptions::LayerType::NONE)
 			continue;
 
 		    if (propMap.find(it->first.c_str()) != propMap.end())

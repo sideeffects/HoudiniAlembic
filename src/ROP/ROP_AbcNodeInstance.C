@@ -44,11 +44,11 @@ ROP_AbcNodeInstance::purgeObjects()
 
 void
 ROP_AbcNodeInstance::update(ROP_AbcArchive &archive,
+    bool displayed, UT_BoundingBox &box,
     const GABC_LayerOptions &layerOptions, GABC_OError &err)
 {
     makeValid(archive, layerOptions, err);
-    mySource->update(archive, layerOptions, err);
-    myBox = mySource->getBBox();
+    mySource->update(archive, displayed, box, layerOptions, err);
 }
 
 void
@@ -78,7 +78,7 @@ ROP_AbcNodeInstance::makeValid(ROP_AbcArchive &archive,
 	    err.warning("Cannot modify instance node %s.", myPath.c_str());
 	    break;
 
-	case GABC_LayerOptions::LayerType::DEFER:
+	case GABC_LayerOptions::LayerType::NONE:
 	    break;
     }
     myIsValid = true;

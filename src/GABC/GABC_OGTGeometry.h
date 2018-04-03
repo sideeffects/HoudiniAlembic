@@ -270,7 +270,8 @@ public:
                             const GABC_OOptions &ctx,
 			    const GABC_LayerOptions &lopt,
                             GABC_OError &err,
-                            ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred);
+                            ObjectVisibility vis = Alembic::AbcGeom::kVisibilityDeferred,
+			    bool outputViz = true);
     // Output geometry, attribute, and user property samples to Alembic for the
     // current frame.
     bool            update(const GT_PrimitiveHandle &prim,

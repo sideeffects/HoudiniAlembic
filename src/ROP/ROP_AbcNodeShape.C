@@ -123,67 +123,90 @@ ROP_AbcNodeShape::updateLocked(bool locked)
 
 void
 ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
+    bool displayed, UT_BoundingBox &box,
     const GABC_LayerOptions &layerOptions, GABC_OError &err)
 {
     exint nsamples = archive.getSampleCount();
     archive.getOOptions().setSubdGroup(mySubdGrp.c_str());
 
-    auto visibility = layerOptions.getVizType(myPath, myLayerNodeType);
-    if(visibility == GABC_LayerOptions::VizType::DEFAULT)
-	visibility = myVisible;
+    auto vizLayerOption = layerOptions.getVizType(myPath, myLayerNodeType);
+    if(vizLayerOption > GABC_LayerOptions::VizType::DEFAULT)
+	myVisible = vizLayerOption;
 
     for(; mySampleCount < nsamples; ++mySampleCount)
     {
-	if(myPrim)
-	{
-	    myBox.initBounds();
-	    if(myLayerNodeType != GABC_LayerOptions::LayerType::PRUNE)
-		ropEnlargeBounds(myBox, myPrim);
-	}
+	auto viz = myVisible;
 
 	// The defer node won't be exported.
-	if(myLayerNodeType == GABC_LayerOptions::LayerType::DEFER)
-	    continue;
-
-	auto viz = visibility;
-	if(!myWriter)
+	if(myLayerNodeType != GABC_LayerOptions::LayerType::NONE)
 	{
-	    if(myPrim)
+	    if(!myWriter)
 	    {
-		// write the first sample
-		mySampleCount = 0;
-		if(nsamples != 1)
-		    viz = GABC_LayerOptions::VizType::HIDDEN;
+		if(myPrim)
+		{
+		    // write the first sample
+		    mySampleCount = 0;
+		    if(nsamples != 1)
+			viz = GABC_LayerOptions::VizType::HIDDEN;
 
-		myWriter.reset(new GABC_OGTGeometry(myName, myLayerNodeType));
-		myWriter->start(myPrim, myParent->getOObject(archive, err),
-				archive.getOOptions(), layerOptions, err,
-				GABC_LayerOptions::getOVisibility(viz));
-	    }
-	}
-	else
-	{
-	    if(mySampleCount + 1 != nsamples)
-		viz = GABC_LayerOptions::VizType::HIDDEN;
-
-	    if(!myPrim || myLocked)
-	    {
-		myWriter->updateFromPrevious(err,
-				GABC_LayerOptions::getOVisibility(viz));
+		    myWriter.reset(new GABC_OGTGeometry(myName, myLayerNodeType));
+		    myWriter->start(myPrim, myParent->getOObject(archive, err),
+				    archive.getOOptions(), layerOptions, err,
+				    GABC_LayerOptions::getOVisibility(viz),
+				    vizLayerOption != GABC_LayerOptions::VizType::NONE);
+		}
 	    }
 	    else
 	    {
-		myWriter->update(myPrim, archive.getOOptions(), layerOptions, err,
-				GABC_LayerOptions::getOVisibility(viz));
+		if(mySampleCount + 1 != nsamples)
+		{
+		    viz = GABC_LayerOptions::VizType::HIDDEN;
+		}
+		else if(!myPrim)
+		{
+		    viz = GABC_LayerOptions::VizType::HIDDEN;
+		    myVisible = GABC_LayerOptions::VizType::HIDDEN;
+		}
+
+		if(!myPrim || myLocked)
+		{
+		    myWriter->updateFromPrevious(err,
+				    GABC_LayerOptions::getOVisibility(viz));
+		}
+		else
+		{
+		    myWriter->update(myPrim, archive.getOOptions(), layerOptions,
+				     err, GABC_LayerOptions::getOVisibility(viz));
+		}
+	    }
+
+	    // update user properties
+	    if(myWriter && !myUserPropVals.empty() && !myUserPropMeta.empty())
+	    {
+		OCompoundProperty props = myWriter->getUserProperties();
+		myUserProperties.update(props, myUserPropVals, myUserPropMeta,
+		    archive, err, layerOptions, myLayerNodeType);
 	    }
 	}
+    }
 
-	// update user properties
-	if(myWriter && !myUserPropVals.empty() && !myUserPropMeta.empty())
+    box.initBounds();
+
+    if(myLayerNodeType != GABC_LayerOptions::LayerType::PRUNE)
+    {
+	switch(myVisible)
 	{
-	    OCompoundProperty props = myWriter->getUserProperties();
-	    myUserProperties.update(props, myUserPropVals, myUserPropMeta,
-		archive, err, layerOptions, myLayerNodeType);
+	    case GABC_LayerOptions::VizType::VISIBLE:
+		ropEnlargeBounds(box, myPrim);
+		break;
+
+	    case GABC_LayerOptions::VizType::DEFER:
+		if(displayed)
+		    ropEnlargeBounds(box, myPrim);
+		break;
+
+	    default:
+		break;
 	}
     }
 }

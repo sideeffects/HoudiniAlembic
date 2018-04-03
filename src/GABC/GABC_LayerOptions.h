@@ -45,24 +45,24 @@ class GABC_API GABC_LayerOptions
 public:
 
     // IMPORTANT: The order of the following two enums are significative.
-    // Make sure you know how them works before you change them.
+    // Make sure you understand how they work before you change them.
 
     // The LayerType is being widely used for exporting layering archive
     // and it has different meaning for the nodes and the props.
     // In the case of the nodes:
-    //     DEFER   : The node won't exist in the archive.
+    //     NONE    : The node won't exist in the archive.
     //     PRUNE   : The empty sparse node with the prune metadata.
     //     SPARSE  : The sparse node with several props.
     //     FULL    : The common full node.
     //     REPLACE : The full node with the replace metadata.
     // And for the props:
-    //     DEFER   : The property won't exist in the archive.
+    //     NONE    : The property won't exist in the archive.
     //     PRUNE   : The empty property with the prune metadata.
     //     FULL    : The common property.
     // NOTE: Presently, the REPLACE and the SPARSE are illegal on the props.
     enum class LayerType
     {
-	DEFER,
+	NONE,
 	PRUNE,
 	SPARSE,
 	FULL,
@@ -74,6 +74,7 @@ public:
     // by populating it from the houdini session.
     enum class VizType
     {
+	NONE,
 	DEFAULT,
 	DEFER,
 	HIDDEN,

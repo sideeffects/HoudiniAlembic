@@ -38,12 +38,13 @@ ROP_AbcNodeXform::purgeObjects()
     myUserProperties.clear();
     mySampleCount = 0;
     myIsValid = false;
+    myVizValid = false;
 }
 
 OObject
 ROP_AbcNodeXform::getOObject(ROP_AbcArchive &archive, GABC_OError &err)
 {
-    UT_ASSERT(myLayerNodeType != GABC_LayerOptions::LayerType::DEFER);
+    UT_ASSERT(myLayerNodeType != GABC_LayerOptions::LayerType::NONE);
     makeValid(archive, err);
     return myOXform;
 }
@@ -70,36 +71,62 @@ ROP_AbcNodeXform::clearData(bool locked)
 
 void
 ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
+    bool displayed, UT_BoundingBox &box,
     const GABC_LayerOptions &layerOptions, GABC_OError &err)
 {
-    Box3d bbox;
+    Box3d abcBox;
 
-    myBox.initBounds();
+    auto vizLayerOption = layerOptions.getVizType(myPath, myLayerNodeType);
+    if(vizLayerOption > GABC_LayerOptions::VizType::DEFAULT)
+	myVisible = vizLayerOption;
+
+    switch(myVisible)
+    {
+	case GABC_LayerOptions::VizType::HIDDEN:
+	    displayed = false;
+	    break;
+
+	case GABC_LayerOptions::VizType::VISIBLE:
+	    displayed = true;
+	    break;
+
+	default:
+	    break;
+    }
+
+    box.initBounds();
     if(myLayerNodeType != GABC_LayerOptions::LayerType::PRUNE)
     {
 	for(auto &it : myChildren)
 	{
-	    it.second->update(archive, layerOptions, err);
-	    myBox.enlargeBounds(it.second->getBBox());
+	    UT_BoundingBox childBox;
+	    it.second->update(archive, displayed, childBox, layerOptions, err);
+	    box.enlargeBounds(childBox);
 	}
 
-	bbox = GABC_Util::getBox(myBox);
-	myBox.transform(myMatrix);
+	abcBox = GABC_Util::getBox(box);
+	box.transform(myMatrix);
     }
 
     // The defer node won't be exported.
-    if(myLayerNodeType == GABC_LayerOptions::LayerType::DEFER)
+    if(myLayerNodeType == GABC_LayerOptions::LayerType::NONE)
 	return;
 
     makeValid(archive, err);
 
+    if(!myVizValid)
+    {
+        if(vizLayerOption != GABC_LayerOptions::VizType::NONE)
+	{
+	    myVisibility = CreateVisibilityProperty(myOXform,
+		archive.getTimeSampling());
+	}
+	myVizValid = true;
+    }
+
     // The prune node doesn't need further implementation.
     if(myLayerNodeType == GABC_LayerOptions::LayerType::PRUNE)
 	return;
-
-    auto visibility = layerOptions.getVizType(myPath, myLayerNodeType);
-    if(visibility == GABC_LayerOptions::VizType::DEFAULT)
-	visibility = myVisible;
 
     bool full_bounds = archive.getOOptions().fullBounds();
     exint nsamples = archive.getSampleCount();
@@ -107,15 +134,14 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
     {
 	auto &schema = myOXform.getSchema();
 	bool cur = (mySampleCount + 1 == nsamples);
-	auto viz = visibility;
+	auto viz = myVisible;
 
 	if(!mySampleCount || cur)
 	{
 	    if(!cur)
 		viz = GABC_LayerOptions::VizType::HIDDEN;
 
-	    if(myLayerNodeType == GABC_LayerOptions::LayerType::FULL
-		|| myLayerNodeType == GABC_LayerOptions::LayerType::REPLACE)
+	    if(myLayerNodeType != GABC_LayerOptions::LayerType::SPARSE)
 	    {
 		XformSample sample;
 		sample.setMatrix(GABC_Util::getM(myMatrix));
@@ -124,15 +150,21 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
 	}
 	else
 	{
-	    schema.setFromPrevious();
 	    viz = GABC_LayerOptions::VizType::HIDDEN;
+
+	    if(myLayerNodeType != GABC_LayerOptions::LayerType::SPARSE)
+	    {
+		schema.setFromPrevious();
+	    }
 	}
 
-	myVisibility.set(GABC_LayerOptions::getOVisibility(viz));
+	// update visibility property
+	if(myVisibility.valid())
+	    myVisibility.set(GABC_LayerOptions::getOVisibility(viz));
 
 	// update computed bounding box
 	if(full_bounds)
-	    schema.getChildBoundsProperty().set(bbox);
+	    schema.getChildBoundsProperty().set(abcBox);
 
 	// update user properties
 	if(!myUserPropVals.empty() && !myUserPropMeta.empty())
@@ -147,7 +179,7 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
 void
 ROP_AbcNodeXform::makeValid(ROP_AbcArchive &archive, GABC_OError &err)
 {
-    UT_ASSERT(myLayerNodeType != GABC_LayerOptions::LayerType::DEFER);
+    UT_ASSERT(myLayerNodeType != GABC_LayerOptions::LayerType::NONE);
 
     if(myIsValid)
 	return;
@@ -158,6 +190,6 @@ ROP_AbcNodeXform::makeValid(ROP_AbcArchive &archive, GABC_OError &err)
 
     myOXform = OXform(myParent->getOObject(archive, err),
 	myName, archive.getTimeSampling(), metadata, sparseFlag);
-    myVisibility = CreateVisibilityProperty(myOXform, archive.getTimeSampling());
+
     myIsValid = true;
 }

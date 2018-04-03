@@ -76,15 +76,16 @@ ROP_AbcNodeRoot::getOObject(ROP_AbcArchive &archive, GABC_OError &err)
 
 void
 ROP_AbcNodeRoot::update(ROP_AbcArchive &archive,
+    bool displayed, UT_BoundingBox &box,
     const GABC_LayerOptions &layerOptions, GABC_OError &err)
 {
     // The root node has no sample data, just update the computed bounding
     // box.
-    myBox.initBounds();
+    box.initBounds();
     for(auto &it : myChildren)
     {
-	it.second->update(archive, layerOptions, err);
-	myBox.enlargeBounds(it.second->getBBox());
+	UT_BoundingBox childBox;
+	it.second->update(archive, displayed, childBox, layerOptions, err);
+	box.enlargeBounds(childBox);
     }
-    archive.setBoundingBox(myBox);
 }

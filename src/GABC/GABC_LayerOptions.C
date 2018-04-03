@@ -32,7 +32,7 @@ using namespace GABC_NAMESPACE;
 void
 GABC_LayerOptions::getMetadata(Alembic::Abc::MetaData &md, LayerType type)
 {
-    UT_ASSERT(type != LayerType::DEFER);
+    UT_ASSERT(type != LayerType::NONE);
     if(type == LayerType::PRUNE)
 	Alembic::AbcCoreLayer::SetPrune(md, true);
     else if(type == LayerType::REPLACE)
@@ -42,7 +42,7 @@ GABC_LayerOptions::getMetadata(Alembic::Abc::MetaData &md, LayerType type)
 Alembic::Abc::SparseFlag
 GABC_LayerOptions::getSparseFlag(LayerType type)
 {
-    UT_ASSERT(type != LayerType::DEFER);
+    UT_ASSERT(type != LayerType::NONE);
     if(type == LayerType::PRUNE || type == LayerType::SPARSE)
 	return Alembic::Abc::SparseFlag::kSparse;
     // (type == LayerType::FULL || type == LayerType::REPLACE)
@@ -98,7 +98,7 @@ GABC_LayerOptions::getNodeType(const UT_StringRef &nodePath) const
 {
     LayerType type = myNodeData.getRule(nodePath);
 
-    if(type == LayerType::DEFER)
+    if(type == LayerType::NONE)
     {
 	if(myVizData.matchesNodePattern(nodePath)
 	    || myAttrData.matchesNodePattern(nodePath)
@@ -115,10 +115,17 @@ GABC_LayerOptions::VizType
 GABC_LayerOptions::getVizType(const UT_StringRef &nodePath,
     LayerType nodeType) const
 {
-    if(nodeType == LayerType::DEFER || nodeType == LayerType::PRUNE)
-	return VizType::DEFAULT;
+    if(nodeType == LayerType::NONE || nodeType == LayerType::PRUNE)
+	return VizType::NONE;
 
-    return myVizData.getRule(nodePath);
+    auto type = myVizData.getRule(nodePath);
+    if(type == VizType::NONE && (nodeType == LayerType::FULL ||
+	nodeType == LayerType::REPLACE))
+    {
+	return VizType::DEFAULT;
+    }
+
+    return type;
 }
 
 GABC_LayerOptions::LayerType
@@ -131,8 +138,8 @@ GABC_LayerOptions::getAttrType(const UT_StringRef &nodePath,
     {
 	if(nodeType == LayerType::FULL || nodeType == LayerType::REPLACE)
 	    return LayerType::FULL;
-	if(nodeType == LayerType::DEFER || nodeType == LayerType::PRUNE)
-	    return LayerType::DEFER;
+	if(nodeType == LayerType::NONE || nodeType == LayerType::PRUNE)
+	    return LayerType::NONE;
     }
 
     return type;
@@ -148,8 +155,8 @@ GABC_LayerOptions::getUserPropType(const UT_StringRef &nodePath,
     {
 	if(nodeType == LayerType::FULL || nodeType == LayerType::REPLACE)
 	    return LayerType::FULL;
-	if(nodeType == LayerType::DEFER || nodeType == LayerType::PRUNE)
-	    return LayerType::DEFER;
+	if(nodeType == LayerType::NONE || nodeType == LayerType::PRUNE)
+	    return LayerType::NONE;
     }
 
     return type;

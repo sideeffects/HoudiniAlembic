@@ -40,15 +40,12 @@ class ROP_AbcNodeCamera : public ROP_AbcNode
 public:
     ROP_AbcNodeCamera(const std::string &name, int resx, int resy)
 	: ROP_AbcNode(name), myResX(resx), myResY(resy), myIsValid(false),
-	    mySampleCount(0)
-    {
-	myBox.initBounds(0, 0, 0);
-    }
+	    mySampleCount(0) {}
 
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
     virtual NodeType getNodeType() const { return NodeType::CAMERA; }
     virtual void purgeObjects();
-    virtual void update(ROP_AbcArchive &archive,
+    virtual void update(ROP_AbcArchive &archive, bool, UT_BoundingBox &box,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 
     /// sets the current camera settings

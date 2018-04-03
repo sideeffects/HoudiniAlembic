@@ -1781,7 +1781,7 @@ ropSetAbcNodeLayerOptions(ROP_AbcNode *node,
         for(auto &it : node->getChildren())
 	{
 	    ropRecursiveSetLayerType(it.second,
-		GABC_LayerOptions::LayerType::DEFER);
+		GABC_LayerOptions::LayerType::NONE);
 	}
 	return selfType;
     }
@@ -1797,7 +1797,7 @@ ropSetAbcNodeLayerOptions(ROP_AbcNode *node,
 	return selfType;
     }
 
-    auto kidsType = GABC_LayerOptions::LayerType::DEFER;
+    auto kidsType = GABC_LayerOptions::LayerType::NONE;
     // Traverse the children and set the layer options, determine the
     // final layerType by checking the return values of the children.
     for(auto &it : node->getChildren())
@@ -1810,7 +1810,7 @@ ropSetAbcNodeLayerOptions(ROP_AbcNode *node,
 	    kidsType = childType;
     }
 
-    if(selfType == GABC_LayerOptions::LayerType::DEFER ||
+    if(selfType == GABC_LayerOptions::LayerType::NONE ||
 	selfType == GABC_LayerOptions::LayerType::SPARSE)
     {
 	// Upgrade the self type to sparse if it do have child node
@@ -1927,7 +1927,9 @@ ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
     }
 
     // Executes the saving process.
-    myRoot->update(*myArchive, layerOptions, *myErrors);
+    UT_BoundingBox archiveBounds;
+    myRoot->update(*myArchive, true, archiveBounds, layerOptions, *myErrors);
+    myArchive->setBoundingBox(archiveBounds);
 
     for(auto &it : myGeoLocks)
 	ropUpdateLocked(it.first->getRoot(), it.second);

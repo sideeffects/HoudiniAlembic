@@ -46,7 +46,8 @@ class ROP_AbcNodeXform : public ROP_AbcNode
 {
 public:
     ROP_AbcNodeXform(const std::string &name)
-	: ROP_AbcNode(name), myMatrix(1), myIsValid(false), mySampleCount(0) {}
+	: ROP_AbcNode(name), myMatrix(1), myIsValid(false),
+	  myVizValid(false), mySampleCount(0) {}
 
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
     virtual NodeType getNodeType() const { return NodeType::XFORM; }
@@ -57,6 +58,7 @@ public:
 
     virtual void clearData(bool locked);
     virtual void update(ROP_AbcArchive &archive,
+	bool displayed, UT_BoundingBox &box,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 
     /// Sets the current user properties.
@@ -80,6 +82,7 @@ private:
     UT_Matrix4D myMatrix;
     exint mySampleCount;
     bool myIsValid;
+    bool myVizValid;
 };
 
 #endif

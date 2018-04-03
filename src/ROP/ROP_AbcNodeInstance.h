@@ -41,6 +41,7 @@ public:
     virtual NodeType getNodeType() const { return NodeType::INSTANCE; }
     virtual void purgeObjects();
     virtual void update(ROP_AbcArchive &archive,
+	bool displayed, UT_BoundingBox &box,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 
 private:

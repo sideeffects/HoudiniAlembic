@@ -53,11 +53,13 @@ ROP_AbcNodeCamera::getOObject(ROP_AbcArchive &archive, GABC_OError &err)
 }
 
 void
-ROP_AbcNodeCamera::update(ROP_AbcArchive &archive, const GABC_LayerOptions &,
-    GABC_OError &err)
+ROP_AbcNodeCamera::update(ROP_AbcArchive &archive, bool, UT_BoundingBox &box,
+    const GABC_LayerOptions &, GABC_OError &err)
 {
+    box.initBounds();
+
     // The defer node won't be exported.
-    if(myLayerNodeType == GABC_LayerOptions::LayerType::DEFER)
+    if(myLayerNodeType == GABC_LayerOptions::LayerType::NONE)
 	return;
 
     makeValid(archive, err);
@@ -115,7 +117,7 @@ ROP_AbcNodeCamera::update(ROP_AbcArchive &archive, const GABC_LayerOptions &,
 void
 ROP_AbcNodeCamera::makeValid(ROP_AbcArchive &archive, GABC_OError &err)
 {
-    UT_ASSERT(myLayerNodeType != GABC_LayerOptions::LayerType::DEFER);
+    UT_ASSERT(myLayerNodeType != GABC_LayerOptions::LayerType::NONE);
 
     if(myIsValid)
 	return;

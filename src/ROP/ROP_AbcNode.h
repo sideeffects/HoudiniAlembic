@@ -77,6 +77,7 @@ public:
 	// The node should always holds a valid viztype, the
 	// DEFAULT only used in layerOption, then guide the 
 	// program to obtain the real viztype from the node.
+	UT_ASSERT(vis != GABC_LayerOptions::VizType::NONE);
 	UT_ASSERT(vis != GABC_LayerOptions::VizType::DEFAULT);
 	myVisible = vis;
     }
@@ -120,12 +121,10 @@ public:
     virtual void clearData(bool locked) {}
     /// Hook to clean up node after calls to update().
     virtual void updateLocked(bool locked) {}
-    /// Exports the current sample data update the computed bounding box.
+    /// Exports the current sample data and return the computed bounding box.
     virtual void update(ROP_AbcArchive &archive,
+	bool displayed, UT_BoundingBox &box,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err) = 0;
-
-    /// Returns the last computed bounding box.
-    const UT_BoundingBox &getBBox() const { return myBox; }
 
 protected:
     /// this node's name
@@ -134,8 +133,6 @@ protected:
     std::string myPath;
     /// this node's parent
     ROP_AbcNode *myParent;
-    /// this node's computed bounding box
-    UT_BoundingBox myBox;
     /// this node's children
     UT_SortedMap<std::string, ROP_AbcNode *> myChildren;
     /// this node's layer node type
@@ -156,6 +153,7 @@ public:
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
     virtual NodeType getNodeType() const { return NodeType::ROOT; }
     virtual void update(ROP_AbcArchive &archive,
+	bool displayed, UT_BoundingBox &box,
 	const GABC_LayerOptions &layerOptions, GABC_OError &err);
 };
 
