@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -229,11 +229,11 @@ public:
 
 
     /// Keeps track of the number of geometry points added in traversal
-    exint	pointCount() const	{ return myPointCount; }
+    GA_Offset	pointCount() const	{ return myPointCount; }
     /// Keeps track of the number of geometry vertices added in traversal
-    exint	vertexCount() const	{ return myVertexCount; }
+    GA_Offset	vertexCount() const	{ return myVertexCount; }
     /// Keeps track of the number of geometry primitives added in traversal
-    exint	primitiveCount() const	{ return myPrimitiveCount; }
+    GA_Offset	primitiveCount() const	{ return myPrimitiveCount; }
     /// True if *all* shapes and transforms are constant
     bool	isConstant() const	{ return myIsConstant; }
     /// True if *all* shapes have constant topology
@@ -259,7 +259,7 @@ public:
     void	setIncludeXform(bool v)		{ myIncludeXform = v; }
     void	setUseVisibility(bool v)	{ myUseVisibility = v; }
     void	setStaticTimeZero(bool v)	{ myStaticTimeZero = v; }
-    void	setReusePrimitives(bool v);
+    void	setReusePrimitives(bool v)	{ myReusePrimitives = v; }
     void	setBuildLocator(bool v)		{ myBuildLocator = v; }
     void	setLoadMode(LoadMode mode)	{ myLoadMode = mode; }
     void	setBuildAbcShape(bool v)	{ myBuildAbcShape = v; }
@@ -386,9 +386,9 @@ private:
     fpreal	myTime; // Alembic evaluation time
     fpreal	mySize;
 
-    exint	myPointCount;		// Points added
-    exint	myPrimitiveCount;	// Primitive's added count
-    exint	myVertexCount;		// Vertices added
+    GA_Offset	myPointCount;		// Points added
+    GA_Offset	myPrimitiveCount;	// Primitive's added count
+    GA_Offset	myVertexCount;		// Vertices added
     int		myBossId;
     bool	myBuildAbcXform;	// Build primitives for transforms
     bool	myBuildAbcShape;	// Build primitives for transforms
