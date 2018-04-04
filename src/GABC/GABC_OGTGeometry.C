@@ -340,8 +340,8 @@ namespace
 	for (auto it = ordering.begin(); it != ordering.end(); ++it)
 	{
 	    exint	 i = it->second;
-	    auto	 name = attribs->getName(i);
-	    std::string	 exp_name = attribs->getExportName(i);
+	    std::string	 name = attribs->getName(i).c_str();
+	    std::string	 exp_name = attribs->getExportName(i).c_str();
 	    auto	&data = attribs->get(i);
 	    auto	 scope = rixlate.getScope(name, owner);
 
