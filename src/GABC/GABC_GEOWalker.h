@@ -259,7 +259,10 @@ public:
     void	setIncludeXform(bool v)		{ myIncludeXform = v; }
     void	setUseVisibility(bool v)	{ myUseVisibility = v; }
     void	setStaticTimeZero(bool v)	{ myStaticTimeZero = v; }
-    void	setReusePrimitives(bool v)	{ myReusePrimitives = v; }
+    void	setReusePrimitives(bool v,
+				   GA_Offset pts = GA_Offset(0),
+				   GA_Offset verts = GA_Offset(0),
+				   GA_Offset prims = GA_Offset(0));
     void	setBuildLocator(bool v)		{ myBuildLocator = v; }
     void	setLoadMode(LoadMode mode)	{ myLoadMode = mode; }
     void	setBuildAbcShape(bool v)	{ myBuildAbcShape = v; }

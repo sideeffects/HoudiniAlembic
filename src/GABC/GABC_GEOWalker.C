@@ -452,7 +452,7 @@ namespace {
 
             for (GA_Offset i = start; i < end; ++i)
             {
-                pos = gdp.vertexPoint(GA_Offset(i));
+                pos = gdp.vertexPoint(i);
                 data = (array_data + ((pos - npts) * tsize));
 
                 for (int j = 0; j < tsize; ++j)
@@ -936,7 +936,7 @@ namespace {
     static void
     fillUserProperties(GABC_GEOWalker &walk,
             const GABC_IObject &obj,
-            int userpropsIndex)
+            GA_Offset userpropsIndex)
     {
         GA_RWAttributeRef   attrib;
         GA_RWHandleS        str_attrib;
@@ -985,11 +985,7 @@ namespace {
                         "attribute.");
             }
             else
-            {
-                str_attrib.set(GA_Offset(userpropsIndex),
-                        0,
-                        data_dictionary.buffer());
-            }
+                str_attrib.set(userpropsIndex, 0, data_dictionary.buffer());
 
             if (load_metadata)
             {
@@ -1011,11 +1007,7 @@ namespace {
                             " metadata attribute.");
                 }
                 else
-                {
-                    str_attrib.set(GA_Offset(userpropsIndex),
-                            0,
-                            meta_dictionary.buffer());
-                }
+                    str_attrib.set(userpropsIndex, 0, meta_dictionary.buffer());
             }
         }
 
@@ -1311,7 +1303,7 @@ namespace {
 	    UT_ASSERT(0 && "Big problems here!");
 	    return false;	// Not enough primitives - much bigger problem
 	}
-	const GEO_Primitive	*prim = gdp.getGEOPrimitive(GA_Offset(nprim));
+	const GEO_Primitive	*prim = gdp.getGEOPrimitive(nprim);
 	return prim->getTypeId() == GA_PRIMPOLYSOUP;
     }
 
@@ -1903,7 +1895,7 @@ namespace {
 
 	    for (exint i = 0; i < prims_added; ++i)
 	    {
-                GA_Offset	        primoff = GA_Offset(prims_prior + i);
+                GA_Offset	        primoff(prims_prior + i);
                 GU_PrimNURBCurve	*curve = UTverify_cast<GU_PrimNURBCurve *>(
                                             walk.detail().getGEOPrimitive(primoff));
                 offset += setKnotVector(*curve->getBasis(), knots, offset);
@@ -2197,16 +2189,16 @@ namespace {
     static void
     setBoxPositions(GU_Detail &gdp,
             const UT_BoundingBox &box,
-            exint start)
+            GA_Offset start)
     {
-	gdp.setPos3(GA_Offset(start+0), box.xmin(), box.ymin(), box.zmin());
-	gdp.setPos3(GA_Offset(start+1), box.xmax(), box.ymin(), box.zmin());
-	gdp.setPos3(GA_Offset(start+2), box.xmin(), box.ymax(), box.zmin());
-	gdp.setPos3(GA_Offset(start+3), box.xmax(), box.ymax(), box.zmin());
-	gdp.setPos3(GA_Offset(start+4), box.xmin(), box.ymin(), box.zmax());
-	gdp.setPos3(GA_Offset(start+5), box.xmax(), box.ymin(), box.zmax());
-	gdp.setPos3(GA_Offset(start+6), box.xmin(), box.ymax(), box.zmax());
-	gdp.setPos3(GA_Offset(start+7), box.xmax(), box.ymax(), box.zmax());
+	gdp.setPos3(start+0, box.xmin(), box.ymin(), box.zmin());
+	gdp.setPos3(start+1, box.xmax(), box.ymin(), box.zmin());
+	gdp.setPos3(start+2, box.xmin(), box.ymax(), box.zmin());
+	gdp.setPos3(start+3, box.xmax(), box.ymax(), box.zmin());
+	gdp.setPos3(start+4, box.xmin(), box.ymin(), box.zmax());
+	gdp.setPos3(start+5, box.xmax(), box.ymin(), box.zmax());
+	gdp.setPos3(start+6, box.xmin(), box.ymax(), box.zmax());
+	gdp.setPos3(start+7, box.xmax(), box.ymax(), box.zmax());
     }
 
     static void
@@ -2290,6 +2282,19 @@ GABC_GEOWalker::~GABC_GEOWalker()
 }
 
 void
+GABC_GEOWalker::setReusePrimitives(
+    bool v, GA_Offset pts, GA_Offset verts, GA_Offset prims)
+{
+    myReusePrimitives = v;
+    if(v)
+    {
+	myPointCount = pts;
+	myVertexCount = verts;
+	myPrimitiveCount = prims;
+    }
+}
+
+void
 GABC_GEOWalker::setBounds(BoxCullMode mode, const UT_BoundingBox &box)
 {
     myBoxCullMode = mode;
@@ -2331,7 +2336,7 @@ void
 GABC_GEOWalker::updateAbcPrims()
 {
     bool    setPath = pathAttributeChanged() && myPathAttribute.isValid();
-    int     userpropsIndex = 0;
+    GA_Offset userpropsIndex(0);
     for (GA_Iterator it(detail().getPrimitiveRange()); !it.atEnd(); ++it)
     {
 	GEO_Primitive      *prim = detail().getGEOPrimitive(*it);
@@ -2870,7 +2875,7 @@ GABC_GEOWalker::trackLastFace(GA_Size nfaces)
 {
     UT_ASSERT(nfaces >= 0);
     UT_ASSERT(myDetail.getNumPrimitiveOffsets() >= myPrimitiveCount + nfaces);
-    myLastFaceStart = GA_Offset(myPrimitiveCount);
+    myLastFaceStart = myPrimitiveCount;
     myLastFaceCount = nfaces;
 }
 
@@ -2880,7 +2885,7 @@ GABC_GEOWalker::trackSubd(GA_Size nfaces)
     if (mySubdGroup)
     {
 	for (exint i = 0; i < nfaces; ++i)
-	    mySubdGroup->addOffset(GA_Offset(myPrimitiveCount+i));
+	    mySubdGroup->addOffset(myPrimitiveCount+i);
     }
 }
 
@@ -2899,25 +2904,24 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
 	std::string	 pathStr = obj.getFullName();
 	const char	*path = pathStr.c_str();
 	for (exint i = 0; i < nprim; ++i)
-	    myPathAttribute.set(GA_Offset(myPrimitiveCount+i), path);
+	    myPathAttribute.set(myPrimitiveCount+i, path);
     }
     UT_String		 gname;
-    GA_PrimitiveGroup	*g = NULL;
     if (nprim && getGroupName(gname, obj))
     {
-	g = findOrCreatePrimitiveGroup(myDetail, gname);
+	GA_PrimitiveGroup *g = findOrCreatePrimitiveGroup(myDetail, gname);
 	for (exint i = 0; i < nprim; ++i)
-	    g->addOffset(GA_Offset(myPrimitiveCount+i));
+	    g->addOffset(myPrimitiveCount+i);
     }
     if (do_transform && !buildAbcPrim() &&
 	    includeXform() && myMatrix != identity44d)
     {
-	GA_Range	xprims = GA_Range(detail().getPrimitiveMap(),
-				GA_Offset(myPrimitiveCount),
-				GA_Offset(myPrimitiveCount + nprim));
-	GA_Range	xpoints = GA_Range(detail().getPointMap(),
-				GA_Offset(myPointCount),
-				GA_Offset(myPointCount + npoint));
+	GA_Range xprims = GA_Range(detail().getPrimitiveMap(),
+				   myPrimitiveCount,
+				   myPrimitiveCount + nprim);
+	GA_Range xpoints = GA_Range(detail().getPointMap(),
+				    myPointCount,
+				    myPointCount + npoint);
 	UT_Matrix4	m4(myMatrix.x);
 	// Transform detail and attributes
 	detail().transform(m4, xprims, xpoints, false, false, false);
