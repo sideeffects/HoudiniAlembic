@@ -957,8 +957,7 @@ GABC_PackedImpl::GTCache::centroid(const GABC_PackedImpl *abc)
 		pos[2] = box.zcenter();
 		GT_AttributeListHandle	pt;
 		pt = GT_AttributeList::createAttributeList(
-			"P", new GT_RealConstant(1, pos, 3, GT_TYPE_POINT),
-			NULL);
+			"P", new GT_RealConstant(1, pos, 3, GT_TYPE_POINT));
 		myPrim = new GT_PrimPointMesh(pt,GT_AttributeListHandle());
 		if (myAnimationType < GEO_ANIMATION_ATTRIBUTE && !isconst)
 		    myAnimationType = GEO_ANIMATION_ATTRIBUTE;

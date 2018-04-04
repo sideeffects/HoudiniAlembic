@@ -1470,8 +1470,7 @@ namespace
 		"__filename",	 file_da,
 		"__object_name", obj_da,
 		"__cache_name",  cache_da,
-		"__time",	 time_da,
-		nullptr);
+		"__time",	 time_da);
 	}
 	return rlist;
     }
@@ -2312,12 +2311,8 @@ namespace
 
 	    GT_AttributeListHandle	vertex, uniform;
 	    GT_DataArrayHandle		counts(new GT_IntConstant(3, 2));
-	    vertex = GT_AttributeList::createAttributeList(
-			    "P", P,
-			    NULL);
-	    uniform = GT_AttributeList::createAttributeList(
-			    "Cd", Cd,
-			    NULL);
+	    vertex = GT_AttributeList::createAttributeList("P", P);
+	    uniform = GT_AttributeList::createAttributeList("Cd", Cd);
 	    GT_PrimCurveMesh	*mesh;
 	    mesh = new GT_PrimCurveMesh(GT_BASIS_LINEAR,
 		    counts, vertex, uniform, GT_AttributeListHandle(), false);
@@ -3343,8 +3338,7 @@ GABC_IObject::getCentroidGeometry(fpreal t, GEO_AnimationType &atype) const
     pos[2] = box.zcenter();
     GT_AttributeListHandle	 pt;
     pt = GT_AttributeList::createAttributeList(
-	    "P", new GT_RealConstant(1, pos, 3, GT_TYPE_POINT),
-	    NULL);
+	    "P", new GT_RealConstant(1, pos, 3, GT_TYPE_POINT));
     return new GT_PrimPointMesh(pt, GT_AttributeListHandle());
 }
 

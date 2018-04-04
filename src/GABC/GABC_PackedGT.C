@@ -1280,7 +1280,7 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 		    {
 			detail_attribs =
 			    GT_AttributeList::createAttributeList(
-				"PrimTransformIndex", trans_index, NULL);
+				"PrimTransformIndex", trans_index);
 		    }
 
 		    auto vis_index = 
@@ -1406,10 +1406,9 @@ void combineMeshes(const UT_Array<GT_PrimitiveHandle> &meshes,
 		{
 		    detail =
 			GT_AttributeList::createAttributeList("PrimTransform",
-							      trans_array.get(),
+							      trans_array,
 							      "PrimVisibility",
-							      vis_array.get(),
-							      NULL);
+							      vis_array);
 		}
 		
 		merged_mesh = new GT_PrimPolygonMesh(*mesh,

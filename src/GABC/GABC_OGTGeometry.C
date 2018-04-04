@@ -888,8 +888,7 @@ namespace
 	    {
 		if (!ulist)
 		{
-		    ulist = GT_AttributeList::createAttributeList(
-					name, data.get(), nullptr);
+		    ulist = GT_AttributeList::createAttributeList(name, data);
 		}
 		else
 		{
