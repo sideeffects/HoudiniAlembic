@@ -335,7 +335,7 @@ namespace
 	// create properties in sorted order
 	UT_SortedMap<std::string, exint> ordering;
         for (exint i = 0; i < attribs->entries(); ++i)
-	    ordering.emplace(attribs->getName(i), i);
+	    ordering.emplace(attribs->getName(i).c_str(), i);
 
 	for (auto it = ordering.begin(); it != ordering.end(); ++it)
 	{
