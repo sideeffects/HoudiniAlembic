@@ -32,17 +32,18 @@
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_DAIndirect.h>
 #include <GT/GT_DANumeric.h>
-#include <GT/GT_GEOPrimPacked.h>
-#include <GT/GT_GEOPrimCollectBoxes.h>
 #include <GT/GT_GEOAttributeFilter.h>
+#include <GT/GT_GEOPrimCollectBoxes.h>
+#include <GT/GT_GEOPrimPacked.h>
+#include <GT/GT_Names.h>
+#include <GT/GT_PackedGeoCache.h>
 #include <GT/GT_PrimCollect.h>
+#include <GT/GT_PrimInstance.h>
 #include <GT/GT_PrimPointMesh.h>
+#include <GT/GT_PrimPolygonMesh.h>
 #include <GT/GT_Refine.h>
 #include <GT/GT_RefineParms.h>
 #include <GT/GT_TransformArray.h>
-#include <GT/GT_PackedGeoCache.h>
-#include <GT/GT_PrimInstance.h>
-#include <GT/GT_PrimPolygonMesh.h>
 #include <GT/GT_Util.h>
 #include <UT/UT_Debug.h>
 #include <UT/UT_EnvControl.h>
@@ -890,8 +891,8 @@ GABC_PackedAlembic::getInstanceKey(UT_Options &options) const
 		addFloat(options, oname.buffer(), data);
 	    else if (GTisInteger(data->getStorage()))
 	    {
-		if (!strcmp(aname, "__primitive_id") ||
-		    !strcmp(aname, "__vertex_id"))
+		if (!strcmp(aname, GT_Names::primitive_id) ||
+		    !strcmp(aname, GT_Names::vertex_id))
 		{
 		    continue;
 		}
@@ -1794,7 +1795,7 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 
     if(myUniform)
     {
-	const GT_DataArrayHandle &prim = myUniform->get("__primitive_id");
+	const GT_DataArrayHandle &prim = myUniform->get(GT_Names::primitive_id);
 	if(prim)
 	{
 	    // Geometry
@@ -1853,7 +1854,7 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 		}
 	    }
 	    // Update Visibility
-	    GT_DataArrayHandle lod = myUniform->get("__view_lod");
+	    GT_DataArrayHandle lod = myUniform->get(GT_Names::view_lod);
 	    if(lod)
 	    {
 		auto loda = UTverify_cast<GT_DANumeric<int> *>(lod.get());
@@ -1894,7 +1895,8 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 		    lod_mask |= (1<<lod);
 		}
 		
-		GT_DataArrayHandle lodm = myUniform->get("__view_lod_mask");
+		GT_DataArrayHandle
+		    lodm = myUniform->get(GT_Names::view_lod_mask);
 		if(lodm)
 		{
 		    auto lodma = UTverify_cast<GT_DANumeric<int> *>(lodm.get());

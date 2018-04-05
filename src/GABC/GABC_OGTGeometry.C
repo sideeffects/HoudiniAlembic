@@ -38,13 +38,14 @@
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_DANumeric.h>
 #include <GT/GT_DARange.h>
-#include <GT/GT_PrimPolygon.h>
-#include <GT/GT_PrimPolygonMesh.h>
-#include <GT/GT_PrimSubdivisionMesh.h>
-#include <GT/GT_PrimPointMesh.h>
+#include <GT/GT_Names.h>
 #include <GT/GT_PrimCurve.h>
 #include <GT/GT_PrimCurveMesh.h>
 #include <GT/GT_PrimNuPatch.h>
+#include <GT/GT_PrimPointMesh.h>
+#include <GT/GT_PrimPolygon.h>
+#include <GT/GT_PrimPolygonMesh.h>
+#include <GT/GT_PrimSubdivisionMesh.h>
 #include <GT/GT_TrimNuCurves.h>
 #include <UT/UT_JSONParser.h>
 #include <UT/UT_StackBuffer.h>
@@ -1206,10 +1207,10 @@ namespace
 	ids = pt->get("id");
 	if (!ids)
 	{
-	    ids = pt->get("__vertex_id");
+	    ids = pt->get(GT_Names::vertex_id);
 	    if (!ids)
 	    {
-		ids = pt->get("__point_id");
+		ids = pt->get(GT_Names::point_id);
 		if (!ids)
 		    ids.reset(new GT_DARange(0, src.getPointCount()));
 	    }

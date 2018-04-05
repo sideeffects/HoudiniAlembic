@@ -36,20 +36,21 @@
 #include <GEO/GEO_PackedNameMap.h>
 #include <GEO/GEO_PrimPacked.h>
 #include <GU/GU_Detail.h>
-#include <GT/GT_DANumeric.h>
-#include <GT/GT_DAIndirect.h>
-#include <GT/GT_DABool.h>
 #include <GT/GT_CurveEval.h>
-#include <GT/GT_PrimitiveBuilder.h>
+#include <GT/GT_DABool.h>
 #include <GT/GT_DAConstantValue.h>
-#include <GT/GT_Util.h>
+#include <GT/GT_DAIndirect.h>
+#include <GT/GT_DANumeric.h>
+#include <GT/GT_Names.h>
 #include <GT/GT_PackedGeoCache.h>
-#include <GT/GT_PrimPointMesh.h>
 #include <GT/GT_PrimCurveMesh.h>
+#include <GT/GT_PrimitiveBuilder.h>
+#include <GT/GT_PrimNuPatch.h>
+#include <GT/GT_PrimPointMesh.h>
 #include <GT/GT_PrimPolygonMesh.h>
 #include <GT/GT_PrimSubdivisionMesh.h>
-#include <GT/GT_PrimNuPatch.h>
 #include <GT/GT_TrimNuCurves.h>
+#include <GT/GT_Util.h>
 #include <GA/GA_Names.h>
 #include <Alembic/AbcGeom/ArchiveBounds.h>
 #include <Alembic/AbcGeom/All.h>
@@ -879,7 +880,7 @@ namespace
     static inline int
     topologyUID(GT_AttributeList &alist, const GABC_IObject &obj)
     {
-	int __topologyIdx = alist.getIndex("__topology");
+	int __topologyIdx = alist.getIndex(GT_Names::topology);
 	if (__topologyIdx < 0)
 	    return -1;
 
@@ -1009,7 +1010,7 @@ namespace
 	SET_GEOM_PARAM(widths, "width", owner, GT_TYPE_NONE)
 	if (prim && matchScope(gabcConstantScope, scope, scope_size))
 	{
-	    setAttributeData(alist, obj, "__primitive_id",
+	    setAttributeData(alist, obj, GT_Names::primitive_id,
 		    new GT_IntConstant(1, prim->getMapOffset()), filled);
 	}
 	if (arb)
@@ -1125,7 +1126,7 @@ namespace
 	GT_AttributeMap	*map = new GT_AttributeMap();
 
 	if (create_topology)
-	    map->add("__topology", true);
+	    map->add(GT_Names::topology, true);
 	addPropertyToMap(*map, "P", P, GEO_PackedNameMapPtr());
 	addPropertyToMap(*map, "Pw", Pw, GEO_PackedNameMapPtr());
 	addPropertyToMap(*map, "v", v, namemap);
@@ -1135,7 +1136,7 @@ namespace
 	addGeomParamToMap(*map, "width", widths, owner, scope, scope_size, namemap);
 
 	if (prim && matchScope(gabcConstantScope, scope, scope_size))
-	    map->add("__primitive_id", true);
+	    map->add(GT_Names::primitive_id, true);
 	if (arb)
 	{
 	    for (exint i = 0; i < arb.getNumProperties(); ++i)
@@ -1455,22 +1456,22 @@ namespace
 	GT_AttributeListHandle rlist;
 	if(list)
 	{
-	    rlist = list->addAttribute("__filename",
+	    rlist = list->addAttribute(GT_Names::filename,
 				       GT_DataArrayHandle(file_da), true);
-	    rlist = rlist->addAttribute("__object_name",
+	    rlist = rlist->addAttribute(GT_Names::object_name,
 					GT_DataArrayHandle(obj_da), true);
-	    rlist = rlist->addAttribute("__cache_name",
+	    rlist = rlist->addAttribute(GT_Names::cache_name,
 					GT_DataArrayHandle(cache_da), true);
-	    rlist = rlist->addAttribute("__time",
+	    rlist = rlist->addAttribute(GT_Names::time,
 					GT_DataArrayHandle(time_da), true);
 	}
 	else
 	{
 	    rlist = GT_AttributeList::createAttributeList(
-		"__filename",	 file_da,
-		"__object_name", obj_da,
-		"__cache_name",  cache_da,
-		"__time",	 time_da);
+		GT_Names::filename,	file_da,
+		GT_Names::object_name,	obj_da,
+		GT_Names::cache_name,	cache_da,
+		GT_Names::time,		time_da);
 	}
 	return rlist;
     }
