@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -811,14 +811,19 @@ namespace
 
     //-*************************************************************************
     static const char	*Doc_AlembicClearArchiveCache =
-	"alembicClearArchiveCache()\n"
+	"alembicClearArchiveCache(abcPath)\n"
 	"\n"
 	"Clear the internal cache of Alembic files";
 
     PY_PyObject *
     Py_AlembicClearArchiveCache(PY_PyObject *self, PY_PyObject *args)
     {
-	GABC_Util::clearCache();
+        const char *filename = nullptr;
+        if (!PY_PyArg_ParseTuple(args, "|s", &filename))
+	    PY_Py_RETURN_NONE;
+
+	GABC_Util::clearCache(filename);
+
         PY_Py_RETURN_NONE;
     }
 
