@@ -943,14 +943,27 @@ namespace
 
     //-*************************************************************************
     static const char	*Doc_AlembicClearArchiveCache =
-	"alembicClearArchiveCache()\n"
+	"alembicClearArchiveCache(abcPath)\n"
 	"\n"
 	"Clear the internal cache of Alembic files";
 
     PY_PyObject *
     Py_AlembicClearArchiveCache(PY_PyObject *self, PY_PyObject *args)
     {
-	GABC_Util::clearCache();
+	PY_PyObject *fileList = nullptr;
+        if (!PY_PyArg_ParseTuple(args, "|O", &fileList))
+	    PY_Py_RETURN_NONE;
+
+	if(fileList)
+	{
+	    std::vector<std::string> filenames;
+	    appendFileList(filenames, fileList);
+	    for(auto &s : filenames)
+		GABC_Util::clearCache(s.c_str());
+	}
+	else
+	    GABC_Util::clearCache();
+
         PY_Py_RETURN_NONE;
     }
 
