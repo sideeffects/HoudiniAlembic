@@ -2249,6 +2249,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
     , myUseVisibility(true)
     , myStaticTimeZero(true)
     , myRecordTimeRange(record_time_range)
+    , myPathAttributeChanged(false)
     , myReusePrimitives(false)
     , myBuildLocator(true)
     , myLoadMode(LOAD_ABC_PRIMITIVES)
