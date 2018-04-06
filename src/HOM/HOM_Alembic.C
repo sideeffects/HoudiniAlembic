@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -124,6 +124,45 @@ namespace
     // Wrap Existing
     typedef Alembic::Abc::WrapExistingFlag          WrapExistingFlag;
     static const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
+
+    static void
+    appendFile(std::vector<std::string> &filenames, const char *name)
+    {
+	UT_String realname;
+
+	// complete a path search in case it is in the geometry path
+	UT_PathSearch::getInstance(UT_HOUDINI_GEOMETRY_PATH)->
+		findFile(realname, name);
+	filenames.push_back(realname.toStdString());
+    }
+
+    static void
+    appendFileList(std::vector<std::string> &filenames, PY_PyObject *fileList)
+    {
+	if (!fileList)
+	    return;
+
+	if (PY_PyString_Check(fileList))
+	{
+	    const char *fileStr = PY_PyString_AsString(fileList);
+	    if (fileStr && strlen(fileStr))
+		appendFile(filenames, fileStr);
+	}
+	else if (PY_PySequence_Check(fileList))
+	{
+	    int numFiles = PY_PySequence_Size(fileList);
+	    for (int i = 0; i < numFiles; ++i)
+	    {
+		PY_PyObject *fileObj = PY_PySequence_GetItem(fileList, i);
+		if (PY_PyString_Check(fileObj))
+		{
+		    const char *fileStr = PY_PyString_AsString(fileObj);
+		    if (fileStr && strlen(fileStr))
+			appendFile(filenames, fileStr);
+		}
+	    }
+	}
+    }
 
     // Returns an Alembic objects transform, as well as if the transform
     // is constant, and if it inherits it's parent's transform.
@@ -868,14 +907,27 @@ namespace
 
     //-*************************************************************************
     static const char	*Doc_AlembicClearArchiveCache =
-	"alembicClearArchiveCache()\n"
+	"alembicClearArchiveCache(abcPath)\n"
 	"\n"
 	"Clear the internal cache of Alembic files";
 
     PY_PyObject *
     Py_AlembicClearArchiveCache(PY_PyObject *self, PY_PyObject *args)
     {
-	GABC_Util::clearCache();
+	PY_PyObject *fileList = nullptr;
+        if (!PY_PyArg_ParseTuple(args, "|O", &fileList))
+	    PY_Py_RETURN_NONE;
+
+	if(fileList)
+	{
+	    std::vector<std::string> filenames;
+	    appendFileList(filenames, fileList);
+	    for(auto &s : filenames)
+		GABC_Util::clearCache(s.c_str());
+	}
+	else
+	    GABC_Util::clearCache();
+
         PY_Py_RETURN_NONE;
     }
 

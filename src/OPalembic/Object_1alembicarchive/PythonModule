@@ -23,6 +23,7 @@ def BuildHierarchyRoot(rootNode):
             print 'No filename entered for Alembic scene.'
         return
 
+    _abc.alembicClearArchiveCache(fileName)
     buildSubnet = rootNode.evalParm('buildSubnet')
     channelRefs = rootNode.evalParm('channelRef')
     buildSingleGeoNode = rootNode.evalParm('buildSingleGeoNode')
