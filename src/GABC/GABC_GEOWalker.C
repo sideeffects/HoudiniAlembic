@@ -264,9 +264,9 @@ namespace {
     setupForOwner(GABC_GEOWalker &walk,
             GA_AttributeOwner &owner,
             const char *name,
-            exint &start,
+            GA_Offset &start,
             exint &len,
-            int &entries,
+            size_t &entries,
             int &tsize,
             exint npoint,
             exint nvertex,
@@ -372,65 +372,56 @@ namespace {
     setNumericAttribute(GU_Detail &gdp,
             GA_RWAttributeRef &attrib,
             const ABC_T *array_data,
-            exint start,
-            exint end,
+            GA_Offset start,
+            GA_Offset end,
             int extent,
-            int entries,
-            exint npts = 0)
+            size_t entries,
+            GA_Offset npts)
     {
 	if (!array_data)
 	    return;
 
 	GA_RWHandleT<GA_T>  h(attrib.getAttribute());
-	int                 tsize = SYSmin(extent, attrib.getTupleSize());
+	int                 tsize = SYSmin(int(extent), attrib.getTupleSize());
 	const GA_AIFTuple  *tuple = attrib.getAIFTuple();
 	--entries;
 
 	UT_ASSERT(h.isValid());
 
-	if (npts)
+	if (npts != GA_Offset(0))
 	{
 	    const ABC_T    *data;
 	    GA_Offset       pos;
 
-	    for (exint i = start; i < end; ++i)
+	    for (GA_Offset i = start; i < end; ++i)
             {
-                pos = gdp.vertexPoint(GA_Offset(i));
+                pos = gdp.vertexPoint(i);
                 data = (array_data + ((pos - npts) * tsize));
 
                 for (int j = 0; j < tsize; ++j)
                 {
                     if (tuple)
-                    {
-                        tuple->set(
-                                attrib.getAttribute(),
-                                GA_Offset(i),
-                                (GA_T)data[j],
-                                j);
-                    }
+                        tuple->set(attrib.getAttribute(), i, (GA_T)data[j], j);
                     else
-                        h.set(GA_Offset(i), j, data[j]);
+                        h.set(i, j, data[j]);
                 }
             }
 	}
 	else
 	{
-            for (exint i = start; i < end; ++i)
+            for (GA_Offset i = start; i < end; ++i)
             {
                 for (int j = 0; j < tsize; ++j)
                 {
                     if (tuple)
                     {
-                        tuple->set(
-                                attrib.getAttribute(),
-                                GA_Offset(i),
-                                (GA_T)array_data[j],
-                                j);
+                        tuple->set(attrib.getAttribute(), i,
+				   (GA_T)array_data[j], j);
                     }
                     else
-                        h.set(GA_Offset(i), j, array_data[j]);
+                        h.set(i, j, array_data[j]);
                 }
-                if ((i - start) < entries)
+                if (size_t(i - start) < entries)
                     array_data += tsize;
             }
 	}
@@ -440,40 +431,40 @@ namespace {
     setStringAttribute(GU_Detail &gdp,
             GA_RWAttributeRef &attrib,
             const std::string  *array_data,
-            exint start,
-            exint end,
+            GA_Offset start,
+            GA_Offset end,
             int extent,
-            int entries,
-            exint npts = 0)
+            size_t entries,
+            GA_Offset npts)
     {
 	GA_RWHandleS        h(attrib.getAttribute());
-	int                 tsize = SYSmin(extent, attrib.getTupleSize());
+	int                 tsize = SYSmin(int(extent), attrib.getTupleSize());
 	--entries;
 
 	UT_ASSERT(h.isValid());
 
-        if (npts)
+        if (npts != GA_Offset(0))
         {
 	    const std::string  *data;
 	    GA_Offset           pos;
 
-            for (exint i = start; i < end; ++i)
+            for (GA_Offset i = start; i < end; ++i)
             {
-                pos = gdp.vertexPoint(GA_Offset(i));
+                pos = gdp.vertexPoint(i);
                 data = (array_data + ((pos - npts) * tsize));
 
                 for (int j = 0; j < tsize; ++j)
-                    h.set(GA_Offset(i), j, data[j].c_str());
+                    h.set(i, j, data[j].c_str());
             }
         }
         else
         {
-            for (exint i = start; i < end; ++i)
+            for (GA_Offset i = start; i < end; ++i)
             {
                 for (int j = 0; j < tsize; ++j)
-                    h.set(GA_Offset(i), j, array_data[j].c_str());
+                    h.set(i, j, array_data[j].c_str());
 
-                if ((i - start) < entries)
+                if (size_t(i - start) < entries)
                     array_data += tsize;
             }
         }
@@ -497,18 +488,18 @@ namespace {
 	GA_Storage          store = getGAStorage(data_type);
 	GU_Detail          &gdp = walk.detail();
 	std::string         interp= meta_data.get("interpretation");
-	exint               start;
+	GA_Offset           start;
 	exint               len;
-	exint               npts = 0;
+	GA_Offset           npts(0);
         int                 array_extent = getArrayExtent(meta_data);
-        int                 entries = dimensions.numPoints();
+        size_t              entries = dimensions.numPoints();
 	int                 tsize = array_extent * data_type.getExtent();
         bool                promote_points = false;
 
 	UT_ASSERT(array_extent == 1 || (entries % array_extent) == 0);
 
 	if (array_extent > 1)
-	    entries = entries / array_extent;
+	    entries /= array_extent;
         if (!entries)
 	{
 	    // Valid attribute but no entries, likely a corrupt Alembic file.
@@ -738,12 +729,12 @@ namespace {
 	GU_Detail              &gdp = walk.detail();
         UT_String               name(head.getName());
         const std::string      *vals_data;
-        exint                   start;
-        exint                   end;
+        GA_Offset               start;
+        GA_Offset               end;
         exint                   len;
         const int              *indices_data;
         int                     tsize = getArrayExtent(parent.getMetaData());
-        int                     entries;
+        size_t                  entries;
 	bool                    promote_points = false;
 
 	if (!indices.valid() || !vals.valid())
@@ -769,7 +760,7 @@ namespace {
 	}
 
         UT_ASSERT(tsize == 1 || (entries % tsize) == 0);
-        entries = entries / tsize;
+        entries /= tsize;
         setupForOwner(walk,
                 owner,
                 name.buffer(),
@@ -812,27 +803,23 @@ namespace {
                     name.buffer(),
                     obj.getFullName().c_str());
 
-            for (exint i = start; i < end; ++i)
+            for (GA_Offset i = start; i < end; ++i)
             {
-                pos = gdp.vertexPoint(GA_Offset(i));
+                pos = gdp.vertexPoint(i);
                 data = (indices_data + ((pos - npoint) * tsize));
 
                 for (int j = 0; j < tsize; ++j)
-                    handle.set(GA_Offset(i), j, vals_data[data[j]].c_str());
+                    handle.set(i, j, vals_data[data[j]].c_str());
             }
         }
         else
         {
-            for (exint i = start; i < end; ++i)
+            for (GA_Offset i = start; i < end; ++i)
             {
                 for (int j = 0; j < tsize; ++j)
-                {
-                    handle.set(GA_Offset(i),
-                            j,
-                            vals_data[indices_data[j]].c_str());
-                }
+                    handle.set(i, j, vals_data[indices_data[j]].c_str());
 
-                if ((i - start) < entries)
+                if (size_t(i - start) < entries)
                     indices_data += tsize;
             }
         }
@@ -947,7 +934,7 @@ namespace {
     static void
     fillUserProperties(GABC_GEOWalker &walk,
             const GABC_IObject &obj,
-            int userpropsIndex)
+            GA_Offset userpropsIndex)
     {
         GA_RWAttributeRef   attrib;
         GA_RWHandleS        str_attrib;
@@ -958,7 +945,6 @@ namespace {
         UT_WorkBuffer       meta_dictionary;
         bool                load_metadata = (walk.loadUserProps()
                                     == GABC_GEOWalker::UP_LOAD_ALL);
-        bool                success = false;
 
         // One writer for values and one for metadata. If the metadata
         // writer is NULL, metadata will be ignored.
@@ -997,12 +983,7 @@ namespace {
                         "attribute.");
             }
             else
-            {
-                str_attrib.set(GA_Offset(userpropsIndex),
-                        0,
-                        data_dictionary.buffer());
-                success = true;
-            }
+                str_attrib.set(userpropsIndex, 0, data_dictionary.buffer());
 
             if (load_metadata)
             {
@@ -1024,12 +1005,7 @@ namespace {
                             " metadata attribute.");
                 }
                 else
-                {
-                    str_attrib.set(GA_Offset(userpropsIndex),
-                            0,
-                            meta_dictionary.buffer());
-                    success = true;
-                }
+                    str_attrib.set(userpropsIndex, 0, meta_dictionary.buffer());
             }
         }
 
@@ -1058,12 +1034,12 @@ namespace {
 	GU_PrimParticle::build(&gdp, npoint, 1);
     }
 
-    static exint
+    static GA_Offset
     appendPoints(GABC_GEOWalker &walk, exint npoint)
     {
 	GU_Detail	&gdp = walk.detail();
-	exint		 startpoint = walk.pointCount();
-	UT_VERIFY(gdp.appendPointBlock(npoint) == GA_Offset(startpoint));
+	GA_Offset	 startpoint = walk.pointCount();
+	UT_VERIFY(gdp.appendPointBlock(npoint) == startpoint);
 	return startpoint;
     }
 
@@ -1076,7 +1052,7 @@ namespace {
     {
 	// First, append points
 	GU_Detail	&gdp = walk.detail();
-	exint		 startpoint = appendPoints(walk, npoint);
+	GA_Offset	 startpoint = appendPoints(walk, npoint);
 	exint		 nfaces = counts->size();
 	GEO_PolyCounts	 pcounts;
 
@@ -1086,7 +1062,7 @@ namespace {
 	if (!polysoup)
 	{
 	    GU_PrimPoly::buildBlock(&gdp,
-	            GA_Offset(startpoint),
+	            startpoint,
 	            npoint,
                     pcounts,
                     indices->get());
@@ -1095,7 +1071,7 @@ namespace {
 	{
 	    GEO_PrimPolySoup *polysoup = UTverify_cast<GEO_PrimPolySoup *>(
                     gdp.getGEOPrimitive(GU_PrimPolySoup::build(&gdp,
-                            GA_Offset(startpoint),
+                            startpoint,
                             npoint,
                             pcounts,
                             indices->get(),
@@ -1149,7 +1125,7 @@ namespace {
 	UT_Array<int>   porders;
 	exint           ncurves = counts->size();
         exint           nvtx = 0;
-	exint           startpoint = appendPoints(walk, npoint);
+	GA_Offset       startpoint = appendPoints(walk, npoint);
         int             c_val;
         int             o_val;
         bool            err_flag = true;
@@ -1221,7 +1197,7 @@ namespace {
 	{
 	    case Alembic::AbcGeom::kBezierBasis:
 	        GEO_PrimRBezCurve::buildBlock(&gdp,
-	                GA_Offset(startpoint),
+	                startpoint,
                         npoint,
                         pcounts,
                         indices,
@@ -1232,7 +1208,7 @@ namespace {
 
 	    case Alembic::AbcGeom::kBsplineBasis:
 	        GEO_PrimNURBCurve::buildBlock(&gdp,
-	                GA_Offset(startpoint),
+	                startpoint,
                         npoint,
                         pcounts,
                         indices,
@@ -1244,7 +1220,7 @@ namespace {
 
             default:
                 GU_PrimPoly::buildBlock(&gdp,
-                        GA_Offset(startpoint),
+                        startpoint,
                         npoint,
                         pcounts,
                         indices,
@@ -1320,13 +1296,13 @@ namespace {
     {
 	// We're reusing primitives
 	const GU_Detail		&gdp = walk.detail();
-	exint			 nprim = walk.primitiveCount();
-	if (gdp.getNumPrimitives() <= nprim)
+	GA_Offset		 nprim = walk.primitiveCount();
+	if (gdp.getNumPrimitiveOffsets() <= nprim)
 	{
 	    UT_ASSERT(0 && "Big problems here!");
 	    return false;	// Not enough primitives - much bigger problem
 	}
-	const GEO_Primitive	*prim = gdp.getGEOPrimitive(GA_Offset(nprim));
+	const GEO_Primitive	*prim = gdp.getGEOPrimitive(nprim);
 	return prim->getTypeId() == GA_PRIMPOLYSOUP;
     }
 
@@ -1431,7 +1407,7 @@ namespace {
 	if (h.isValid())
 	{
 	    UT_Vector3	v(x, y, z);
-	    h.set(GA_Offset(walk.primitiveCount()), v);
+	    h.set(walk.primitiveCount(), v);
 	}
     }
 
@@ -1458,8 +1434,8 @@ namespace {
 	if (!walk.reusePrimitives())
 	{
 	    // Assert that we need to create the polygons
-	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
-	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
+	    UT_ASSERT(walk.detail().getNumPointOffsets() == walk.pointCount());
+	    UT_ASSERT(walk.detail().getNumPrimitiveOffsets() == walk.primitiveCount());
 	    appendParticles(walk, npoint);
 	}
 
@@ -1474,8 +1450,7 @@ namespace {
 	    lt = V3d(0,0,0);
 	}
 
-	walk.detail().setPos3(GA_Offset(walk.pointCount()),
-			ldata[0], ldata[1], ldata[2]);
+	walk.detail().setPos3(walk.pointCount(), ldata[0], ldata[1], ldata[2]);
 	locatorAttribute(walk, "localPosition", ldata[0], ldata[1], ldata[2]);
 	locatorAttribute(walk, "localScale", ldata[3], ldata[4], ldata[5]);
 	locatorAttribute(walk, "parentTrans", lt.x, lt.y, lt.z);
@@ -1560,8 +1535,8 @@ namespace {
 		soup = false;
 
 	    // Assert that we need to create the polygons
-	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
-	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
+	    UT_ASSERT(walk.detail().getNumPointOffsets() == walk.pointCount());
+	    UT_ASSERT(walk.detail().getNumPrimitiveOffsets() == walk.primitiveCount());
 	    if (soup)
 		nprim = 1;
 
@@ -1664,8 +1639,8 @@ namespace {
 		soup = false;
 
 	    // Assert that we need to create the polygons
-	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
-	    UT_ASSERT(walk.detail().getNumPrimitives() == walk.primitiveCount());
+	    UT_ASSERT(walk.detail().getNumPointOffsets() == walk.pointCount());
+	    UT_ASSERT(walk.detail().getNumPrimitiveOffsets() == walk.primitiveCount());
 	    if (soup)
 		nprim = 1;
 
@@ -1749,8 +1724,8 @@ namespace {
 	if (!walk.reusePrimitives())
 	{
 	    // Assert that we need to create the polygons
-	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
-	    UT_ASSERT(walk.detail().getNumPrimitives() ==walk.primitiveCount());
+	    UT_ASSERT(walk.detail().getNumPointOffsets() == walk.pointCount());
+	    UT_ASSERT(walk.detail().getNumPrimitiveOffsets() == walk.primitiveCount());
 	    appendParticles(walk, npoint);
 	}
 
@@ -1897,8 +1872,8 @@ namespace {
 	if (!walk.reusePrimitives())
 	{
 	    // Assert that we need to create the polygons
-	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
-	    UT_ASSERT(walk.detail().getNumPrimitives() == walk.primitiveCount());
+	    UT_ASSERT(walk.detail().getNumPointOffsets() == walk.pointCount());
+	    UT_ASSERT(walk.detail().getNumPrimitiveOffsets() == walk.primitiveCount());
 	    appendCurves(walk,
 	            obj,
 	            type,
@@ -1917,7 +1892,7 @@ namespace {
 
 	    for (exint i = 0; i < prims_added; ++i)
 	    {
-                GA_Offset	        primoff = GA_Offset(prims_prior + i);
+                GA_Offset	        primoff(prims_prior + i);
                 GU_PrimNURBCurve	*curve = UTverify_cast<GU_PrimNURBCurve *>(
                                             walk.detail().getGEOPrimitive(primoff));
                 offset += setKnotVector(*curve->getBasis(), knots, offset);
@@ -2037,11 +2012,11 @@ namespace {
 	if (!walk.reusePrimitives())
 	{
 	    // Assert that we need to create the polygons
-	    UT_ASSERT(walk.detail().getNumPoints() == walk.pointCount());
-	    UT_ASSERT(walk.detail().getNumPrimitives() == walk.primitiveCount());
+	    UT_ASSERT(walk.detail().getNumPointOffsets() == walk.pointCount());
+	    UT_ASSERT(walk.detail().getNumPrimitiveOffsets() == walk.primitiveCount());
 	    appendNURBS(walk, uorder, uknots, vorder, vknots);
 	}
-	GA_Offset	 primoff = GA_Offset(walk.primitiveCount());
+	GA_Offset	 primoff = walk.primitiveCount();
 	GU_PrimNURBSurf	*surf = UTverify_cast<GU_PrimNURBSurf *>(
 			    walk.detail().getGEOPrimitive(primoff));
 	setKnotVector(*surf->getUBasis(), uknots);
@@ -2122,7 +2097,7 @@ namespace {
     makePointMesh(GABC_GEOWalker &walk, const GABC_IObject &obj)
     {
 	GU_Detail		&gdp = walk.detail();
-	exint			 startpoint = walk.pointCount();
+	GA_Offset		 startpoint = walk.pointCount();
 	ABC_T			 prim(obj.object(), gabcWrapExisting);
 	SCHEMA_T		&ps = prim.getSchema();
 	IP3fArrayProperty	 prop = ps.getPositionsProperty();
@@ -2137,14 +2112,14 @@ namespace {
 	const Imath::V3f	*Pdata = P->get();
 
 	if (!walk.reusePrimitives())
-	    UT_VERIFY(gdp.appendPointBlock(npoint) == GA_Offset(startpoint));
+	    UT_VERIFY(gdp.appendPointBlock(npoint) == startpoint);
 	if(bias)
 	{
 	    P3fArraySamplePtr P1 = prop.getValue(ISampleSelector(i1));
 	    const Imath::V3f *P1data = P1->get();
 	    for (exint i = 0; i < npoint; ++i)
 	    {
-		GA_Offset	pt = GA_Offset(startpoint+i);
+		GA_Offset pt(startpoint+i);
 		gdp.setPos3(pt, SYSlerp(Pdata[i].x, P1data[i].x, bias),
 				SYSlerp(Pdata[i].y, P1data[i].y, bias),
 				SYSlerp(Pdata[i].z, P1data[i].z, bias));
@@ -2154,7 +2129,7 @@ namespace {
 	{
 	    for (exint i = 0; i < npoint; ++i)
 	    {
-		GA_Offset	pt = GA_Offset(startpoint+i);
+		GA_Offset pt(startpoint+i);
 		gdp.setPos3(pt, Pdata[i].x, Pdata[i].y, Pdata[i].z);
 	    }
 	}
@@ -2163,7 +2138,7 @@ namespace {
 	{
 	    GA_PointGroup	*g = gdp.newPointGroup(groupname);
 	    for (exint i = 0; i < npoint; ++i)
-		g->addOffset(GA_Offset(startpoint+i));
+		g->addOffset(startpoint+i);
 	}
 	if (getAnimationType(walk, obj) != GEO_ANIMATION_CONSTANT)
 	    walk.setNonConstant();
@@ -2211,16 +2186,16 @@ namespace {
     static void
     setBoxPositions(GU_Detail &gdp,
             const UT_BoundingBox &box,
-            exint start)
+            GA_Offset start)
     {
-	gdp.setPos3(GA_Offset(start+0), box.xmin(), box.ymin(), box.zmin());
-	gdp.setPos3(GA_Offset(start+1), box.xmax(), box.ymin(), box.zmin());
-	gdp.setPos3(GA_Offset(start+2), box.xmin(), box.ymax(), box.zmin());
-	gdp.setPos3(GA_Offset(start+3), box.xmax(), box.ymax(), box.zmin());
-	gdp.setPos3(GA_Offset(start+4), box.xmin(), box.ymin(), box.zmax());
-	gdp.setPos3(GA_Offset(start+5), box.xmax(), box.ymin(), box.zmax());
-	gdp.setPos3(GA_Offset(start+6), box.xmin(), box.ymax(), box.zmax());
-	gdp.setPos3(GA_Offset(start+7), box.xmax(), box.ymax(), box.zmax());
+	gdp.setPos3(start+0, box.xmin(), box.ymin(), box.zmin());
+	gdp.setPos3(start+1, box.xmax(), box.ymin(), box.zmin());
+	gdp.setPos3(start+2, box.xmin(), box.ymax(), box.zmin());
+	gdp.setPos3(start+3, box.xmax(), box.ymax(), box.zmin());
+	gdp.setPos3(start+4, box.xmin(), box.ymin(), box.zmax());
+	gdp.setPos3(start+5, box.xmax(), box.ymin(), box.zmax());
+	gdp.setPos3(start+6, box.xmin(), box.ymax(), box.zmax());
+	gdp.setPos3(start+7, box.xmax(), box.ymax(), box.zmax());
     }
 
     static void
@@ -2257,9 +2232,9 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
     , myViewportLOD(GEO_VIEWPORT_FULL)
     , myAbcSharedPoint(GA_INVALID_OFFSET)
     , myTime(0)
-    , myPointCount(0)
-    , myVertexCount(0)
-    , myPrimitiveCount(0)
+    , myPointCount(gdp.getNumPointOffsets())
+    , myVertexCount(gdp.getNumVertexOffsets())
+    , myPrimitiveCount(gdp.getNumPrimitiveOffsets())
     , myGroupMode(ABC_GROUP_SHAPE_NODE)
     , myBoxCullMode(BOX_CULL_IGNORE)
     , mySizeCullMode(SIZE_CULL_IGNORE)
@@ -2271,13 +2246,13 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
     , myUseVisibility(true)
     , myStaticTimeZero(true)
     , myRecordTimeRange(record_time_range)
+    , myPathAttributeChanged(true)
     , myReusePrimitives(false)
     , myBuildLocator(true)
     , myLoadMode(LOAD_ABC_PRIMITIVES)
     , myLoadUserProps(UP_LOAD_NONE)
     , myBuildAbcShape(true)
     , myBuildAbcXform(false)
-    , myPathAttributeChanged(true)
     , myIsConstant(true)
     , myTopologyConstant(true)
     , myTransformConstant(true)
@@ -2305,10 +2280,16 @@ GABC_GEOWalker::~GABC_GEOWalker()
 }
 
 void
-GABC_GEOWalker::setReusePrimitives(bool v)
+GABC_GEOWalker::setReusePrimitives(
+    bool v, GA_Offset pts, GA_Offset verts, GA_Offset prims)
 {
-    myReusePrimitives = v &&
-	(myDetail.getNumPrimitives() > 0 || myLoadMode == LOAD_HOUDINI_POINTS);
+    myReusePrimitives = v;
+    if(v)
+    {
+	myPointCount = pts;
+	myVertexCount = verts;
+	myPrimitiveCount = prims;
+    }
 }
 
 void
@@ -2353,7 +2334,7 @@ void
 GABC_GEOWalker::updateAbcPrims()
 {
     bool    setPath = pathAttributeChanged() && myPathAttribute.isValid();
-    int     userpropsIndex = 0;
+    GA_Offset userpropsIndex(0);
     for (GA_Iterator it(detail().getPrimitiveRange()); !it.atEnd(); ++it)
     {
 	GEO_Primitive      *prim = detail().getGEOPrimitive(*it);
@@ -2891,8 +2872,8 @@ void
 GABC_GEOWalker::trackLastFace(GA_Size nfaces)
 {
     UT_ASSERT(nfaces >= 0);
-    UT_ASSERT(myDetail.getNumPrimitives() >= myPrimitiveCount + nfaces);
-    myLastFaceStart = GA_Offset(myPrimitiveCount);
+    UT_ASSERT(myDetail.getNumPrimitiveOffsets() >= myPrimitiveCount + nfaces);
+    myLastFaceStart = myPrimitiveCount;
     myLastFaceCount = nfaces;
 }
 
@@ -2902,7 +2883,7 @@ GABC_GEOWalker::trackSubd(GA_Size nfaces)
     if (mySubdGroup)
     {
 	for (exint i = 0; i < nfaces; ++i)
-	    mySubdGroup->addOffset(GA_Offset(myPrimitiveCount+i));
+	    mySubdGroup->addOffset(myPrimitiveCount+i);
     }
 }
 
@@ -2913,33 +2894,32 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
         exint nprim,
 	bool do_transform)
 {
-    UT_ASSERT(myDetail.getNumPoints() >= myPointCount + npoint);
-    UT_ASSERT(myDetail.getNumVertices() >= myVertexCount + nvertex);
-    UT_ASSERT(myDetail.getNumPrimitives() >= myPrimitiveCount + nprim);
+    UT_ASSERT(myDetail.getNumPointOffsets() >= myPointCount + npoint);
+    UT_ASSERT(myDetail.getNumVertexOffsets() >= myVertexCount + nvertex);
+    UT_ASSERT(myDetail.getNumPrimitiveOffsets() >= myPrimitiveCount + nprim);
     if (nprim && myPathAttribute.isValid() && pathAttributeChanged())
     {
 	std::string	 pathStr = obj.getFullName();
 	const char	*path = pathStr.c_str();
 	for (exint i = 0; i < nprim; ++i)
-	    myPathAttribute.set(GA_Offset(myPrimitiveCount+i), path);
+	    myPathAttribute.set(myPrimitiveCount+i, path);
     }
     UT_String		 gname;
-    GA_PrimitiveGroup	*g = NULL;
     if (nprim && getGroupName(gname, obj))
     {
-	g = findOrCreatePrimitiveGroup(myDetail, gname);
+	GA_PrimitiveGroup *g = findOrCreatePrimitiveGroup(myDetail, gname);
 	for (exint i = 0; i < nprim; ++i)
-	    g->addOffset(GA_Offset(myPrimitiveCount+i));
+	    g->addOffset(myPrimitiveCount+i);
     }
     if (do_transform && !buildAbcPrim() &&
 	    includeXform() && myMatrix != identity44d)
     {
-	GA_Range	xprims = GA_Range(detail().getPrimitiveMap(),
-				GA_Offset(myPrimitiveCount),
-				GA_Offset(myPrimitiveCount + nprim));
-	GA_Range	xpoints = GA_Range(detail().getPointMap(),
-				GA_Offset(myPointCount),
-				GA_Offset(myPointCount + npoint));
+	GA_Range xprims = GA_Range(detail().getPrimitiveMap(),
+				   myPrimitiveCount,
+				   myPrimitiveCount + nprim);
+	GA_Range xpoints = GA_Range(detail().getPointMap(),
+				    myPointCount,
+				    myPointCount + npoint);
 	UT_Matrix4	m4(myMatrix.x);
 	// Transform detail and attributes
 	detail().transform(m4, xprims, xpoints, false, false, false);

@@ -1138,6 +1138,15 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	walkgdp = unpack_gdp.get();
     }
 
+    bool reuse_prims =
+	(myTopologyConstant
+	    && (walkgdp->getNumPrimitives() > 0
+		|| parms.myLoadMode == GABC_GEOWalker::LOAD_HOUDINI_POINTS));
+    if(reuse_prims)
+	walkgdp->destroyInternalNormalAttribute();
+    else
+	walkgdp->clearAndDestroy();
+
     SOP_AlembicInErr    error_handler(*this, UTgetInterrupt());
     GABC_GEOWalker	walk(*walkgdp, error_handler, true);
 
@@ -1202,16 +1211,14 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     walk.setBounds(parms.myBoundMode, parms.myBoundBox);
 
     bool	needwalk = true;
-    walk.setReusePrimitives(myTopologyConstant);
-    if (!walk.reusePrimitives())
+    walk.setReusePrimitives(reuse_prims);
+    if (!reuse_prims)
     {
-	walkgdp->clearAndDestroy();
 	setPathAttributes(walk, parms);
 	setPointMode(walk, parms);
     }
     else
     {
-	walkgdp->destroyInternalNormalAttribute();
 	setPathAttributes(walk, parms);
 	setPointMode(walk, parms);
 	
