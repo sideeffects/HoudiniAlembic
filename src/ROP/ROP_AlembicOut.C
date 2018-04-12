@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -44,6 +44,7 @@
 #include <OBJ/OBJ_SubNet.h>
 #include <OP/OP_Bundle.h>
 #include <OP/OP_BundleList.h>
+#include <OP/OP_Input.h>
 #include <OP/OP_Director.h>
 #include <PRM/PRM_Include.h>
 #include <PRM/PRM_SpareData.h>
@@ -1661,6 +1662,31 @@ ropIsShape(GABC_NodeType type)
     }
 }
 
+static void
+ropGetLocalTransform(UT_Matrix4D &m, OBJ_Node *obj, OP_Context &context)
+{
+    if(!obj->getWorldTransform(m, context))
+	m.identity();
+
+    OP_Node *parent = nullptr;
+    OP_Input *input = obj->getInputReferenceConst(0);
+    if(input && !input->isIndirect())
+	parent = input->getNode();
+
+    if(!parent)
+	parent = obj->getParent();
+
+    OBJ_Node *p = CAST_OBJNODE(parent);
+    if(!p)
+	return;
+
+    UT_Matrix4D m_parent;
+    if(!p->getIWorldTransform(m_parent, context))
+	return;
+
+    m *= m_parent;
+}
+
 bool
 ROP_AlembicOut::updateFromSop(
     OBJ_Geometry *geo,
@@ -1701,12 +1727,7 @@ ROP_AlembicOut::updateFromSop(
 	    UT_Matrix4D m(1);
 	    OBJ_Node *obj = CAST_OBJNODE(sop->getCreator());
 	    if(obj)
-	    {
-		if(obj->isSubNetwork(false))
-		    static_cast<OBJ_SubNet *>(obj)->getSubnetTransform(context, m);
-		else
-		    obj->getLocalTransform(context, m); 
-	    }
+		ropGetLocalTransform(m, obj, context);
 
 	    // make transform visible
 	    static_cast<ROP_AbcNodeXform *>(node)->setData(m, true);
@@ -2206,10 +2227,7 @@ ROP_AlembicOut::updateFromHierarchy(
 	auto obj = it.first;
 
 	UT_Matrix4D m;
-	if(obj->isSubNetwork(false))
-	    static_cast<OBJ_SubNet *>(obj)->getSubnetTransform(context, m);
-	else
-	    obj->getLocalTransform(context, m); 
+	ropGetLocalTransform(m, obj, context);
 
 	UT_String user_props;
 	UT_String user_props_meta;
