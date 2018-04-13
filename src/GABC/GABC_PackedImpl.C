@@ -400,17 +400,12 @@ GABC_PackedImpl::loadUnknownToken(const char *token,
 bool
 GABC_PackedImpl::getBounds(UT_BoundingBox &box) const
 {
-    const GABC_IObject	&iobj = object();
+    const GABC_IObject &iobj = object();
     if (!iobj.valid())
 	return 0;
 
-    bool	isconst;
-    if (iobj.getBoundingBox(box, myFrame, isconst))
-    {
-	setBoxCache(box);
-	return true;
-    }
-    return false;
+    bool isconst;
+    return iobj.getBoundingBox(box, myFrame, isconst);
 }
 
 bool
