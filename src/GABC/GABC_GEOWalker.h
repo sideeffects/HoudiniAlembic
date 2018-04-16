@@ -343,6 +343,7 @@ public:
 protected:
     /// Verify the object matches filters before generating geometry
     bool		 filterObject(const GABC_IObject &obj) const;
+    bool		 filterAnyChild(const GABC_IObject &obj) const;
 
 private:
     bool		 matchObjectName(const GABC_IObject &obj) const;
@@ -350,6 +351,8 @@ private:
     bool                 matchGeometryFilter(const GABC_IObject &obj) const;
     bool		 matchBounds(const GABC_IObject &obj) const;
     bool		 matchSize(const GABC_IObject &obj) const;
+    bool		 matchChildBounds(const GABC_IObject &obj) const;
+    bool		 matchChildSize(const GABC_IObject &obj) const;
     bool		 abcPrimPointMode() const
 				{ return myAbcPrimPointMode; }
     GA_Offset		 abcSharedPoint() const

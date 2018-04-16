@@ -73,6 +73,7 @@ namespace
     using IObject = Alembic::Abc::IObject;
     using IArchive = Alembic::Abc::IArchive;
     using ICompoundProperty = Alembic::Abc::ICompoundProperty;
+    using CompoundPropertyReaderPtr = Alembic::Abc::CompoundPropertyReaderPtr;
     using ISampleSelector = Alembic::Abc::ISampleSelector;
     using ObjectHeader = Alembic::Abc::ObjectHeader;
     using TimeSamplingPtr = Alembic::Abc::TimeSamplingPtr;
@@ -2566,14 +2567,13 @@ namespace
     abcBounds<IObject>(const IObject &obj, UT_BoundingBox &box,
 	fpreal t, bool &isconst)
     {
-	// This specialization accepts an IObject then populates the
-	// archive bounding from its archive.
+	IBox3dProperty    bounds;
+	CompoundPropertyReaderPtr props = obj.getPtr()->getProperties();
+	if ( props->getPropertyHeader( ".childBnds" ) )
+	    bounds = IBox3dProperty(props, ".childBnds");
 
-	IArchive	  archive = obj.getArchive();
-	IBox3dProperty    bounds = Alembic::AbcGeom::GetIArchiveBounds(archive);
-
-	// The archive bound is an optional property of Root, return
-	// false when it doesn't exist.
+	// Child bounds is an optional property, return false when it doesn't
+	// exist.
 	if (!bounds.valid())
 	    return false;
 

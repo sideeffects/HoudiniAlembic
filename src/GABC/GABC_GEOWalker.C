@@ -2460,7 +2460,8 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	            state,
 	            xs.getInheritsXforms());
 
-	    walkChildren(obj);
+	    if(filterAnyChild(obj))
+		walkChildren(obj);
 
             popTransform(state);
 
@@ -2585,6 +2586,8 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
     if (vtype != GABC_VISIBLE_DEFER)
         myVisibilityStack.pop();
 
+    if(process_children)
+	process_children = filterAnyChild(obj);
     return process_children;
 }
 
@@ -2602,6 +2605,12 @@ GABC_GEOWalker::filterObject(const GABC_IObject &obj) const
             matchGeometryFilter(obj) &&
 	    matchBounds(obj) &&
 	    matchSize(obj);
+}
+
+bool
+GABC_GEOWalker::filterAnyChild(const GABC_IObject &obj) const
+{
+    return matchChildBounds(obj) && matchChildSize(obj);
 }
 
 bool
@@ -2689,13 +2698,12 @@ GABC_GEOWalker::matchBounds(const GABC_IObject &obj) const
     if (myBoxCullMode == BOX_CULL_IGNORE)
 	return true;
 
-    if (IXform::matches(obj.getHeader()))
-	return true;	// Any transform nodes match
-
     bool		isConstant;
     UT_BoundingBox	box;
 
-    obj.getBoundingBox(box, myTime, isConstant);
+    if(!obj.getBoundingBox(box, myTime, isConstant))
+	return true;
+
     if (!isConstant)
     {
 	// If the bounding box changes over time, then we may be culled in the
@@ -2734,7 +2742,9 @@ GABC_GEOWalker::matchSize(const GABC_IObject &obj) const
 
     UT_BoundingBox box;
     bool isconst;
-    obj.getBoundingBox(box, time(), isconst);
+    if(!obj.getBoundingBox(box, time(), isconst))
+	return true;
+
     fpreal x = box.xsize();
     fpreal y = box.ysize();
     fpreal z = box.zsize();
@@ -2749,6 +2759,69 @@ GABC_GEOWalker::matchSize(const GABC_IObject &obj) const
 
     if(mySizeCompare == SIZE_COMPARE_LESSTHAN)
 	return val < mySize;
+
+    // mySizeCompare == SIZE_COMPARE_GREATERTHAN
+    return val > mySize;
+}
+
+bool
+GABC_GEOWalker::matchChildBounds(const GABC_IObject &obj) const
+{
+    if (myBoxCullMode == BOX_CULL_IGNORE)
+	return true;
+
+    bool		isConstant;
+    UT_BoundingBox	box;
+
+    if(!obj.getBoundingBox(box, myTime, isConstant))
+	return true;
+
+    if (includeXform())
+    {
+	// The top of our transform stack is the world space transform for the
+	// shape.
+	box.transform(UT_Matrix4(myMatrix.x));
+    }
+    switch (myBoxCullMode)
+    {
+	case BOX_CULL_ANY_INSIDE:
+	case BOX_CULL_INSIDE:
+	    return myCullBox.intersects(box) != 0;
+	case BOX_CULL_ANY_OUTSIDE:
+	case BOX_CULL_OUTSIDE:
+	    return box.isInside(myCullBox) == 0;
+	case BOX_CULL_IGNORE:
+	    UT_ASSERT_P(0);
+    }
+    UT_ASSERT_P(0 && "Unexpected case");
+    return true;
+}
+
+bool
+GABC_GEOWalker::matchChildSize(const GABC_IObject &obj) const
+{
+    if(mySizeCullMode == SIZE_CULL_IGNORE)
+	return true;
+
+    if(mySizeCompare == SIZE_COMPARE_LESSTHAN)
+	return true;
+
+    UT_BoundingBox box;
+    bool isconst;
+    if(!obj.getBoundingBox(box, time(), isconst))
+	return true;
+
+    fpreal x = box.xsize();
+    fpreal y = box.ysize();
+    fpreal z = box.zsize();
+
+    fpreal val;
+    if(mySizeCullMode == SIZE_CULL_AREA)
+	val = 2 * (x * y + x * z + y * z);
+    else if(mySizeCullMode == SIZE_CULL_RADIUS)
+	val = 0.5 * SYSsqrt(x * x + y * y + z * z);
+    else // if(mySizeCullMode == SIZE_CULL_VOLUME)
+	val = x * y * z;
 
     // mySizeCompare == SIZE_COMPARE_GREATERTHAN
     return val > mySize;
