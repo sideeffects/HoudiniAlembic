@@ -1804,8 +1804,6 @@ GABC_Util::Walker::walkChildren(const GABC_IObject &obj)
     UT_SortedMap<std::string, GABC_IObject, UTnumberedStringCompare> child_map;
     for (exint i = 0; i < nkids; ++i)
     {
-	// FIXME: can we update this so we do not need to call getChild() on
-	// every instanced piece of geometry?
 	GABC_IObject child = obj.getChild(i);
 	child_map.emplace(child.getName(), child);
     }
