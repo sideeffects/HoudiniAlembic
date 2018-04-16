@@ -1587,6 +1587,12 @@ GABC_OGTGeometry::getDefaultSkip()
             "__point_id",
             "__vertex_id",
 	    "__nested_vertex_id",
+	    "__filename",
+	    "__object_name",
+	    "__time",
+	    "__cache_name",
+	    "__bboxmin",
+	    "__bboxmax",
             "varmap",
             (void *)NULL);
 	// Add these after the initial construction.
