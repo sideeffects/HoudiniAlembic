@@ -487,7 +487,7 @@ GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
 }
 
 bool
-GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const
+GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, const UT_Matrix4D *transform, bool allow_psoup) const
 {
     int loadstyle = GABC_IObject::GABC_LOAD_FULL;
     // We don't want to copy over the attributes from the Houdini geometry
@@ -506,7 +506,7 @@ GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const
 	{
 	    copyPrimitiveGroups(*details(i), false);
 	    // Don't transform since GT conversion has already done that for us
-	    unpackToDetail(destgdp, details(i), false);
+	    unpackToDetail(destgdp, details(i), transform);
 	    delete details(i);
 	}
     }
@@ -514,15 +514,18 @@ GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const
 }
 
 bool
-GABC_PackedImpl::unpack(GU_Detail &destgdp) const
+GABC_PackedImpl::unpack(GU_Detail &destgdp, const UT_Matrix4D *transform) const
 {
-    return unpackGeometry(destgdp, true);
+    return unpackGeometry(destgdp, transform, true);
 }
 
 bool
-GABC_PackedImpl::unpackUsingPolygons(GU_Detail &destgdp) const
+GABC_PackedImpl::unpackUsingPolygons(GU_Detail &destgdp, const GU_PrimPacked *prim) const
 {
-    return unpackGeometry(destgdp, false);
+    UT_Matrix4D transform;
+    if (prim)
+        prim->getFullTransform4(transform);
+    return unpackGeometry(destgdp, prim ? &transform : nullptr, false);
 }
 
 

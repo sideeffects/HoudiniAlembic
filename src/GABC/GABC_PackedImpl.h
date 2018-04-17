@@ -140,10 +140,10 @@ public:
 
     /// Unpack the procedural into a GU_Detail.  By default, this calls
     /// getGTFull() and converts the GT geometry to a GU_Detail.
-    virtual bool	unpack(GU_Detail &destgdp) const;
+    virtual bool        unpack(GU_Detail &destgdp, const UT_Matrix4D *transform) const;
 
     /// Unpack without using polygon soups
-    virtual bool	unpackUsingPolygons(GU_Detail &destgdp) const;
+    virtual bool        unpackUsingPolygons(GU_Detail &destgdp, const GU_PrimPacked *prim) const;
 
     /// @{
     /// Return GT representations of geometry
@@ -312,7 +312,7 @@ private:
     UT_StringHolder getFaceSetNames() const;
 
     void	clearGT();
-    bool	unpackGeometry(GU_Detail &destgdp, bool allow_psoup) const;
+    bool	unpackGeometry(GU_Detail &destgdp, const UT_Matrix4D *transform, bool allow_psoup) const;
 
     mutable UT_Lock		myLock;
     mutable GABC_IObject	myObject;
