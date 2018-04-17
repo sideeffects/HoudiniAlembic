@@ -1033,6 +1033,9 @@ GABC_PackedImpl::GTCache::visible(const GABC_PackedImpl *abc,
 GABC_VisibilityType
 GABC_PackedImpl::computeVisibility(bool check_parent) const
 {
+    if(check_parent && !myUseVisibility)
+	return GABC_VISIBLE_VISIBLE;
+
     bool animated;
     return GABC_Util::getVisibility(object(), frame(), animated, check_parent);
 }
