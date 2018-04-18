@@ -490,6 +490,9 @@ GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, const UT_Matrix4D *transform
     int loadstyle = GABC_IObject::GABC_LOAD_FULL;
     // We don't want to copy over the attributes from the Houdini geometry
     loadstyle &= ~(GABC_IObject::GABC_LOAD_HOUDINI);
+    // Don't let GT do the transforming, in case we don't want to transform at all,
+    // or it doesn't have access to the transform.
+    loadstyle |= (GABC_IObject::GABC_LOAD_FORCE_UNTRANSFORMED);
 
     GT_PrimitiveHandle	prim = fullGT(loadstyle);
     if (prim)
@@ -503,8 +506,8 @@ GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, const UT_Matrix4D *transform
 	for (exint i = 0; i < details.entries(); ++i)
 	{
 	    copyPrimitiveGroups(*details(i), false);
-	    // Don't transform since GT conversion has already done that for us
-	    unpackToDetail(destgdp, details(i), nullptr);
+	    // Transform as requested
+	    unpackToDetail(destgdp, details(i), transform);
 	    delete details(i);
 	}
     }
