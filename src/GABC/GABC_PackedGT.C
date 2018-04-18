@@ -661,10 +661,7 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 	    auto pimpl = UTverify_cast<const GABC_PackedImpl *>(
 		packed->implementation());
 
-	    pimpl->setViewportCache(&myCache);
-	    packed->getFullTransform4(transform);
-	    pimpl->setViewportCache(nullptr);
-	    
+	    myCache.getTransform(pimpl, transform);
 	    if(myTransform != transform)
 	    {
 		myTransform = transform;
@@ -1830,10 +1827,7 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 			auto pimpl = UTverify_cast<const GABC_PackedImpl *>(
 			    pprim->implementation());
 
-			pimpl->setViewportCache(&myCache(i));
-			pprim->getFullTransform4(transform);
-			pimpl->setViewportCache(nullptr);
-			
+			myCache(i).getTransform(pimpl, transform);
 			UT_Matrix4D old;
 			myTransforms->get(i)->getMatrix(old);
 			if(old != transform)

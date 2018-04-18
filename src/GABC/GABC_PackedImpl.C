@@ -179,7 +179,6 @@ GABC_PackedImpl::GABC_PackedImpl()
     , myUniqueID(0)
     , myConstVisibility(GABC_VISIBLE_DEFER)
     , myHasConstBounds(false)
-    , myViewportCache(nullptr)
 {
 }
 
@@ -197,7 +196,6 @@ GABC_PackedImpl::GABC_PackedImpl(const GABC_PackedImpl &src)
     , myConstVisibility(src.myConstVisibility)
     , myHasConstBounds(src.myHasConstBounds)
     , myConstBounds(src.myConstBounds)
-    , myViewportCache(src.myViewportCache)
 {
 }
 
@@ -467,19 +465,13 @@ GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
     if (!myObject.valid())
 	return false;
 
-    GEO_AnimationType	atype;
-
-    if (myViewportCache)
+    if (myUseTransform)
     {
-	myViewportCache->getTransform(this, m);
+	GEO_AnimationType	atype;
+	myObject.getWorldTransform(m, myFrame, atype);
     }
     else
-    {
-	if (myUseTransform)
-	    myObject.getWorldTransform(m, myFrame, atype);
-	else
-	    m.identity();
-    }
+	m.identity();
     
     return true;
 }
@@ -1151,10 +1143,4 @@ GABC_PackedImpl::getPropertiesHash() const
     }
     
     return myUniqueID;
-}
-
-void
-GABC_PackedImpl::setViewportCache(GABC_AlembicCache *cache) const
-{
-    myViewportCache = cache;
 }
