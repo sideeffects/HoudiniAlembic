@@ -131,6 +131,7 @@ private:
 	GEO_ViewportLOD				myViewportLOD;
 	UT_BoundingBox				myBoundBox;
 	UT_String				myFileNameAttribute;
+	UT_String				myRootObjectPath;
 	UT_String				myObjectPath;
 	UT_String				myObjectPattern;
 	UT_String				myExcludeObjectPath;

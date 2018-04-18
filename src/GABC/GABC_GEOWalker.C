@@ -123,9 +123,9 @@ namespace {
 
     static const WrapExistingFlag   gabcWrapExisting = Alembic::Abc::kWrapExisting;
     static const M44d               identity44d(1, 0, 0, 0,
-                                            0, 1, 0, 0,
-                                            0, 0, 1, 0,
-			                    0, 0, 0, 1);
+						0, 1, 0, 0,
+						0, 0, 1, 0,
+						0, 0, 0, 1);
     // Corresponds to the Alembic BasisType enum
     static const std::string        curveNamesArray[6] = {
                                             "NoBasis",      // kNoBasis
@@ -1378,7 +1378,7 @@ namespace {
 	packed->setAttributeNameMap(walk.nameMapPtr());
         packed->setFacesetAttribute(walk.facesetAttribute());
 	packed->setViewportLOD(walk.viewportLOD());
-	abc->setUseTransform(packed, walk.includeXform());
+
 	if (!abc->isConstant())
 	    walk.setNonConstant();
 	if (walk.staticTimeZero()
@@ -1387,7 +1387,7 @@ namespace {
 	{
 	    abc->setFrame(packed, 0);
 	}
-	walk.setPointLocation(packed, pt);
+	walk.setPointTransform(packed, pt);
 
 	if (walk.loadUserProps())
 	    fillUserProperties(walk, obj, walk.primitiveCount());
@@ -2221,12 +2221,14 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
     : myDetail(gdp)
     , myErrorHandler(err)
     , mySubdGroup(NULL)
+    , myRootObjectPath("/")
     , myObjectPattern("*")
     , myNameMapPtr()
     , myFacesetAttribute("*")
     , myBoss(UTgetInterrupt())
     , myBossId(-1)
     , myMatrix(identity44d)
+    , myRootInvertedMatrix(identity44d)
     , myPathAttribute()
     , myLastFaceCount(0)
     , myLastFaceStart(0)
@@ -2333,6 +2335,56 @@ GABC_GEOWalker::setExcludeObjects(const char *s)
     myExcludeObjects.sort(true, false);
 }
 
+bool
+GABC_GEOWalker::setRootObject(const std::vector<std::string> &filenames,
+    const UT_String &rootPath)
+{
+    UT_WorkBuffer fixedPath;
+    const char *rpath = rootPath.c_str();
+
+    while (*rpath)
+    {
+	if (*rpath == '/')
+	{
+	    fixedPath.append('/');
+	    do { ++rpath; } while (*rpath && *rpath == '/');
+	}
+	else
+	{
+	    fixedPath.append(*rpath);
+	    ++rpath;
+	}
+    }
+
+    if (fixedPath.length() <= 1)
+    {
+	fixedPath = "/";
+    }
+    else
+    {
+	if (fixedPath.last() == '/')
+	    fixedPath.erase(fixedPath.length() - 1, 1);
+
+	if (fixedPath.first() != '/')
+	    fixedPath.prepend('/');
+    }
+
+    GABC_IObject rootObj = GABC_Util::findObject(filenames,
+				fixedPath.toStdString());
+
+    if (!rootObj.valid())
+	return false;
+
+    M44d rootMatrix;
+    bool constant, inherit;
+    rootObj.worldTransform(time(), rootMatrix, constant, inherit);
+
+    myRootObjectPath.harden(fixedPath.buffer());
+    myRootInvertedMatrix = rootMatrix;
+    myRootInvertedMatrix.invert();
+    return true;
+}
+
 void
 GABC_GEOWalker::updateAbcPrims()
 {
@@ -2355,7 +2407,8 @@ GABC_GEOWalker::updateAbcPrims()
 	    abc->setFrame(pack, staticTimeZero() ? 0 : time());
 	if (setPath)
 	    myPathAttribute.set(prim->getMapOffset(), abc->objectPath().c_str());
-	setPointLocation(pack, pack->getPointOffset(0));
+
+	setPointTransform(pack, pack->getPointOffset(0));
 
 	if (loadUserProps())
             fillUserProperties(*this, obj, userpropsIndex);
@@ -2404,9 +2457,19 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 {
     const ObjectHeader     &ohead = obj.getHeader();
     GABC_VisibilityType     vtype = GABC_VISIBLE_DEFER;
+
     // Let the walker process children naturally by default
     bool                    process_children = true;
     bool                    vis = useVisibility();
+
+    bool rest_xform_constant = myTransformConstant;
+    M44d rest_matrix = myMatrix;
+
+    bool inheritXform = (obj.nodeType() != GABC_NodeType::GABC_ROOT
+			&& ::strcmp(obj.getParent().objectPath().c_str(),
+			    rootObjectPath().c_str()) != 0);
+    if (!inheritXform)
+	myMatrix = identity44d;
 
     // Packed Alembics handle visibility on their own through the
     // GABC_PackedImpl (see: GABC_PackedImpl::build(), called by makeAbcPrim).
@@ -2430,6 +2493,24 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
     {
 	IXform  xform(obj.object(), gabcWrapExisting);
 
+	if (includeXform())
+	{
+	    IXformSchema &xs = xform.getSchema();
+	    M44d	  matrix = xs.getValue(timeSample()).getMatrix();
+
+	    if (!xs.isConstant())
+	    {
+		myIsConstant = false;
+		myTransformConstant = false;
+		myAllTransformConstant = false;
+	    }
+
+	    if (inheritXform && xs.getInheritsXforms())
+		myMatrix = matrix * myMatrix;
+	    else
+		myMatrix = matrix;
+	}
+
 	if (buildLocator()
 	        && obj.isMayaLocator()
 	        && filterObject(obj)
@@ -2452,20 +2533,9 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 
 	if (includeXform())
 	{
-	    IXformSchema       &xs = xform.getSchema();
-	    TransformState      state;
-
-	    pushTransform(xs.getValue(timeSample()).getMatrix(),
-	            xs.isConstant(),
-	            state,
-	            xs.getInheritsXforms());
-
+	    // Since we walked manually, return false
 	    if(filterAnyChild(obj))
 		walkChildren(obj);
-
-            popTransform(state);
-
-	    // Since we walked manually, return false
 	    process_children = false;
 	}
     }
@@ -2583,6 +2653,9 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	}
     }
 
+    myTransformConstant = rest_xform_constant;
+    myMatrix = rest_matrix;
+
     if (vtype != GABC_VISIBLE_DEFER)
         myVisibilityStack.pop();
 
@@ -2600,17 +2673,26 @@ GABC_GEOWalker::interrupted() const
 bool
 GABC_GEOWalker::filterObject(const GABC_IObject &obj) const
 {
-    return matchObjectName(obj) &&
-	    matchAnimationFilter(obj) &&
-            matchGeometryFilter(obj) &&
-	    matchBounds(obj) &&
-	    matchSize(obj);
+    UT_String	path(obj.getFullName());
+
+    return path != myRootObjectPath &&
+	   path.startsWith(myRootObjectPath) &&
+	   matchObjectName(obj) &&
+	   matchAnimationFilter(obj) &&
+           matchGeometryFilter(obj) &&
+	   matchBounds(obj) &&
+	   matchSize(obj);
 }
 
 bool
 GABC_GEOWalker::filterAnyChild(const GABC_IObject &obj) const
 {
-    return matchChildBounds(obj) && matchChildSize(obj);
+    UT_String	path(obj.getFullName());
+
+    return (myRootObjectPath.startsWith(path) || 
+	    path.startsWith(myRootObjectPath)) &&
+	       matchChildBounds(obj) &&
+	       matchChildSize(obj);
 }
 
 bool
@@ -2842,31 +2924,6 @@ GABC_GEOWalker::translateAttributeName(GA_AttributeOwner own, UT_String &name)
     return true;
 }
 
-void
-GABC_GEOWalker::pushTransform(const M44d &xform, bool const_xform,
-	GABC_GEOWalker::TransformState &stash,
-	bool inheritXforms)
-{
-    stash.push(myMatrix, myTransformConstant);
-    if (!const_xform)
-    {
-        myIsConstant = false;
-	myTransformConstant = false;
-	myAllTransformConstant = false;
-    }
-
-    if (inheritXforms && includeXform())
-        myMatrix = xform * myMatrix;
-    else
-        myMatrix = xform;
-}
-
-void
-GABC_GEOWalker::popTransform(const GABC_GEOWalker::TransformState &stash)
-{
-    stash.pop(myMatrix, myTransformConstant);
-}
-
 static GABC_IObject
 getParentXform(GABC_IObject kid)
 {
@@ -2920,28 +2977,60 @@ GABC_GEOWalker::getPointForAbcPrim()
 	    return myAbcSharedPoint;
 	case ABCPRIM_UNIQUE_POINT:
 	case ABCPRIM_CENTROID_POINT:
+	case ABCPRIM_MODIFIABLE_POINT:
 	    return myDetail.appendPointOffset();
     }
     return GA_INVALID_OFFSET;
 }
 
 void
-GABC_GEOWalker::setPointLocation(GU_PrimPacked *prim, GA_Offset pt) const
+GABC_GEOWalker::setPointTransform(GU_PrimPacked *prim, GA_Offset pt) const
 {
+    GABC_PackedImpl	*abc = UTverify_cast<GABC_PackedImpl *>(
+			    prim->implementation());
+
+    abc->setUseTransform(prim, includeXform() &&
+	myAbcPrimPointMode != ABCPRIM_MODIFIABLE_POINT);
+
+    UT_Matrix4D	 selfM4(1);
 
     switch (myAbcPrimPointMode)
     {
+	case ABCPRIM_SHARED_POINT:
 	case ABCPRIM_UNIQUE_POINT:
-	    myDetail.setPos3(pt, 0, 0, 0);
 	    break;
 	case ABCPRIM_CENTROID_POINT:
 	{
-	    prim->movePivotToCentroid();
+	    UT_BoundingBox	selfBounds;
+	    UT_Vector3		centroid(0, 0, 0);
+	    if(prim->getUntransformedBounds(selfBounds))
+		centroid = selfBounds.center();
+
+	    UT_Matrix4D	localM4;
+	    abc->getLocalTransform(localM4);
+	    centroid *= localM4;
+	    prim->setPivot(centroid);
+	    selfM4.translate(centroid);
 	    break;
 	}
-	default:
+	case ABCPRIM_MODIFIABLE_POINT:
+	{
+	    if (includeXform())
+	    {
+		GEO_AnimationType atype;
+		abc->object().getWorldTransform(selfM4, time(), atype);
+	    }
 	    break;
+	}
     }
+
+    if (includeXform())
+	selfM4 *= UT_Matrix4D(myRootInvertedMatrix.x);
+
+    UT_Vector3 selfPos;
+    selfM4.getTranslates(selfPos);
+    myDetail.setPos3(pt, selfPos);
+    prim->setLocalTransform(UT_Matrix3D(selfM4));
 }
 
 void

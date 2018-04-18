@@ -77,7 +77,7 @@ namespace
 
     static int
     selectAlembicNodes(void *data, int index,
-	    fpreal t, const PRM_Template *tplate)
+	    fpreal t, const PRM_Template *tplate, bool radio)
     {
 	SOP_AlembicIn2	*sop = (SOP_AlembicIn2 *)(data);
 	UT_WorkBuffer	cmd;
@@ -89,6 +89,9 @@ namespace
 	// the object path parm we want to modify.
 	parm_name.eraseHead(4);
 	cmd.strcpy("treechooser");
+	if(radio)
+	    cmd.strcat(" -r");
+
 	std::vector<std::string> filenames;
 	sop->appendFileNames(filenames, t);
 	sop->evalString(objectpath, parm_name, 0, t);
@@ -96,7 +99,7 @@ namespace
 
 	if (objectpath.isstring())
 	{
-	    cmd.strcat(" -s ");
+	    cmd.strcat(" -s");
 	    cmd.protectedStrcat(objectpath);
 	}
 	for (exint i = 0; i < abcobjects.size(); ++i)
@@ -113,6 +116,20 @@ namespace
 	sop->setChRefString(result, CH_STRING_LITERAL, parm_name, 0, t);
 
 	return 0;
+    }
+
+    static int
+    multiSelAlembicNodes(void *data, int index,
+	    fpreal t, const PRM_Template *tplate)
+    {
+	return selectAlembicNodes(data, index, t, tplate, false);
+    }
+
+    static int
+    singleSelAlembicNodes(void *data, int index,
+	    fpreal t, const PRM_Template *tplate)
+    {
+	return selectAlembicNodes(data, index, t, tplate, true);
     }
 
     static int
@@ -176,6 +193,7 @@ SOP_AlembicIn2::Parms::Parms()
     , myPointMode(GABC_GEOWalker::ABCPRIM_CENTROID_POINT)
     , myBuildAbcShape(true)
     , myBuildAbcXform(false)
+    , myRootObjectPath()
     , myObjectPath()
     , myObjectPattern()
     , myExcludeObjectPath()
@@ -231,6 +249,7 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
     myViewportLOD = src.myViewportLOD;
     myNameMapPtr = src.myNameMapPtr;
     myFacesetAttribute.harden(src.myFacesetAttribute);
+    myRootObjectPath.harden(src.myRootObjectPath);
     myObjectPath.harden(src.myObjectPath);
     myObjectPattern.harden(src.myObjectPattern);
     myExcludeObjectPath.harden(src.myExcludeObjectPath);
@@ -279,6 +298,8 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
     if (myPolySoup != src.myPolySoup)
 	return true;
     if (myViewportLOD != src.myViewportLOD)
+	return true;
+    if (myRootObjectPath != src.myRootObjectPath)
 	return true;
     if (myObjectPath != src.myObjectPath)
 	return true;
@@ -367,13 +388,15 @@ static PRM_Name prm_missingFileName("missingfile", "Missing File");
 static PRM_Name prm_abcxformName("abcxform", "Create Primitives For");
 static PRM_Name prm_loadmodeName("loadmode", "Load As");
 static PRM_Name prm_viewportlod("viewportlod", "Display As");
-static PRM_Name prm_pointModeName("pointmode", "Points");
+static PRM_Name prm_pointModeName("pointmode", "Point Mode");
 static PRM_Name prm_polysoup("polysoup", "Poly Soup Primitives");
 static PRM_Name prm_includeXformName("includeXform", "Transform Geometry To World Space");
 static PRM_Name prm_useVisibilityName("usevisibility", "Use Visibility");
 static PRM_Name prm_statictimezero("statictimezero", "Set Zero Time for Static Geometry");
 static PRM_Name prm_groupnames("groupnames", "Primitive Groups");
 
+static PRM_Name prm_rootPathName("rootPath", "Root Path");
+static PRM_Name	prm_pickRootPathName("pickrootPath", "Pick");
 static PRM_Name prm_objectPathName("objectPath", "Object Path");
 static PRM_Name	prm_pickObjectPathName("pickobjectPath", "Pick");
 static PRM_Name prm_objectExcludeName("objectExclude", "Object Exclude");
@@ -406,20 +429,25 @@ static PRM_Default prm_pathattribDefault(0, "path");
 static PRM_Default prm_fileattribDefault(0, "abcFileName");
 static PRM_Default prm_geometryfilterDefault(true);
 
+static const char *objectPathMenuCommand =
+    "def getFileName(node):\n"
+    "    r = []\n"
+    "    for i in range(node.evalParm('numlayers')):\n"
+    "        if node.evalParm('enablelayer%d' % (i + 1,)):\n"
+    "            p = node.evalParm('layer%d' % (i + 1,))\n"
+    "            if p:\n"
+    "                r.append(p)\n"
+    "    p = node.evalParm('fileName')\n"
+    "    if p:\n"
+    "        r.append(p)\n"
+    "    return r\n"
+    "return __import__('_alembic_hom_extensions')."
+	"alembicGetObjectPathListForMenu(getFileName(hou.pwd()))[:16380]";
+
 static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
-        "def getFileName(node):\n"
-	"    r = []\n"
-	"    for i in range(node.evalParm('numlayers')):\n"
-	"        if node.evalParm('enablelayer%d' % (i + 1,)):\n"
-	"            p = node.evalParm('layer%d' % (i + 1,))\n"
-	"            if p:\n"
-	"                r.append(p)\n"
-	"    p = node.evalParm('fileName')\n"
-	"    if p:\n"
-	"        r.append(p)\n"
-	"    return r\n"
-	"return __import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu"
-                "(getFileName(hou.pwd()))[:16380]", CH_PYTHON_SCRIPT);
+			    objectPathMenuCommand, CH_PYTHON_SCRIPT);
+static PRM_ChoiceList	prm_rootPathMenu(PRM_CHOICELIST_REPLACE,
+			    objectPathMenuCommand, CH_PYTHON_SCRIPT);
 
 static PRM_Name	loadModeOptions[] = {
     PRM_Name("alembic",	"Alembic Delayed Load Primitives"),
@@ -444,6 +472,7 @@ static PRM_Name pointModeOptions[] = {
     PRM_Name("shared",	"Shared Point"),
     PRM_Name("unique",	"Unique Points At Origin"),
     PRM_Name("centroid", "Unique Points At Centroid"),
+    PRM_Name("shape", "Unique Points At Shape Origin"),
     PRM_Name()
 };
 static PRM_Default prm_pointModeDefault(2, "centroid");
@@ -559,7 +588,7 @@ static PRM_SpareData	theAbcPattern(
 static PRM_Default	mainSwitcher[] =
 {
     PRM_Default(10, "Geometry"),
-    PRM_Default(19, "Selection"),
+    PRM_Default(21, "Selection"),
     PRM_Default(11, "Attributes"),
 };
 
@@ -639,18 +668,22 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
     PRM_Template(PRM_STRING, 1, &prm_subdgroupName),
 
     // Selection tab
-    // Currently there are 19 elements (19 PRM_Template() calls below) in this
-    // tab, which matches PRM_Default(19, "Selection") defined in mainSwitcher
+    // Currently there are 21 elements (21 PRM_Template() calls below) in this
+    // tab, which matches PRM_Default(21, "Selection") defined in mainSwitcher
+    PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_rootPathName,
+	    &prm_objectPathDefault, &prm_rootPathMenu, NULL, PRM_Callback()),
+    PRM_Template(PRM_CALLBACK, PRM_TYPE_NO_LABEL, 1, &prm_pickRootPathName,
+	    0, 0, 0, singleSelAlembicNodes, &theTreeButtonSpareData),
     PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectPathName,
 	    &prm_objectPathDefault, &prm_objectPathMenu, NULL, PRM_Callback(),
 	    sopCreateObjectPathSpareData(true, false)),
     PRM_Template(PRM_CALLBACK, PRM_TYPE_NO_LABEL, 1, &prm_pickObjectPathName,
-	    0, 0, 0, selectAlembicNodes, &theTreeButtonSpareData),
+	    0, 0, 0, multiSelAlembicNodes, &theTreeButtonSpareData),
     PRM_Template(PRM_STRING, PRM_TYPE_JOIN_PAIR, 1, &prm_objectExcludeName,
 	    &prm_objectPathDefault, &prm_objectPathMenu, NULL, PRM_Callback(),
 	    sopCreateObjectPathSpareData(false, true)),
     PRM_Template(PRM_CALLBACK, PRM_TYPE_NO_LABEL, 1, &prm_pickObjectExcludeName,
-	    0, 0, 0, selectAlembicNodes, &theTreeButtonSpareData),
+	    0, 0, 0, multiSelAlembicNodes, &theTreeButtonSpareData),
     PRM_Template(PRM_STRING, 1, &prm_objecPatternName, &prm_starDefault),
     PRM_Template(PRM_ORD, 1, &prm_animationfilter, &prm_animationfilterDefault,
 	    &menu_animationfilter),
@@ -893,10 +926,14 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 	    break;
 	case 2:
 	default:
-	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_CENTROID_POINT;
+    	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_CENTROID_POINT;
+    	    break;
+    	case 3:
+	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_MODIFIABLE_POINT;
 	    break;
     }
 
+    evalString(parms.myRootObjectPath, "rootPath", 0, now);
     evalString(parms.myObjectPath, "objectPath", 0, now);
     evalString(parms.myObjectPattern, "objectPattern", 0, now);
     evalString(parms.myExcludeObjectPath, "objectExclude", 0, now);
@@ -1273,6 +1310,11 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     walk.setViewportLOD(parms.myViewportLOD);
     walk.setBounds(parms.myBoundMode, parms.myBoundBox);
 
+    if (!walk.setRootObject(parms.myFileNames, parms.myRootObjectPath))
+    {
+	addError(SOP_MESSAGE, "Error evaluating root object in file");
+    }
+
     bool	needwalk = true;
     walk.setReusePrimitives(reuse_prims);
     if (!reuse_prims)
@@ -1304,7 +1346,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	    g = walkgdp->newPrimitiveGroup(parms.mySubdGroupName);
 	walk.setSubdGroup(g);
     }
-    
+
 
     if (needwalk)
     {
@@ -1415,9 +1457,9 @@ public:
     }
 
     virtual bool	isGeometricObject() const { return false; }
-    
+
     virtual bool	applyEdits()		{ return true; }
-    
+
     virtual bool 	viewportLOD(GA_Offset, GEO_ViewportLOD &lod) const
     {
 	UT_String	lod_name;
@@ -1425,7 +1467,7 @@ public:
 	lod = GEOviewportLOD(lod_name);
 	return lod != GEO_VIEWPORT_INVALID_MODE;
     }
-    
+
     using SOP_ObjectAppearance::setViewportLOD;
     virtual bool	setViewportLOD(const char *, GEO_ViewportLOD lod)
     {

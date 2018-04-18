@@ -129,7 +129,7 @@ public:
                            ABC_GFILTER_CURVES |
                            ABC_GFILTER_NUPATCH |
                            ABC_GFILTER_POINTS |
-                           ABC_GFILTER_SUBD)                  
+                           ABC_GFILTER_SUBD)
     };
 
     /// How Alembic delayed load primitives are attached to GA points
@@ -138,6 +138,7 @@ public:
 	ABCPRIM_SHARED_POINT,		// All primitives share a GA point
 	ABCPRIM_UNIQUE_POINT,		// Each prim has its own point
 	ABCPRIM_CENTROID_POINT,		// Place point at centroid
+	ABCPRIM_MODIFIABLE_POINT,	// Promote xform to 'transform' intrinsic
     };
 
     /// Whether to build polysoup primitives when it's possible
@@ -154,31 +155,6 @@ public:
         UP_LOAD_NONE,  // Don't load user properties
         UP_LOAD_DATA,  // Load only user property values
         UP_LOAD_ALL,   // Load user property values and metadata
-    };
-
-    // Helper class stores world transform state.
-    class TransformState
-    {
-    public:
-	 TransformState() {}
-	~TransformState() {}
-
-    private:
-	friend class GABC_GEOWalker;
-
-	void	push(const M44d &m, bool c)
-		{
-		    myM = m;
-		    myC = c;
-		}
-	void	pop(M44d &m, bool &c) const
-		{
-		    m = myM;
-		    c = myC;
-		}
-
-	M44d	myM;
-	bool	myC;
     };
 
     GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
@@ -199,6 +175,8 @@ public:
 				    { return myDetail; }
     GABC_IError                 &errorHandler()
                                     { return myErrorHandler; }
+    const UT_String		&rootObjectPath() const
+				    { return myRootObjectPath; }
     const UT_String		&objectPattern() const
 				    { return myObjectPattern; }
     const UT_StringArray	&excludeObjects() const
@@ -246,6 +224,8 @@ public:
 
     /// @{
     /// Set state
+    bool	setRootObject(const std::vector<std::string> &filenames,
+		    const UT_String &rootPath);
     void	setExcludeObjects(const char *s);
     void	setObjectPattern(const char *s)
 		    { myObjectPattern.harden(s); }
@@ -305,18 +285,6 @@ public:
 				exint npoints, exint nvertex, exint nprim,
 				bool do_transform);
 
-    /// Push transform during traversal.  If the walker is set to include the
-    /// full transforms, the transform passed in will be combined with the
-    /// current transform, otherwise the transform passed in will replace the
-    /// transform state in the walker.  The @c const_xform flag indicates
-    /// whether the transform node is constant or not.  The current state will
-    /// be stashed in @c stash_prev and should be passed to popTransform().
-    void	pushTransform(const M44d &xform, bool const_xform,
-				TransformState &prev_state,
-				bool inheritXforms);
-    /// Pop transform in traveral, pass in the value stored in pushTransform().
-    void	popTransform(const TransformState &prev_state);
-
     /// Get the current transform
     const M44d	&getTransform() const	{ return myMatrix; }
 
@@ -338,7 +306,7 @@ public:
     /// Get a GA_Offset to which the Alembic delayed load primitive should be
     /// attached.  This may return an invalid offset
     GA_Offset	getPointForAbcPrim();
-    void	setPointLocation(GU_PrimPacked *abc, GA_Offset offset) const;
+    void	setPointTransform(GU_PrimPacked *prim, GA_Offset offset) const;
 
 protected:
     /// Verify the object matches filters before generating geometry
@@ -380,10 +348,12 @@ private:
     GEO_PackedNameMapPtr    myNameMapPtr;           // Attribute map for ABC primitives
     GEO_ViewportLOD         myViewportLOD;
     GU_Detail              &myDetail;
+    M44d		    myRootInvertedMatrix;
     M44d                    myMatrix;
     UT_BoundingBox          myCullBox;
     UT_Interrupt           *myBoss;
     UT_String               myFacesetAttribute;
+    UT_String		    myRootObjectPath;
     UT_String               myObjectPattern;
     UT_StringArray	    myExcludeObjects;
     std::stack<GABC_VisibilityType> myVisibilityStack;
