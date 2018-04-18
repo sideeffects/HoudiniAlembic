@@ -30,6 +30,7 @@
 
 #include "GABC_API.h"
 #include "GABC_Types.h"
+#include "GABC_PackedImpl.h"
 #include <GT/GT_GEOPrimCollectPacked.h>
 #include <GT/GT_PackedAlembic.h>
 #include <GT/GT_PrimInstance.h>
@@ -38,6 +39,30 @@ class GU_PrimPacked;
 
 namespace GABC_NAMESPACE
 {
+
+class GABC_API GABC_AlembicCache
+{
+public:
+		GABC_AlembicCache()
+		{
+		    myVisibilityAnimated = false;
+		    myTransformAnimated = false;
+		}
+
+    void	setVisibilityAnimated(bool anim) { myVisibilityAnimated = anim;}
+    void	setTransformAnimated(bool anim)  { myTransformAnimated = anim; }
+
+    void	getVisibility(const GABC_PackedImpl *impl, bool &visible);
+    void	getTransform(const GABC_PackedImpl *impl,
+		    UT_Matrix4D &transform);
+
+private:
+    UT_Map<fpreal, bool>	myVisibility;
+    UT_Map<fpreal, UT_Matrix4D>	myTransform;
+
+    bool			myVisibilityAnimated;
+    bool			myTransformAnimated;
+};
 
 /// Collector for packed primitives.
 class GABC_CollectPacked : public GT_GEOPrimCollect
@@ -129,18 +154,17 @@ public:
 
     virtual bool 		getCachedGeometry(GT_PrimitiveHandle &ph) const;
     
-    virtual void		cacheTransform(const GT_TransformHandle &ph);
-    virtual bool 		getCachedTransform(GT_TransformHandle &ph) const;
-    virtual void		cacheVisibility(bool visible);
-    virtual bool 		getCachedVisibility(bool &visible) const;
+    virtual void 		getCachedTransform(GT_TransformHandle &ph) const;
+    virtual void 		getCachedVisibility(bool &visible) const;
 
     virtual GT_TransformHandle	getLocalTransform() const;
 
     virtual bool		updateGeoPrim(const GU_ConstDetailHandle &dtl,
 					      const GT_RefineParms &refine);
 private:
-    int64	     myColorID;
-    UT_Matrix4D	     myTransform;
+    int64			myColorID;
+    UT_Matrix4D			myTransform;
+    mutable GABC_AlembicCache	myCache;
 };
 
 /// Packed instance with alembic extensions
@@ -160,6 +184,9 @@ public:
     
     virtual bool	      updateGeoPrim(const GU_ConstDetailHandle &dtl,
 				    const GT_RefineParms &refine);
+
+private:
+    mutable UT_Array<GABC_AlembicCache>	myCache;
 };
     
 }; // GABC_NAMESPACE

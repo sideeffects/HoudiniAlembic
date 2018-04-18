@@ -3360,9 +3360,6 @@ bool
 GABC_IObject::getWorldTransform(UT_Matrix4D &xform, fpreal t,
 					GEO_AnimationType &atype) const
 {
-    if (!valid())
-	return false;
-
     bool	isconst, inherits;
     if (!worldTransform(t, xform, isconst, inherits))
 	return false;

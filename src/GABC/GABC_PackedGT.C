@@ -26,7 +26,6 @@
  */
 
 #include "GABC_PackedGT.h"
-#include "GABC_PackedImpl.h"
 #include "GABC_IArchive.h"
 #include <GT/GT_CatPolygonMesh.h>
 #include <GT/GT_DAConstantValue.h>
@@ -923,15 +922,7 @@ GABC_PackedAlembic::isVisible()
 	return myVisibleConst;
     
     bool visible = true;
-    if(!getCachedVisibility(visible))
-    {
-	const GABC_PackedImpl	*impl = 
-	    UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-	
-	visible = impl->visibleGT();
-	cacheVisibility(visible);
-    }
-
+    getCachedVisibility(visible);
     return visible;
 }
 
@@ -1063,41 +1054,20 @@ GABC_PackedAlembic::getCachedGeometry(GT_PrimitiveHandle &ph) const
     return ph != nullptr;
 }
 
-
 void
-GABC_PackedAlembic::cacheTransform(const GT_TransformHandle &th)
-{
-    auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    UT_Matrix4D mat;
-    th->getMatrix(mat);
-    myCache.cacheTransform(impl->frame(), mat );
-}
-
-bool
 GABC_PackedAlembic::getCachedTransform(GT_TransformHandle &th) const
 {
     auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
     UT_Matrix4D mat;
-    if(myCache.getTransform(impl->frame(), mat))
-    {
-	th = new GT_Transform(&mat, 1);
-	return true;
-    }
-    return false;
+    myCache.getTransform(impl, mat);
+    th = new GT_Transform(&mat, 1);
 }
 
 void
-GABC_PackedAlembic::cacheVisibility(bool visible)
-{
-    auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    myCache.cacheVisibility(impl->frame(), visible);
-}
-
-bool
 GABC_PackedAlembic::getCachedVisibility(bool &visible) const
 {
     auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    return myCache.getVisibility(impl->frame(), visible);
+    myCache.getVisibility(impl, visible);
 }
 
 // -------------------------------------------------------------------------
@@ -1768,7 +1738,18 @@ GABC_PackedInstance::GABC_PackedInstance()
 
 GABC_PackedInstance::GABC_PackedInstance(const GABC_PackedInstance &src)
     : GT_AlembicInstance(src)
-{}
+{
+    myCache.entries( entries() );
+
+    if(myAnimType >= GEO_ANIMATION_TRANSFORM)
+    {
+	for(int i=0; i<myCache.entries(); i++)
+	{
+	    myCache(i).setVisibilityAnimated(true);
+	    myCache(i).setTransformAnimated(true);
+	}
+    }
+}
 
 GABC_PackedInstance::GABC_PackedInstance(
     const GT_PrimitiveHandle &geometry,
@@ -1780,7 +1761,18 @@ GABC_PackedInstance::GABC_PackedInstance(
     const GT_GEODetailListHandle &source)
     : GT_AlembicInstance(geometry, transforms,animation,packed_prim_offsets,
 			 uniform, detail, source)
-{}
+{
+    myCache.entries( entries() );
+
+    if(myAnimType >= GEO_ANIMATION_TRANSFORM)
+    {
+	for(int i=0; i<myCache.entries(); i++)
+	{
+	    myCache(i).setVisibilityAnimated(true);
+	    myCache(i).setTransformAnimated(true);
+	}
+    }
+}
 
 GABC_PackedInstance::~GABC_PackedInstance()
 {}
@@ -1871,15 +1863,8 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 			bool visible = false;
 			auto pimpl = UTverify_cast<const GABC_PackedImpl *>(
 			    pprim->implementation());
-			const fpreal t = pimpl->frame();
 
-			if(!myCache(i).getVisibility(t, visible))
-			{
-			    visible = pimpl->useVisibility() ? 
-				      pimpl->visibleGT() : true;
-			    
-			    myCache(i).cacheVisibility(t, visible);
-			}
+			myCache(i).getVisibility(pimpl, visible);
 		    
 			lod = visible ? pprim->viewportLOD()
 				      : GEO_VIEWPORT_HIDDEN;
@@ -1945,4 +1930,58 @@ GABC_CollectPacked::endCollecting(const GT_GEODetailListHandle &geometry,
 {
     CollectData			*collector = data->asPointer<CollectData>();
     return collector->finish();
+}
+
+// -------------------------------------------------------------------------
+
+void
+GABC_AlembicCache::getVisibility(const GABC_PackedImpl *impl, bool &visible)
+{
+    UT_ASSERT(impl);
+
+    if (!impl->useVisibility())
+    {
+	visible = true;
+	return;
+    }
+
+    fpreal frame = myVisibilityAnimated ? impl->frame() : 0.0;
+    auto iter = myVisibility.find(frame);
+
+    if (iter == myVisibility.end())
+    {
+	visible = impl->visibleGT(&myVisibilityAnimated);
+	myVisibility[frame] = visible;
+    }
+    else
+    {
+	visible = iter->second;
+    }
+}
+
+void
+GABC_AlembicCache::getTransform(const GABC_PackedImpl *impl,
+    UT_Matrix4D &transform)
+{
+    UT_ASSERT(impl);
+
+    if (!impl->useTransform())
+    {
+	transform.identity();
+	return;
+    }
+
+    fpreal frame = myTransformAnimated ? impl->frame() : 0.0;
+    auto iter = myTransform.find(frame);
+
+    if (iter == myTransform.end())
+    {
+	GEO_AnimationType atype;
+	impl->object().getWorldTransform(transform, frame, atype);
+	myTransformAnimated = (atype != GEO_ANIMATION_CONSTANT);
+    }
+    else
+    {
+	transform = iter->second;
+    }
 }

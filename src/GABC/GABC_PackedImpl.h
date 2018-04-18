@@ -34,10 +34,11 @@
 #include <GT/GT_Primitive.h>
 #include <UT/UT_Lock.h>
 
-class GT_AlembicCache;
 
 namespace GABC_NAMESPACE
 {
+
+class GABC_AlembicCache;
 
 class GABC_API GABC_PackedImpl : public GU_PackedImpl
 {
@@ -226,7 +227,7 @@ public:
     void	setUseTransform(GU_PrimPacked *prim, bool v);
     void	setUseVisibility(GU_PrimPacked *prim, bool v);
 
-    void	setViewportCache(GT_AlembicCache *cache) const;
+    void	setViewportCache(GABC_AlembicCache *cache) const;
 protected:
 #if 0
     /// Optional method to compute centroid (default uses bounding box)
@@ -328,7 +329,7 @@ private:
     mutable GABC_VisibilityType myConstVisibility;
     mutable bool		myHasConstBounds;
     mutable UT_BoundingBox	myConstBounds;
-    mutable GT_AlembicCache  *myViewportCache;
+    mutable GABC_AlembicCache  *myViewportCache;
 
     static GA_PrimitiveTypeId theTypeId;
 };

@@ -464,24 +464,22 @@ GABC_PackedImpl::getPrimitiveName(const GU_PrimPacked *prim, UT_WorkBuffer &wbuf
 bool
 GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
 {
-    if (!myUseTransform || !myObject.valid())
+    if (!myObject.valid())
 	return false;
 
     GEO_AnimationType	atype;
-    if(myViewportCache)
-    {
-	if(!myViewportCache->getTransform(myFrame, m))
-	{
-	    myObject.getWorldTransform(m, myFrame, atype);
 
-	    bool animated = (atype!=GEO_ANIMATION_CONSTANT);
-	    
-	    myViewportCache->setTransformAnimated(animated);
-	    myViewportCache->cacheTransform(myFrame, m);
-	}
+    if (myViewportCache)
+    {
+	myViewportCache->getTransform(this, m);
     }
     else
-	myObject.getWorldTransform(m, myFrame, atype);
+    {
+	if (myUseTransform)
+	    myObject.getWorldTransform(m, myFrame, atype);
+	else
+	    m.identity();
+    }
     
     return true;
 }
@@ -1153,7 +1151,7 @@ GABC_PackedImpl::getPropertiesHash() const
 }
 
 void
-GABC_PackedImpl::setViewportCache(GT_AlembicCache *cache) const
+GABC_PackedImpl::setViewportCache(GABC_AlembicCache *cache) const
 {
     myViewportCache = cache;
 }
