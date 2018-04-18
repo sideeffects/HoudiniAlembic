@@ -929,7 +929,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
     	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_CENTROID_POINT;
     	    break;
     	case 3:
-	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_MODIFIABLE_POINT;
+	    parms.myPointMode = GABC_GEOWalker::ABCPRIM_SHAPE_POINT;
 	    break;
     }
 

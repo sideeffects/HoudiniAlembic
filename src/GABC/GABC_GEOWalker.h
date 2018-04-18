@@ -135,10 +135,10 @@ public:
     /// How Alembic delayed load primitives are attached to GA points
     enum AbcPrimPointMode
     {
-	ABCPRIM_SHARED_POINT,		// All primitives share a GA point
-	ABCPRIM_UNIQUE_POINT,		// Each prim has its own point
-	ABCPRIM_CENTROID_POINT,		// Place point at centroid
-	ABCPRIM_MODIFIABLE_POINT,	// Promote xform to 'transform' intrinsic
+	ABCPRIM_SHARED_POINT,	// All primitives share a GA point
+	ABCPRIM_UNIQUE_POINT,	// Each prim has its own point
+	ABCPRIM_CENTROID_POINT,	// Place point at centroid
+	ABCPRIM_SHAPE_POINT,	// Promote xform to 'transform' intrinsic
     };
 
     /// Whether to build polysoup primitives when it's possible

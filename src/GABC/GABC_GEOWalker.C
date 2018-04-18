@@ -2342,31 +2342,20 @@ GABC_GEOWalker::setRootObject(const std::vector<std::string> &filenames,
     UT_WorkBuffer fixedPath;
     const char *rpath = rootPath.c_str();
 
-    while (*rpath)
+    for(;;)
     {
-	if (*rpath == '/')
-	{
-	    fixedPath.append('/');
-	    do { ++rpath; } while (*rpath && *rpath == '/');
-	}
-	else
-	{
-	    fixedPath.append(*rpath);
+	while (*rpath == '/')
 	    ++rpath;
+	if (!*rpath)
+	{
+	    if(!fixedPath.length())
+		fixedPath.append('/');
+	    break;
 	}
-    }
 
-    if (fixedPath.length() <= 1)
-    {
-	fixedPath = "/";
-    }
-    else
-    {
-	if (fixedPath.last() == '/')
-	    fixedPath.erase(fixedPath.length() - 1, 1);
-
-	if (fixedPath.first() != '/')
-	    fixedPath.prepend('/');
+	fixedPath.append('/');
+	while (*rpath && *rpath != '/')
+	    fixedPath.append(*rpath++);
     }
 
     GABC_IObject rootObj = GABC_Util::findObject(filenames,
@@ -2977,7 +2966,7 @@ GABC_GEOWalker::getPointForAbcPrim()
 	    return myAbcSharedPoint;
 	case ABCPRIM_UNIQUE_POINT:
 	case ABCPRIM_CENTROID_POINT:
-	case ABCPRIM_MODIFIABLE_POINT:
+	case ABCPRIM_SHAPE_POINT:
 	    return myDetail.appendPointOffset();
     }
     return GA_INVALID_OFFSET;
@@ -2990,7 +2979,7 @@ GABC_GEOWalker::setPointTransform(GU_PrimPacked *prim, GA_Offset pt) const
 			    prim->implementation());
 
     abc->setUseTransform(prim, includeXform() &&
-	myAbcPrimPointMode != ABCPRIM_MODIFIABLE_POINT);
+	myAbcPrimPointMode != ABCPRIM_SHAPE_POINT);
 
     UT_Matrix4D	 selfM4(1);
 
@@ -3013,7 +3002,7 @@ GABC_GEOWalker::setPointTransform(GU_PrimPacked *prim, GA_Offset pt) const
 	    selfM4.translate(centroid);
 	    break;
 	}
-	case ABCPRIM_MODIFIABLE_POINT:
+	case ABCPRIM_SHAPE_POINT:
 	{
 	    if (includeXform())
 	    {
