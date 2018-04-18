@@ -506,7 +506,7 @@ GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, const UT_Matrix4D *transform
 	{
 	    copyPrimitiveGroups(*details(i), false);
 	    // Don't transform since GT conversion has already done that for us
-	    unpackToDetail(destgdp, details(i), transform);
+	    unpackToDetail(destgdp, details(i), nullptr);
 	    delete details(i);
 	}
     }
