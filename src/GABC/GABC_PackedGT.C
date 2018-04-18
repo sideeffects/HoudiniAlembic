@@ -1979,6 +1979,7 @@ GABC_AlembicCache::getTransform(const GABC_PackedImpl *impl,
 	GEO_AnimationType atype;
 	impl->object().getWorldTransform(transform, frame, atype);
 	myTransformAnimated = (atype != GEO_ANIMATION_CONSTANT);
+	myTransform[frame] = transform;
     }
     else
     {
