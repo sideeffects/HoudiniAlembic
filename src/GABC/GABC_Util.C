@@ -435,23 +435,19 @@ namespace
 	bool
 	addHandler(const ArchiveEventHandlerPtr &handler)
         {
-            if (myArchive && handler)
-            {
-                myHandlers.insert(handler);
-                handler->setArchivePtr(myArchive.get());
-                return true;
-            }
+            if (!myArchive || !handler)
+		return false;
 
-            return false;
+	    myHandlers.insert(handler);
+	    handler->setArchivePtr(myArchive.get());
+	    return true;
         }
 
 	bool
 	walk(GABC_Util::Walker &walker)
         {
             if (!walker.preProcess(root()))
-            {
                 return false;
-            }
 
             return walkTree(root(), walker);
         }
@@ -503,13 +499,9 @@ namespace
 			localXform = xsample.getMatrix();
 
 			if (inherits)
-			{
 			    world = localXform * parent;
-                        }
 			else
-			{
 			    world = localXform;
-                        }
 
 			fullpath.sprintf("%s/%s", path, kid.getName().c_str());
 			myStaticXforms[fullpath.buffer()] = LocalWorldXform(localXform,
@@ -530,13 +522,11 @@ namespace
             ensureValidTransformCache();
 
             auto it = myStaticXforms.find(fullpath);
-            if (it != myStaticXforms.end())
-            {
-                xform = it->second.getLocal();
-                return true;
-            }
+	    if (it == myStaticXforms.end())
+		return false;
 
-            return false;
+	    xform = it->second.getLocal();
+	    return true;
         }
 
 	/// Check to see if there's a const world transform cached
@@ -546,13 +536,11 @@ namespace
             ensureValidTransformCache();
 
             auto it = myStaticXforms.find(fullpath);
-            if (it != myStaticXforms.end())
-            {
-                xform = it->second.getWorld();
-                return true;
-            }
+	    if (it == myStaticXforms.end())
+		return false;
 
-            return false;
+	    xform = it->second.getWorld();
+	    return true;
         }
 
 	/// Get an object's local transform
@@ -593,9 +581,7 @@ namespace
 
             // First, check if we have a static
             if (staticWorldTransform(path.c_str(), x))
-            {
                 return true;
-            }
 
             // Now check to see if it's in the dynamic cache
             item = myDynamicXforms.findItem(key);
@@ -629,18 +615,12 @@ namespace
                     getWorldTransform(dm, dad, now, dadConst, dadInherit);
 
                     if (!dadConst)
-                    {
                         isConstant = false;
-                    }
                     if (inheritsXform)
-                    {
                         x = localXform * dm;
-                    }
                 }
                 else
-                {
                     x = localXform;	// World transform same as local
-                }
 
                 myDynamicXforms.addItem(key,
                         new ArchiveTransformItem(localXform,
@@ -800,9 +780,7 @@ namespace
             {
                 kid = parent.getChild(component);
                 if (kid.valid())
-                {
                     myCache.addItem(key, new ArchiveObjectItem(kid));
-                }
             }
 
             return kid;
@@ -815,14 +793,10 @@ namespace
             using Tokenizer = hboost::tokenizer<Separator>;
 
             Tokenizer   tokenizer(objectPath, Separator( "/" ));
-            for (auto iter = tokenizer.begin();
-                    iter != tokenizer.end();
-                    ++iter)
+	    for(auto iter = tokenizer.begin(); iter != tokenizer.end(); ++iter)
             {
                 if (iter->empty())
-                {
                     continue;
-                }
 
                 pathList.push_back(*iter);
             }
@@ -865,11 +839,9 @@ namespace
 	    virtual bool    process(const GABC_IObject &obj)
 	    {
 		if (obj.nodeType() != GABC_FACESET)
-		{
 		    myObjectList.push_back(obj.getFullName());
-                }
-		myFullObjectList.push_back(obj.getFullName());
 
+		myFullObjectList.push_back(obj.getFullName());
 		return true;
 	    }
 
@@ -883,8 +855,7 @@ namespace
         {
             if (isValid() && !myFullObjectList.size())
             {
-                PathListWalker	func(myObjectList,
-                                        myFullObjectList);
+                PathListWalker	func(myObjectList, myFullObjectList);
                 walk(func);
             }
             return full ? myFullObjectList : myObjectList;
@@ -895,14 +866,10 @@ namespace
 	        GABC_Util::Walker &walker)
         {
             if (walker.interrupted())
-            {
                 return false;
-            }
 
             if (walker.process(node))
-            {
                 walker.walkChildren(node);
-            }
             return true;
         }
 
@@ -1389,7 +1356,6 @@ namespace
 		    scalarName.eraseTail(2);
 		    myTraitPtr = getTraitPtr(scalarName);
 		    myIsArray = true;
-
 		}
 		else
 		{
@@ -1574,9 +1540,7 @@ namespace
 		    data->resize(index);
 
 		if (!succ_parsing || err_parsing)
-		{
 		    return GT_DataArrayHandle();
-		}
 
 		return GT_DataArrayHandle(data);
 	    }
@@ -1621,9 +1585,7 @@ namespace
 		}
 
 		if (!succ_parsing || err_parsing)
-		{
 		    return GT_DataArrayHandle();
-		}
 
 		return GT_DataArrayHandle(data);
 	    }
@@ -1891,13 +1853,9 @@ GABC_Util::walk(const std::vector<std::string> &filenames,
 	if (obj.valid())
 	{
 	    if (!walker.preProcess(obj))
-	    {
 		return false;
-            }
 	    if (!cacheEntry->walkTree(obj, walker))
-	    {
 		return false;
-            }
 	}
     }
 
@@ -1920,13 +1878,9 @@ GABC_Util::walk(const std::vector<std::string> &filenames,
 	if (obj.valid())
 	{
 	    if (!walker.preProcess(obj))
-	    {
 		return false;
-            }
 	    if (!cacheEntry->walkTree(obj, walker))
-	    {
 		return false;
-            }
 	}
     }
 
@@ -1940,9 +1894,7 @@ GABC_Util::walk(const std::vector<std::string> &filenames, GABC_Util::Walker &wa
 
     walker.myBadArchive = !cacheEntry->isValid();
     if (walker.myBadArchive)
-    {
 	return false;
-    }
 
     WalkPushFile walkfile(walker, filenames);
     return cacheEntry->walk(walker);
@@ -2020,9 +1972,7 @@ GABC_Util::getLocalTransform(const std::vector<std::string> &filenames,
     }
 
     if (success)
-    {
 	xform = UT_Matrix4D(lxform.x);
-    }
     return success;
 }
 
@@ -2059,9 +2009,7 @@ GABC_Util::getWorldTransform(const std::vector<std::string> &filenames,
     }
 
     if (success)
-    {
 	xform = UT_Matrix4D(wxform.x);
-    }
     return success;
 }
 
@@ -2096,9 +2044,7 @@ GABC_Util::getWorldTransform(
     }
 
     if (success)
-    {
 	xform = UT_Matrix4D(wxform.x);
-    }
     return success;
 }
 
@@ -2222,9 +2168,7 @@ GABC_Util::isABCPropertyConstant(ICompoundProperty arb)
         }
 
         if (!is_const)
-        {
             return false;
-        }
     }
 
     return true;
@@ -2303,13 +2247,10 @@ GABC_Util::CollisionResolver::add(const std::string &name)
 		    val = 10 * val + *(si++) - '0';
 
 		auto it = myMaxId.find(base_name);
-		if(it != myMaxId.end())
-		{
-		    if(val > it->second)
-			it->second = val;
-		}
-		else
+		if(it == myMaxId.end())
 		    myMaxId.emplace(base_name, val);
+		else if(val > it->second)
+		    it->second = val;
 	    }
 	    break;
 	}

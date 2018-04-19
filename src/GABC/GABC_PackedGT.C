@@ -1941,16 +1941,14 @@ GABC_AlembicCache::getVisibility(const GABC_PackedImpl *impl, bool &visible)
 
     fpreal frame = myVisibilityAnimated ? impl->frame() : 0.0;
     auto iter = myVisibility.find(frame);
-
-    if (iter == myVisibility.end())
-    {
-	visible = impl->visibleGT(&myVisibilityAnimated);
-	myVisibility[frame] = visible;
-    }
-    else
+    if (iter != myVisibility.end())
     {
 	visible = iter->second;
+	return;
     }
+
+    visible = impl->visibleGT(&myVisibilityAnimated);
+    myVisibility.emplace(frame, visible);
 }
 
 void
@@ -1967,16 +1965,14 @@ GABC_AlembicCache::getTransform(const GABC_PackedImpl *impl,
 
     fpreal frame = myTransformAnimated ? impl->frame() : 0.0;
     auto iter = myTransform.find(frame);
-
-    if (iter == myTransform.end())
-    {
-	GEO_AnimationType atype;
-	impl->object().getWorldTransform(transform, frame, atype);
-	myTransformAnimated = (atype != GEO_ANIMATION_CONSTANT);
-	myTransform[frame] = transform;
-    }
-    else
+    if (iter != myTransform.end())
     {
 	transform = iter->second;
+	return;
     }
+
+    GEO_AnimationType atype;
+    impl->object().getWorldTransform(transform, frame, atype);
+    myTransformAnimated = (atype != GEO_ANIMATION_CONSTANT);
+    myTransform.emplace(frame, transform);
 }
