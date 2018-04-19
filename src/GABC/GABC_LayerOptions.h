@@ -98,6 +98,9 @@ public:
     void		 appendAttrRule(const UT_StringRef &nodePat,
 				const UT_StringRef &attrPat,
 				LayerType type);
+    void		 appendFaceSetRule(const UT_StringRef &nodePat,
+				const UT_StringRef &attrPat,
+				LayerType type);
     void		 appendUserPropRule(const UT_StringRef &nodePat,
 				const UT_StringRef &userPropPat,
 				LayerType type);
@@ -112,6 +115,9 @@ public:
 				LayerType nodeType) const;
     LayerType		 getAttrType(const UT_StringRef &nodePath,
 				const UT_StringRef &attrName,
+				LayerType nodeType) const;
+    LayerType		 getFaceSetType(const UT_StringRef &nodePath,
+				const UT_StringRef &faceSetName,
 				LayerType nodeType) const;
     LayerType		 getUserPropType(const UT_StringRef &nodePath,
 				const UT_StringRef &userPropName,
@@ -217,6 +223,7 @@ private:
     Rules<LayerType>	     myNodeData;
     Rules<VizType>	     myVizData;
     MultiRules<LayerType>    myAttrData;
+    MultiRules<LayerType>    myFaceSetData;
     MultiRules<LayerType>    myUserPropData;
 };
 

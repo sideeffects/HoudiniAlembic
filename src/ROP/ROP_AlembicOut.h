@@ -60,6 +60,8 @@ public:
     void getOutputNodesArray(UT_StringArray &array, fpreal time);
     void getAttrNamesByPattern(UT_SortedStringSet &names,
 	const UT_String &pattern, fpreal time);
+    void getFaceSetNamesByPattern(UT_SortedStringSet &names,
+	const UT_String &pattern, fpreal time);
     void getUserPropNamesByPattern(UT_SortedStringSet &names,
 	const UT_String &pattern, fpreal time);
 
@@ -148,6 +150,14 @@ protected:
 		{ evalStringInst("attrpattern#", &idx, str, 0, time); }
     void ATTRIBUTE_RULE(UT_String &str, int idx, fpreal time) const
 		{ evalStringInst("attrrule#", &idx, str, 0, time); }
+    int  NUM_FACE_SETS(fpreal time) const
+		{ return evalInt("numfacesets", 0, time); }
+    void FACE_SET_PATH(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("facesetpath#", &idx, str, 0, time); }
+    void FACE_SET_PATTERN(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("facesetpattern#", &idx, str, 0, time); }
+    void FACE_SET_RULE(UT_String &str, int idx, fpreal time) const
+		{ evalStringInst("facesetrule#", &idx, str, 0, time); }
     int  NUM_USER_PROPS(fpreal time) const
 		{ return evalInt("numuserprops", 0, time); }
     void USER_PROP_PATH(UT_String &str, int idx, fpreal time) const

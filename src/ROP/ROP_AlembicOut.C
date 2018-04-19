@@ -112,6 +112,11 @@ static PRM_Name theAttrPathName("attrpath#", "Path #");
 static PRM_Name thePickAttrPathName("pickattrpath#", "Picker #");
 static PRM_Name theAttrPatternName("attrpattern#", "Pattern #");
 static PRM_Name theAttrFlagName("attrrule#", "Rule #");
+static PRM_Name theNumFaceSetsName("numfacesets", "Face Sets");
+static PRM_Name theFaceSetPathName("facesetpath#", "Path #");
+static PRM_Name thePickFaceSetPathName("pickfacesetpath#", "Picker #");
+static PRM_Name theFaceSetPatternName("facesetpattern#", "Pattern #");
+static PRM_Name theFaceSetFlagName("facesetrule#", "Rule #");
 static PRM_Name theNumUsersName("numuserprops", "User Properties");
 static PRM_Name theUserPathName("userproppath#", "Path #");
 static PRM_Name thePickUserPathName("pickuserproppath#", "Picker #");
@@ -141,7 +146,7 @@ static PRM_Default mainSwitcher[] =
 {
     PRM_Default(13, "Hierarchy"),
     PRM_Default(12, "Geometry"),
-    PRM_Default(6,  "Layering"),
+    PRM_Default(7,  "Layering"),
     PRM_Default(3,  "Motion Blur"),
 };
 
@@ -345,6 +350,40 @@ buildLayerAttribMenu(void *data, PRM_Name *menu_entries, int menu_size,
 }
 
 static void
+buildLayerFaceSetMenu(void *data, PRM_Name *menu_entries, int menu_size,
+		    const PRM_SpareData *, const PRM_Parm *parm)
+{
+    int i = 0;
+    fpreal		 time = CHgetEvalTime();
+    ROP_AlembicOut	*rop = static_cast<ROP_AlembicOut *>(data);
+    UT_String		 attrStr;
+    UT_String		 attrName(parm->getToken());
+
+    // Replace the "facesetpattern#" to the "facesetpath#".
+    attrName.replace(7, 7, "path");
+    rop->evalString(attrStr, attrName, 0, time);
+
+    if(attrStr.isstring())
+    {
+	UT_SortedStringSet vals;
+	rop->getFaceSetNamesByPattern(vals, attrStr, time);
+
+	for(auto it = vals.begin(); it != vals.end(); ++it)
+	{
+	    if(i + 1 == menu_size)
+		break;
+
+	    menu_entries[i].setToken(*it);
+	    menu_entries[i].setLabel(*it);
+	    ++i;
+	}
+    }
+
+    menu_entries[i].setToken(0);
+    menu_entries[i].setLabel(0);
+}
+
+static void
 buildLayerUserPropMenu(void *data, PRM_Name *menu_entries, int menu_size,
 		    const PRM_SpareData *, const PRM_Parm *parm)
 {
@@ -438,6 +477,9 @@ static PRM_ChoiceList thePropFlagMenu(PRM_CHOICELIST_SINGLE, thePropFlagChoices)
 static PRM_ChoiceList theLayerAttribMenu(
     (PRM_ChoiceListType) (PRM_CHOICELIST_TOGGLE | PRM_CHOICELIST_WILD),
     buildLayerAttribMenu);
+static PRM_ChoiceList theLayerFaceSetMenu(
+    (PRM_ChoiceListType) (PRM_CHOICELIST_TOGGLE | PRM_CHOICELIST_WILD),
+    buildLayerFaceSetMenu);
 static PRM_ChoiceList theLayerUserPropMenu(
     (PRM_ChoiceListType) (PRM_CHOICELIST_TOGGLE | PRM_CHOICELIST_WILD),
     buildLayerUserPropMenu);
@@ -484,6 +526,19 @@ static PRM_Template theMultiAttrTemplate[] =
 	1, &theAttrPatternName, 0, &theLayerAttribMenu),
     PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
 	1, &theAttrFlagName, 0, &thePropFlagMenu),
+    PRM_Template()
+};
+
+static PRM_Template theMultiFaceSetTemplate[] =
+{
+    PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT,
+	1, &theFaceSetPathName),
+    PRM_Template(PRM_CALLBACK | PRM_TYPE_JOIN_NEXT, PRM_TYPE_NO_LABEL,
+	1, &thePickFaceSetPathName, 0, 0, 0, ropNodePickerCallback, &theTreeButtonSpareData),
+    PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT | PRM_TYPE_LABEL_NONE,
+	1, &theFaceSetPatternName, 0, &theLayerFaceSetMenu),
+    PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
+	1, &theFaceSetFlagName, 0, &thePropFlagMenu),
     PRM_Template()
 };
 
@@ -552,6 +607,8 @@ static PRM_Template theParameters[] =
             &theNumVizsName),
     PRM_Template(PRM_MULTITYPE_LIST, theMultiAttrTemplate, 2,
             &theNumAttrsName),
+    PRM_Template(PRM_MULTITYPE_LIST, theMultiFaceSetTemplate, 2,
+            &theNumFaceSetsName),
     PRM_Template(PRM_MULTITYPE_LIST, theMultiUserTemplate, 2,
             &theNumUsersName),    
     PRM_Template(PRM_TOGGLE, 1, &theMotionBlurName),
@@ -671,6 +728,7 @@ ROP_AlembicOut::updateParmsFlags()
     changed |= enableParm("numnodes", use_layering);
     changed |= enableParm("numvizs", use_layering);
     changed |= enableParm("numattrs", use_layering);
+    changed |= enableParm("numfacesets", use_layering);
     changed |= enableParm("numuserprops", use_layering);
     changed |= enableParm("shutter", motionblur);
     changed |= enableParm("samples", motionblur);
@@ -786,6 +844,34 @@ ROP_AlembicOut::getAttrNamesByPattern(UT_SortedStringSet &attrs,
     attrs.clear();
     buildAlembicTree(time);
     ropAddAttrNames(attrs, pattern, myRoot.get());
+
+    clearAlembicTree();
+}
+
+static void
+ropAddFaceSetNames(UT_SortedStringSet &attrs, const UT_String &pattern,
+    ROP_AbcNode *node)
+{
+    UT_String path(node->getPath());
+
+    if(path.multiMatch(pattern))
+	node->getFaceSetNames(attrs);    
+
+    for(auto &it : node->getChildren())
+	ropAddFaceSetNames(attrs, pattern, it.second);
+}
+
+void
+ROP_AlembicOut::getFaceSetNamesByPattern(UT_SortedStringSet &attrs,
+    const UT_String &pattern, fpreal time)
+{
+    UT_ASSERT(!myRoot);
+    myRoot.reset(new ROP_AbcNodeRoot());
+    myErrors.reset(new rop_OError());
+
+    attrs.clear();
+    buildAlembicTree(time);
+    ropAddFaceSetNames(attrs, pattern, myRoot.get());
 
     clearAlembicTree();
 }
@@ -1925,6 +2011,23 @@ ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
 		layerType = GABC_LayerOptions::LayerType::PRUNE;
 
 	    layerOptions.appendAttrRule(path, pattern, layerType);
+	}
+	// Populates layer face set parameters...
+	for(int i = 1; i <= NUM_FACE_SETS(time); ++i)
+	{
+	    GABC_LayerOptions::LayerType layerType;
+	    UT_String path, pattern, rule;
+
+	    FACE_SET_PATH(path, i, time);
+	    FACE_SET_PATTERN(pattern, i, time);
+	    FACE_SET_RULE(rule, i, time);
+
+	    if(rule == "replace")
+		layerType = GABC_LayerOptions::LayerType::FULL;
+	    else // if(rule == "prune")
+		layerType = GABC_LayerOptions::LayerType::PRUNE;
+
+	    layerOptions.appendFaceSetRule(path, pattern, layerType);
 	}
 	// Populates layer user prop parameters...
 	for(int i = 1; i <= NUM_USER_PROPS(time); ++i)

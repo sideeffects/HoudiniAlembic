@@ -99,6 +99,8 @@ namespace
 
     using PropertyMap = GABC_OGTGeometry::PropertyMap;
     using PropertyMapInsert = GABC_OGTGeometry::PropertyMapInsert;
+    using FaceSetMap = GABC_OGTGeometry::FaceSetMap;
+    using FaceSetMapInsert = GABC_OGTGeometry::FaceSetMapInsert;
     using IgnoreList = GABC_OGTGeometry::IgnoreList;
     using IntrinsicCache = GABC_OGTGeometry::IntrinsicCache;
     using SecondaryCache = GABC_OGTGeometry::SecondaryCache;
@@ -365,7 +367,8 @@ namespace
 	    if(known_attribs.find(exp_name) != known_attribs.end())
 	    {
 		collision_resolver.resolve(exp_name);
-		err.warning("Renaming property to %s to resolve collision.", exp_name.c_str());
+		err.warning("Renaming property to %s to resolve collision.",
+		    exp_name.c_str());
 	    }
 
 	    GABC_OProperty *prop;
@@ -732,23 +735,21 @@ namespace
                         Alembic::AbcCoreAbstract::TArrayDeleter<V3f>());
     }
 
-    template <typename ABC_TYPE>
     static void
-    fillFaceSets(const UT_StringArray &names,
-	    ABC_TYPE &dest, const GT_FaceSetMapPtr &src)
+    fillFaceSets(const FaceSetMap &fs_map, const GT_FaceSetMapPtr &src)
     {
-	for (exint i = 0; i < names.entries(); ++i)
+	if (!src)
+	    return;
+
+	for (FaceSetMap::const_iterator it = fs_map.begin();
+		it != fs_map.end(); ++it)
 	{
-	    GT_FaceSetPtr	set;
-	    
-	    if (src)
-		set = src->find(names(i));
-	    UT_ASSERT(dest.hasFaceSet(names(i).buffer()));
-	    OFaceSet			 fset = dest.getFaceSet(names(i).buffer());
-	    OFaceSetSchema		&ss = fset.getSchema();
+	    GT_FaceSetPtr		 set = src->find(it->first);
+	    OFaceSetSchema		&ss = it->second->getSchema();
 	    OFaceSetSchema::Sample	 sample;
 	    GT_DataArrayHandle		 items;
 	    GT_DataArrayHandle		 store;
+
 	    if (set)
 	    {
 		items = set->extractMembers();
@@ -758,21 +759,18 @@ namespace
 	    {
 		sample.setFaces(Int32ArraySample(NULL, 0));
 	    }
+	    
 	    ss.set(sample);
 	}
     }
 
-    template <typename ABC_TYPE>
     static void
-    fillFaceSetsFromPrevious(const UT_StringArray &names,
-            ABC_TYPE &dest)
+    fillFaceSetsFromPrevious(const FaceSetMap &fs_map)
     {
-	for (exint i = 0; i < names.entries(); ++i)
+	for (FaceSetMap::const_iterator it = fs_map.begin();
+		it != fs_map.end(); ++it)
 	{
-	    UT_ASSERT(dest.hasFaceSet(names(i).buffer()));
-
-	    OFaceSet			 fset = dest.getFaceSet(names(i).buffer());
-	    OFaceSetSchema		&ss = fset.getSchema();
+	    OFaceSetSchema		&ss = it->second->getSchema();
 	    OFaceSetSchema::Sample	 sample;
 
 	    sample.setFaces(Int32ArraySample(NULL, 0));
@@ -1789,6 +1787,7 @@ void
 GABC_OGTGeometry::clearProperties()
 {
     clearArbProperties();
+    clearFaceSets();
 }
 
 void
@@ -1804,6 +1803,18 @@ GABC_OGTGeometry::clearArbProperties()
 	}
 	myArbProperties[i].clear();
     }
+}
+
+void
+GABC_OGTGeometry::clearFaceSets()
+{
+    for (FaceSetMap::const_iterator it = myFaceSets.begin();
+	it != myFaceSets.end(); ++it)
+    {
+	delete it->second;
+    }
+
+    myFaceSets.clear();
 }
 
 void
@@ -1895,17 +1906,24 @@ getFaceSetMap(const GT_PrimitiveHandle &prim)
 }
 
 void
-GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
-	const GABC_OOptions &ctx)
+GABC_OGTGeometry::makeFaceSets(const OObject &parent,
+	const GT_PrimitiveHandle &prim,
+	const GABC_OOptions &ctx, const GABC_LayerOptions &lopt)
 {
-    GT_FaceSetMapPtr	facesets = getFaceSetMap(prim);
+    clearFaceSets();
+
+    if (myType != GT_PRIM_POLYGON_MESH  && myType != GT_PRIM_SUBDIVISION_MESH)
+	return;
+
+    GT_FaceSetMapPtr facesets = getFaceSetMap(prim);
     if (!facesets)
 	return;
 
     const char *subd = ctx.subdGroup();
+
     for (GT_FaceSetMap::iterator it = facesets->begin(); !it.atEnd(); ++it)
     {
-	auto	&&name = it.name();
+	auto &&name = it.name();
 	// skip the group used to specific subdivision surfaces
 	if (subd && strcmp(subd, name.c_str()) == 0)
 	    continue;
@@ -1913,34 +1931,26 @@ GABC_OGTGeometry::makeFaceSets(const GT_PrimitiveHandle &prim,
 	if (GA_Names::_3d_hidden_primitives == name)
 	    continue;
 
-	myFaceSetNames.append(name);
-    }
+	auto facesetltype = lopt.getFaceSetType(parent.getFullName().c_str(),
+	    name.c_str(), myLayerNodeType);
 
-    // create face sets in sorted order
-    myFaceSetNames.sort();
-    for(exint i = 0; i < myFaceSetNames.entries(); ++i)
-    {
-	std::string name = myFaceSetNames(i).toStdString();
+	if (facesetltype == GABC_LayerOptions::LayerType::NONE)
+	    continue;
 
-	switch (myType)
+	if (facesetltype == GABC_LayerOptions::LayerType::PRUNE)
 	{
-	    case GT_PRIM_POLYGON_MESH:
-		{
-		    OPolyMeshSchema	&ss = myShape.myPolyMesh->getSchema();
-		    OFaceSet &fset = ss.createFaceSet(name);
-		    OFaceSetSchema	&fss = fset.getSchema();
-		    fss.setTimeSampling(ctx.timeSampling());
-		}
-		break;
-	    case GT_PRIM_SUBDIVISION_MESH:
-		{
-		    OSubDSchema	&ss = myShape.mySubD->getSchema();
-		    OFaceSet &fset = ss.createFaceSet(name);
-		    OFaceSetSchema	&fss = fset.getSchema();
-		    fss.setTimeSampling(ctx.timeSampling());
-		}
-		break;
+	    auto metadata = Alembic::Abc::MetaData();
+	    auto sparseFlag = GABC_LayerOptions::getSparseFlag(facesetltype);
+	    GABC_LayerOptions::getMetadata(metadata, facesetltype);
+	    OFaceSet faceset(parent, name.toStdString(), metadata, sparseFlag);
+	    continue;
 	}
+
+	OFaceSet *faceset = new OFaceSet(parent, name.toStdString());
+	UT_ASSERT(facesetltype == GABC_LayerOptions::LayerType::FULL);
+	OFaceSetSchema	&fsschema = faceset->getSchema();
+	fsschema.setTimeSampling(ctx.timeSampling());
+	myFaceSets.insert(FaceSetMapInsert(name.toStdString(), faceset));
     }
 }
 
@@ -2143,7 +2153,7 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 			*(myShape.myPolyMesh),
 			ctx.timeSampling());
 	    }
-            makeFaceSets(prim, ctx);
+            makeFaceSets(*myShape.myPolyMesh, prim, ctx, lopt);
             break;
 
 	case GT_PRIM_SUBDIVISION_MESH:
@@ -2160,7 +2170,7 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
 			*(myShape.mySubD),
 			ctx.timeSampling());
 	    }
-            makeFaceSets(prim, ctx);
+            makeFaceSets(*myShape.mySubD, prim, ctx, lopt);
             break;
 
 	case GT_PRIM_POINT_MESH:
@@ -2248,16 +2258,14 @@ GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
 	case GT_PRIM_POLYGON_MESH:
 	    prim = fillPolyMesh(*myShape.myPolyMesh,
 				prim, myCache, ctx, lopt, myLayerNodeType);
-	    fillFaceSets(myFaceSetNames,
-			myShape.myPolyMesh->getSchema(),
+	    fillFaceSets(myFaceSets,
 			((GT_PrimPolygonMesh *)(prim.get()))->faceSetMap());
 	    break;
 
 	case GT_PRIM_SUBDIVISION_MESH:
 	    prim = fillSubD(*this, *myShape.mySubD,
 			    prim, myCache, ctx, lopt, myLayerNodeType);
-	    fillFaceSets(myFaceSetNames,
-			myShape.mySubD->getSchema(),
+	    fillFaceSets(myFaceSets,
 			((GT_PrimSubdivisionMesh *)(prim.get()))->faceSetMap());
 	    break;
 
@@ -2325,8 +2333,7 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
 	    for (exint i = 0; i < frames; ++i) {
                 myShape.myPolyMesh->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
-                fillFaceSetsFromPrevious(myFaceSetNames,
-                        myShape.myPolyMesh->getSchema());
+                fillFaceSetsFromPrevious(myFaceSets);
             }
 	    break;
 
@@ -2334,8 +2341,7 @@ GABC_OGTGeometry::updateFromPrevious(GABC_OError &err,
 	    for (exint i = 0; i < frames; ++i) {
                 myShape.mySubD->getSchema().setFromPrevious();
                 writeArbPropertiesFromPrevious();
-                fillFaceSetsFromPrevious(myFaceSetNames,
-                        myShape.mySubD->getSchema());
+                fillFaceSetsFromPrevious(myFaceSets);
             }
 	    break;
 

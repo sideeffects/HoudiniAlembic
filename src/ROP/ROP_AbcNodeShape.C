@@ -26,6 +26,8 @@
  */
 
 #include "ROP_AbcNodeShape.h"
+#include <GT/GT_PrimCurveMesh.h>
+#include <GT/GT_PrimPolygonMesh.h>
 
 typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
 
@@ -68,6 +70,53 @@ ROP_AbcNodeShape::getAttrNames(UT_SortedStringSet &names) const
 	ropAddAttrNames(names, myPrim->getVertexAttributes().get());
 	ropAddAttrNames(names, myPrim->getUniformAttributes().get());
 	ropAddAttrNames(names, myPrim->getDetailAttributes().get());
+    }
+}
+
+void
+ROP_AbcNodeShape::getFaceSetNames(UT_SortedStringSet &names) const
+{
+    if(myPrim)
+    {
+	GT_FaceSetMapPtr facesets;
+
+	switch(myPrim->getPrimitiveType())
+	{
+	    case GT_PRIM_POLYGON_MESH:
+	    case GT_PRIM_SUBDIVISION_MESH:
+	    {
+		const GT_PrimPolygonMesh *p;
+		p = UTverify_cast<const GT_PrimPolygonMesh *>(myPrim.get());
+		facesets = p->faceSetMap();
+		break;
+	    }
+	    case GT_PRIM_CURVE_MESH:
+	    {
+		const GT_PrimCurveMesh *p;
+		p = UTverify_cast<const GT_PrimCurveMesh *>(myPrim.get());
+		facesets = p->faceSetMap();
+		break;
+	    }
+	    default:
+		break;
+	}
+
+	if(!facesets)
+	    return;
+
+	for(GT_FaceSetMap::iterator it = facesets->begin();
+	    !it.atEnd(); ++it)
+	{
+	    auto &&name = it.name();
+	    // skip the group used to specific subdivision surfaces
+	    if(::strcmp(mySubdGrp.c_str(), name.c_str()) == 0)
+		continue;
+	    // skip hidden group
+	    if(GA_Names::_3d_hidden_primitives == name)
+		continue;
+
+	    names.insert(name);
+	}
     }
 }
 

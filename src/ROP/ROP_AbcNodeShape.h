@@ -48,6 +48,7 @@ public:
     virtual void purgeObjects();
 
     virtual void getAttrNames(UT_SortedStringSet &names) const;
+    virtual void getFaceSetNames(UT_SortedStringSet &names) const;
     virtual void getUserPropNames(UT_SortedStringSet &names,
 	GABC_OError &err) const;
 

@@ -87,6 +87,13 @@ GABC_LayerOptions::appendAttrRule(const UT_StringRef &nodePat,
 }
 
 void
+GABC_LayerOptions::appendFaceSetRule(const UT_StringRef &nodePat,
+    const UT_StringRef &attrPat, LayerType type)
+{
+    myFaceSetData.append(nodePat, attrPat, type);
+}
+
+void
 GABC_LayerOptions::appendUserPropRule(const UT_StringRef &nodePat,
     const UT_StringRef &userPropPat, LayerType type)
 {
@@ -102,6 +109,7 @@ GABC_LayerOptions::getNodeType(const UT_StringRef &nodePath) const
     {
 	if(myVizData.matchesNodePattern(nodePath)
 	    || myAttrData.matchesNodePattern(nodePath)
+	    || myFaceSetData.matchesNodePattern(nodePath)
 	    || myUserPropData.matchesNodePattern(nodePath))
 	{
 	    type = LayerType::SPARSE;
@@ -133,6 +141,23 @@ GABC_LayerOptions::getAttrType(const UT_StringRef &nodePath,
     const UT_StringRef &attrName, LayerType nodeType) const
 {
     auto type = myAttrData.getRule(nodePath, attrName);
+
+    if(type != LayerType::PRUNE)
+    {
+	if(nodeType == LayerType::FULL || nodeType == LayerType::REPLACE)
+	    return LayerType::FULL;
+	if(nodeType == LayerType::NONE || nodeType == LayerType::PRUNE)
+	    return LayerType::NONE;
+    }
+
+    return type;
+}
+
+GABC_LayerOptions::LayerType
+GABC_LayerOptions::getFaceSetType(const UT_StringRef &nodePath,
+    const UT_StringRef &faceSetName, LayerType nodeType) const
+{
+    auto type = myFaceSetData.getRule(nodePath, faceSetName);
 
     if(type != LayerType::PRUNE)
     {

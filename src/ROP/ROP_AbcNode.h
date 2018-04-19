@@ -92,7 +92,8 @@ public:
     void makeCollisionFreeName(std::string &name, GABC_OError &err) const;
 
     // Returns the children of this node.
-    const UT_SortedMap<std::string, ROP_AbcNode *> &getChildren() const { return myChildren; }
+    const UT_SortedMap<std::string, ROP_AbcNode *> &getChildren() const
+	{ return myChildren; }
 
     /// Adds a new child node.
     void addChild(ROP_AbcNode *child);
@@ -115,6 +116,7 @@ public:
 
     /// Appends the choices inside the given string set.
     virtual void getAttrNames(UT_SortedStringSet &) const {};
+    virtual void getFaceSetNames(UT_SortedStringSet &) const {};
     virtual void getUserPropNames(UT_SortedStringSet &, GABC_OError &) const {};
 
     /// Hook to prepare node for calls to setData().

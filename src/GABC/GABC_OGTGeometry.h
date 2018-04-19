@@ -58,6 +58,7 @@ public:
 
     typedef Alembic::AbcGeom::ObjectVisibility	    ObjectVisibility;
     typedef Alembic::AbcGeom::OVisibilityProperty   OVisibilityProperty;
+    typedef Alembic::AbcGeom::OFaceSet		    OFaceSet;
     typedef Alembic::AbcGeom::OPolyMesh		    OPolyMesh;
     typedef Alembic::AbcGeom::OSubD		    OSubD;
     typedef Alembic::AbcGeom::OCurves		    OCurves;
@@ -66,6 +67,8 @@ public:
 
     typedef GABC_Util::PropertyMap                  PropertyMap;
     typedef GABC_Util::PropertyMapInsert            PropertyMapInsert;
+    typedef UT_Map<std::string, OFaceSet *>	    FaceSetMap;
+    typedef std::pair<std::string, OFaceSet *>	    FaceSetMapInsert;
     typedef GABC_Util::CollisionResolver	    CollisionResolver;
     /// A simple set of strings
     class IgnoreList
@@ -298,8 +301,8 @@ public:
 
 protected:
     // Make Alembic OFaceSet objects from groups of polygons.
-    void	makeFaceSets(const GT_PrimitiveHandle &prim,
-			const GABC_OOptions &ctx);
+    void	makeFaceSets(const OObject &parent, const GT_PrimitiveHandle &prim,
+			const GABC_OOptions &ctx, const GABC_LayerOptions &lopt);
 
     // Make Alembic arbGeomProperties from Houdini attributes.
     bool        makeArbProperties(const GT_PrimitiveHandle &prim,
@@ -315,6 +318,7 @@ protected:
     // Clear out existing data.
     void	clearProperties();
     void        clearArbProperties();
+    void        clearFaceSets();
     void	clearShape();
     void	clearCache();
 
@@ -344,7 +348,7 @@ private:
     UT_Set<std::string>		 myKnownArbProperties;
     PropertyMap			 myArbProperties[MAX_PROPERTIES];
     SecondaryCache		*mySecondaryCache;
-    UT_StringArray		 myFaceSetNames;
+    FaceSetMap			 myFaceSets;
     std::string			 myName;
     exint			 myElapsedFrames;
     int				 myType;
