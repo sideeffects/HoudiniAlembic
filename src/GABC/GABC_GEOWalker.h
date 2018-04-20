@@ -286,7 +286,7 @@ public:
 				bool do_transform);
 
     /// Get the current transform
-    const M44d	&getTransform() const	{ return myMatrix; }
+    const UT_Matrix4D	&getTransform() const	{ return myMatrix; }
 
     /// Get the group name associated with an GABC_IObject
     bool	getGroupName(UT_String &str, const GABC_IObject &obj) const;
@@ -348,8 +348,8 @@ private:
     GEO_PackedNameMapPtr    myNameMapPtr;           // Attribute map for ABC primitives
     GEO_ViewportLOD         myViewportLOD;
     GU_Detail              &myDetail;
-    M44d		    myRootInvertedMatrix;
-    M44d                    myMatrix;
+    UT_Matrix4D		    myRootInvertedMatrix;
+    UT_Matrix4D		    myMatrix;
     UT_BoundingBox          myCullBox;
     UT_Interrupt           *myBoss;
     UT_String               myFacesetAttribute;

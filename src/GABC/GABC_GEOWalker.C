@@ -122,10 +122,6 @@ namespace {
     using P4fArraySamplePtr = Alembic::Util::shared_ptr<P4fArraySample>;
 
     static const WrapExistingFlag   gabcWrapExisting = Alembic::Abc::kWrapExisting;
-    static const M44d               identity44d(1, 0, 0, 0,
-						0, 1, 0, 0,
-						0, 0, 1, 0,
-						0, 0, 0, 1);
     // Corresponds to the Alembic BasisType enum
     static const std::string        curveNamesArray[6] = {
                                             "NoBasis",      // kNoBasis
@@ -1398,9 +1394,7 @@ namespace {
     static void
     locatorAttribute(GABC_GEOWalker &walk,
             const char *name,
-            fpreal x,
-            fpreal y,
-            fpreal z)
+	    const UT_Vector3 &v)
     {
 	GA_RWAttributeRef	href = findAttribute(walk.detail(),
 						GA_ATTRIB_PRIMITIVE,
@@ -1408,10 +1402,7 @@ namespace {
 						"float");
 	GA_RWHandleV3		h(href.getAttribute());
 	if (h.isValid())
-	{
-	    UT_Vector3	v(x, y, z);
 	    h.set(walk.primitiveCount(), v);
-	}
     }
 
     static void
@@ -1443,22 +1434,24 @@ namespace {
 	}
 
 	double	ldata[6];	// Local translate/scale
-	V3d	ls, lh, lr, lt;
-
 	loc.get(ldata, iss);
-	if (!Imath::extractSHRT(walk.getTransform(), ls, lh, lr, lt))
+	UT_Vector3 lpos(ldata[0], ldata[1], ldata[2]);
+	UT_Vector3 lscale(ldata[3], ldata[4], ldata[5]);
+
+	UT_Vector3 r, s, t;
+	if(walk.getTransform().explode(UT_XformOrder(UT_XformOrder::SRT), r, s, t))
 	{
-	    ls = V3d(1,1,1);
-	    lr = V3d(0,0,0);
-	    lt = V3d(0,0,0);
+	    r = UT_Vector3(0, 0, 0);
+	    s = UT_Vector3(1, 1, 0);
+	    t = UT_Vector3(0, 0, 0);
 	}
 
-	walk.detail().setPos3(walk.pointCount(), ldata[0], ldata[1], ldata[2]);
-	locatorAttribute(walk, "localPosition", ldata[0], ldata[1], ldata[2]);
-	locatorAttribute(walk, "localScale", ldata[3], ldata[4], ldata[5]);
-	locatorAttribute(walk, "parentTrans", lt.x, lt.y, lt.z);
-	locatorAttribute(walk, "parentRot", lr.x, lr.y, lr.z);
-	locatorAttribute(walk, "parentScale", ls.x, ls.y, ls.z);
+	walk.detail().setPos3(walk.pointCount(), lpos);
+	locatorAttribute(walk, "localPosition", lpos);
+	locatorAttribute(walk, "localScale", lscale);
+	locatorAttribute(walk, "parentTrans", t);
+	locatorAttribute(walk, "parentRot", r);
+	locatorAttribute(walk, "parentScale", s);
         fillArb(walk, obj, xform.getSchema().getArbGeomParams(), iss, 1, 1, 1);
 
 	walk.trackPtVtxPrim(obj, npoint, nvertex, nprim, true);
@@ -2227,8 +2220,8 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
     , myFacesetAttribute("*")
     , myBoss(UTgetInterrupt())
     , myBossId(-1)
-    , myMatrix(identity44d)
-    , myRootInvertedMatrix(identity44d)
+    , myMatrix(1)
+    , myRootInvertedMatrix(1)
     , myPathAttribute()
     , myLastFaceCount(0)
     , myLastFaceStart(0)
@@ -2341,32 +2334,32 @@ GABC_GEOWalker::setRootObject(const std::vector<std::string> &filenames,
 {
     UT_WorkBuffer fixedPath;
     const char *rpath = rootPath.c_str();
-
     for(;;)
     {
 	while (*rpath == '/')
 	    ++rpath;
 	if (!*rpath)
-	{
-	    if(!fixedPath.length())
-		fixedPath.append('/');
 	    break;
-	}
 
 	fixedPath.append('/');
 	while (*rpath && *rpath != '/')
 	    fixedPath.append(*rpath++);
     }
+    if(fixedPath.length() == 0)
+    {
+	myRootObjectPath = "/";
+	myRootInvertedMatrix.identity();
+	return true;
+    }
 
     GABC_IObject rootObj = GABC_Util::findObject(filenames,
 				fixedPath.toStdString());
-
     if (!rootObj.valid())
 	return false;
 
-    M44d rootMatrix;
-    bool constant, inherit;
-    rootObj.worldTransform(time(), rootMatrix, constant, inherit);
+    UT_Matrix4D rootMatrix;
+    GEO_AnimationType atype;
+    rootObj.getWorldTransform(rootMatrix, time(), atype);
 
     myRootObjectPath.harden(fixedPath.buffer());
     myRootInvertedMatrix = rootMatrix;
@@ -2412,15 +2405,9 @@ GABC_GEOWalker::preProcess(const GABC_IObject &root)
     GABC_IObject	parent = root.getParent();
     if (parent.valid())
     {
-	UT_Matrix4D	m;
 	bool		c, i;
-	if (!GABC_Util::getWorldTransform(parent, time(), m, c, i))
-	    m.identity();
-	for (int r = 0; r < 4; ++r)
-	{
-	    for (int c = 0; c < 4; ++c)
-		myMatrix.x[r][c] = m(r,c);
-	}
+	if (!GABC_Util::getWorldTransform(parent, time(), myMatrix, c, i))
+	    myMatrix.identity();
 
         do
         {
@@ -2436,7 +2423,7 @@ GABC_GEOWalker::preProcess(const GABC_IObject &root)
         } while (parent.valid());
     }
     else
-	myMatrix = identity44d;
+	myMatrix.identity();
 
     return true;
 }
@@ -2452,13 +2439,13 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
     bool                    vis = useVisibility();
 
     bool rest_xform_constant = myTransformConstant;
-    M44d rest_matrix = myMatrix;
+    UT_Matrix4D rest_matrix = myMatrix;
 
     bool inheritXform = (obj.nodeType() != GABC_NodeType::GABC_ROOT
 			&& ::strcmp(obj.getParent().objectPath().c_str(),
 			    rootObjectPath().c_str()) != 0);
     if (!inheritXform)
-	myMatrix = identity44d;
+	myMatrix.identity();
 
     // Packed Alembics handle visibility on their own through the
     // GABC_PackedImpl (see: GABC_PackedImpl::build(), called by makeAbcPrim).
@@ -2495,9 +2482,9 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	    }
 
 	    if (inheritXform && xs.getInheritsXforms())
-		myMatrix = matrix * myMatrix;
+		myMatrix = UT_Matrix4D(matrix.x) * myMatrix;
 	    else
-		myMatrix = matrix;
+		myMatrix = UT_Matrix4D(matrix.x);
 	}
 
 	if (buildLocator()
@@ -2786,7 +2773,7 @@ GABC_GEOWalker::matchBounds(const GABC_IObject &obj) const
     {
 	// The top of our transform stack is the world space transform for the
 	// shape.
-	box.transform(UT_Matrix4(myMatrix.x));
+	box.transform(myMatrix);
     }
     switch (myBoxCullMode)
     {
@@ -2851,7 +2838,7 @@ GABC_GEOWalker::matchChildBounds(const GABC_IObject &obj) const
     {
 	// The top of our transform stack is the world space transform for the
 	// shape.
-	box.transform(UT_Matrix4(myMatrix.x));
+	box.transform(myMatrix);
     }
     switch (myBoxCullMode)
     {
@@ -3014,7 +3001,7 @@ GABC_GEOWalker::setPointTransform(GU_PrimPacked *prim, GA_Offset pt) const
     }
 
     if (includeXform())
-	selfM4 *= UT_Matrix4D(myRootInvertedMatrix.x);
+	selfM4 *= myRootInvertedMatrix;
 
     UT_Vector3 selfPos;
     selfM4.getTranslates(selfPos);
@@ -3066,7 +3053,7 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
 	    g->addOffset(myPrimitiveCount+i);
     }
     if (do_transform && !buildAbcPrim() &&
-	    includeXform() && myMatrix != identity44d)
+	    includeXform() && !myMatrix.isIdentity())
     {
 	GA_Range xprims = GA_Range(detail().getPrimitiveMap(),
 				   myPrimitiveCount,
@@ -3074,9 +3061,8 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
 	GA_Range xpoints = GA_Range(detail().getPointMap(),
 				    myPointCount,
 				    myPointCount + npoint);
-	UT_Matrix4	m4(myMatrix.x);
 	// Transform detail and attributes
-	detail().transform(m4, xprims, xpoints, false, false, false);
+	detail().transform(myMatrix, xprims, xpoints, false, false, false);
     }
     myPointCount += npoint;
     myVertexCount += nvertex;
