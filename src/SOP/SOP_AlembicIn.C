@@ -1309,30 +1309,10 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     walk.setPolySoup(parms.myPolySoup);
     walk.setViewportLOD(parms.myViewportLOD);
     walk.setBounds(parms.myBoundMode, parms.myBoundBox);
-
-    if (!walk.setRootObject(parms.myFileNames, parms.myRootObjectPath))
-    {
-	addError(SOP_MESSAGE, "Error evaluating root object in file");
-    }
-
-    bool	needwalk = true;
     walk.setReusePrimitives(reuse_prims);
-    if (!reuse_prims)
-    {
-	setPathAttributes(walk, parms);
-	setPointMode(walk, parms);
-    }
-    else
-    {
-	setPathAttributes(walk, parms);
-	setPointMode(walk, parms);
-	
-	if (walk.buildAbcPrim())
-	{
-	    walk.updateAbcPrims();
-	    needwalk =  false;
-	}
-    }
+    setPathAttributes(walk, parms);
+    setPointMode(walk, parms);
+
     // Delete previous subdivision group
     if (myLastParms.mySubdGroupName != parms.mySubdGroupName && UTisstring(myLastParms.mySubdGroupName))
 	walkgdp->destroyPrimitiveGroup(myLastParms.mySubdGroupName);
@@ -1347,11 +1327,15 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	walk.setSubdGroup(g);
     }
 
+    clearEventHandler();
+    if (!walk.setRootObject(parms.myFileNames, parms.myRootObjectPath))
+	addError(SOP_MESSAGE, "Error evaluating root object in file");
 
-    if (needwalk)
+    if (reuse_prims && walk.buildAbcPrim())
+	walk.updateAbcPrims();
+    else
     {
 	// So we don't get events during our cook
-	clearEventHandler();
 	if (parms.myObjectPath.isstring())
 	{
 	    UT_WorkArgs	args;
@@ -1399,8 +1383,8 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 		}
 	    }
 	}
-	setupEventHandler(parms.myFileNames);
     }
+    setupEventHandler(parms.myFileNames);
 
     if (error() < UT_ERROR_ABORT)
     {

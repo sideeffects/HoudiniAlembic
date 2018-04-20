@@ -412,10 +412,6 @@ namespace
 	    , myXformCacheBuilt(false)
         {}
         virtual ~ArchiveCacheEntry()
-        {}
-
-	void
-	purge()
 	{
 	    if (myArchive)
 	    {
@@ -428,7 +424,6 @@ namespace
 			handler->setArchivePtr(NULL);
 		    }
 		}
-		myArchive->purgeObjects();
 	    }
 	}
 
@@ -1685,7 +1680,7 @@ namespace
 		auto it = myItems.begin();
 		for (; d > 0; --d)
 		    ++it;
-		removeCacheEntry(it->first, false);
+		removeCacheEntry(it->first);
 	    }
 
 	    addCacheEntry(paths, entry);
@@ -1703,14 +1698,11 @@ namespace
 		{
 		    auto keys = it->second;
 		    for(auto &paths : keys)
-			removeCacheEntry(paths, true);
+			removeCacheEntry(paths);
 		}
 	    }
 	    else
 	    {
-		for (auto &it : myItems)
-		    it.second->purge();
-
 		myItems.clear();
 		myKeysWithPath.clear();
 	    }
@@ -1721,14 +1713,14 @@ namespace
 	addCacheEntry(const std::vector<std::string> &paths,
 		      const ArchiveCacheEntryPtr &entry)
 	{
-	    for(auto &path : paths)
-		myKeysWithPath[path].insert(paths);
+	    for(auto &p : paths)
+		myKeysWithPath[p].insert(paths);
 
 	    myItems[paths] = entry;
 	}
 
 	void
-	removeCacheEntry(const std::vector<std::string> &paths, bool purge)
+	removeCacheEntry(const std::vector<std::string> &paths)
 	{
 	    for(auto &p : paths)
 	    {
@@ -1738,10 +1730,7 @@ namespace
 		    myKeysWithPath.erase(p);
 	    }
 
-	    auto it = myItems.find(paths);
-	    if(purge)
-		it->second->purge();
-	    myItems.erase(it);
+	    myItems.erase(paths);
 	}
 
 	UT_Map<std::vector<std::string>, ArchiveCacheEntryPtr> myItems;

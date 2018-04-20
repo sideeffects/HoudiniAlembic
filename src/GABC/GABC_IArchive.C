@@ -83,17 +83,12 @@ GABC_IArchive::open(const std::vector<std::string> &paths, int num_streams)
     }
 
     UT_AutoLock	lock(*theLock);
-    ArchiveCache::iterator	it = theArchiveCache.find(paths);
-    GABC_IArchive		*arch = NULL;
+    auto it = theArchiveCache.find(paths);
     if (it != theArchiveCache.end())
-    {
-	arch = it->second;
-    }
-    else
-    {
-	arch = new GABC_IArchive(paths, num_streams);
-	theArchiveCache[paths] = arch;
-    }
+	return it->second;
+
+    GABC_IArchive *arch = new GABC_IArchive(paths, num_streams);
+    theArchiveCache.emplace(paths, arch);
     return GABC_IArchivePtr(arch);
 }
 
@@ -110,13 +105,11 @@ GABC_IArchive::closeAndDelete()
 	UT_ASSERT(theArchiveCache.find(myFileNames) != theArchiveCache.end());
 	return;
     }
-    theArchiveCache.erase(myFileNames);
     delete this;
 }
 
 GABC_IArchive::GABC_IArchive(const std::vector<std::string> &paths, int num_streams)
     : myFileNames(paths)
-    , myPurged(false)
     , myIsOgawa(false)
 {
     UT_INC_COUNTER(theCount);
@@ -128,9 +121,10 @@ GABC_IArchive::~GABC_IArchive()
 {
     UT_DEC_COUNTER(theCount);
     GABC_AlembicLock	lock(*this);	// Lock for member data deletion
-    if (!purged())
-	purgeObjects();	// Clear all my objects out
-    clearStream();
+
+    for (auto it = myObjects.begin(); it != myObjects.end(); ++it)
+	(*it)->purge();
+    theArchiveCache.erase(myFileNames);
 }
 
 void
@@ -281,7 +275,6 @@ GABC_IArchive::resolveObject(GABC_IObject &obj)
 {
     GABC_AlembicLock	lock(*this);
 
-    UT_ASSERT(!purged());
     if (!valid())
 	return;
     UT_String		path(obj.objectPath());
@@ -303,33 +296,13 @@ GABC_IArchive::getTop() const
 	return GABC_IObject();
 
     GABC_AlembicLock	 lock(*this);
-    GABC_IArchive	*me = const_cast<GABC_IArchive *>(this);
-    IObject	root = me->myArchive.getTop();
-    return GABC_IObject(me, root);
-}
-
-void
-GABC_IArchive::purgeObjects()
-{
-    GABC_AlembicLock	lock(*this); // Need lock for myObjects
-
-    UT_ASSERT(!purged());
-    myPurged = true;
-    SetType::iterator		end = myObjects.end();
-    for (SetType::iterator it = myObjects.begin(); it != end; ++it)
-    {
-	(*it)->purge();
-    }
-    myArchive = IArchive();
-    clearStream();
-    theArchiveCache.erase(myFileNames);
+    return GABC_IObject(const_cast<GABC_IArchive *>(this), myArchive.getTop());
 }
 
 void
 GABC_IArchive::reference(GABC_IItem *item)
 {
     UT_ASSERT(!myObjects.count(item));
-    UT_ASSERT(!purged());
     myObjects.insert(item);
 }
 

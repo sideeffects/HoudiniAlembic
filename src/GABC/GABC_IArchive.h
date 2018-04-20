@@ -64,14 +64,8 @@ public:
     using IArchive = Alembic::Abc::IArchive;
     using SetType = UT_Set<GABC_IItem *>;
 
-    /// Destructor
-    ~GABC_IArchive();
-
     /// Test validity
     bool		valid() const		{ return myArchive.valid(); }
-
-    /// Check to see if the archive has been purged (invalid)
-    bool		purged() const		{ return myPurged; }
 
     /// Error (set on creation)
     const std::string	&error() const		{ return myError; }
@@ -86,9 +80,6 @@ public:
     const IArchive	&archive() const	{ return myArchive; }
 
     bool		isOgawa() const		{ return myIsOgawa; }
-
-    /// Purge all objects references
-    void		purgeObjects();
 
     /// Close and reopen the archive with the given number of file streams
     /// (-1 is to use the default)
@@ -140,6 +131,9 @@ private:
     GABC_IArchive(const std::vector<std::string> &filenames,
 		  int num_streams = -1);
 
+    /// Destructor
+    ~GABC_IArchive();
+
     // At the current time, HDF5 requires a *global* lock across all files.
     // Wouldn't it be nice if it could have a per-file lock?
     static UT_Lock	*theLock;
@@ -168,7 +162,6 @@ private:
     UT_Array<gabc_streamentry> myStreams;
     IArchive		 myArchive;
     SetType		 myObjects;
-    bool		 myPurged;
     bool		 myIsOgawa;
 };
 
