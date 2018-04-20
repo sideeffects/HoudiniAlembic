@@ -1316,7 +1316,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
     // Delete previous subdivision group
     if (myLastParms.mySubdGroupName != parms.mySubdGroupName && UTisstring(myLastParms.mySubdGroupName))
 	walkgdp->destroyPrimitiveGroup(myLastParms.mySubdGroupName);
-    // Create new subd primtiive group
+    // Create new subd primitive group
     if (parms.mySubdGroupName.isstring())
     {
 	GA_PrimitiveGroup	*g;
@@ -1327,61 +1327,53 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	walk.setSubdGroup(g);
     }
 
+    // So we don't get events during our cook
     clearEventHandler();
+
     if (!walk.setRootObject(parms.myFileNames, parms.myRootObjectPath))
 	addError(SOP_MESSAGE, "Error evaluating root object in file");
 
     if (reuse_prims && walk.buildAbcPrim())
 	walk.updateAbcPrims();
-    else
+    else if (parms.myObjectPath.isstring())
     {
-	// So we don't get events during our cook
-	if (parms.myObjectPath.isstring())
+	UT_WorkArgs	args;
+	UT_String	opath(parms.myObjectPath);
+	opath.parse(args);
+	if (args.getArgc())
 	{
-	    UT_WorkArgs	args;
-	    UT_String	opath(parms.myObjectPath);
-	    opath.parse(args);
-	    if (args.getArgc())
+	    UT_StringArray	olist;
+	    for (int i = 0; i < args.getArgc(); ++i)
+		olist.append(args(i));
+
+	    removeDuplicates(olist);
+
+	    if (!GABC_Util::walk(parms.myFileNames, walk, olist))
 	    {
-		UT_StringArray	olist;
-		for (int i = 0; i < args.getArgc(); ++i)
-		    olist.append(args(i));
-
-		removeDuplicates(olist);
-
-		if (!GABC_Util::walk(parms.myFileNames, walk, olist))
+		if (parms.myMissingFileError || !walk.badArchive())
+		    addError(SOP_MESSAGE, "Error evaluating objects in file");
+		else
 		{
-		    if (parms.myMissingFileError || !walk.badArchive())
-		    {
-			addError(SOP_MESSAGE,
-				"Error evaluating objects in file");
-		    }
-		    else
-		    {
-			addWarning(SOP_MESSAGE,
-				"Invalid or missing Alembic archive");
-		    }
+		    addWarning(SOP_MESSAGE,
+			    "Invalid or missing Alembic archive");
 		}
 	    }
 	}
+    }
+    else if (!GABC_Util::walk(parms.myFileNames, walk))
+    {
+	UT_WorkBuffer msg;
+	if (parms.myMissingFileError || !walk.badArchive())
+	{
+	    msg.sprintf("Error evaluating Alembic file (%s)",
+			GABC_IArchive::filenamesToString(parms.myFileNames).c_str());
+	    addError(SOP_MESSAGE, msg.buffer());
+	}
 	else
 	{
-	    if (!GABC_Util::walk(parms.myFileNames, walk))
-	    {
-		UT_WorkBuffer msg;
-		if (parms.myMissingFileError || !walk.badArchive())
-		{
-		    msg.sprintf("Error evaluating Alembic file (%s)",
-				GABC_IArchive::filenamesToString(parms.myFileNames).c_str());
-		    addError(SOP_MESSAGE, msg.buffer());
-		}
-		else
-		{
-		    msg.sprintf("Invalid or missing Alembic file (%s)",
-				GABC_IArchive::filenamesToString(parms.myFileNames).c_str());
-		    addWarning(SOP_MESSAGE, msg.buffer());
-		}
-	    }
+	    msg.sprintf("Invalid or missing Alembic file (%s)",
+			GABC_IArchive::filenamesToString(parms.myFileNames).c_str());
+	    addWarning(SOP_MESSAGE, msg.buffer());
 	}
     }
     setupEventHandler(parms.myFileNames);
@@ -1392,9 +1384,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 	myTopologyConstant = walk.topologyConstant();
     }
     else
-    {
 	myComputedFrameRange = false;
-    }
 
     if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_UNPACKED)
 	unpack(*gdp, *unpack_gdp, parms);
