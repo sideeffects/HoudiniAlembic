@@ -63,7 +63,7 @@ public:
 
     /// Returns name of this node.
     const char *getName() const { return myName.c_str(); }
-    const char *getPath() const { return myPath.c_str(); };
+    const char *getPath() const { return myPath.c_str(); }
 
     /// Sets the layer node type of this node.
     void setLayerNodeType(GABC_LayerOptions::LayerType type)

@@ -426,7 +426,7 @@ ROP_AbcRefiner::processInstance(const GT_PrimitiveHandle &prim)
     {
 	// transform before refining further
 	const GT_GEOPrimPacked *packed =
-		    static_cast<const GT_GEOPrimPacked *>(geo.get());
+	    static_cast<const GT_GEOPrimPacked *>(geo.get());
 	const GU_PrimPacked *pr =
 	    static_cast<const GU_PrimPacked *>(packed->getPrim());
 

@@ -108,6 +108,9 @@ public:
     // returns the hierarchy's root
     ROP_AbcNode *getRoot() const { return myRoot.getAbcNode(); }
 
+    // returns the recursive combination the hierarchy
+    void getNodes(UT_Set<ROP_AbcNode *> &nodes);
+
     // writes a new sample
     void merge(GABC_OError &err,
 	       const ROP_AbcHierarchySample &src,

@@ -683,8 +683,8 @@ ROP_AlembicOut::updateParmsFlags()
     bool use_path = (!issop && USE_SOP_PATH(0));
     bool use_layering = USE_LAYERING(0);
     bool sop_mode = (issop || use_path);
-    bool build_from_path = (sop_mode && BUILD_FROM_PATH(0));
-    bool partition_mode = (!sop_mode || !build_from_path);
+    bool build_from_path = BUILD_FROM_PATH(0);
+    bool partition_mode = (!sop_mode && !build_from_path);
     bool partition_attrib = partition_mode;
     if(partition_attrib)
     {
@@ -708,7 +708,6 @@ ROP_AlembicOut::updateParmsFlags()
     changed |= enableParm("use_sop_path", !issop);
     changed |= enableParm("sop_path", use_path);
     changed |= enableParm("subdgroup", sop_mode);
-    changed |= enableParm("build_from_path", sop_mode);
     changed |= enableParm("path_attrib", build_from_path);
     changed |= enableParm("root", !sop_mode);
     changed |= enableParm("objects", !sop_mode);
@@ -1263,157 +1262,6 @@ ropGetCookedGeoHandle(SOP_Node *sop, OP_Context &context, bool displaysop)
     return gdh;
 }
 
-void
-ROP_AlembicOut::refineSop(
-    ROP_AbcHierarchy &assignments,
-    ROP_AlembicPackedTransform packedtransform,
-    exint facesetmode,
-    bool use_instancing,
-    bool shape_nodes,
-    bool displaysop,
-    bool save_hidden,
-    OBJ_Geometry *geo,
-    SOP_Node *sop,
-    fpreal time)
-{
-    OP_Context context(time);
-    GU_ConstDetailHandle gdh(ropGetCookedGeoHandle(sop, context, displaysop));
-    GU_DetailHandleAutoReadLock rlock(gdh);
-    const GU_Detail *gdp = rlock.getGdp();
-    if(!gdp)
-    {
-	reportCookErrors(sop, time);
-	return;
-    }
-
-    GA_ROHandleS up_vals(gdp, GA_ATTRIB_PRIMITIVE,
-			 GABC_Util::theUserPropsValsAttrib);
-    GA_ROHandleS up_meta(gdp, GA_ATTRIB_PRIMITIVE,
-			 GABC_Util::theUserPropsMetaAttrib);
-    bool update_user_props = (up_vals.isValid() && up_meta.isValid());
-
-    // identify subd
-    bool subd_all;
-    std::string subd_name;
-    const GA_PrimitiveGroup *grp = getSubdGroup(subd_all, geo, gdp, time);
-    if(grp)
-	subd_name = grp->getName().toStdString();
-
-    UT_String partition_mode;
-    PARTITION_MODE(partition_mode, time);
-
-    rop_PartitionFunc *func = nullptr;
-    if(partition_mode == "full")
-	func = ropPartitionFull;
-    else if(partition_mode == "shape")
-	func = ropPartitionShape;
-    else if(partition_mode == "xform")
-	func = ropPartitionXform;
-    else if(partition_mode == "xformshape")
-	func = ropPartitionXformShape;
-
-    GA_ROHandleS partition_attrib;
-    if(func)
-    {
-	UT_String attrib_name;
-	PARTITION_ATTRIBUTE(attrib_name, time);
-	partition_attrib.bind(gdp, GA_ATTRIB_PRIMITIVE, attrib_name);
-    }
-
-    UT_SortedMap<std::string, GA_OffsetList> partitions[2];
-
-    std::string name = sop->getName().c_str();
-    UT_WorkBuffer buf;
-    UT_WorkBuffer part_name;
-    for(GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
-    {
-	GA_Offset offset = *it;
-
-	std::string p;
-	if(partition_attrib.isValid())
-	{
-	    // map primitive to named partition
-	    part_name.clear();
-	    if(func && partition_attrib.isValid())
-	    {
-		buf.strcpy(partition_attrib.get(offset));
-
-		UT_WorkBuffer::AutoLock lock(buf);
-		part_name.append(func(lock.string()));
-	    }
-
-	    if(!part_name.length())
-		part_name.append(name);
-
-	    p = part_name.buffer();
-	}
-	else
-	    p = name;
-
-	int idx = (subd_all || (grp && grp->contains(offset))) ? 1 : 0;
-	partitions[idx][p].append(offset);
-    }
-
-    if(!func)
-    {
-	// ensured an entry for name exists so we can add the unshared points
-	// in the following loop
-	partitions[0][name];
-    }
-
-    ROP_AbcHierarchySample root(nullptr, "");
-    UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > instance_map;
-
-    ROP_AbcRefiner refiner(instance_map, *myErrors, packedtransform,
-			   facesetmode, use_instancing, shape_nodes,
-			   save_hidden);
-
-    for(int idx = 0; idx < 2; ++idx)
-    {
-	for(auto &it : partitions[idx])
-	{
-	    auto &cname = it.first;
-	    auto &offsets = it.second;
-
-	    GT_PrimitiveHandle prim;
-	    GA_Range range(gdp->getPrimitiveMap(), offsets);
-	    if(it.second.size())
-		prim = GT_GEODetail::makeDetail(gdh, &range);
-	    if(!func && !idx)
-	    {
-		GA_OffsetList pts;
-		if(gdp->findUnusedPoints(&pts))
-		{
-		    GT_PrimCollect *collect = new GT_PrimCollect();
-		    if(prim)
-			collect->appendPrimitive(prim);
-
-		    GA_Range ptrange(gdp->getPointMap(), pts);
-		    collect->appendPrimitive(GT_GEODetail::makePointMesh(gdh, &ptrange));
-		    prim = collect;
-		}
-	    }
-	    if(prim)
-	    {
-		bool subd = (idx == 1);
-
-		std::string userprops;
-		std::string userpropsmeta;
-		if(update_user_props)
-		{
-		    userprops = up_vals.get(offsets(0));
-		    userpropsmeta = up_meta.get(offsets(0));
-		}
-
-		refiner.addPartition(root, cname, subd, prim, userprops, userpropsmeta,
-				     subd_name);
-	    }
-	}
-    }
-
-    assignments.merge(*myErrors, root, instance_map);
-}
-
 static bool
 ropIsShape(GABC_NodeType type)
 {
@@ -1431,125 +1279,16 @@ ropIsShape(GABC_NodeType type)
     }
 }
 
-// recursively call preUpdate on hierarchy
-static void
-ropClearData(ROP_AbcNode *node, bool locked)
-{
-    UT_Array<ROP_AbcNode *> work;
-    work.append(node);
-    while(work.entries())
-    {
-	node = work.last();
-	work.removeLast();
-
-	node->clearData(locked);
-	for(auto &it : node->getChildren())
-	    work.append(it.second);
-    }
-}
-
-// recursively call postUpdate on hierarchy
-static void
-ropUpdateLocked(ROP_AbcNode *node, bool locked)
-{
-    UT_Array<ROP_AbcNode *> work;
-    work.append(node);
-    while(work.entries())
-    {
-	node = work.last();
-	work.removeLast();
-
-	node->updateLocked(locked);
-	for(auto &it : node->getChildren())
-	    work.append(it.second);
-    }
-}
-
-static void
-ropGetLocalTransform(UT_Matrix4D &m, OBJ_Node *obj, OP_Context &context)
-{
-    if(!obj->getWorldTransform(m, context))
-	m.identity();
-
-    OP_Node *parent = nullptr;
-    OP_Input *input = obj->getInputReferenceConst(0);
-    if(input && !input->isIndirect())
-	parent = input->getNode();
-
-    if(!parent)
-	parent = obj->getParent();
-
-    OBJ_Node *p = CAST_OBJNODE(parent);
-    if(!p)
-	return;
-
-    UT_Matrix4D m_parent;
-    if(!p->getIWorldTransform(m_parent, context))
-	return;
-
-    m *= m_parent;
-}
-
-bool
-ROP_AlembicOut::updateFromSop(
-    OBJ_Geometry *geo,
-    SOP_Node *sop,
+void
+ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
+    OBJ_Geometry *geo, SOP_Node *sop,
+    GU_ConstDetailHandle &gdh, const GU_Detail *gdp, GA_ROHandleS &path_handle,
+    ROP_AbcHierarchySample &rootSpl, ROP_AbcHierarchySample *curSpl,
     ROP_AlembicPackedTransform packedtransform,
-    exint facesetmode,
-    bool use_instancing,
-    bool shape_nodes,
-    bool displaysop,
-    bool save_hidden,
-    fpreal time)
+    exint facesetmode, bool use_instancing,
+    bool shape_nodes, bool displaysop,
+    bool save_hidden, fpreal time)
 {
-    if(!mySopAssignments)
-	mySopAssignments.reset(new ROP_AbcHierarchy(myRoot.get()));
-
-    if(geo)
-    {
-	int locked = 0;
-	geo->evalParameterOrProperty(
-		GABC_Util::theLockGeometryParameter, 0, 0, locked);
-	myGeoLocks[mySopAssignments.get()] = (locked != 0);
-	ropClearData(mySopAssignments->getRoot(), (locked != 0));
-    }
-
-    OP_Context context(time);
-    OP_Node *creator = sop->getCreator();
-
-    GU_ConstDetailHandle gdh(ropGetCookedGeoHandle(sop, context, displaysop));
-    GU_DetailHandleAutoReadLock rlock(gdh);
-    const GU_Detail *gdp = rlock.getGdp();
-    if(!gdp)
-    {
-	reportCookErrors(sop, time);
-	return false;
-    }
-
-    ROP_AbcHierarchySample root(nullptr, "");
-    ROP_AbcHierarchySample *assignments = &root;
-
-    GA_ROHandleS path_handle;
-    bool build_from_path = BUILD_FROM_PATH(time);
-    if(build_from_path)
-    {
-	UT_String path_attrib;
-	PATH_ATTRIBUTE(path_attrib, time);
-	path_handle.bind(gdp, GA_ATTRIB_PRIMITIVE, path_attrib);
-    }
-    else if(creator)
-    {
-	OBJ_Node *obj = CAST_OBJNODE(creator);
-	if(obj)
-	{
-	    UT_Matrix4D m;
-	    ropGetLocalTransform(m, obj, context);
-	    auto child = root.getChildXform(obj->getName().toStdString());
-	    child->setXform(m);
-	    assignments = child;
-	}
-    }
-
     // identify subd
     bool subd_all;
     std::string subd_name;
@@ -1632,11 +1371,17 @@ ROP_AlembicOut::updateFromSop(
 	const GABC_PackedImpl *impl = static_cast<const GABC_PackedImpl *>(packed->implementation());
 
 	const char *s = it.first.c_str();
-	bool do_implicit = (impl->objectPath() == s);
+	const char *r = assignments.getRoot()->getPath();
+
+	buf.clear();
+	if(::strlen(r) > 1)
+	    buf.append(r);
+	buf.append(s);
+	bool do_implicit = (buf.strcmp(impl->objectPath()) == 0);
 
 	// walk path
 	ancestors.clear();
-	ROP_AbcHierarchySample *parent = assignments;
+	ROP_AbcHierarchySample *parent = curSpl;
 	while(*s)
 	{
 	    // skip '/'
@@ -1690,7 +1435,7 @@ ROP_AlembicOut::updateFromSop(
     // set transforms
     UT_Array<ROP_AbcHierarchySample *> work;
     UT_Array<UT_Matrix4D> work_xform;
-    work.append(assignments);
+    work.append(curSpl);
     work_xform.append(UT_Matrix4D(1));
     while(work.entries())
     {
@@ -1783,7 +1528,7 @@ ROP_AlembicOut::updateFromSop(
     }
 
     // unused points
-    if(!build_from_path)
+    if(!path_handle.isValid())
     {
 	GA_OffsetList pts;
 	if(gdp->findUnusedPoints(&pts))
@@ -1826,7 +1571,7 @@ ROP_AlembicOut::updateFromSop(
 
 	// walk path
 	UT_Matrix4D m(1);
-	ROP_AbcHierarchySample *parent = assignments;
+	ROP_AbcHierarchySample *parent = curSpl;
 	std::string cname;
 	const char *s = name.c_str();
 	while(*s)
@@ -1865,7 +1610,290 @@ ROP_AlembicOut::updateFromSop(
 			     subd_name);
     }
 
-    mySopAssignments->merge(*myErrors, root, instance_map);
+    assignments.merge(*myErrors, rootSpl, instance_map);
+}
+
+void
+ROP_AlembicOut::refineSop(
+    ROP_AbcHierarchy &assignments,
+    ROP_AlembicPackedTransform packedtransform,
+    exint facesetmode,
+    bool use_instancing,
+    bool shape_nodes,
+    bool displaysop,
+    bool save_hidden,
+    OBJ_Geometry *geo,
+    SOP_Node *sop,
+    fpreal time)
+{
+    OP_Context context(time);
+    GU_ConstDetailHandle gdh(ropGetCookedGeoHandle(sop, context, displaysop));
+    GU_DetailHandleAutoReadLock rlock(gdh);
+    const GU_Detail *gdp = rlock.getGdp();
+    if(!gdp)
+    {
+	reportCookErrors(sop, time);
+	return;
+    }
+
+    ROP_AbcHierarchySample root(nullptr, "");
+
+    if(BUILD_FROM_PATH(time))
+    {
+	UT_String path_attrib;
+	PATH_ATTRIBUTE(path_attrib, time);
+
+	GA_ROHandleS path_handle;
+	path_handle.bind(gdp, GA_ATTRIB_PRIMITIVE, path_attrib);
+
+	partitionPrims(assignments, geo, sop, gdh, gdp, path_handle,
+	    root, &root, packedtransform, facesetmode, use_instancing,
+	    shape_nodes, displaysop, save_hidden, time);
+	return;
+    }
+
+    /*
+	The remaining code in this method is kept
+	    for backward compatibility.
+    */
+
+    GA_ROHandleS up_vals(gdp, GA_ATTRIB_PRIMITIVE,
+			 GABC_Util::theUserPropsValsAttrib);
+    GA_ROHandleS up_meta(gdp, GA_ATTRIB_PRIMITIVE,
+			 GABC_Util::theUserPropsMetaAttrib);
+    bool update_user_props = (up_vals.isValid() && up_meta.isValid());
+
+    // identify subd
+    bool subd_all;
+    std::string subd_name;
+    const GA_PrimitiveGroup *grp = getSubdGroup(subd_all, geo, gdp, time);
+    if(grp)
+	subd_name = grp->getName().toStdString();
+
+    UT_String partition_mode;
+    PARTITION_MODE(partition_mode, time);
+
+    rop_PartitionFunc *func = nullptr;
+    if(partition_mode == "full")
+	func = ropPartitionFull;
+    else if(partition_mode == "shape")
+	func = ropPartitionShape;
+    else if(partition_mode == "xform")
+	func = ropPartitionXform;
+    else if(partition_mode == "xformshape")
+	func = ropPartitionXformShape;
+
+    GA_ROHandleS partition_attrib;
+    if(func)
+    {
+	UT_String attrib_name;
+	PARTITION_ATTRIBUTE(attrib_name, time);
+	partition_attrib.bind(gdp, GA_ATTRIB_PRIMITIVE, attrib_name);
+    }
+
+    UT_SortedMap<std::string, GA_OffsetList> partitions[2];
+
+    std::string name = sop->getName().c_str();
+    UT_WorkBuffer buf;
+    UT_WorkBuffer part_name;
+    for(GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
+    {
+	GA_Offset offset = *it;
+
+	std::string p;
+	if(partition_attrib.isValid())
+	{
+	    // map primitive to named partition
+	    part_name.clear();
+	    if(func && partition_attrib.isValid())
+	    {
+		buf.strcpy(partition_attrib.get(offset));
+
+		UT_WorkBuffer::AutoLock lock(buf);
+		part_name.append(func(lock.string()));
+	    }
+
+	    if(!part_name.length())
+		part_name.append(name);
+
+	    p = part_name.buffer();
+	}
+	else
+	    p = name;
+
+	int idx = (subd_all || (grp && grp->contains(offset))) ? 1 : 0;
+	partitions[idx][p].append(offset);
+    }
+
+    if(!func)
+    {
+	// ensured an entry for name exists so we can add the unshared points
+	// in the following loop
+	partitions[0][name];
+    }
+
+    UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > instance_map;
+
+    ROP_AbcRefiner refiner(instance_map, *myErrors, packedtransform,
+			   facesetmode, use_instancing, shape_nodes,
+			   save_hidden);
+
+    for(int idx = 0; idx < 2; ++idx)
+    {
+	for(auto &it : partitions[idx])
+	{
+	    auto &cname = it.first;
+	    auto &offsets = it.second;
+
+	    GT_PrimitiveHandle prim;
+	    GA_Range range(gdp->getPrimitiveMap(), offsets);
+	    if(it.second.size())
+		prim = GT_GEODetail::makeDetail(gdh, &range);
+	    if(!func && !idx)
+	    {
+		GA_OffsetList pts;
+		if(gdp->findUnusedPoints(&pts))
+		{
+		    GT_PrimCollect *collect = new GT_PrimCollect();
+		    if(prim)
+			collect->appendPrimitive(prim);
+
+		    GA_Range ptrange(gdp->getPointMap(), pts);
+		    collect->appendPrimitive(GT_GEODetail::makePointMesh(gdh, &ptrange));
+		    prim = collect;
+		}
+	    }
+	    if(prim)
+	    {
+		bool subd = (idx == 1);
+
+		std::string userprops;
+		std::string userpropsmeta;
+		if(update_user_props)
+		{
+		    userprops = up_vals.get(offsets(0));
+		    userpropsmeta = up_meta.get(offsets(0));
+		}
+
+		refiner.addPartition(root, cname, subd, prim, userprops, userpropsmeta,
+				     subd_name);
+	    }
+	}
+    }
+
+    assignments.merge(*myErrors, root, instance_map);
+}
+
+// recursively call preUpdate on hierarchy
+static void
+ropClearData(ROP_AbcHierarchy &assignments, bool locked)
+{
+    UT_Set<ROP_AbcNode *> nodes;
+    assignments.getNodes(nodes);
+
+    for(auto *node : nodes)
+	node->clearData(locked);
+}
+
+// recursively call postUpdate on hierarchy
+static void
+ropUpdateLocked(ROP_AbcHierarchy &assignments, bool locked)
+{
+    UT_Set<ROP_AbcNode *> nodes;
+    assignments.getNodes(nodes);
+
+    for(auto *node : nodes)
+	node->updateLocked(locked);
+}
+
+static void
+ropGetLocalTransform(UT_Matrix4D &m, OBJ_Node *obj, OP_Context &context)
+{
+    if(!obj->getWorldTransform(m, context))
+	m.identity();
+
+    OP_Node *parent = nullptr;
+    OP_Input *input = obj->getInputReferenceConst(0);
+    if(input && !input->isIndirect())
+	parent = input->getNode();
+
+    if(!parent)
+	parent = obj->getParent();
+
+    OBJ_Node *p = CAST_OBJNODE(parent);
+    if(!p)
+	return;
+
+    UT_Matrix4D m_parent;
+    if(!p->getIWorldTransform(m_parent, context))
+	return;
+
+    m *= m_parent;
+}
+
+bool
+ROP_AlembicOut::updateFromSop(
+    OBJ_Geometry *geo,
+    SOP_Node *sop,
+    ROP_AlembicPackedTransform packedtransform,
+    exint facesetmode,
+    bool use_instancing,
+    bool shape_nodes,
+    bool displaysop,
+    bool save_hidden,
+    fpreal time)
+{
+    if(!mySopAssignments)
+	mySopAssignments.reset(new ROP_AbcHierarchy(myRoot.get()));
+
+    if(geo)
+    {
+	int locked = 0;
+	geo->evalParameterOrProperty(
+		GABC_Util::theLockGeometryParameter, 0, 0, locked);
+	myGeoLocks[mySopAssignments.get()] = (locked != 0);
+	ropClearData(*mySopAssignments.get(), (locked != 0));
+    }
+
+    OP_Context context(time);
+    OP_Node *creator = sop->getCreator();
+
+    GU_ConstDetailHandle gdh(ropGetCookedGeoHandle(sop, context, displaysop));
+    GU_DetailHandleAutoReadLock rlock(gdh);
+    const GU_Detail *gdp = rlock.getGdp();
+    if(!gdp)
+    {
+	reportCookErrors(sop, time);
+	return false;
+    }
+
+    ROP_AbcHierarchySample rootSpl(nullptr, "");
+    ROP_AbcHierarchySample *curSpl = &rootSpl;
+
+    GA_ROHandleS path_handle;
+    if(BUILD_FROM_PATH(time))
+    {
+	UT_String path_attrib;
+	PATH_ATTRIBUTE(path_attrib, time);
+	path_handle.bind(gdp, GA_ATTRIB_PRIMITIVE, path_attrib);
+    }
+    else if(creator)
+    {
+	OBJ_Node *obj = CAST_OBJNODE(creator);
+	if(obj)
+	{
+	    UT_Matrix4D m;
+	    ropGetLocalTransform(m, obj, context);
+	    auto child = rootSpl.getChildXform(obj->getName().toStdString());
+	    child->setXform(m);
+	    curSpl = child;
+	}
+    }
+
+    partitionPrims(*mySopAssignments.get(), geo, sop, gdh, gdp, path_handle,
+	rootSpl, curSpl, packedtransform, facesetmode, use_instancing,
+	shape_nodes, displaysop, save_hidden, time);
+
     return true;
 }
 
@@ -1958,7 +1986,8 @@ ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
 	// Populates the layering parameters from the session. Traverses
 	// and sets the layer options on the tree.
 	// Populates layer node parameters...
-	for(int i = 1; i <= NUM_NODES(time); ++i)
+	int numNodes = NUM_NODES(time);
+	for(int i = 1; i <= numNodes; ++i)
 	{
 	    GABC_LayerOptions::LayerType layerType;
 	    UT_String path, rule;
@@ -1976,7 +2005,8 @@ ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
 	    layerOptions.appendNodeRule(path, layerType);
 	}
 	// Populates layer viz parameters...
-	for(int i = 1; i <= NUM_VIZS(time); ++i)
+	int numVizs = NUM_VIZS(time);
+	for(int i = 1; i <= numVizs; ++i)
 	{
 	    GABC_LayerOptions::VizType layerType;
 	    UT_String path, rule;
@@ -1996,7 +2026,8 @@ ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
 	    layerOptions.appendVizRule(path, layerType);
 	}
 	// Populates layer attr parameters...
-	for(int i = 1; i <= NUM_ATTRIBUTES(time); ++i)
+	int numAttribs = NUM_ATTRIBUTES(time);
+	for(int i = 1; i <= numAttribs; ++i)
 	{
 	    GABC_LayerOptions::LayerType layerType;
 	    UT_String path, pattern, rule;
@@ -2013,7 +2044,8 @@ ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
 	    layerOptions.appendAttrRule(path, pattern, layerType);
 	}
 	// Populates layer face set parameters...
-	for(int i = 1; i <= NUM_FACE_SETS(time); ++i)
+	int numFacesets = NUM_FACE_SETS(time);
+	for(int i = 1; i <= numFacesets; ++i)
 	{
 	    GABC_LayerOptions::LayerType layerType;
 	    UT_String path, pattern, rule;
@@ -2030,7 +2062,8 @@ ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
 	    layerOptions.appendFaceSetRule(path, pattern, layerType);
 	}
 	// Populates layer user prop parameters...
-	for(int i = 1; i <= NUM_USER_PROPS(time); ++i)
+	int numUserprops = NUM_USER_PROPS(time);
+	for(int i = 1; i <= numUserprops; ++i)
 	{
 	    GABC_LayerOptions::LayerType layerType;
 	    UT_String path, pattern, rule;
@@ -2058,7 +2091,7 @@ ROP_AlembicOut::setLayerOptionsAndSave(fpreal time)
     myArchive->setBoundingBox(archiveBounds);
 
     for(auto &it : myGeoLocks)
-	ropUpdateLocked(it.first->getRoot(), it.second);
+	ropUpdateLocked(*it.first, it.second);
     for(auto &it : myObjLocks)
 	it.first->updateLocked(it.second);
 }
@@ -2185,9 +2218,20 @@ ROP_AlembicOut::updateFromHierarchy(
 	    // skip collapsed objects
 	    int abc_collapse = 0;
 	    obj->evalParameterOrProperty("abc_collapse", 0, time, abc_collapse);
-	    if(!abc_collapse && ((!collapse_on && (!collapse_geo 
+	    if(abc_collapse)
+	    {
+		if(!rop_isStaticIdentity(obj, time))
+		{
+		    UT_WorkBuffer warning;
+		    const char *objFullPath = obj->getFullPath();
+		    warning.sprintf("%s is marked for collapse "
+			"but holds a non-identity matrix.", objFullPath);
+		    addWarning(ROP_MESSAGE, warning.buffer());
+		}
+	    }
+	    else if((!collapse_on && (!collapse_geo 
 		|| !obj->castToOBJGeometry())) 
-		|| !rop_isStaticIdentity(obj, time)))
+		|| !rop_isStaticIdentity(obj, time))
 	    {
 		ancestors.append(obj);
 	    }
@@ -2224,7 +2268,7 @@ ROP_AlembicOut::updateFromHierarchy(
 		geo->evalParameterOrProperty(
 			GABC_Util::theLockGeometryParameter, 0, 0, locked);
 		myGeoLocks[&it->second] = (locked != 0);
-		ropClearData(it->second.getRoot(), locked != 0);
+		ropClearData(it->second, locked != 0);
 		it->second.setLocked(locked != 0);
 
 		if(!it->second.getLocked() || !was_locked)

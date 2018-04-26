@@ -193,21 +193,34 @@ private:
 
     const GA_PrimitiveGroup *getSubdGroup(bool &subd_all, OBJ_Geometry *geo,
 					  const GU_Detail *gdp, fpreal time);
-    void refineSop(ROP_AbcHierarchy &assignments,
-		   ROP_AlembicPackedTransform packedtransform,
-		   exint facesetmode, bool use_instancing, bool shape_nodes,
-		   bool displaysop, bool save_hidden, OBJ_Geometry *geo,
-		   SOP_Node *sop, fpreal time);
+
+    void partitionPrims(ROP_AbcHierarchy &assignments,
+			OBJ_Geometry *geo, SOP_Node *sop,
+			GU_ConstDetailHandle &gdh,
+			const GU_Detail *gdp, GA_ROHandleS &path_handle,
+			ROP_AbcHierarchySample &rootSpl,
+			ROP_AbcHierarchySample *curSpl,
+			ROP_AlembicPackedTransform packedtransform,
+			exint facesetmode, bool use_instancing,
+			bool shape_nodes, bool displaysop,
+			bool save_hidden, fpreal time);
 
     bool updateFromSop(OBJ_Geometry *geo, SOP_Node *sop,
 		       ROP_AlembicPackedTransform packedtransform,
 		       exint facesetmode, bool use_instancing,
 		       bool shape_nodes, bool displaysop,
 		       bool save_hidden, fpreal time);
+
+    void refineSop(ROP_AbcHierarchy &assignments,
+		   ROP_AlembicPackedTransform packedtransform,
+		   exint facesetmode, bool use_instancing, bool shape_nodes,
+		   bool displaysop, bool save_hidden, OBJ_Geometry *geo,
+		   SOP_Node *sop, fpreal time);
     bool updateFromHierarchy(ROP_AlembicPackedTransform packedtransform,
 			     exint facesetmode, bool use_instancing,
 			     bool shape_nodes, bool displaysop,
 			     bool save_hidden, fpreal time);
+
     void reportCookErrors(OP_Node *node, fpreal time);
 
     // modify the myRoot by taking the layerOptions then save the file.

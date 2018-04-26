@@ -2388,7 +2388,13 @@ GABC_GEOWalker::updateAbcPrims()
 	else
 	    abc->setFrame(pack, staticTimeZero() ? 0 : time());
 	if (setPath)
-	    myPathAttribute.set(prim->getMapOffset(), abc->objectPath().c_str());
+	{
+	    UT_String objPath(abc->objectPath());
+	    if(myRootObjectPath.length() > 1 && objPath.startsWith(myRootObjectPath))
+		objPath.eraseHead(myRootObjectPath.length());
+
+	    myPathAttribute.set(prim->getMapOffset(), objPath.c_str());
+	}
 
 	setPointTransform(pack, pack->getPointOffset(0));
 
@@ -3040,8 +3046,11 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
     UT_ASSERT(myDetail.getNumPrimitiveOffsets() >= myPrimitiveCount + nprim);
     if (nprim && myPathAttribute.isValid() && pathAttributeChanged())
     {
-	std::string	 pathStr = obj.getFullName();
-	const char	*path = pathStr.c_str();
+	UT_String objPath(obj.getFullName());
+	if(myRootObjectPath.length() > 1 && objPath.startsWith(myRootObjectPath))
+	    objPath.eraseHead(myRootObjectPath.length());
+
+	const char	*path = objPath.c_str();
 	for (exint i = 0; i < nprim; ++i)
 	    myPathAttribute.set(myPrimitiveCount+i, path);
     }

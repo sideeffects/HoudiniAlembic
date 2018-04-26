@@ -426,3 +426,30 @@ ROP_AbcHierarchy::merge(
 	}
     }
 }
+
+void
+ROP_AbcHierarchy::getNodes(UT_Set<ROP_AbcNode *> &nodes)
+{
+    nodes.clear();
+
+    // logs the children
+    UT_Array<Node *> work3;
+    Node *node = &myRoot;
+
+    work3.append(node);
+    while(work3.entries())
+    {
+	node = work3.last();
+	work3.removeLast();
+
+	nodes.insert(node->getAbcNode());
+
+	for(auto &it : node->getShapes())
+	    for(auto &it2 : it.second)
+		for(auto *shape : it2.second)
+		    nodes.insert(shape);
+
+	for(auto &it : node->getChildren())
+	    work3.append(&it.second);
+    }
+}
