@@ -56,6 +56,7 @@ GABC_LayerOptions::getOVisibility(VizType type)
     {
 	default:
 	    UT_ASSERT(0);
+            SYS_FALLTHROUGH;
 	case VizType::DEFER:
 	    return Alembic::AbcGeom::kVisibilityDeferred;
 	case VizType::HIDDEN:

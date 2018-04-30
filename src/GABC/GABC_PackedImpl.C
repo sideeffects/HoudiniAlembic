@@ -762,6 +762,7 @@ GABC_PackedImpl::GTCache::updateFrame(fpreal frame)
 	case GEO_ANIMATION_ATTRIBUTE:
 	case GEO_ANIMATION_TOPOLOGY:
 	    myPrim = GT_PrimitiveHandle();
+            SYS_FALLTHROUGH;
 	case GEO_ANIMATION_TRANSFORM:
 	    myTransform = GT_TransformHandle();
 	case GEO_ANIMATION_CONSTANT:

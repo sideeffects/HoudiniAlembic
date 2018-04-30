@@ -281,6 +281,7 @@ namespace {
                     promote_points = true;
                     owner = GA_ATTRIB_VERTEX;
                     // Fall through to vertex case
+                    SYS_FALLTHROUGH;
                 }
                 else
                 {
