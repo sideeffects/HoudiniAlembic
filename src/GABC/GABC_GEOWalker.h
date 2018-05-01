@@ -175,9 +175,9 @@ public:
 				    { return myDetail; }
     GABC_IError                 &errorHandler()
                                     { return myErrorHandler; }
-    const UT_String		&rootObjectPath() const
+    const std::string		&rootObjectPath() const
 				    { return myRootObjectPath; }
-    const UT_String		&objectPattern() const
+    const std::string		&objectPattern() const
 				    { return myObjectPattern; }
     const UT_StringArray	&excludeObjects() const
 				    { return myExcludeObjects; }
@@ -228,7 +228,7 @@ public:
 		    const UT_String &rootPath);
     void	setExcludeObjects(const char *s);
     void	setObjectPattern(const char *s)
-		    { myObjectPattern.harden(s); }
+		    { myObjectPattern = s; }
     void        setFacesetAttribute(const char *s)
                     { myFacesetAttribute.harden(s); }
     void	setNameMapPtr(const GEO_PackedNameMapPtr &ptr)
@@ -353,8 +353,8 @@ private:
     UT_BoundingBox          myCullBox;
     UT_Interrupt           *myBoss;
     UT_String               myFacesetAttribute;
-    UT_String		    myRootObjectPath;
-    UT_String               myObjectPattern;
+    std::string		    myRootObjectPath;
+    std::string		    myObjectPattern;
     UT_StringArray	    myExcludeObjects;
     std::stack<GABC_VisibilityType> myVisibilityStack;
     UT_Set<std::string>	    myVisited;

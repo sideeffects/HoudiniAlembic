@@ -890,7 +890,7 @@ namespace
 	{
 	    if (obj.getAnimationType(false) != GEO_ANIMATION_TOPOLOGY)
 	    {
-		SYS_HashType hash = SYShash(obj.objectPath().c_str());
+		SYS_HashType hash = SYShash(obj.getFullName().c_str());
 		if (obj.archive())
 		{
 		    auto &filenames = obj.archive()->filenames();
@@ -2742,8 +2742,6 @@ GABC_IObject::GABC_IObject()
     , myObjectPath()
     , myObject()
 {
-    if(myObjectPath == "")
-	myObjectPath = "/";
 }
 
 GABC_IObject::GABC_IObject(const GABC_IObject &obj)
@@ -2753,23 +2751,13 @@ GABC_IObject::GABC_IObject(const GABC_IObject &obj)
 {
 }
 
-GABC_IObject::GABC_IObject(const GABC_IArchivePtr &arch,
-		const std::string &objectpath)
-    : GABC_IItem(arch)
-    , myObjectPath(objectpath)
-    , myObject()
-{
-    if (archive())
-	archive()->resolveObject(*this);
-}
-
 GABC_IObject::GABC_IObject(const GABC_IArchivePtr &arch, const IObject &obj)
     : GABC_IItem(arch)
     , myObjectPath(obj.getFullName())
     , myObject(obj)
 {
-    if(myObjectPath == "")
-	myObjectPath = "/";
+    if(myObjectPath == "/")
+	myObjectPath = "";
 }
 
 void

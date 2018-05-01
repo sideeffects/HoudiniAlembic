@@ -630,7 +630,7 @@ void
 GABC_PackedImpl::setObject(const GABC_IObject &v)
 {
     myObject = v;
-    myObjectPath = myObject.objectPath();
+    myObjectPath = myObject.getFullName();
     myCache.clear();
 }
 

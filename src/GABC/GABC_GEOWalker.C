@@ -2215,7 +2215,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
     : myDetail(gdp)
     , myErrorHandler(err)
     , mySubdGroup(NULL)
-    , myRootObjectPath("/")
+    , myRootObjectPath("")
     , myObjectPattern("*")
     , myNameMapPtr()
     , myFacesetAttribute("*")
@@ -2333,7 +2333,7 @@ bool
 GABC_GEOWalker::setRootObject(const std::vector<std::string> &filenames,
     const UT_String &rootPath)
 {
-    UT_WorkBuffer fixedPath;
+    UT_WorkBuffer buf;
     const char *rpath = rootPath.c_str();
     for(;;)
     {
@@ -2342,30 +2342,34 @@ GABC_GEOWalker::setRootObject(const std::vector<std::string> &filenames,
 	if (!*rpath)
 	    break;
 
-	fixedPath.append('/');
+	buf.append('/');
 	while (*rpath && *rpath != '/')
-	    fixedPath.append(*rpath++);
+	    buf.append(*rpath++);
     }
-    if(fixedPath.length() == 0)
+
+    if(buf.length())
     {
-	myRootObjectPath = "/";
-	myRootInvertedMatrix.identity();
-	return true;
+	GABC_IObject obj = GABC_Util::findObject(filenames, buf.toStdString());
+	if (!obj.valid())
+	    return false;
+
+	GEO_AnimationType atype;
+	obj.getWorldTransform(myRootInvertedMatrix, time(), atype);
+	myRootInvertedMatrix.invert();
     }
+    else
+	myRootInvertedMatrix.identity();
 
-    GABC_IObject rootObj = GABC_Util::findObject(filenames,
-				fixedPath.toStdString());
-    if (!rootObj.valid())
-	return false;
-
-    UT_Matrix4D rootMatrix;
-    GEO_AnimationType atype;
-    rootObj.getWorldTransform(rootMatrix, time(), atype);
-
-    myRootObjectPath.harden(fixedPath.buffer());
-    myRootInvertedMatrix = rootMatrix;
-    myRootInvertedMatrix.invert();
+    myRootObjectPath = buf.buffer();
     return true;
+}
+
+static bool
+gabcStartsWithPath(const std::string &prefix, const char *path)
+{
+    exint len = prefix.length();
+    return strncmp(prefix.c_str(), path, len) == 0
+		&& (path[len] == 0 || path[len] == '/');
 }
 
 void
@@ -2390,11 +2394,11 @@ GABC_GEOWalker::updateAbcPrims()
 	    abc->setFrame(pack, staticTimeZero() ? 0 : time());
 	if (setPath)
 	{
-	    UT_String objPath(abc->objectPath());
-	    if(myRootObjectPath.length() > 1 && objPath.startsWith(myRootObjectPath))
-		objPath.eraseHead(myRootObjectPath.length());
+	    const char *path = obj.getFullName().c_str();
+	    if(gabcStartsWithPath(myRootObjectPath, path))
+		path += myRootObjectPath.length();
 
-	    myPathAttribute.set(prim->getMapOffset(), objPath.c_str());
+	    myPathAttribute.set(prim->getMapOffset(), path);
 	}
 
 	setPointTransform(pack, pack->getPointOffset(0));
@@ -2449,8 +2453,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
     UT_Matrix4D rest_matrix = myMatrix;
 
     bool inheritXform = (obj.nodeType() != GABC_NodeType::GABC_ROOT
-			&& ::strcmp(obj.getParent().objectPath().c_str(),
-			    rootObjectPath().c_str()) != 0);
+			&& obj.getParent().getFullName() != rootObjectPath());
     if (!inheritXform)
 	myMatrix.identity();
 
@@ -2656,26 +2659,26 @@ GABC_GEOWalker::interrupted() const
 bool
 GABC_GEOWalker::filterObject(const GABC_IObject &obj) const
 {
-    UT_String	path(obj.getFullName());
+    const char *path = obj.getFullName().c_str();
 
-    return path != myRootObjectPath &&
-	   path.startsWith(myRootObjectPath) &&
-	   matchObjectName(obj) &&
-	   matchAnimationFilter(obj) &&
-           matchGeometryFilter(obj) &&
-	   matchBounds(obj) &&
-	   matchSize(obj);
+    return myRootObjectPath != path
+	   && gabcStartsWithPath(myRootObjectPath, path)
+	   && matchObjectName(obj)
+	   && matchAnimationFilter(obj)
+           && matchGeometryFilter(obj)
+	   && matchBounds(obj)
+	   && matchSize(obj);
 }
 
 bool
 GABC_GEOWalker::filterAnyChild(const GABC_IObject &obj) const
 {
-    UT_String	path(obj.getFullName());
+    const std::string &path = obj.getFullName();
 
-    return (myRootObjectPath.startsWith(path) || 
-	    path.startsWith(myRootObjectPath)) &&
-	       matchChildBounds(obj) &&
-	       matchChildSize(obj);
+    return (gabcStartsWithPath(myRootObjectPath, path.c_str())
+	    || gabcStartsWithPath(path, myRootObjectPath.c_str()))
+		&& matchChildBounds(obj)
+		&& matchChildSize(obj);
 }
 
 bool
@@ -2683,7 +2686,7 @@ GABC_GEOWalker::matchObjectName(const GABC_IObject &obj) const
 {
     UT_String	path(obj.getFullName());
 
-    if (!path.multiMatch(objectPattern()))
+    if (!path.multiMatch(objectPattern().c_str()))
 	return false;
 
     // Test for exclusion based on object name.
@@ -3047,11 +3050,10 @@ GABC_GEOWalker::trackPtVtxPrim(const GABC_IObject &obj,
     UT_ASSERT(myDetail.getNumPrimitiveOffsets() >= myPrimitiveCount + nprim);
     if (nprim && myPathAttribute.isValid() && pathAttributeChanged())
     {
-	UT_String objPath(obj.getFullName());
-	if(myRootObjectPath.length() > 1 && objPath.startsWith(myRootObjectPath))
-	    objPath.eraseHead(myRootObjectPath.length());
+	const char *path = obj.getFullName().c_str();
+	if(gabcStartsWithPath(myRootObjectPath, path))
+	    path += myRootObjectPath.length();
 
-	const char	*path = objPath.c_str();
 	for (exint i = 0; i < nprim; ++i)
 	    myPathAttribute.set(myPrimitiveCount+i, path);
     }

@@ -277,7 +277,7 @@ GABC_IArchive::resolveObject(GABC_IObject &obj)
 
     if (!valid())
 	return;
-    UT_String		path(obj.objectPath());
+    UT_String		path(obj.getFullName());
     UT_WorkArgs		args;
     path.tokenize(args, '/');
     IObject	curr = myArchive.getTop();

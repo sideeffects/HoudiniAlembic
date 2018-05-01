@@ -73,7 +73,6 @@ public:
     GABC_IObject();
     GABC_IObject(const GABC_IObject &obj);
     GABC_IObject(const GABC_IArchivePtr &arch, const IObject &obj);
-    GABC_IObject(const GABC_IArchivePtr &arch, const std::string &objectpath);
     virtual ~GABC_IObject();
 
     /// Initialize (called by GABC_IArchive)
@@ -320,7 +319,6 @@ public:
 
     /// @{
     /// Member data access
-    const std::string	&objectPath() const		{ return myObjectPath; }
     const IObject	&object() const			{ return myObject; }
     /// @}
 
