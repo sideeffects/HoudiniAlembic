@@ -52,7 +52,9 @@ EXTRALIBS = \
 
 ABCFLAGS = $(ABCDEF) -I$(ABCINC) -I$(HALFDIR)
 
-GABCCFILES = \
+GABCLIB_SONAME = libCustomGABC.so
+GABCLIB = libs/$(GABCLIB_SONAME)
+GABCLIB_C = \
 	src/GABC/GABC_Error.C \
 	src/GABC/GABC_GEOWalker.C \
 	src/GABC/GABC_IArchive.C \
@@ -60,6 +62,7 @@ GABCCFILES = \
 	src/GABC/GABC_IGTArray.C \
 	src/GABC/GABC_IItem.C \
 	src/GABC/GABC_IObject.C \
+	src/GABC/GABC_LayerOptions.C \
 	src/GABC/GABC_OArrayProperty.C \
 	src/GABC/GABC_OGTGeometry.C \
 	src/GABC/GABC_OOptions.C \
@@ -68,57 +71,88 @@ GABCCFILES = \
 	src/GABC/GABC_PackedImpl.C \
 	src/GABC/GABC_Types.C \
 	src/GABC/GABC_Util.C
-GABCOFILES = $(GABCCFILES:.C=.o)
-GABCLIB = libs/libCustomGABC.so
+GABCLIB_O = $(GABCLIB_C:.C=.o)
 
-ALEMBIC_IN	= src/SOP/SOP_AlembicIn.C
-ALEMBIC_IN_SO	= $(ALEMBIC_IN:.C=.so)
-ALEMBIC_IN_O	= $(ALEMBIC_IN:.C=.o)
+ALEMBIC_IN_SO	= src/SOP/SOP_AlembicIn.so
+ALEMBIC_IN_C	= $(ALEMBIC_IN_SO:.so=.C)
+ALEMBIC_IN_O	= $(ALEMBIC_IN_C:.C=.o)
 
-ALEMBIC_GROUP		= src/SOP/SOP_AlembicGroup.C
-ALEMBIC_GROUP_SO	= $(ALEMBIC_GROUP:.C=.so)
-ALEMBIC_GROUP_O		= $(ALEMBIC_GROUP:.C=.o)
+ALEMBIC_GROUP_SO	= src/SOP/SOP_AlembicGroup.so
+ALEMBIC_GROUP_C		= $(ALEMBIC_GROUP_SO:.so=.C)
+ALEMBIC_GROUP_O		= $(ALEMBIC_GROUP_C:.C=.o)
 
-GU_ALEMBIC	= src/GU/GU_Alembic.C
-GU_ALEMBIC_SO	= $(GU_ALEMBIC:.C=.so)
-GU_ALEMBIC_O	= $(GU_ALEMBIC:.C=.o)
+ALEMBIC_PRIMITIVE_SO	= src/SOP/SOP_AlembicPrimitive.so
+ALEMBIC_PRIMITIVE_C	= $(ALEMBIC_PRIMITIVE_SO:.so=.C)
+ALEMBIC_PRIMITIVE_O	= $(ALEMBIC_PRIMITIVE_C:.C=.o)
 
-PLUGINS	= \
-	$(ALEMBIC_IN) \
-	$(ALEMBIC_GROUP) \
-	$(GU_ALEMBIC)
+ALEMBIC_OUT_SO	= src/ROP/ROP_AlembicOut.so
+ALEMBIC_OUT_C	= \
+	src/ROP/ROP_AbcArchive.C \
+	src/ROP/ROP_AbcHierarchy.C \
+	src/ROP/ROP_AbcHierarchySample.C \
+	src/ROP/ROP_AbcNode.C \
+	src/ROP/ROP_AbcNodeCamera.C \
+	src/ROP/ROP_AbcNodeInstance.C \
+	src/ROP/ROP_AbcNodeShape.C \
+	src/ROP/ROP_AbcNodeXform.C \
+	src/ROP/ROP_AbcRefiner.C \
+	src/ROP/ROP_AbcUserProperties.C \
+	$(ALEMBIC_OUT_SO:.so=.C)
+ALEMBIC_OUT_O = $(ALEMBIC_OUT_C:.C=.o)
 
-CFILES	= $(GABCCFILES) $(PLUGINS)
-OFILES	= $(GABCOFILES) $(PLUGINS:.C=.o)
-TARGETS	= $(GABCLIB) $(PLUGINS:.C=.so)
+GU_ALEMBIC_SO	= src/GU/GU_Alembic.so
+GU_ALEMBIC_C	= $(GU_ALEMBIC_SO:.so=.C)
+GU_ALEMBIC_O	= $(GU_ALEMBIC_C:.C=.o)
 
-%.o:	%.C
+TARGETS = \
+	$(GABCLIB) \
+	$(ALEMBIC_IN_SO) \
+	$(ALEMBIC_GROUP_SO) \
+	$(ALEMBIC_PRIMITIVE_SO) \
+	$(ALEMBIC_OUT_SO) \
+	$(GU_ALEMBIC_SO)
+
+OFILES	= \
+	$(GABCLIB_O) \
+	$(ALEMBIC_IN_O) \
+	$(ALEMBIC_GROUP_O) \
+	$(ALEMBIC_PRIMITIVE_O) \
+	$(ALEMBIC_OUT_O) \
+	$(GU_ALEMBIC_O)
+
+%.o:	%.C $(GABCLIB)
 	$(CXX) -DCXX11_ENABLED=1 $(ABCFLAGS) $(OBJFLAGS) -c -o $@ $<
 
-all:	$(GABCLIB) $(PLUGINS:.C=.so)
+all:	$(TARGETS)
 
 install:	all
 
-$(GABCLIB):	$(GABCOFILES)
+$(GABCLIB):	$(GABCLIB_O)
 	mkdir -p libs
 	$(CXX) -shared \
-	    -Wl,-soname,$(GABCLIB) \
+	    -Wl,-soname,$(GABCLIB_SONAME) \
 	    -Wl,--exclude-libs,ALL  \
-	    -o $@ $(GABCOFILES) $(SAFLAGS) $(EXTRALIBS)
+	    -o $@ $(GABCLIB_O) $(SAFLAGS) $(EXTRALIBS)
 
-$(ALEMBIC_IN_SO):	$(ALEMBIC_IN_O) $(GABCLIB)
-	$(CXX) -shared -o $@ $< $(SAFLAGS) $(GABCLIB) $(ABCHUGE)
+$(ALEMBIC_IN_SO):	$(ALEMBIC_IN_O)
+	$(CXX) -shared -o $@ $^ $(SAFLAGS) $(GABCLIB)
 
-$(ALEMBIC_GROUP_SO):	$(ALEMBIC_GROUP_O) $(GABCLIB)
-	$(CXX) -shared -o $@ $< $(SAFLAGS) $(GABCLIB) $(ABCHUGE)
+$(ALEMBIC_GROUP_SO):	$(ALEMBIC_GROUP_O)
+	$(CXX) -shared -o $@ $^ $(SAFLAGS) $(GABCLIB)
 
-$(GU_ALEMBIC_SO):	$(GU_ALEMBIC_O) $(GABCLIB)
-	$(CXX) -shared -o $@ $< $(SAFLAGS) $(GABCLIB) $(ABCHUGE)
+$(ALEMBIC_PRIMITIVE_SO):	$(ALEMBIC_PRIMITIVE_O)
+	$(CXX) -shared -o $@ $^ $(SAFLAGS) $(GABCLIB)
+
+$(ALEMBIC_OUT_SO):	$(ALEMBIC_OUT_O)
+	$(CXX) -shared -o $@ $^ $(SAFLAGS) $(GABCLIB)
+
+$(GU_ALEMBIC_SO):	$(GU_ALEMBIC_O)
+	$(CXX) -shared -o $@ $^ $(SAFLAGS) $(GABCLIB)
 
 clean:
-	rm -f $(OFILES)
+	rm -f $(OFILES) $(TARGETS)
 
-test:	$(GABCOFILES)
+test:	$(GABCLIB_O)
 	@echo All objects compiled properly
 
 rmtargets:
