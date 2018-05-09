@@ -61,7 +61,7 @@ namespace
     class SOP_AlembicInErr : public GABC_NAMESPACE::GABC_IError
     {
     public:
-        SOP_AlembicInErr(SOP_AlembicIn2 &node, UT_Interrupt *interrupt)
+        SOP_AlembicInErr(SOP_AlembicIn &node, UT_Interrupt *interrupt)
             : GABC_IError(interrupt)
             , myNode(node)
         {}
@@ -72,14 +72,14 @@ namespace
         virtual void	handleInfo(const char *msg)
                                 { myNode.abcInfo(msg); }
     private:
-        SOP_AlembicIn2  &myNode;
+        SOP_AlembicIn  &myNode;
     };
 
     static int
     selectAlembicNodes(void *data, int index,
 	    fpreal t, const PRM_Template *tplate, bool radio)
     {
-	SOP_AlembicIn2	*sop = (SOP_AlembicIn2 *)(data);
+	SOP_AlembicIn	*sop = (SOP_AlembicIn *)(data);
 	UT_WorkBuffer	cmd;
 	UT_String	filename;
 	UT_String	objectpath;
@@ -184,7 +184,7 @@ namespace
     }
 }
 
-SOP_AlembicIn2::Parms::Parms()
+SOP_AlembicIn::Parms::Parms()
     : myLoadMode(GABC_GEOWalker::LOAD_ABC_PRIMITIVES)
     , myBoundMode(GABC_GEOWalker::BOX_CULL_IGNORE)
     , mySizeCullMode(GABC_GEOWalker::SIZE_CULL_IGNORE)
@@ -217,14 +217,14 @@ SOP_AlembicIn2::Parms::Parms()
     myBoundBox.makeInvalid();
 }
 
-SOP_AlembicIn2::Parms::Parms(const SOP_AlembicIn2::Parms &src)
+SOP_AlembicIn::Parms::Parms(const SOP_AlembicIn::Parms &src)
 {
     *this = src;
 }
 
 
-SOP_AlembicIn2::Parms &
-SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
+SOP_AlembicIn::Parms &
+SOP_AlembicIn::Parms::operator=(const SOP_AlembicIn::Parms &src)
 {
     myFileNames = src.myFileNames;
     myLoadMode = src.myLoadMode;
@@ -260,14 +260,14 @@ SOP_AlembicIn2::Parms::operator=(const SOP_AlembicIn2::Parms &src)
 }
 
 bool
-SOP_AlembicIn2::Parms::needsPathAttributeUpdate(const SOP_AlembicIn2::Parms &parms)
+SOP_AlembicIn::Parms::needsPathAttributeUpdate(const SOP_AlembicIn::Parms &parms)
 {
     return myPathAttribute != parms.myPathAttribute ||
 	myFileNameAttribute != parms.myFileNameAttribute;
 }
 
 bool
-SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
+SOP_AlembicIn::Parms::needsNewGeometry(const SOP_AlembicIn::Parms &src)
 {
     if (myLoadMode != src.myLoadMode)
 	return true;
@@ -347,9 +347,9 @@ SOP_AlembicIn2::Parms::needsNewGeometry(const SOP_AlembicIn2::Parms &src)
 //-*****************************************************************************
 
 OP_Node *
-SOP_AlembicIn2::myConstructor(OP_Network *net, const char *name, OP_Operator *op)
+SOP_AlembicIn::myConstructor(OP_Network *net, const char *name, OP_Operator *op)
 {
-    return new SOP_AlembicIn2(net, name, op);
+    return new SOP_AlembicIn(net, name, op);
 }
 
 //-*****************************************************************************
@@ -629,10 +629,10 @@ sopCreateObjectPathSpareData(bool clear_path, bool clear_exclude)
     );
 }
 
-PRM_Template SOP_AlembicIn2::myTemplateList[] =
+PRM_Template SOP_AlembicIn::myTemplateList[] =
 {
     PRM_Template(PRM_CALLBACK, 1, &prm_reloadbutton,
-	    0, 0, 0, SOP_AlembicIn2::reloadGeo),
+	    0, 0, 0, SOP_AlembicIn::reloadGeo),
     PRM_Template(PRM_MULTITYPE_LIST, prm_layersTemplate, 1,
             &prm_numlayersName, 0, 0, &PRM_SpareData::multiStartOffsetOne),
     PRM_Template(PRM_FILE,  1, &prm_filenameName, &prm_filenameDefault,
@@ -733,7 +733,7 @@ PRM_Template SOP_AlembicIn2::myTemplateList[] =
 
 //-*****************************************************************************
 
-SOP_AlembicIn2::SOP_AlembicIn2(OP_Network *net, const char *name,
+SOP_AlembicIn::SOP_AlembicIn(OP_Network *net, const char *name,
         OP_Operator *op)
     : SOP_Node(net, name, op)
     , myLastParms()
@@ -745,7 +745,7 @@ SOP_AlembicIn2::SOP_AlembicIn2(OP_Network *net, const char *name,
     mySopFlags.setNeedGuide1(1);
 }
 
-SOP_AlembicIn2::~SOP_AlembicIn2()
+SOP_AlembicIn::~SOP_AlembicIn()
 {
     clearEventHandler();
 }
@@ -753,9 +753,9 @@ SOP_AlembicIn2::~SOP_AlembicIn2()
 //-*****************************************************************************
 
 int
-SOP_AlembicIn2::reloadGeo(void *data, int index, float time, const PRM_Template *tplate)
+SOP_AlembicIn::reloadGeo(void *data, int index, float time, const PRM_Template *tplate)
 {
-    SOP_AlembicIn2 *me = (SOP_AlembicIn2 *) data;
+    SOP_AlembicIn *me = (SOP_AlembicIn *) data;
 
     std::vector<std::string> filenames;
     me->appendFileNames(filenames, time);
@@ -767,7 +767,7 @@ SOP_AlembicIn2::reloadGeo(void *data, int index, float time, const PRM_Template 
 //-*****************************************************************************
 
 GABC_GEOWalker::BoxCullMode
-SOP_AlembicIn2::getCullingBox(UT_BoundingBox &box, OP_Context &ctx)
+SOP_AlembicIn::getCullingBox(UT_BoundingBox &box, OP_Context &ctx)
 {
     UT_String			boxcull;
     GABC_GEOWalker::BoxCullMode	mode = GABC_GEOWalker::BOX_CULL_IGNORE;
@@ -813,7 +813,7 @@ SOP_AlembicIn2::getCullingBox(UT_BoundingBox &box, OP_Context &ctx)
 //-*****************************************************************************
 
 GABC_GEOWalker::SizeCullMode
-SOP_AlembicIn2::getSizeCullMode(GABC_GEOWalker::SizeCompare &cmp, fpreal &size, fpreal t)
+SOP_AlembicIn::getSizeCullMode(GABC_GEOWalker::SizeCompare &cmp, fpreal &size, fpreal t)
 {
     UT_String sizecull;
     GABC_GEOWalker::SizeCullMode	mode = GABC_GEOWalker::SIZE_CULL_IGNORE;
@@ -841,7 +841,7 @@ SOP_AlembicIn2::getSizeCullMode(GABC_GEOWalker::SizeCompare &cmp, fpreal &size, 
 //-*****************************************************************************
 
 bool
-SOP_AlembicIn2::updateParmsFlags()
+SOP_AlembicIn::updateParmsFlags()
 {
     bool	changed = false;
     bool	hasbox = (nInputs() > 0);
@@ -878,7 +878,7 @@ SOP_AlembicIn2::updateParmsFlags()
 
 //-*****************************************************************************
 void
-SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
+SOP_AlembicIn::evaluateParms(Parms &parms, OP_Context &context)
 {
     fpreal	now = context.getTime();
     UT_String	sval;
@@ -1046,7 +1046,7 @@ SOP_AlembicIn2::evaluateParms(Parms &parms, OP_Context &context)
 
 //-*****************************************************************************
 void
-SOP_AlembicIn2::setupEventHandler(const std::vector<std::string> &filenames)
+SOP_AlembicIn::setupEventHandler(const std::vector<std::string> &filenames)
 {
     clearEventHandler();
     myEventHandler.reset(new EventHandler(this));
@@ -1055,7 +1055,7 @@ SOP_AlembicIn2::setupEventHandler(const std::vector<std::string> &filenames)
 }
 
 void
-SOP_AlembicIn2::clearEventHandler()
+SOP_AlembicIn::clearEventHandler()
 {
     if (myEventHandler)
     {
@@ -1067,7 +1067,7 @@ SOP_AlembicIn2::clearEventHandler()
 //-*****************************************************************************
 
 void
-SOP_AlembicIn2::archiveClearEvent()
+SOP_AlembicIn::archiveClearEvent()
 {
     // Clear out the lasst-cook parameters
     myLastParms = Parms();
@@ -1088,7 +1088,7 @@ sopAppendFile(std::vector<std::string> &filenames, const char *name)
 }
 
 void
-SOP_AlembicIn2::appendFileNames(std::vector<std::string> &filenames, fpreal t)
+SOP_AlembicIn::appendFileNames(std::vector<std::string> &filenames, fpreal t)
 {
     int numlayers = evalInt("numlayers", 0, t);
     for (int i = 1; i <= numlayers; ++i)
@@ -1110,7 +1110,7 @@ SOP_AlembicIn2::appendFileNames(std::vector<std::string> &filenames, fpreal t)
 
 //-*****************************************************************************
 void
-SOP_AlembicIn2::setPathAttributes(GABC_GEOWalker &walk, const Parms &parms)
+SOP_AlembicIn::setPathAttributes(GABC_GEOWalker &walk, const Parms &parms)
 {
     auto &detail = walk.detail();
     if (parms.myPathAttribute.isstring())
@@ -1137,7 +1137,7 @@ SOP_AlembicIn2::setPathAttributes(GABC_GEOWalker &walk, const Parms &parms)
 }
 
 void
-SOP_AlembicIn2::setPointMode(GABC_GEOWalker &walk, const Parms &parms)
+SOP_AlembicIn::setPointMode(GABC_GEOWalker &walk, const Parms &parms)
 {
     auto &walkgdp = walk.detail();
 
@@ -1163,7 +1163,7 @@ static const char	*theHoudiniGeometryWarning =
     "Loading Houdini Geometry isn't always as accurate as unpacking Alembic primitives.";
 
 void
-SOP_AlembicIn2::getNodeSpecificInfoText(OP_Context &context,
+SOP_AlembicIn::getNodeSpecificInfoText(OP_Context &context,
     OP_NodeInfoParms &iparms)
 {
     // Get parent's text.
@@ -1181,7 +1181,7 @@ SOP_AlembicIn2::getNodeSpecificInfoText(OP_Context &context,
 }
 
 void
-SOP_AlembicIn2::fillInfoTreeNodeSpecific(UT_InfoTree &tree, 
+SOP_AlembicIn::fillInfoTreeNodeSpecific(UT_InfoTree &tree, 
 	const OP_NodeInfoTreeParms &parms)
 {
     SOP_Node::fillInfoTreeNodeSpecific(tree, parms);
@@ -1205,7 +1205,7 @@ SOP_AlembicIn2::fillInfoTreeNodeSpecific(UT_InfoTree &tree,
 }
 
 OP_ERROR
-SOP_AlembicIn2::cookMySop(OP_Context &context)
+SOP_AlembicIn::cookMySop(OP_Context &context)
 {
     Parms	parms;
     fpreal	now = context.getTime();
@@ -1406,7 +1406,7 @@ SOP_AlembicIn2::cookMySop(OP_Context &context)
 }
 
 OP_ERROR
-SOP_AlembicIn2::cookMyGuide1(OP_Context &ctx)
+SOP_AlembicIn::cookMyGuide1(OP_Context &ctx)
 {
     UT_BoundingBox	box;
 
@@ -1425,7 +1425,7 @@ namespace
 class abcFileAppearance : public SOP_ObjectAppearance
 {
 public:
-    abcFileAppearance(SOP_AlembicIn2 *o)
+    abcFileAppearance(SOP_AlembicIn *o)
 	: myObject(o)
     {
     }
@@ -1454,13 +1454,13 @@ public:
     }
 
 private:
-    SOP_AlembicIn2	*myObject;
+    SOP_AlembicIn	*myObject;
 };
 
 }
 
 SOP_ObjectAppearancePtr
-SOP_AlembicIn2::getObjectAppearance()
+SOP_AlembicIn::getObjectAppearance()
 {
     return SOP_ObjectAppearancePtr(new abcFileAppearance(this));
 }
@@ -1469,7 +1469,7 @@ SOP_AlembicIn2::getObjectAppearance()
 
 //-*****************************************************************************
 void
-SOP_AlembicIn2::syncNodeVersion(const char *old_version,
+SOP_AlembicIn::syncNodeVersion(const char *old_version,
 				const char *current_version,
 				bool *node_deleted)
 {
@@ -1540,7 +1540,7 @@ namespace
 }
 
 void
-SOP_AlembicIn2::unpack(
+SOP_AlembicIn::unpack(
     GU_Detail &dest, const GU_Detail &src, const Parms &parms)
 {
     dest.stashAll();
@@ -1563,13 +1563,13 @@ SOP_AlembicIn2::unpack(
 //-*****************************************************************************
 
 void
-SOP_AlembicIn2::installSOP(OP_OperatorTable *table)
+SOP_AlembicIn::installSOP(OP_OperatorTable *table)
 {
     OP_Operator *alembic_op = new OP_Operator(
         CUSTOM_ALEMBIC_TOKEN_PREFIX "alembic",		// Internal name
         CUSTOM_ALEMBIC_LABEL_PREFIX "Alembic",		// GUI name
-        SOP_AlembicIn2::myConstructor,	// Op Constructr
-        SOP_AlembicIn2::myTemplateList,	// Parameter Definition
+        SOP_AlembicIn::myConstructor,	// Op Constructr
+        SOP_AlembicIn::myTemplateList,	// Parameter Definition
         0, 1,				// Min/Max # of Inputs
         0,				// Local variables
 	OP_FLAG_GENERATOR);		// Generator flag
@@ -1578,7 +1578,7 @@ SOP_AlembicIn2::installSOP(OP_OperatorTable *table)
 }
 
 const char *
-SOP_AlembicIn2::inputLabel(unsigned int idx) const
+SOP_AlembicIn::inputLabel(unsigned int idx) const
 {
     switch (idx)
     {
@@ -1593,5 +1593,5 @@ SOP_AlembicIn2::inputLabel(unsigned int idx) const
 void
 newSopOperator(OP_OperatorTable *table)
 {
-    SOP_AlembicIn2::installSOP(table);
+    SOP_AlembicIn::installSOP(table);
 }

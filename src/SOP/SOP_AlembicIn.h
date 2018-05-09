@@ -34,7 +34,7 @@
 #include <GABC/GABC_Util.h>
 
 /// SOP to read Alembic geometry
-class SOP_AlembicIn2 : public SOP_Node
+class SOP_AlembicIn : public SOP_Node
 {
 public:
     typedef GABC_NAMESPACE::GABC_Util		GABC_Util;
@@ -77,8 +77,8 @@ public:
 protected:
     //--------------------------------------------------------------------------
     // Standard hdk declarations
-    SOP_AlembicIn2(OP_Network *net, const char *name, OP_Operator *op);
-    virtual ~SOP_AlembicIn2();
+    SOP_AlembicIn(OP_Network *net, const char *name, OP_Operator *op);
+    virtual ~SOP_AlembicIn();
 
     virtual bool	updateParmsFlags() override;
     virtual OP_ERROR	cookMySop(OP_Context &context) override;
@@ -152,13 +152,13 @@ private:
     class EventHandler : public ArchiveEventHandler
     {
     public:
-	EventHandler(SOP_AlembicIn2 *sop)
+	EventHandler(SOP_AlembicIn *sop)
 	    : mySOP(sop)
 	{
 	}
 	virtual ~EventHandler() {}
 
-	void	setSOP(SOP_AlembicIn2 *sop)	{ mySOP = sop; }
+	void	setSOP(SOP_AlembicIn *sop)	{ mySOP = sop; }
 
 	virtual void	cleared() override
 	{
@@ -169,7 +169,7 @@ private:
 	    }
 	}
     private:
-	SOP_AlembicIn2	*mySOP;
+	SOP_AlembicIn	*mySOP;
     };
 
     void	evaluateParms(Parms &parms, OP_Context &context);
