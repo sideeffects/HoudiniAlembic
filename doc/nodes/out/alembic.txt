@@ -10,13 +10,19 @@ See the following link for further information about the [Alembic format|http://
 
 @parameters
 
-Render:
+Render to Disk:
+	#id: execute
+
         Begins the render with the last render control settings.
 
-Render Control:
+Controls...:
+	#id: renderdialog
+
         Opens the render control dialog to allow adjustments of the render parameters before rendering.
 
 Valid Frame Range:
+	#id: trange
+
         Controls whether this render node outputs the current frame (__Render any frame__) or the image sequence specified in the __Start/End/Inc__ parameters (__Render Frame Range__).
 
         __Render Frame Range (strict)__ will render frames START to END when it is rendered, but will not allow frames outside this range to be rendered at all. __Render Frame Range__ will allow outside frames to be rendered. This is used in conjunction with render dependencies. It also affects the behavior of the 'Override Frame Range' in the Render Control dialog.
@@ -74,15 +80,21 @@ Start/End/Inc:
                             td>> 4
 
 Render With Take:
+	#id: take
+
         The output driver will switch to this take before rendering and then restore the current take when rendering is done.
 
         TIP:
                 Use `chs("take")` to use this value in other parameters. See the [Exp:chs] expression function for more information.
 
 Alembic File:
+	#id: filename
+
         The name of the archive to generate.
 
 Format:
+	#id: format
+
 	The file format of the archive to generate.
 
 	Default:
@@ -95,9 +107,13 @@ Format:
 		Use the Ogawa file format. Ogawa is an Alembic-specific file format available for use as of Alembic 1.5. Ogawa files are on average smaller (by 5-15%) and faster (4x for single-threaded reads, 25x for multi-threaded reads on 8 core systems) than HDF5 files.
 
 Create Intermediate Directories:
+	#id: mkpath
+
 	Create the directories in the Alembic archive output path if they do not exist.
 
 Render Full Range (Override Frame-By-Frame):
+	#id: render_full_range
+
 	Normally, it's best to render all frames into a single Alembic
 	archive.  This allows Alembic to optimize storage of data and to be
 	more efficient.  This is the default behavior of the output driver,
@@ -114,12 +130,18 @@ Initialize Simulation OPs:
 == Hierarchy ==
 
 Use SOP Path:
+	#id: use_sop_path
+
 	Instead of exporting objects contained under a root object, the Alembic ROP can export a single geometry detail specified by a SOP path. The SOP path export method is enabled by this parameter.
 
 SOP Path:
+	#id: sop_path
+
 	The path to the geometry detail to include in the alembic archive.
 
 Subdivision Group:
+	#id: subdgroup
+
 	If a group name is specified here, any polygons in any objects will be
 	saved as subdivision primitives in the Alembic file.  Other polygons
 	will be saved as polygon mesh nodes.
@@ -131,18 +153,26 @@ Subdivision Group:
 	to select which polygons will be rendered as subdivision surfaces.
 
 Build Hierarchy From Attribute:
+	#id: build_from_path
+
 	Use a primitive string attribute to directly specify the path of a primitive in the output archive.
 
 Path Attribute:
+	#id: path_attrib
+
 	The name of the attribute containing the path.
 
 Root Object:
+	#id: root
+
         The root object of the scene. All displayed objects contained under this node will be included in the Alembic archive.
 
 Objects:
         A pattern/bundle of objects to include in the alembic archive.
 
 Collapse Objects:
+	#id: collapse
+
         This option can be used to skip writing transform nodes which have no transform
         (an identity transform) for the entire animation.
 
@@ -166,13 +196,19 @@ Collapse Objects:
 	        If an object has a parameter named `abc_collapse` that evaluates to a non-zero value, the object will be skipped from the save.  This allows fine-grained per-object control regardless of the setting of this parameter.
 
 Save All Non-Displayed (Hidden) Objects:
+	#id: save_hidden
+
 	If this checkbox is turned on, hidden objects matching the __Objects__ pattern/bundle will also written to the Alembic archive.
 
 Use Display SOP:
+	#id: displaysop
+
 	If this checkbox is turned on, the geometry in the Display SOP will be
 	saved instead of the geometry from the Render SOP.
 
 Partition Mode:
+	#id: partition_mode
+
         When saving a complex piece of geometry, it is possible to partition the
         geometry into multiple shape nodes by splitting up the primitives based on
         a string attribute.  There are several different ways to interpret the
@@ -195,6 +231,8 @@ Partition Mode:
 		name for the new shape node.
 
 Partition Attribute:
+	#id: partition_attribute
+
         Specifies a string attribute which is used to partition a single geometry
         into multiple Alembic shape nodes. For example, you can use the `name` or
         the `abcPath` attribute to split a single piece of Houdini geometry into
@@ -202,12 +240,16 @@ Partition Attribute:
 
 
 Full Bounding Box Tree:
+	#id: full_bounds
+
         This will cause all Alembic nodes to have proper bounding boxes written.
         Computing bounds for only the shape nodes is more efficient.
 
 == Geometry ==
 
 Packed Transform:
+	#id: packed_transform
+
         When saving a complex piece of geometry, it is possible to partition the
         geometry into multiple shape nodes using packed primitives.  There are several different ways to handle packed primitives.
 
@@ -219,37 +261,59 @@ Packed Transform:
 		The packed primitive's transform will be baked in to the parent transform node.
 
 Use Instancing Where Possible:
+	#id: use_instancing
+
 	This will cause packed objects to be instanced within the Alembic archive during write, reusing geometry and potentially decreasing the size of the file.
 
 Create Shape Nodes:
+	#id: shape_nodes
+
 	This will cause Alembic shape nodes to be created for geometry.
 
 Save Attributes:
+	#id: save_attributes
+
         If this checkbox is turned on, geometry attributes will be saved to the
         Alembic file as arbitrary geometry parameters.
 
 Point Attributes:
+	#id: pointAttributes
+
 	Point attributes whose name matches this pattern will be saved in the Alembic file.
 
 Vertex Attributes:
+	#id: vertexAttributes
+
 	Vertex attributes whose name matches this pattern will be saved in the Alembic file.
 
 Primitive Attributes:
+	#id: primitiveAttributes
+
 	Primitive attributes whose name matches this pattern will be saved in the Alembic file.
 
 Detail Attributes:
+	#id: detailAttributes
+
 	Detail attributes whose name matches this pattern will be saved in the Alembic file.
 
 Primitive To Detail:
+	#id: prim_to_detail_pattern
+
 	Promote primitive attributes matching this pattern to detail attributes before exporting to Alembic.  Sometimes when importing Alembic, Houdini must convert constant Alembic data to uniform data.  This option lets you manually re-adjust certain attributes on export.
 
 Force Conversion of Matching Primitive Attributes to Detail:
+	#id: force_prim_to_detail
+
 	The normal behavior when promoting primitive attributes to detail attributes is to validate that the values are the same for all primitives.  Enabling this option will bypass this check forcing all matching primitive attributes to be converted to detail attributes regardless.  The attribute value of the first primitive will be used as the single detail value for the exported primitive.
 
 Additional UV Attributes:
+	#id: uvAttributes
+
         Additional UV attributes whose name matches this pattern will be saved in the Alembic file.
 
 Face Sets:
+	#id: facesets
+
         This parameter controls how Houdini primitive groups will be translated to
         Alembic face sets.  Alembic only supports face sets for polygon and
         subdivision meshes.
@@ -263,13 +327,66 @@ Face Sets:
         	Face sets will be created for all groups, regardless of whether
         	the group contains any polygons.
 
+== Layering ==
+
+Enable Layering:
+	#id: uselayering
+
+	When enabled, the resulting Alembic archive will only export the
+	subset of the scene specified by parameters on the __Layering__ tab.
+
+Create Full Ancestors for Output Nodes:
+	#id: fullancestor
+
+	When enabled, all data for ancestors to non-pruned nodes specified by
+	the __Nodes__ multiparm will be exported.
+
+Nodes:
+	#id: numnodes
+
+	Use this multiparm to specify which nodes the resulting Alembic layer
+	will fully prune, replace, or merge.  Click the ((+)) button to add a
+	new rule.
+
+Visibilities:
+	#id: numvizs
+
+	Use this multiparm to specify which nodes the resulting Alembic layer
+	will have their visibility changed.  Click the ((+)) button to add a
+	new rule.
+
+Attributes:
+	#id: numattrs
+
+	Use this multiparm to specify which attributes the resulting Alembic
+	layer will prune or replace.  Click the ((+)) button to add a new rule.
+
+Face Sets:
+	#id: numfacesets
+
+	Use this multiparm to specify which face sets the resulting Alembic
+	layer will prune or replace.  Click the ((+)) button to add a new rule.
+
+User Properties:
+	#id: numuserprops
+
+	Use this multiparm to specify which user properties the resulting
+	Alembic layer will prune or replace.  Click the ((+)) button to add a
+	new rule.
+
 == Motion Blur ==
 
 Use Motion Blur:
+	#id: motionBlur
+
         Enabling this will cause sub-frame geometry to be saved to the Alembic file.
 
 Samples:
+	#id: samples
+
         The number of sub-frame motion samples to be saved.
 
 Shutter:
+	#id: shutter
+
         The open/close of the shutter for sub-frame motion samples.
