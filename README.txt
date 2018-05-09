@@ -6,7 +6,7 @@ Linux.  Additional work would have to be done for other platforms.
     Makefile to make a "packed" Alembic library for use with the custom code.
     Since Linux will only load a .so file one time (based on the soname), you
     will need to create a different set of libraries (i.e. other than
-    libAlembicAbc.so.
+    libAlembic_sidefx.so.
 
     Instructions are embedded in the file.
 
