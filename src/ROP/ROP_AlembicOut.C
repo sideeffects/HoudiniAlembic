@@ -130,6 +130,7 @@ static PRM_Default theFilenameDefault(0, "$HIP/output.abc");
 static PRM_Default theFormatDefault(0, "default");
 static PRM_Default theRootDefault(0, "/obj");
 static PRM_Default theStarDefault(0, "*");
+static PRM_Default theLayerReplaceDefault(0, "replace");
 static PRM_Default theAttrLayerDefault(0, "* ^P");
 static PRM_Default thePathAttribDefault(0, "path");
 static PRM_Default theCollapseDefault(0, "off");
@@ -203,8 +204,8 @@ static PRM_Name theFaceSetModeChoices[] =
 static PRM_Name theNodeFlagChoices[] =
 {
     PRM_Name("merge",   "Merge"),
-    PRM_Name("replace", "Replace"),
     PRM_Name("prune",   "Prune"),
+    PRM_Name("replace", "Replace"),
     PRM_Name()
 };
 
@@ -219,8 +220,8 @@ static PRM_Name theVizFlagChoices[] =
 
 static PRM_Name thePropFlagChoices[] =
 {
-    PRM_Name("replace", "Replace"),
     PRM_Name("prune",   "Prune"),
+    PRM_Name("replace", "Replace"),
     PRM_Name()
 };
 
@@ -525,7 +526,7 @@ static PRM_Template theMultiAttrTemplate[] =
     PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT | PRM_TYPE_LABEL_NONE,
 	1, &theAttrPatternName, 0, &theLayerAttribMenu),
     PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
-	1, &theAttrFlagName, 0, &thePropFlagMenu),
+	1, &theAttrFlagName, &theLayerReplaceDefault, &thePropFlagMenu),
     PRM_Template()
 };
 
@@ -538,7 +539,7 @@ static PRM_Template theMultiFaceSetTemplate[] =
     PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT | PRM_TYPE_LABEL_NONE,
 	1, &theFaceSetPatternName, 0, &theLayerFaceSetMenu),
     PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
-	1, &theFaceSetFlagName, 0, &thePropFlagMenu),
+	1, &theFaceSetFlagName, &theLayerReplaceDefault, &thePropFlagMenu),
     PRM_Template()
 };
 
@@ -551,7 +552,7 @@ static PRM_Template theMultiUserTemplate[] =
     PRM_Template(PRM_STRING | PRM_TYPE_JOIN_NEXT | PRM_TYPE_LABEL_NONE,
 	1, &theUserPatternName, 0, &theLayerUserPropMenu),
     PRM_Template(PRM_ORD | PRM_TYPE_LABEL_NONE,
-	1, &theUserFlagName, 0, &thePropFlagMenu),
+	1, &theUserFlagName, &theLayerReplaceDefault, &thePropFlagMenu),
     PRM_Template()
 };
 
