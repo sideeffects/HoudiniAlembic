@@ -62,7 +62,6 @@ GABCLIB_C = \
 	src/GABC/GABC_IGTArray.C \
 	src/GABC/GABC_IItem.C \
 	src/GABC/GABC_IObject.C \
-	src/GABC/GABC_LayerOptions.C \
 	src/GABC/GABC_OArrayProperty.C \
 	src/GABC/GABC_OGTGeometry.C \
 	src/GABC/GABC_OOptions.C \
@@ -88,14 +87,11 @@ ALEMBIC_PRIMITIVE_O	= $(ALEMBIC_PRIMITIVE_C:.C=.o)
 ALEMBIC_OUT_SO	= src/ROP/ROP_AlembicOut.so
 ALEMBIC_OUT_C	= \
 	src/ROP/ROP_AbcArchive.C \
-	src/ROP/ROP_AbcHierarchy.C \
-	src/ROP/ROP_AbcHierarchySample.C \
 	src/ROP/ROP_AbcNode.C \
 	src/ROP/ROP_AbcNodeCamera.C \
 	src/ROP/ROP_AbcNodeInstance.C \
 	src/ROP/ROP_AbcNodeShape.C \
 	src/ROP/ROP_AbcNodeXform.C \
-	src/ROP/ROP_AbcRefiner.C \
 	src/ROP/ROP_AbcUserProperties.C \
 	$(ALEMBIC_OUT_SO:.so=.C)
 ALEMBIC_OUT_O = $(ALEMBIC_OUT_C:.C=.o)
