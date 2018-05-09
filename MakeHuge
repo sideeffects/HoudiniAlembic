@@ -12,23 +12,24 @@
 #
 
 # BUILD_DIR: The path to the "lib/Alembic" in the build directory
-BUILD_DIR	= PATH_TO_ALEMBIC_BUILD/alembic_build/lib/Alembic
+BUILD_DIR	= PATH_TO_ALEMBIC_BUILD/lib/Alembic
 
 # If your version of Alembic doesn't have support for Ogawa, comment
 # out the following
 OGAWA_SUPPORT	= 1
 
 # Convenience variables for the different components
-ABC		= Abc/CMakeFiles/AlembicAbc.dir
-ABCCOLLECTION	= AbcCollection/CMakeFiles/AlembicAbcCollection.dir
-ABCABSTRACT	= AbcCoreAbstract/CMakeFiles/AlembicAbcCoreAbstract.dir
-ABCFACTORY	= AbcCoreFactory/CMakeFiles/AlembicAbcCoreFactory.dir
-ABCHDF5		= AbcCoreHDF5/CMakeFiles/AlembicAbcCoreHDF5.dir
-ABCOGAWA	= AbcCoreOgawa/CMakeFiles/AlembicAbcCoreOgawa.dir
-ABCGEOM		= AbcGeom/CMakeFiles/AlembicAbcGeom.dir
-ABCMAT		= AbcMaterial/CMakeFiles/AlembicAbcMaterial.dir
-ABCUTIL		= Util/CMakeFiles/AlembicUtil.dir
-OGAWA		= Ogawa/CMakeFiles/AlembicOgawa.dir
+ABC		= CMakeFiles/Alembic.dir/Abc
+ABCCOLLECTION	= CMakeFiles/Alembic.dir/AbcCollection
+ABCABSTRACT	= CMakeFiles/Alembic.dir/AbcCoreAbstract
+ABCFACTORY	= CMakeFiles/Alembic.dir/AbcCoreFactory
+ABCHDF5		= CMakeFiles/Alembic.dir/AbcCoreHDF5.dir
+ABCLAYER	= CMakeFiles/Alembic.dir/AbcCoreLayer.dir
+ABCOGAWA	= CMakeFiles/Alembic.dir/AbcCoreOgawa
+ABCGEOM		= CMakeFiles/Alembic.dir/AbcGeom
+ABCMAT		= CMakeFiles/Alembic.dir/AbcMaterial
+ABCUTIL		= CMakeFiles/Alembic.dir/Util
+OGAWA		= CMakeFiles/Alembic.dir/Ogawa
 
 # The resulting "huge" library
 FULL_LIB	= libAbcHuge.so
@@ -126,6 +127,11 @@ OFILES =  \
 	$(BUILD_DIR)/$(ABCHDF5)/StringReadUtil.cpp.o \
 	$(BUILD_DIR)/$(ABCHDF5)/StringWriteUtil.cpp.o \
 	$(BUILD_DIR)/$(ABCHDF5)/WriteUtil.cpp.o \
+	$(BUILD_DIR)/$(ABCLAYER)/ArImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCLAYER)/CprImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCLAYER)/OrImpl.cpp.o \
+	$(BUILD_DIR)/$(ABCLAYER)/Read.cpp.o \
+	$(BUILD_DIR)/$(ABCLAYER)/Util.cpp.o \
 	$(OGAWA_FILES) \
 	$(BUILD_DIR)/$(ABCGEOM)/ArchiveBounds.cpp.o \
 	$(BUILD_DIR)/$(ABCGEOM)/Basis.cpp.o \
@@ -163,11 +169,18 @@ OFILES =  \
 	$(BUILD_DIR)/$(ABCUTIL)/SpookyV2.cpp.o \
 	$(BUILD_DIR)/$(ABCUTIL)/TokenMap.cpp.o
 
+LIBRARIES	= \
+	-lhdf5 \
+	-lhdf5_hl \
+	-lIex \
+	-lImath \
+	-lHalf
+
 $(FULL_LIB):	$(OFILES)
 	g++ -shared -fno-strict-aliasing \
 	    -Wl,-soname,$(FULL_LIB) \
 	    -Wl,--exclude-libs,ALL  \
-	    -o $@ $(OFILES)
+	    -o $@ $(OFILES) $(LIBRARIES)
 
 #---------------------------------------------------------------------
 # Testing rule
@@ -180,15 +193,9 @@ ABCINC		= $(ABCINSTALL)/include
 ABCLIB		= $(ABCINSTALL)/lib
 HALFINC		= -I$(HFS)/custom/include/OpenEXR
 HLIB		= -L$(HFS)/dsolib
-LIBRARIES	= \
-	-lhdf5 \
-	-lhdf5_hl \
-	-lIex \
-	-lImath \
-	-lHalf
 
 test:	test.C $(FULL_LIB)
 	g++ -o test test.C -I$(ABCINC) $(HALFINC) \
-		$(HLIB) -L. -lAbcHuge $(LIBRARIES)
+		$(HLIB) -L. -lAbcHuge
 
 install:	test
