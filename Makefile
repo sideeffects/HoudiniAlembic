@@ -120,7 +120,7 @@ OFILES	= \
 	$(ALEMBIC_OUT_O) \
 	$(GU_ALEMBIC_O)
 
-%.o:	%.C $(GABCLIB)
+%.o:	%.C
 	$(CXX) -DCXX11_ENABLED=1 $(ABCFLAGS) $(OBJFLAGS) -c -o $@ $<
 
 all:	$(TARGETS)
@@ -134,20 +134,20 @@ $(GABCLIB):	$(GABCLIB_O)
 	    -Wl,--exclude-libs,ALL  \
 	    -o $@ $(GABCLIB_O) $(SAFLAGS) $(EXTRALIBS)
 
-$(ALEMBIC_IN_SO):	$(ALEMBIC_IN_O)
-	$(CXX) -shared -o $@ $^ $(SAFLAGS) $(GABCLIB)
+$(ALEMBIC_IN_SO):	$(ALEMBIC_IN_O) $(GABCLIB)
+	$(CXX) -shared -o $@ $(ALEMBIC_IN_O) $(SAFLAGS) -Llibs -lCustomGABC
 
-$(ALEMBIC_GROUP_SO):	$(ALEMBIC_GROUP_O)
-	$(CXX) -shared -o $@ $^ $(SAFLAGS) $(GABCLIB)
+$(ALEMBIC_GROUP_SO):	$(ALEMBIC_GROUP_O) $(GABCLIB)
+	$(CXX) -shared -o $@ $(ALEMBIC_GROUP_O) $(SAFLAGS) -Llibs -lCustomGABC
 
-$(ALEMBIC_PRIMITIVE_SO):	$(ALEMBIC_PRIMITIVE_O)
-	$(CXX) -shared -o $@ $^ $(SAFLAGS) $(GABCLIB)
+$(ALEMBIC_PRIMITIVE_SO):	$(ALEMBIC_PRIMITIVE_O) $(GABCLIB)
+	$(CXX) -shared -o $@ $(ALEMBIC_PRIMITIVE_O) $(SAFLAGS) -Llibs -lCustomGABC
 
-$(ALEMBIC_OUT_SO):	$(ALEMBIC_OUT_O)
-	$(CXX) -shared -o $@ $^ $(SAFLAGS) $(GABCLIB)
+$(ALEMBIC_OUT_SO):	$(ALEMBIC_OUT_O) $(GABCLIB)
+	$(CXX) -shared -o $@ $(ALEMBIC_OUT_O) $(SAFLAGS) -Llibs -lCustomGABC
 
-$(GU_ALEMBIC_SO):	$(GU_ALEMBIC_O)
-	$(CXX) -shared -o $@ $^ $(SAFLAGS) $(GABCLIB)
+$(GU_ALEMBIC_SO):	$(GU_ALEMBIC_O) $(GABCLIB)
+	$(CXX) -shared -o $@ $(GU_ALEMBIC_O) $(SAFLAGS) -Llibs -lCustomGABC
 
 clean:
 	rm -f $(OFILES) $(TARGETS)
