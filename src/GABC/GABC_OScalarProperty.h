@@ -55,7 +55,10 @@ public:
     typedef Alembic::Util::PlainOldDataType PlainOldDataType;
 
     GABC_OScalarProperty(GABC_LayerOptions::LayerType ltype)
-	: GABC_OProperty(ltype) {}
+	: GABC_OProperty(ltype)
+	, myBuffer(nullptr)
+    {
+    }
     ~GABC_OScalarProperty();
 
     /// true if 'array' can be represented as an Alembic scalar
