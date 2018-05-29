@@ -405,10 +405,10 @@ namespace
 	using HandlerSetType = UT_Set<ArchiveEventHandlerPtr>;
 
         ArchiveCacheEntry()
-	    : myCache("abcObjects", 8)
-	    , myDynamicXforms("abcTransforms", 64)
-	    , myDynamicVisibility("abcVisibility", 64)
-	    , myDynamicFullVisibility("abcFullVisibility", 64)
+	    : myCache("Alembic Object Cache", 8)
+	    , myDynamicXforms("Alembic Transform Cache", 64)
+	    , myDynamicVisibility("Alembic Visibility Cache", 64)
+	    , myDynamicFullVisibility("Alembic Full Visibility Cache", 64)
 	    , myXformCacheBuilt(false)
         {}
         virtual ~ArchiveCacheEntry()
