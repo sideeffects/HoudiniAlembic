@@ -280,9 +280,9 @@ namespace
     extractScalarProp(const IScalarProperty &prop, index_t idx)
     {
 	const DataType	&dtype = prop.getDataType();
-	const char	*interp = prop.getMetaData().get("interpretation").c_str();
-	int		 tsize = dtype.getExtent();
-	GT_Type		 tinfo = GABC_GTUtil::getGTTypeInfo(interp, tsize);
+        std::string interp = prop.getMetaData().get("interpretation");
+        int tsize = dtype.getExtent();
+        GT_Type	tinfo = GABC_GTUtil::getGTTypeInfo(interp.c_str(), tsize);
 	UT_StackBuffer<ABC_POD>	src(tsize);
 	UT_StackBuffer<GT_POD>	dest(tsize);
 
