@@ -168,18 +168,18 @@ ROP_AbcHierarchy::merge(
 
 		// find unprocessed instance
 		auto &keys1 = it3.second;
-		for(exint i = 0; i < keys1.entries(); ++i)
+		for(exint i = 0; i < keys1.size(); ++i)
 		{
-		    auto &key = keys1(i);
+		    auto &key = keys1[i];
 		    auto key1 = std::make_tuple(type, std::get<0>(key), std::get<1>(key));
 
 		    if(mapping.find(key1) != mapping.end())
 			continue;
 
 		    // look for next unassigned instance
-		    for(; i2 < keys2.entries(); ++i2)
+		    for(; i2 < keys2.size(); ++i2)
 		    {
-			auto key2 = keys2(i2);
+			auto key2 = keys2[i2];
 			if(rev_mapping.find(key2) == rev_mapping.end())
 			{
 			    // assign instance
@@ -233,10 +233,10 @@ ROP_AbcHierarchy::merge(
 		    int type = it2.first;
 		    auto &shapes = it2.second;
 
-		    exint n = shapes.entries();
+		    exint n = shapes.size();
 		    for(exint i = 0; i < n; ++i)
 		    {
-			auto &shape = shapes(i);
+			auto &shape = shapes[i];
 			bool vis = std::get<1>(shape);
 			auto &up_vals = std::get<2>(shape);
 			auto &up_meta = std::get<3>(shape);
@@ -263,7 +263,7 @@ ROP_AbcHierarchy::merge(
 	{
 	    UT_SortedSet<int> types;
 
-	    const UT_Map<int, UT_Array<std::tuple<std::string, exint, bool,
+	    const UT_Map<int, std::vector<std::tuple<std::string, exint, bool,
 		std::string, std::string,std::string> > > *n1data = nullptr;
 	    if(n1)
 	    {
@@ -290,7 +290,7 @@ ROP_AbcHierarchy::merge(
 
 	    for(int type : types)
 	    {
-		const UT_Array<std::tuple<std::string, exint, bool,
+		const std::vector<std::tuple<std::string, exint, bool,
 		    std::string, std::string, std::string> > *n1data2 = nullptr;
 		if(n1data)
 		{
@@ -317,10 +317,10 @@ ROP_AbcHierarchy::merge(
 
 		if(n1data2)
 		{
-		    exint n = n1data2->entries();
+		    exint n = n1data2->size();
 		    for(exint i = 0; i < n; ++i)
 		    {
-			auto &inst = (*n1data2)(i);
+			auto &inst = (*n1data2)[i];
 			auto &key1 = std::get<0>(inst);
 			exint idx1 = std::get<1>(inst);
 			bool vis = std::get<2>(inst);

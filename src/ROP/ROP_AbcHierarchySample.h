@@ -79,7 +79,7 @@ public:
 
     // returns a list of all child non-instanced shapes (along with visibility,
     // and user properties) by name and primitive type
-    const UT_SortedMap<std::string, UT_SortedMap<int, UT_Array<std::tuple<GT_PrimitiveHandle,
+    const UT_SortedMap<std::string, UT_SortedMap<int, std::vector<std::tuple<GT_PrimitiveHandle,
 	bool, std::string, std::string, std::string> > > > &getShapes() const
     {
 	return myShapes;
@@ -87,7 +87,7 @@ public:
 
     // returns a list of all child instanced shapes (along with visibility,
     // and user properties) by name and primitive type
-    const UT_Map<std::string, UT_Map<int, UT_Array<std::tuple<std::string, exint, bool,
+    const UT_Map<std::string, UT_Map<int, std::vector<std::tuple<std::string, exint, bool,
 	std::string, std::string, std::string> > > > &getInstancedShapes() const
     {
 	return myInstancedShapes;
@@ -139,11 +139,11 @@ private:
     UT_SortedMap<std::string, ROP_AbcHierarchySample> myChildren;
     // list of all child non-instanced shapes (along with visibility, and user
     // properties) by name and primitive type
-    UT_SortedMap<std::string, UT_SortedMap<int, UT_Array<std::tuple<GT_PrimitiveHandle,
+    UT_SortedMap<std::string, UT_SortedMap<int, std::vector<std::tuple<GT_PrimitiveHandle,
 	bool, std::string, std::string, std::string> > > > myShapes;
     // list of all child instanced shapes (along with visibility, and user
     // properties) by name and primitive type
-    UT_Map<std::string, UT_Map<int, UT_Array<std::tuple<std::string, exint, bool,
+    UT_Map<std::string, UT_Map<int, std::vector<std::tuple<std::string, exint, bool,
 	std::string, std::string, std::string> > > > myInstancedShapes;
     // number of written instance child xform nodes
     UT_Map<std::string, exint> myInstanceCount;
