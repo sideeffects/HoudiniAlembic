@@ -362,6 +362,7 @@ namespace
 
 	    GABC_OProperty *prop;
 	    if(scope == Alembic::AbcGeom::kConstantScope
+		&& !ctx.matchArrayAttribPattern(exp_name.c_str())
 		&& GABC_OScalarProperty::isValidScalarData(data))
 	    {
 		prop = new GABC_OScalarProperty();
@@ -813,7 +814,7 @@ namespace
     {
 	storage = prim;
 	const T	&mesh = *(const T *)(prim.get());
-	auto	 pattern = ctx.uniformToDetailPattern();
+	auto	 pattern = ctx.primToDetailPattern();
 	auto	 force_constant = ctx.forcePrimToDetail();
 	auto	&uniform = mesh.getUniformAttributes();
 	if (!uniform)

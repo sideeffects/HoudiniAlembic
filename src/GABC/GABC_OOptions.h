@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -90,17 +90,11 @@ public:
     /// @}
 
     /// @{
-    /// Pattern matching for multiple uv sets
-    const char *uvAttribPattern() const                 { return myUVAttribPattern.buffer(); }
-    void        setUVAttribPattern(const char *pattern) { myUVAttribPattern.harden(pattern); }
-    /// @}
-
-    /// @{
     /// Pattern of uniform attributes to convert into detail/constant attributes
-    const UT_StringHolder &uniformToDetailPattern() const
-				{ return myPrimToDetailPattern; }
-    void		setPrimToDetailPattern(const UT_StringHolder &p)
-				{ myPrimToDetailPattern = p; }
+    const char	*primToDetailPattern() const
+			{ return myPrimToDetailPattern; }
+    void	setPrimToDetailPattern(const char *s)
+			{ myPrimToDetailPattern.harden(s); }
     /// @}
 
     /// @{
@@ -111,12 +105,28 @@ public:
 		    { myForcePrimToDetail = v; }
     /// @}
 
+    /// @{
+    /// Pattern of attributes to save as arrays instead of scalars
+    bool	matchArrayAttribPattern(const char *name) const;
+    const char	*arrayAttribPattern() const
+			{ return myArrayAttribPattern; }
+    void	setArrayAttribPattern(const char *s)
+			{ myArrayAttribPattern.harden(s); }
+    /// @}
+
+    /// @{
+    /// Pattern matching for multiple uv sets
+    const char *uvAttribPattern() const                 { return myUVAttribPattern.buffer(); }
+    void        setUVAttribPattern(const char *pattern) { myUVAttribPattern.harden(pattern); }
+    /// @}
+
 private:
     UT_String		mySubdGroup;
     UT_String		myPathAttribute;
     UT_String		myAttributePatterns[GA_ATTRIB_OWNER_N];
+    UT_String		myPrimToDetailPattern;
+    UT_String		myArrayAttribPattern;
     UT_String           myUVAttribPattern;
-    UT_StringHolder	myPrimToDetailPattern;
     exint               myFirstFrame;
     bool		myFullBounds;
     bool		myForcePrimToDetail;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -115,8 +115,6 @@ protected:
 		{ evalString(str, "prim_to_detail_pattern", 0, time); }
     bool FORCE_PRIM_TO_DETAIL(fpreal time) const
 		{ return evalInt("force_prim_to_detail", 0, time); }
-    void UV_ATTRIBUTE(UT_String &str, fpreal time) const
-		{ evalString(str, "uvAttributes", 0, time); }
     void FACESET_MODE(UT_String &str, fpreal time) const
 		{ evalString(str, "facesets", 0, time); }
     bool MOTIONBLUR(fpreal time) const

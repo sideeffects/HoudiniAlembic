@@ -701,6 +701,7 @@ static PRM_Name thePrimitiveAttributesName("primitiveAttributes", "Primitive Att
 static PRM_Name theDetailAttributesName("detailAttributes", "Detail Attributes");
 static PRM_Name thePromoteUniformPatternName("prim_to_detail_pattern", "Primitive To Detail");
 static PRM_Name theForcePromoteUniformName("force_prim_to_detail", "Force Conversion of Matching Primitive Attributes to Detail");
+static PRM_Name theArrayAttribsPatternName("arrayAttributes", "Detail Array Attributes");
 static PRM_Name theUVAttribPatternName("uvAttributes", "Additional UV Attributes");
 static PRM_Name theFaceSetModeName("facesets", "Face Sets");
 static PRM_Name theMotionBlurName("motionBlur", "Use Motion Blur");
@@ -725,7 +726,7 @@ static PRM_SpareData theAbcPattern(
 static PRM_Default mainSwitcher[] =
 {
     PRM_Default(13, "Hierarchy"),
-    PRM_Default(12, "Geometry"),
+    PRM_Default(13, "Geometry"),
     PRM_Default(3, "Motion Blur"),
 };
 
@@ -926,6 +927,7 @@ static PRM_Template theParameters[] =
     PRM_Template(PRM_STRING, 1, &theDetailAttributesName, &theStarDefault),
     PRM_Template(PRM_STRING, 1, &thePromoteUniformPatternName),
     PRM_Template(PRM_TOGGLE, 1, &theForcePromoteUniformName),
+    PRM_Template(PRM_STRING, 1, &theArrayAttribsPatternName),
     PRM_Template(PRM_STRING, 1, &theUVAttribPatternName),
     PRM_Template(PRM_ORD, 1, &theFaceSetModeName, &theFaceSetModeDefault,
 		    &theFaceSetModeMenu),
@@ -1178,15 +1180,13 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	    options.setAttributePattern(GA_ATTRIB_PRIMITIVE, pattern);
 	    evalString(pattern, theDetailAttributesName.getToken(), 0, time);
 	    options.setAttributePattern(GA_ATTRIB_DETAIL, pattern);
-
-	    UT_String p2d_pattern;
-	    PRIM_TO_DETAIL_PATTERN(p2d_pattern, time);
-	    options.setPrimToDetailPattern(p2d_pattern);
+	    PRIM_TO_DETAIL_PATTERN(pattern, time);
+	    options.setPrimToDetailPattern(pattern);
 	    options.setForcePrimToDetail(FORCE_PRIM_TO_DETAIL(time));
-
-	    UT_String uv_pattern;
-	    UV_ATTRIBUTE(uv_pattern, time);
-	    options.setUVAttribPattern(uv_pattern);
+	    evalString(pattern, theArrayAttribsPatternName.getToken(), 0, time);
+	    options.setArrayAttribPattern(pattern);
+	    evalString(pattern, theUVAttribPatternName.getToken(), 0, time);
+	    options.setUVAttribPattern(pattern);
 	}
 
 	myRoot->setArchive(myArchive);

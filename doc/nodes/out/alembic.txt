@@ -246,6 +246,11 @@ Primitive To Detail:
 Force Conversion of Matching Primitive Attributes to Detail:
 	The normal behavior when promoting primitive attributes to detail attributes is to validate that the values are the same for all primitives.  Enabling this option will bypass this check forcing all matching primitive attributes to be converted to detail attributes regardless.  The attribute value of the first primitive will be used as the single detail value for the exported primitive.
 
+Detail Array Attributes:
+	#id: arrayAttributes
+
+	Detail attributes whose name matches this pattern will be saved as arrays instead of scalars.
+
 Additional UV Attributes:
         Additional UV attributes whose name matches this pattern will be saved in the Alembic file.
 
