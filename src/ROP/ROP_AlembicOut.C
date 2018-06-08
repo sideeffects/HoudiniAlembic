@@ -95,7 +95,7 @@ static PRM_Name thePrimitiveAttributesName("primitiveAttributes", "Primitive Att
 static PRM_Name theDetailAttributesName("detailAttributes", "Detail Attributes");
 static PRM_Name thePromoteUniformPatternName("prim_to_detail_pattern", "Primitive To Detail");
 static PRM_Name theForcePromoteUniformName("force_prim_to_detail", "Force Conversion of Matching Primitive Attributes to Detail");
-static PRM_Name theArrayAttribsPatternName("arrayattributes", "Detail Array Attributes");
+static PRM_Name theArrayAttribsPatternName("arrayAttributes", "Detail Array Attributes");
 static PRM_Name theUVAttribPatternName("uvAttributes", "Additional UV Attributes");
 static PRM_Name theFaceSetModeName("facesets", "Face Sets");
 static PRM_Name theUseLayeringName("uselayering", "Enable Layering");
