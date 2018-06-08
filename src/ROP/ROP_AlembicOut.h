@@ -121,8 +121,6 @@ protected:
 		{ evalString(str, "prim_to_detail_pattern", 0, time); }
     bool FORCE_PRIM_TO_DETAIL(fpreal time) const
 		{ return evalInt("force_prim_to_detail", 0, time); }
-    void UV_ATTRIBUTE(UT_String &str, fpreal time) const
-		{ evalString(str, "uvAttributes", 0, time); }
     void FACESET_MODE(UT_String &str, fpreal time) const
 		{ evalString(str, "facesets", 0, time); }
 

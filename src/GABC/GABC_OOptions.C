@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -70,4 +70,11 @@ GABC_OOptions::matchAttribute(Alembic::AbcGeom::GeometryScope scope,
 	    return matchAttribute(GA_ATTRIB_VERTEX, name);
     }
     return true;
+}
+
+bool
+GABC_OOptions::matchArrayAttribPattern(const char *name) const
+{
+    UT_String	str(name);
+    return str.multiMatch(myArrayAttribPattern) != 0;
 }
