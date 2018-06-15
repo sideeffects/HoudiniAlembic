@@ -38,8 +38,6 @@
 namespace GABC_NAMESPACE
 {
 
-class GABC_AlembicCache;
-
 class GABC_API GABC_PackedImpl : public GU_PackedImpl
 {
 public:

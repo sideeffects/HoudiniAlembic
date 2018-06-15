@@ -662,6 +662,7 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 		packed->implementation());
 
 	    myCache.getTransform(pimpl, transform);
+	    packed->multiplyByPrimTransform(transform);
 	    if(myTransform != transform)
 	    {
 		myTransform = transform;
@@ -1828,6 +1829,7 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 			    pprim->implementation());
 
 			myCache(i).getTransform(pimpl, transform);
+			pprim->multiplyByPrimTransform(transform);
 			UT_Matrix4D old;
 			myTransforms->get(i)->getMatrix(old);
 			if(old != transform)
