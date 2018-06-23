@@ -53,6 +53,7 @@
 #include <SOP/SOP_Node.h>
 #include <UT/UT_DSOVersion.h>
 #include <UT/UT_JSONWriter.h>
+#include <UT/UT_StringStream.h>
 #include <UT/UT_UndoManager.h>
 
 #if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
