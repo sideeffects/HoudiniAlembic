@@ -1211,6 +1211,14 @@ SOP_AlembicIn::cookMySop(OP_Context &context)
     fpreal	now = context.getTime();
 
     evaluateParms(parms, context);
+    if(parms.myFileNames.size() == 0)
+    {
+	gdp->clearAndDestroy();
+	myConstantUniqueId = -1;
+	myComputedFrameRange = false;
+	return error();
+    }
+
     if (parms.myLoadMode == GABC_GEOWalker::LOAD_HOUDINI_PRIMITIVES)
     {
 	addWarning(SOP_MESSAGE, theHoudiniGeometryWarning);
