@@ -1378,12 +1378,8 @@ namespace {
 	abc->setUseTransform(packed, walk.includeXform());
 	if (!abc->isConstant())
 	    walk.setNonConstant();
-	if (walk.staticTimeZero()
-		&& obj.getAnimationType(false) == GEO_ANIMATION_CONSTANT
-		&& walk.transformConstant())
-	{
+	else if (walk.staticTimeZero())
 	    abc->setFrame(packed, 0);
-	}
 	walk.setPointLocation(packed, pt);
 
 	if (walk.loadUserProps())
