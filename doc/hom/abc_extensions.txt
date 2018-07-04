@@ -24,13 +24,13 @@ To use the functions in this module, launch `hython` and import `_alembic_hom_ex
 
 `abcPath`:
         A file path to the Alembic file.
-    
+
 `objectPath`:
     The path within the alembic file to the object.
-    
+
 `name`:
     The name of the attribute to read.
-    
+
 `sampleTime`:
     The animation time at which to compute the value. This is a fractional value in seconds. If you have a frame number you must divide by the frames-per-second before passing it to the function.
 
@@ -38,6 +38,13 @@ To use the functions in this module, launch `hython` and import `_alembic_hom_ex
 
 ::`alembicArbGeometry(abcPath, objectPath, name, sampleTime)` -> `(value, isConstant, scope)`:
     Gets the value of an object attribute. Returns `None` or a tuple of the value of the attribute; a boolean indicating whether the attribute is constant over time; and a string indicating the scope of the attribute: `varying`, `vertex`, `facevarying`, `uniform`, `constant`, or `unknown`.
+
+::`alembicBoundingBox(abcPath, objectPath, sampleTime)` -> `(value, isConstant)`:
+    Gets the bounding box of an object. Returns `None` or a tuple of a bbox tuple and a boolean:
+
+    * The bounding box as a tuple of 6 floats.
+    * The bounding box is an optional property of the Xform and the Root node. If it doesn't exist on the given object path, the retval will be None.
+    * The second item is `True` if the bounding box is constant over time.
 
 ::`alembicClearArchiveCache()`:
     Clears the internal cache of open Alembic files.
@@ -53,14 +60,14 @@ To use the functions in this module, launch `hython` and import `_alembic_hom_ex
 
 ::`alembicGetSceneHierarchy(abcPath, objectPath)` -> `(object_name, object_type, children)`:
     Returns a hierarchy of tuples, where each tuple is in the form
-    
+
     {{{
     #!python
     item = ("object_name", "object_type", (item, ...))
     }}}
-    
+
     The `object_type` may be one of:
-    
+
     `cxform`:
         A constant transform node.
     `xform`:
@@ -85,34 +92,44 @@ To use the functions in this module, launch `hython` and import `_alembic_hom_ex
 ::`alembicSetArchiveMaxCacheSize(number_of_files)`:
     Sets the maximum number of files to keep open in the cache.
 
+::`abc.alembicTimeRange(abcPath)`
+    Returns the time range of the given Alembic file.
+
 ::`alembicUserProperty(abcPath, objectPath, name, sampleTime)` -> `(value, isConstant)`:
     Gets the value of a user property. Returns `None` or a tuple of the value of the attribute and a boolean indicating whether the attribute is constant over time.
 
+::`alembicUserPropertyMetadata(abcPath, objectPath, sampleTime)` -> `value`:
+    Returns None or a JSON dictionary containing a map of user property
+    names --> user property metadata.
+
+::`alembicUserPropertyValues(abcPath, objectPath, sampleTime)` -> `value`:
+    Returns None or a JSON dictionary containing a map of user property
+    names --> user property values.
+
+::`alembicUserPropertyValuesAndMetadata(abcPath, objectPath, sampleTime)` -> `(values, metadata)`:
+    Returns a tuple of JSON ditionaries.  The first contains a map of user
+    property names to user property values, the second a dictionary of user
+    property names to user property metadata which is used to interpret the
+    first dictionary.
+
 ::`alembicVisibility(abcPath, objectPath, sampleTime, check_ancestor=False)` -> `(value, isConstant)`:
     Gets the visibility of an object. Returns `None` or a tuple of an integer and a boolean:
-    
+
     * The first item is `0` for hidden, `1` for visible, or `-1` for "use the parent object's visibility".
     * The second item is `True` if the visibility is constant over time.
-    
+
     If you pass `check_ancestor=True`, the function will check the visibility of ancestor objects to return a known value (`0` or `1`) instead of `-1` as the first item.
 
 ::`getLocalXform(abcPath, objectPath, sampleTime)` -> `(xform, isConstant, inherits)`:
     Gets the local transform of an object. Returns a tuple of:
-    
+
     * The transform as a tuple of 16 floats.
     * A boolean indicating whether the attribute is constant over time.
     * A boolean indicating whether the object inherits its transform from its parent. If this is `False`, the object is disconnected from the transform hierarchy.
 
 ::`getWorldXform(abcPath, objectPath, sampleTime)` -> `(xform, isConstant, inherits)`:
     Gets the world transform of an object. Returns a tuple of:
-    
+
     * The transform as a tuple of 16 floats.
     * A boolean indicating whether the attribute is constant over time.
     * A boolean indicating whether the object inherits its transform from its parent. If this is `False`, the object is disconnected from the transform hierarchy.
-
-
-
-
-
-
-
