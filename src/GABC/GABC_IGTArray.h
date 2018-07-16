@@ -228,52 +228,28 @@ public:
 
     virtual void doFillArray(uint8 *data, GT_Offset start, GT_Size length,
 			int tsize, int stride) const
-		 {
-		     t_ABCFill(data, getStorage() == GT_STORE_UINT8,
-				   start, length, tsize, 1, stride);
-		 }
+		 { t_ABCFill(data, start, length, tsize, stride); }
     virtual void doFillArray(int8 *data, GT_Offset start, GT_Size length,
 			int tsize, int stride) const
-		 {
-		     t_ABCFill(data, getStorage() == GT_STORE_INT8,
-			     start, length, tsize, 1, stride);
-		 }
+		 { t_ABCFill(data, start, length, tsize, stride); }
     virtual void doFillArray(int16 *data, GT_Offset start, GT_Size length,
 			int tsize, int stride) const
-		 {
-		     t_ABCFill(data, getStorage() == GT_STORE_INT16,
-			     start, length, tsize, 1, stride);
-		 }
+		 { t_ABCFill(data, start, length, tsize, stride); }
     virtual void doFillArray(int32 *data, GT_Offset start, GT_Size length,
 			int tsize, int stride) const
-		 {
-		     t_ABCFill(data, getStorage() == GT_STORE_INT32,
-			     start, length, tsize, 1, stride);
-		 }
+		 { t_ABCFill(data, start, length, tsize, stride); }
     virtual void doFillArray(int64 *data, GT_Offset start, GT_Size length,
 			int tsize, int stride) const
-		 {
-		     t_ABCFill(data, getStorage() == GT_STORE_INT64,
-			     start, length, tsize, 1, stride);
-		 }
+		 { t_ABCFill(data, start, length, tsize, stride); }
     virtual void doFillArray(fpreal16 *data, GT_Offset start, GT_Size length,
 			int tsize, int stride) const
-		 {
-		     t_ABCFill(data, getStorage() == GT_STORE_REAL16,
-			     start, length, tsize, 1, stride);
-		 }
+		 { t_ABCFill(data, start, length, tsize, stride); }
     virtual void doFillArray(fpreal32 *data, GT_Offset start, GT_Size length,
 			int tsize, int stride) const
-		 {
-		     t_ABCFill(data, getStorage() == GT_STORE_REAL32,
-			     start, length, tsize, 1, stride);
-		 }
+		 { t_ABCFill(data, start, length, tsize, stride); }
     virtual void doFillArray(fpreal64 *data, GT_Offset start, GT_Size length,
 			int tsize, int stride) const
-		 {
-		     t_ABCFill(data, getStorage() == GT_STORE_REAL64,
-			     start, length, tsize, 1, stride);
-		 }
+		 { t_ABCFill(data, start, length, tsize, stride); }
     /// @}
 
 private:
@@ -289,16 +265,15 @@ private:
 			data[i] = src[i];
 		}
 
-    template <typename DEST_POD_T> inline void
-    t_ABCFill(DEST_POD_T *dest, bool typematch, GT_Offset start, GT_Size length,
-		    int tsize, int nrepeats, int stride) const
+    inline void
+    t_ABCFill(POD_T *dest, GT_Offset start, GT_Size length,
+		    int tsize, int stride) const
 		{
 		    if (tsize < 1)
 			tsize = getTupleSize();
 		    stride = SYSmax(stride, tsize);
 		    int n = SYSmin(tsize, getTupleSize());
-		    if (typematch && n == getTupleSize()
-				  && stride == getTupleSize() && nrepeats==1)
+		    if (n == getTupleSize() && stride == getTupleSize())
 		    {
 			memcpy(dest, myData+start*getTupleSize(),
 				    length*n*sizeof(POD_T));
@@ -309,14 +284,31 @@ private:
 			for (GT_Offset i = 0; i < length; ++i,
 						src += getTupleSize())
 			{
-			    for (GT_Offset r=0; r<nrepeats; ++r, dest += stride)
-			    {
-				for (int j = 0; j < n; ++j)
-				    dest[j] = src[j];
-			    }
+			    for (int j = 0; j < n; ++j)
+				dest[j] = src[j];
+			    dest += stride;
 			}
 		    }
 		}
+
+    template <typename DEST_POD_T> inline void
+    t_ABCFill(DEST_POD_T *dest, GT_Offset start, GT_Size length,
+		    int tsize, int stride) const
+		{
+		    if (tsize < 1)
+			tsize = getTupleSize();
+		    stride = SYSmax(stride, tsize);
+		    int n = SYSmin(tsize, getTupleSize());
+		    const POD_T *src = myData+start*getTupleSize();
+		    for (GT_Offset i = 0; i < length; ++i,
+					    src += getTupleSize())
+		    {
+			for (int j = 0; j < n; ++j)
+			    dest[j] = src[j];
+			dest += stride;
+		    }
+		}
+
     GABC_IArray	 myArray;	// Shared pointer to TypedArraySample
     const POD_T *myData;	// Actual sample data
 };
