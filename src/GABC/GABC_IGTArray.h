@@ -282,11 +282,10 @@ private:
 		    {
 			const POD_T *src = myData+start*getTupleSize();
 			for (GT_Offset i = 0; i < length; ++i,
-						src += getTupleSize())
+					src += getTupleSize(), dest += stride)
 			{
 			    for (int j = 0; j < n; ++j)
 				dest[j] = src[j];
-			    dest += stride;
 			}
 		    }
 		}
@@ -301,11 +300,10 @@ private:
 		    int n = SYSmin(tsize, getTupleSize());
 		    const POD_T *src = myData+start*getTupleSize();
 		    for (GT_Offset i = 0; i < length; ++i,
-					    src += getTupleSize())
+					src += getTupleSize(), dest += stride)
 		    {
 			for (int j = 0; j < n; ++j)
 			    dest[j] = src[j];
-			dest += stride;
 		    }
 		}
 
