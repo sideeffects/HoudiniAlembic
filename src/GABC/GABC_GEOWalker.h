@@ -195,7 +195,8 @@ public:
     LoadUserPropsMode   loadUserProps() const   { return myLoadUserProps; }
     LoadMode	loadMode() const	{ return myLoadMode; }
     bool	buildAbcPrim() const
-			{ return myLoadMode == LOAD_ABC_PRIMITIVES; }
+			{ return myLoadMode == LOAD_ABC_PRIMITIVES
+				|| myLoadMode == LOAD_ABC_UNPACKED; }
     bool	buildAbcShape() const	{ return myBuildAbcShape; }
     bool	buildAbcXform() const	{ return myBuildAbcXform; }
     bool	pathAttributeChanged() const { return myPathAttributeChanged; }

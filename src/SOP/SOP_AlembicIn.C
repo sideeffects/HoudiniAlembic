@@ -1069,9 +1069,10 @@ SOP_AlembicIn::clearEventHandler()
 void
 SOP_AlembicIn::archiveClearEvent()
 {
-    // Clear out the lasst-cook parameters
+    // Clear out the last-cook parameters
     myLastParms = Parms();
     myConstantUniqueId = -1;
+    myPackedGdp.reset();
     unloadData();
     forceRecook();
 }
@@ -1239,12 +1240,15 @@ SOP_AlembicIn::cookMySop(OP_Context &context)
 	return error();
     }
     GU_Detail			*walkgdp = gdp;
-    UT_UniquePtr<GU_Detail>	 unpack_gdp;
     if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_UNPACKED)
     {
-	unpack_gdp.reset(new GU_Detail);
-	walkgdp = unpack_gdp.get();
+	gdp->clearAndDestroy();
+	if(!myPackedGdp)
+	    myPackedGdp.reset(new GU_Detail);
+	walkgdp = myPackedGdp.get();
     }
+    else
+	myPackedGdp.reset();
 
     bool reuse_prims =
 	(myTopologyConstant
@@ -1395,7 +1399,7 @@ SOP_AlembicIn::cookMySop(OP_Context &context)
 	myComputedFrameRange = false;
 
     if (parms.myLoadMode == GABC_GEOWalker::LOAD_ABC_UNPACKED)
-	unpack(*gdp, *unpack_gdp, parms);
+	unpack(*gdp, *myPackedGdp, parms);
 
     myLastParms = parms;
 

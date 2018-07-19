@@ -187,6 +187,8 @@ private:
     // Global and end frame in the alembic archive.
     fpreal		        myStartFrame;
     fpreal			myEndFrame;
+
+    UT_UniquePtr<GU_Detail>	myPackedGdp;
 };
 
 #endif
