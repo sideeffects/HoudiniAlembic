@@ -77,6 +77,7 @@ namespace {
     using CompoundPropertyReaderPtr = Alembic::Abc::CompoundPropertyReaderPtr;
     using ICompoundProperty = Alembic::Abc::ICompoundProperty;
     using IArrayProperty = Alembic::Abc::IArrayProperty;
+    using IScalarProperty = Alembic::Abc::IScalarProperty;
 
     using ArraySample = Alembic::Abc::ArraySample;
     using ArraySamplePtr = Alembic::Abc::ArraySamplePtr;
@@ -476,7 +477,7 @@ namespace {
             const char *name,
             const char *abcname,
             const DataType &data_type,
-            const Dimensions &dimensions,
+            size_t entries,
             const MetaData &meta_data,
             const void *data,
             exint npoint,
@@ -491,7 +492,6 @@ namespace {
 	exint               len;
 	GA_Offset           npts(0);
         int                 array_extent = getArrayExtent(meta_data);
-        size_t              entries = dimensions.numPoints();
 	int                 tsize = array_extent * data_type.getExtent();
         bool                promote_points = false;
 
@@ -856,7 +856,7 @@ namespace {
                 name,
                 abcname,
                 asample->getDataType(),
-                asample->getDimensions(),
+                asample->getDimensions().numPoints(),
                 param.getMetaData(),
                 asample->getData(),
                 npoint,
@@ -895,34 +895,178 @@ namespace {
                         nprim);
                 continue;
             }
-            UT_ASSERT(head.isArray());
-
-            IArrayProperty in_property(cpr_ptr->getArrayProperty(i),
-				       gabcWrapExisting);
-	    if (in_property.getNumSamples() == 0)
-		continue;
-
-            in_property.get(asample, iss);
-            if (!asample)
-		continue;
 
             GA_AttributeOwner owner = arbitraryGAOwner(head);
             UT_String name(head.getName());
             if (!walk.translateAttributeName(owner, name))
 		continue;
 
-            setAttribute(walk,
-                    obj,
-                    owner,
-                    name.buffer(),
-                    head.getName().c_str(),
-                    asample->getDataType(),
-                    asample->getDimensions(),
-                    in_property.getMetaData(),
-                    asample->getData(),
-                    npoint,
-                    nvertex,
-                    nprim);
+	    if(head.isArray())
+	    {
+		IArrayProperty property(cpr_ptr->getArrayProperty(i),
+					gabcWrapExisting);
+		if (property.getNumSamples() == 0)
+		    continue;
+
+		property.get(asample, iss);
+
+		if (!asample)
+		    continue;
+
+		setAttribute(walk, obj, owner, name.buffer(),
+			     head.getName().c_str(),
+			     head.getDataType(),
+			     asample->getDimensions().numPoints(),
+			     head.getMetaData(), asample->getData(),
+			     npoint, nvertex, nprim);
+		continue;
+	    }
+
+	    if(head.isScalar())
+	    {
+		IScalarProperty property(cpr_ptr->getScalarProperty(i),
+					 gabcWrapExisting);
+
+		const DataType &datatype = head.getDataType();
+		int tsize = datatype.getExtent();
+		switch(datatype.getPod())
+		{
+		    case Alembic::Abc::kBooleanPOD:
+			{
+			    UT_StackBuffer<bool> src(tsize);
+			    property.get(src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kInt8POD:
+			{
+			    UT_StackBuffer<int8> src(tsize);
+			    property.get(src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kUint8POD:
+			{
+			    UT_StackBuffer<uint8> src(tsize);
+			    property.get(src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kInt16POD:
+			{
+			    UT_StackBuffer<int16> src(tsize);
+			    property.get(src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kUint16POD:
+			{
+			    UT_StackBuffer<uint16> src(tsize);
+			    property.get(src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kInt32POD:
+			{
+			    UT_StackBuffer<int32> src(tsize);
+			    property.get(src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kUint32POD:
+			{
+			    UT_StackBuffer<uint32> src(tsize);
+			    property.get(src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kInt64POD:
+			{
+			    UT_StackBuffer<int64> src(tsize);
+			    property.get(src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kUint64POD:
+			{
+			    UT_StackBuffer<uint64> src(tsize);
+			    property.get(src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kFloat16POD:
+			{
+			    UT_StackBuffer<fpreal16> src(tsize);
+			    property.get(src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kFloat32POD:
+			{
+			    UT_StackBuffer<fpreal32> src(tsize);
+			    property.get(src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kFloat64POD:
+			{
+			    UT_StackBuffer<fpreal64> src(tsize);
+			    property.get(src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kStringPOD:
+			{
+			    std::string	src;
+			    property.get(&src, iss);
+			    setAttribute(walk, obj, owner, name.buffer(),
+					 head.getName().c_str(), datatype, 1,
+					 head.getMetaData(), &src,
+					 npoint, nvertex, nprim);
+			}
+			break;
+		    case Alembic::Abc::kWstringPOD:
+		    case Alembic::Abc::kNumPlainOldDataTypes:
+		    case Alembic::Abc::kUnknownPOD:
+			break;
+		}
+	    }
 	}
     }
 
@@ -1548,7 +1692,7 @@ namespace {
 	        "P",
 	        NULL,
                 psample->getDataType(),
-                psample->getDimensions(),
+                psample->getDimensions().numPoints(),
                 positions.getMetaData(),
                 psample->getData(),
 		npoint);
@@ -1564,7 +1708,7 @@ namespace {
 	            "v",
 	            NULL,
                     vsample->getDataType(),
-                    vsample->getDimensions(),
+                    vsample->getDimensions().numPoints(),
                     velocities.getMetaData(),
                     vsample->getData(),
 		    npoint);
@@ -1652,7 +1796,7 @@ namespace {
 	        "P",
 	        NULL,
                 psample->getDataType(),
-                psample->getDimensions(),
+                psample->getDimensions().numPoints(),
                 positions.getMetaData(),
                 psample->getData(),
 		npoint);
@@ -1668,7 +1812,7 @@ namespace {
 	            "v",
 	            NULL,
                     vsample->getDataType(),
-                    vsample->getDimensions(),
+                    vsample->getDimensions().numPoints(),
                     velocities.getMetaData(),
                     vsample->getData(),
 		    npoint);
@@ -1729,7 +1873,7 @@ namespace {
 	        "P",
 	        NULL,
                 psample->getDataType(),
-                psample->getDimensions(),
+                psample->getDimensions().numPoints(),
                 positions.getMetaData(),
                 psample->getData(),
 		npoint);
@@ -1745,7 +1889,7 @@ namespace {
 	            "v",
 	            NULL,
                     vsample->getDataType(),
-                    vsample->getDimensions(),
+                    vsample->getDimensions().numPoints(),
                     velocities.getMetaData(),
                     vsample->getData(),
 		    npoint);
@@ -1761,7 +1905,7 @@ namespace {
 	            "id",
 	            NULL,
                     isample->getDataType(),
-                    isample->getDimensions(),
+                    isample->getDimensions().numPoints(),
                     ids.getMetaData(),
                     isample->getData(),
 		    npoint);
@@ -1904,7 +2048,7 @@ namespace {
                     "P",
                     NULL,
                     rsample->getDataType(),
-                    rsample->getDimensions(),
+                    rsample->getDimensions().numPoints(),
                     positions.getMetaData(),
                     rsample->getData(),
                     npoint);
@@ -1917,7 +2061,7 @@ namespace {
                     "P",
                     NULL,
                     psample->getDataType(),
-                    psample->getDimensions(),
+                    psample->getDimensions().numPoints(),
                     positions.getMetaData(),
                     psample->getData(),
                     npoint);
@@ -1936,7 +2080,7 @@ namespace {
 	            "v",
 	            NULL,
                     vsample->getDataType(),
-                    vsample->getDimensions(),
+                    vsample->getDimensions().numPoints(),
                     velocities.getMetaData(),
                     vsample->getData(),
 		    npoint);
@@ -2027,7 +2171,7 @@ namespace {
                     "P",
                     NULL,
                     rsample->getDataType(),
-                    rsample->getDimensions(),
+                    rsample->getDimensions().numPoints(),
                     positions.getMetaData(),
                     rsample->getData(),
                     npoint);
@@ -2040,7 +2184,7 @@ namespace {
                     "P",
                     NULL,
                     psample->getDataType(),
-                    psample->getDimensions(),
+                    psample->getDimensions().numPoints(),
                     positions.getMetaData(),
                     psample->getData(),
                     npoint);
@@ -2058,7 +2202,7 @@ namespace {
 	            "v",
 	            NULL,
                     vsample->getDataType(),
-                    vsample->getDimensions(),
+                    vsample->getDimensions().numPoints(),
                     velocities.getMetaData(),
                     vsample->getData(),
 		    npoint);
