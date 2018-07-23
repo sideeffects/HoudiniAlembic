@@ -1504,6 +1504,15 @@ namespace
 		   bool polysoup, const UT_String &path)
 	    : myUnpacked(unpacked)
 	    , mySrc(src)
+	    , myDest(nullptr)
+	    , myPolySoup(polysoup)
+	    , myPath(path)
+	{
+	}
+	unpackTask(GU_Detail *dest, const GU_Detail &src,
+		   bool polysoup, const UT_String &path)
+	    : mySrc(src)
+	    , myDest(dest)
 	    , myPolySoup(polysoup)
 	    , myPath(path)
 	{
@@ -1513,19 +1522,20 @@ namespace
 	{
 	    for (auto i = range.begin(), end = range.end(); i < end; ++i)
 	    {
-		UT_ASSERT(i >= 0 && i < myUnpacked.entries() && myUnpacked(i));
+		UT_ASSERT(i >= 0 && (myDest || (i < myUnpacked.entries() && myUnpacked(i))));
 		auto	off = mySrc.primitiveOffset(i);
 		auto	prim = mySrc.getGEOPrimitive(off);
 		auto	pack = UTverify_cast<const GU_PrimPacked *>(prim);
-		GU_Detail *gdp = myUnpacked(i);
+		GU_Detail *gdp = myDest ? myDest : myUnpacked(i);
+		GA_Detail::OffsetMarker marker(*gdp);
 		if(myPolySoup)
 		{
-		    if (!pack->unpack(*gdp))
+		    if (!pack->unpack(*gdp) && !myDest)
 			gdp->clear();
 		}
 		else
 		{
-		    if (!pack->unpackUsingPolygons(*gdp))
+		    if (!pack->unpackUsingPolygons(*gdp) && !myDest)
 			gdp->clear();
 		}
 
@@ -1537,7 +1547,7 @@ namespace
 		    {
 			auto abc_impl = UTverify_cast<const GABC_PackedImpl *>(pack->implementation());
 			auto path = abc_impl->objectPath();
-			for (auto it = GA_Iterator(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
+			for (auto it = GA_Iterator(marker.primitiveRange()); !it.atEnd(); ++it)
 			    a->setString(*it, path);
 		    }
 		}
@@ -1546,6 +1556,7 @@ namespace
 
 	UT_Array<GU_Detail *>	 myUnpacked;
 	const GU_Detail		&mySrc;
+	GU_Detail		*myDest;
 	bool			 myPolySoup;
 	const UT_String		&myPath;
     };
@@ -1557,19 +1568,29 @@ SOP_AlembicIn::unpack(
 {
     dest.stashAll();
     UT_ASSERT(dest.getNumPoints() == 0);
-    UT_Array<GU_Detail *>	unpacked;
-    for (auto it = GA_Iterator(src.getPrimitiveRange()); !it.atEnd(); ++it)
-    {
-	UT_ASSERT(GU_PrimPacked::isPackedPrimitive(*src.getGEOPrimitive(*it)));
-	unpacked.append(new GU_Detail);
-    }
-    // Currently, parallel unpacking is slower than serial unpacking
     bool polysoup = (parms.myPolySoup != GABC_GEOWalker::ABC_POLYSOUP_NONE);
-    UTserialFor(UT_BlockedRange<GA_Size>(0, unpacked.entries()),
-		    unpackTask(unpacked, src, polysoup, parms.myPathAttribute));
-    GUmatchAttributesAndMerge(dest, unpacked);
-    for (auto g : unpacked)
-	delete g;
+
+    // Currently, parallel unpacking is slower than serial unpacking
+    bool doParallel = false;
+    if (doParallel)
+    {
+	UT_Array<GU_Detail *> unpacked;
+	for (auto it = GA_Iterator(src.getPrimitiveRange()); !it.atEnd(); ++it)
+	{
+	    UT_ASSERT(GU_PrimPacked::isPackedPrimitive(*src.getGEOPrimitive(*it)));
+	    unpacked.append(new GU_Detail);
+	}
+	UTparallelFor(UT_BlockedRange<GA_Size>(0, unpacked.entries()),
+		      unpackTask(unpacked, src, polysoup, parms.myPathAttribute));
+	GUmatchAttributesAndMerge(dest, unpacked);
+	for (auto g : unpacked)
+	    delete g;
+    }
+    else
+    {
+	UTserialFor(UT_BlockedRange<GA_Size>(0, src.getNumPrimitives()),
+		    unpackTask(&dest, src, polysoup, parms.myPathAttribute));
+    }
 }
 
 //-*****************************************************************************
