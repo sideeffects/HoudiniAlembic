@@ -964,11 +964,20 @@ GABC_PackedImpl::GTCache::centroid(const GABC_PackedImpl *abc)
 GEO_AnimationType
 GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
 {
-    if (myAnimationType == GEO_ANIMATION_INVALID && visible(abc))
+    if (myAnimationType == GEO_ANIMATION_INVALID)
     {
 	const GABC_IObject	&o = abc->object();
 	if (o.valid())
 	{
+	    myAnimationType = GEO_ANIMATION_CONSTANT;
+	    bool animated;
+	    bool vis = visible(abc, &animated);
+
+	    if(animated)
+		myAnimationType = GEO_ANIMATION_TRANSFORM;
+	    else if(!vis)
+		return myAnimationType;
+
 	    if(GT_PackedGeoCache::isCachingAvailable())
 	    {
 		UT_StringHolder cache_name;
@@ -1022,8 +1031,6 @@ GABC_PackedImpl::GTCache::visible(const GABC_PackedImpl *abc,
     if(is_animated)
 	*is_animated = animated;
 
-    if (myAnimationType <= GEO_ANIMATION_CONSTANT && animated)
-	myAnimationType = GEO_ANIMATION_TRANSFORM;
     return vis;
 }
 
