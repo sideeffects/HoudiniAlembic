@@ -1973,8 +1973,8 @@ GABC_AlembicCache::getTransform(const GABC_PackedImpl *impl,
 	return;
     }
 
-    GEO_AnimationType atype;
-    impl->object().getWorldTransform(transform, frame, atype);
-    myTransformAnimated = (atype != GEO_ANIMATION_CONSTANT);
+    bool isconst, inherits;
+    GABC_Util::getWorldTransform(impl->object(), frame, transform, isconst, inherits);
+    myTransformAnimated = !isconst;
     myTransform.emplace(frame, transform);
 }

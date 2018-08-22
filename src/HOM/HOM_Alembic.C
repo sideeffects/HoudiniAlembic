@@ -383,10 +383,10 @@ namespace
 			    else
 			    {
 				GABC_IObject parent = obj.getParent();
-				M44d xform;
+				UT_Matrix4D xform;
 				bool isConstant = true;
 				bool inherits = true;
-				if(!parent.worldTransform(0.0, xform, isConstant, inherits) || isConstant)
+				if(!GABC_Util::getWorldTransform(parent, 0.0, xform, isConstant, inherits) || isConstant)
 				    otype = "cxform";
 			    }
 			}

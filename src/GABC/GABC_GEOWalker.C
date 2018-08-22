@@ -2493,8 +2493,8 @@ GABC_GEOWalker::setRootObject(const std::vector<std::string> &filenames,
 	if (!obj.valid())
 	    return false;
 
-	GEO_AnimationType atype;
-	obj.getWorldTransform(myRootInvertedMatrix, time(), atype);
+	bool isconst, inherits;
+	GABC_Util::getWorldTransform(obj, time(), myRootInvertedMatrix, isconst, inherits);
 	myRootInvertedMatrix.invert();
     }
     else
@@ -3143,8 +3143,8 @@ GABC_GEOWalker::setPointTransform(GU_PrimPacked *prim, GA_Offset pt) const
 	{
 	    if (includeXform())
 	    {
-		GEO_AnimationType atype;
-		abc->object().getWorldTransform(selfM4, time(), atype);
+		bool isconst, inherits;
+		GABC_Util::getWorldTransform(abc->object(), time(), selfM4, isconst, inherits);
 	    }
 	    break;
 	}

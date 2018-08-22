@@ -206,24 +206,6 @@ public:
     /// any attributes.
     GT_PrimitiveHandle	getCentroidGeometry(fpreal t, GEO_AnimationType &a) const;
 
-    /// Get local transform for the object.  For shape objects, this will
-    /// return an identity transform.  The animation type only considers the
-    /// local transform (not all the parent transforms).
-    ///
-    /// The transform will be blended between samples if the time doesn't align
-    /// perfectly with a sample point.
-    bool		getLocalTransform(UT_Matrix4D &xform, fpreal t,
-				GEO_AnimationType &atype,
-				bool &inherits) const;
-
-    /// Get world transform for the object.  The animation type includes all
-    /// parent transforms.
-    ///
-    /// The transform will be blended between samples if the time doesn't align
-    /// perfectly with a sample point.
-    bool		getWorldTransform(UT_Matrix4D &xform, fpreal t,
-				GEO_AnimationType &atype) const;
-
     /// Check whether the transform (or parent transforms) is animated
     bool		isTransformAnimated() const;
 
@@ -287,19 +269,6 @@ public:
 
     /// Clamp the time to the animated time range
     fpreal		clampTime(fpreal input_time) const;
-
-    /// @{
-    /// Get the world transform for the node.  This includes all it's parent
-    /// transforms.
-    bool		worldTransform(fpreal t,
-				    UT_Matrix4D &xform,
-				    bool &isConstant,
-				    bool &inheritsXform) const;
-    bool		worldTransform(fpreal t,
-				    M44d &xform,
-				    bool &isConstant,
-				    bool &inheritsXform) const;
-    /// @}
 
     /// @{
     /// Get the local transform for the node.  This is an identity matrix 

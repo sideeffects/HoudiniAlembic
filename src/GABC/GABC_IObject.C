@@ -2243,7 +2243,7 @@ namespace
 	UT_Matrix4D	utmat;
 	bool		isconst, inherits;
 
-	if (!parent.worldTransform(t, utmat, isconst, inherits))
+	if (!GABC_Util::getWorldTransform(parent, t, utmat, isconst, inherits))
 	{
 	    utmat.identity();
 	    isconst = true;
@@ -3332,41 +3332,14 @@ GABC_IObject::getCentroidGeometry(fpreal t, GEO_AnimationType &atype) const
 }
 
 bool
-GABC_IObject::getLocalTransform(UT_Matrix4D &xform, fpreal t,
-				GEO_AnimationType &atype,
-				bool &inherits) const
-{
-    bool	isconst = true;
-    if (!localTransform(t, xform, isconst, inherits))
-	return false;
-
-    atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_TRANSFORM;
-    return true;
-}
-
-bool
-GABC_IObject::getWorldTransform(UT_Matrix4D &xform, fpreal t,
-					GEO_AnimationType &atype) const
-{
-    bool	isconst, inherits;
-    if (!worldTransform(t, xform, isconst, inherits))
-	return false;
-
-    atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_TRANSFORM;
-
-    return false;
-}
-
-bool
 GABC_IObject::isTransformAnimated() const
 {
-    GABC_IObject	xform = *this;
-    while (xform.valid() && xform.nodeType() != GABC_XFORM)
-	xform = xform.getParent();
-    if (!xform.valid())
-	return false;
-
-    return GABC_Util::isTransformAnimated(xform);
+    for(GABC_IObject xform = *this; xform.valid(); xform = xform.getParent())
+    {
+	if(xform.nodeType() == GABC_XFORM)
+	    return GABC_Util::isTransformAnimated(xform);
+    }
+    return false;
 }
 
 GT_DataArrayHandle
@@ -3725,53 +3698,6 @@ GABC_IObject::getUserProperty(const std::string &name, fpreal t,
 	UT_ASSERT(0 && "Alembic exception");
     }
     return data;
-}
-
-bool
-GABC_IObject::worldTransform(fpreal t, UT_Matrix4D &xform,
-	bool &isConstant, bool &inheritsXform) const
-{
-    if (!valid())
-    {
-	xform.identity();
-	return false;
-    }
-
-    IObject		obj = object();
-    GABC_AlembicLock	lock(archive());
-    bool		ascended = false;
-
-    while (obj.valid() && !IXform::matches(obj.getHeader()))
-    {
-	obj = obj.getParent();
-	ascended = true;
-    }
-    if (!obj.valid())
-    {
-	xform.identity();
-	return false;
-    }
-
-    lock.unlock();
-    if (ascended)
-    {
-	return GABC_Util::getWorldTransform(GABC_IObject(archive(), obj), t,
-					    xform, isConstant, inheritsXform);
-    }
-    return GABC_Util::getWorldTransform(*this, t, xform, isConstant,
-					inheritsXform);
-}
-
-bool
-GABC_IObject::worldTransform(fpreal t, M44d &m4,
-	bool &is_const, bool &inherits) const
-{
-    UT_Matrix4D	xform;
-    if (!worldTransform(t, xform, is_const, inherits))
-	return false;
-
-    m4 = GABC_Util::getM(xform);
-    return true;
 }
 
 bool

@@ -1464,8 +1464,8 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
 	    {
 		auto &obj = it3->second;
 
-		GEO_AnimationType atype;
-		obj.getWorldTransform(m, time, atype);
+		bool isconst, inherits;
+		GABC_Util::getWorldTransform(obj, time, m, isconst, inherits);
 		// set transform
 		xform.invert();
 		node->setXform(m * xform);

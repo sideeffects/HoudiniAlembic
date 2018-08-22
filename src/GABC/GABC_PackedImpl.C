@@ -467,8 +467,8 @@ GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
 
     if (myUseTransform)
     {
-	GEO_AnimationType	atype;
-	myObject.getWorldTransform(m, myFrame, atype);
+	bool isconst, inherits;
+	GABC_Util::getWorldTransform(myObject, myFrame, m, isconst, inherits);
     }
     else
 	m.identity();
