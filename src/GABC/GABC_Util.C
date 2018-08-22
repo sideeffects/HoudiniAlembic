@@ -217,6 +217,7 @@ namespace
 
     using AbcTransformMap = UT_StringMap<LocalWorldXform>;
     using AbcVisibilityMap = UT_StringMap<GABC_VisibilityType>;
+    using AbcBoundingBoxMap = UT_StringMap<UT_BoundingBox>;
     using ArchiveCacheEntryPtr = UT_SharedPtr<ArchiveCacheEntry>;
 
     using HeaderMap = UT_SortedMap<std::string, const PropertyHeader *>;
@@ -230,6 +231,7 @@ namespace
     static UT_Lock		theOCacheLock;
     static UT_Lock		theXCacheLock;
     static UT_Lock		theVisibilityCacheLock;
+    static UT_Lock		theBoundingBoxCacheLock;
 
     const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
@@ -340,6 +342,27 @@ namespace
 	GABC_VisibilityType myVisibility;
     };
 
+    // Used to store bounding boxes as items in a UT_CappedCache.
+    class ArchiveBoundingBoxItem : public UT_CappedItem
+    {
+    public:
+	ArchiveBoundingBoxItem()
+	    : UT_CappedItem()
+	{
+	    myBox.makeInvalid();
+	}
+	ArchiveBoundingBoxItem(const UT_BoundingBox &box)
+	    : UT_CappedItem()
+	    , myBox(box)
+	{}
+
+	virtual int64 getMemoryUsage() const  { return sizeof(*this); }
+	void getBoundingBox(UT_BoundingBox &box) const { box = myBox; }
+
+    private:
+	UT_BoundingBox myBox;
+    };
+
     // Used to store GABC_IObject objects as items in a UT_CappedCache.
     class ArchiveObjectItem : public UT_CappedItem
     {
@@ -405,11 +428,12 @@ namespace
 	using HandlerSetType = UT_Set<ArchiveEventHandlerPtr>;
 
         ArchiveCacheEntry()
-	    : myCache("Alembic Object Cache", 8)
+	    : myXformCacheBuilt(false)
+	    , myCache("Alembic Object Cache", 8)
 	    , myDynamicXforms("Alembic Transform Cache", 64)
 	    , myDynamicVisibility("Alembic Visibility Cache", 64)
 	    , myDynamicFullVisibility("Alembic Full Visibility Cache", 64)
-	    , myXformCacheBuilt(false)
+	    , myDynamicBoundingBoxes("Alembic Bounding Box Cache", 64)
         {}
         virtual ~ArchiveCacheEntry()
 	{
@@ -510,20 +534,6 @@ namespace
 	    }
 	}
 
-	/// Check to see if there's a const local transform cached
-	bool
-	staticLocalTransform(const char *fullpath, M44d &xform)
-        {
-            ensureValidTransformCache();
-
-            auto it = myStaticXforms.find(fullpath);
-	    if (it == myStaticXforms.end())
-		return false;
-
-	    xform = it->second.getLocal();
-	    return true;
-        }
-
 	/// Check to see if there's a const world transform cached
 	bool
 	staticWorldTransform(const char *fullpath, M44d &xform)
@@ -569,8 +579,8 @@ namespace
                 bool &isConstant,
                 bool &inheritsXform)
         {
-            std::string         path = obj.getFullName();
-            ArchiveObjectKey    key(path.c_str(), now);
+            const std::string &path = obj.getFullName();
+            ArchiveObjectKey key(path.c_str(), now);
             UT_CappedItemHandle item;
             isConstant = true;
 
@@ -635,7 +645,7 @@ namespace
         {
 	    animated = false;
 
-            std::string path = obj.getFullName();
+            const std::string &path = obj.getFullName();
 	    ArchiveObjectKey key(path.c_str(), now);
 	    if(check_parent)
 	    {
@@ -750,6 +760,61 @@ namespace
         {
             UT_AutoLock	lock(theVisibilityCacheLock);
 	    return getVisibilityInternal(obj, now, animated, check_parent);
+	}
+
+	bool
+	getBoundingBoxInternal(const GABC_IObject &obj,
+	        fpreal now,
+		UT_BoundingBox &box,
+		bool &isconst)
+        {
+	    isconst = true;
+
+            const std::string &path = obj.getFullName();
+
+	    // check if it is in our static bounds cache
+	    auto it = myStaticBoundingBoxes.find(path);
+	    if (it != myStaticBoundingBoxes.end())
+	    {
+		box = it->second;
+		return true;
+	    }
+
+	    // check if it is in our dynamic bounds cache
+	    ArchiveObjectKey key(path.c_str(), now);
+	    UT_CappedItemHandle item = myDynamicBoundingBoxes.findItem(key);
+	    if (item)
+	    {
+		isconst = false;
+
+		ArchiveBoundingBoxItem *bitem =
+			UTverify_cast<ArchiveBoundingBoxItem *>(item.get());
+		bitem->getBoundingBox(box);
+		return true;
+	    }
+
+	    bool success = obj.getBoundingBox(box, now, isconst);
+
+	    if(success)
+	    {
+		// cache computed bounds
+		if(isconst)
+		    myStaticBoundingBoxes[path] = box;
+		else
+		    myDynamicBoundingBoxes.addItem(key, new ArchiveBoundingBoxItem(box));
+	    }
+	    return success;
+	}
+
+	/// Get an object's bounds
+	bool
+	getBoundingBox(const GABC_IObject &obj,
+	        fpreal now,
+		UT_BoundingBox &box,
+		bool &isconst)
+        {
+            UT_AutoLock	lock(theBoundingBoxCacheLock);
+	    return getBoundingBoxInternal(obj, now, box, isconst);
 	}
 
 	/// Find an object in the object cache -- this prevents having to
@@ -901,6 +966,8 @@ namespace
 	AbcVisibilityMap	myStaticFullVisibility;
 	UT_CappedCache		myDynamicVisibility;
 	UT_CappedCache		myDynamicFullVisibility;
+	AbcBoundingBoxMap	myStaticBoundingBoxes;
+	UT_CappedCache		myDynamicBoundingBoxes;
 	HandlerSetType		myHandlers;
 	UT_Lock			myTransformLock;
     };
@@ -2050,7 +2117,6 @@ bool
 GABC_Util::isTransformAnimated(const GABC_IObject &obj)
 {
     bool    animated = false;
-
     if (obj.valid())
     {
 	try
@@ -2062,7 +2128,6 @@ GABC_Util::isTransformAnimated(const GABC_IObject &obj)
 	}
 	catch (const std::exception &)
 	{
-	    animated = false;
 	}
     }
 
@@ -2090,12 +2155,35 @@ GABC_Util::getVisibility(
 	}
 	catch (const std::exception &)
 	{
-	    vis = GABC_VISIBLE_HIDDEN;
-	    animated = false;
 	}
     }
 
     return vis;
+}
+
+bool
+GABC_Util::getBoundingBox(
+    const GABC_IObject &obj,
+    fpreal sample_time,
+    UT_BoundingBox &box,
+    bool &isconst)
+{
+    isconst = true;
+    if (obj.valid())
+    {
+	try
+	{
+	    auto &filenames = obj.archive()->filenames();
+	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
+	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
+	    return cacheEntry->getBoundingBox(obj, sample_time, box, isconst);
+	}
+	catch (const std::exception &)
+	{
+	}
+    }
+
+    return false;
 }
 
 bool

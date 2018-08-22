@@ -874,7 +874,7 @@ namespace
 	if (!obj.valid())
 	    PY_Py_RETURN_NONE;
 
-	if (!obj.getBoundingBox(bbox, sampleTime, isConstant))
+	if (!GABC_Util::getBoundingBox(obj, sampleTime, bbox, isConstant))
 	    PY_Py_RETURN_NONE;
 
 	PY_PyObject* bboxTuple = PY_PyTuple_New(6);

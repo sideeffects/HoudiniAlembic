@@ -306,6 +306,13 @@ public:
 				bool &animated,
 				bool check_parent);
 
+    /// Get the bounding box for a GABC_IObject.
+    static bool		getBoundingBox(
+				const GABC_IObject &object,
+				fpreal sample_time,
+				UT_BoundingBox &box,
+				bool &isconst);
+
     //
     //  Walk Alembic Hierarchy
     //

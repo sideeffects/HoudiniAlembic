@@ -398,12 +398,8 @@ GABC_PackedImpl::loadUnknownToken(const char *token,
 bool
 GABC_PackedImpl::getBounds(UT_BoundingBox &box) const
 {
-    const GABC_IObject &iobj = object();
-    if (!iobj.valid())
-	return 0;
-
     bool isconst;
-    return iobj.getBoundingBox(box, myFrame, isconst);
+    return GABC_Util::getBoundingBox(object(), myFrame, box, isconst);
 }
 
 bool
@@ -913,7 +909,7 @@ GABC_PackedImpl::GTCache::box(const GABC_PackedImpl *abc)
 	    UT_BoundingBox	box;
 	    myFrame = abc->frame();
 	    myRep = GEO_VIEWPORT_BOX;
-	    if (o.getBoundingBox(box, myFrame, isconst))
+	    if (GABC_Util::getBoundingBox(o, myFrame, box, isconst))
 	    {
 		GT_BuilderStatus	err;
 		myPrim = GT_PrimitiveBuilder::wireBox(err, box);
@@ -941,7 +937,7 @@ GABC_PackedImpl::GTCache::centroid(const GABC_PackedImpl *abc)
 	    UT_BoundingBox	box;
 	    myFrame = abc->frame();
 	    myRep = GEO_VIEWPORT_CENTROID;
-	    if (o.getBoundingBox(box, myFrame, isconst))
+	    if (GABC_Util::getBoundingBox(o, myFrame, box, isconst))
 	    {
 		fpreal64		pos[3];
 		pos[0] = box.xcenter();

@@ -2767,7 +2767,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 		{
 		    UT_BoundingBox	box;
 		    bool		isConstant;
-		    if (obj.getBoundingBox(box, myTime, isConstant))
+		    if (GABC_Util::getBoundingBox(obj, time(), box, isConstant))
 		    {
 			recordTimeRange(obj);
 			makeHoudiniBox(*this, obj, box);
@@ -2909,7 +2909,7 @@ GABC_GEOWalker::matchBounds(const GABC_IObject &obj) const
     bool		isConstant;
     UT_BoundingBox	box;
 
-    if(!obj.getBoundingBox(box, myTime, isConstant))
+    if(!GABC_Util::getBoundingBox(obj, time(), box, isConstant))
 	return true;
 
     if (!isConstant)
@@ -2950,7 +2950,7 @@ GABC_GEOWalker::matchSize(const GABC_IObject &obj) const
 
     UT_BoundingBox box;
     bool isconst;
-    if(!obj.getBoundingBox(box, time(), isconst))
+    if(!GABC_Util::getBoundingBox(obj, time(), box, isconst))
 	return true;
 
     fpreal x = box.xsize();
@@ -2981,7 +2981,7 @@ GABC_GEOWalker::matchChildBounds(const GABC_IObject &obj) const
     bool		isConstant;
     UT_BoundingBox	box;
 
-    if(!obj.getBoundingBox(box, myTime, isConstant))
+    if(!GABC_Util::getBoundingBox(obj, time(), box, isConstant))
 	return true;
 
     if (includeXform())
@@ -3016,7 +3016,7 @@ GABC_GEOWalker::matchChildSize(const GABC_IObject &obj) const
 
     UT_BoundingBox box;
     bool isconst;
-    if(!obj.getBoundingBox(box, time(), isconst))
+    if(!GABC_Util::getBoundingBox(obj, time(), box, isconst))
 	return true;
 
     fpreal x = box.xsize();

@@ -2924,6 +2924,7 @@ GABC_IObject::visibility(bool &animated, fpreal t, bool check_parent) const
 {
     return GABC_Util::getVisibility(*this, t, animated, check_parent);
 }
+
 GEO_AnimationType
 GABC_IObject::getAnimationType(bool include_transform) const
 {
@@ -3027,7 +3028,7 @@ bool
 GABC_IObject::getRenderingBoundingBox(UT_BoundingBox &box, fpreal t) const
 {
     bool	isconst;
-    if (!getBoundingBox(box, t, isconst))
+    if (!GABC_Util::getBoundingBox(*this, t, box, isconst))
 	return false;
 
     switch (nodeType())
@@ -3304,7 +3305,7 @@ GABC_IObject::getBoxGeometry(fpreal t, GEO_AnimationType &atype) const
 {
     bool		isconst;
     UT_BoundingBox	box;
-    if (!getBoundingBox(box, t, isconst))
+    if (!GABC_Util::getBoundingBox(*this, t, box, isconst))
 	return GT_PrimitiveHandle();
 
     atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_ATTRIBUTE;
@@ -3317,7 +3318,7 @@ GABC_IObject::getCentroidGeometry(fpreal t, GEO_AnimationType &atype) const
 {
     bool		isconst;
     UT_BoundingBox	box;
-    if (!getBoundingBox(box, t, isconst))
+    if (!GABC_Util::getBoundingBox(*this, t, box, isconst))
 	return GT_PrimitiveHandle();
 
     atype = isconst ? GEO_ANIMATION_CONSTANT : GEO_ANIMATION_ATTRIBUTE;
