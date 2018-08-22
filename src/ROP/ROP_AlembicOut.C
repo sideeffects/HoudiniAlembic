@@ -1814,12 +1814,8 @@ ropGetLocalTransform(UT_Matrix4D &m, OBJ_Node *obj, OP_Context &context)
     if(!obj->getWorldTransform(m, context))
 	m.identity();
 
-    OP_Node *parent = nullptr;
-    OP_Input *input = obj->getInputReferenceConst(0);
-    if(input && !input->isIndirect())
-	parent = input->getNode();
-
-    if(!parent)
+    OP_Node *parent = obj->getInput(0);
+    if(!parent || parent->getParent() != obj->getParent())
 	parent = obj->getParent();
 
     OBJ_Node *p = CAST_OBJNODE(parent);
