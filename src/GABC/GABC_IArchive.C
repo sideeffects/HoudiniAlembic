@@ -110,6 +110,7 @@ GABC_IArchive::closeAndDelete()
 
 GABC_IArchive::GABC_IArchive(const std::vector<std::string> &paths, int num_streams)
     : myFileNames(paths)
+    , myPurged(false)
     , myIsOgawa(false)
 {
     UT_INC_COUNTER(theCount);
@@ -122,8 +123,11 @@ GABC_IArchive::~GABC_IArchive()
     UT_DEC_COUNTER(theCount);
     GABC_AlembicLock	lock(*this);	// Lock for member data deletion
 
-    for (auto it = myObjects.begin(); it != myObjects.end(); ++it)
-	(*it)->purge();
+    if(!myPurged)
+    {
+	for (auto &it : myObjects)
+	    it->purge();
+    }
     theArchiveCache.erase(myFileNames);
 }
 
@@ -232,9 +236,9 @@ GABC_IArchive::reopenStream(int num_streams)
 	clearStream();
 	openArchive(myFileNames, num_streams);
 
-        for (SetType::iterator it=myObjects.begin(); it!=myObjects.end(); ++it)
+        for (auto &it : myObjects)
 	{
-	    GABC_IObject *object = dynamic_cast<GABC_IObject *>(*it);
+	    GABC_IObject *object = dynamic_cast<GABC_IObject *>(it);
 	    if(object)
 		resolveObject(*object);
 	}
@@ -297,6 +301,20 @@ GABC_IArchive::getTop() const
 
     GABC_AlembicLock	 lock(*this);
     return GABC_IObject(const_cast<GABC_IArchive *>(this), myArchive.getTop());
+}
+
+void
+GABC_IArchive::purgeObjects()
+{
+    GABC_AlembicLock    lock(*this);
+
+    UT_ASSERT(!myPurged);
+    myPurged = true;
+    for (auto &it : myObjects)
+        it->purge();
+    myArchive = IArchive();
+    clearStream();
+    theArchiveCache.erase(myFileNames);
 }
 
 void

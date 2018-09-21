@@ -1747,7 +1747,7 @@ namespace
 		auto it = myItems.begin();
 		for (; d > 0; --d)
 		    ++it;
-		removeCacheEntry(it->first);
+		removeCacheEntry(it->first, false);
 	    }
 
 	    addCacheEntry(paths, entry);
@@ -1755,7 +1755,7 @@ namespace
 	}
 
 	void
-	clearArchive(const char *path=nullptr)
+	clearArchive(const char *path=nullptr, bool purge=false)
 	{
 	    if(path)
 	    {
@@ -1765,11 +1765,16 @@ namespace
 		{
 		    auto keys = it->second;
 		    for(auto &paths : keys)
-			removeCacheEntry(paths);
+			removeCacheEntry(paths, purge);
 		}
 	    }
 	    else
 	    {
+		if(purge)
+		{
+		    for(auto &it : myItems)
+			it.second->archive()->purgeObjects();
+		}
 		myItems.clear();
 		myKeysWithPath.clear();
 	    }
@@ -1787,7 +1792,7 @@ namespace
 	}
 
 	void
-	removeCacheEntry(const std::vector<std::string> &paths)
+	removeCacheEntry(const std::vector<std::string> &paths, bool purge)
 	{
 	    for(auto &p : paths)
 	    {
@@ -1797,6 +1802,12 @@ namespace
 		    myKeysWithPath.erase(p);
 	    }
 
+	    if(purge)
+	    {
+		auto it = myItems.find(paths);
+		if(it != myItems.end())
+		    it->second->archive()->purgeObjects();
+	    }
 	    myItems.erase(paths);
 	}
 
@@ -1968,7 +1979,7 @@ GABC_Util::walk(const std::vector<std::string> &filenames, GABC_Util::Walker &wa
 void
 GABC_Util::clearCache(const char *filename)
 {
-    g_archiveCache->clearArchive(filename);
+    g_archiveCache->clearArchive(filename, true);
     GT_PackedGeoCache::clearAlembics(filename);
 }
 
