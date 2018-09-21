@@ -761,6 +761,7 @@ SOP_AlembicIn::reloadGeo(void *data, int index, float time, const PRM_Template *
     me->appendFileNames(filenames, time);
     for(auto &filename : filenames)
 	GABC_Util::clearCache(filename.c_str());
+    me->unloadData();
     return 1;
 }
 
