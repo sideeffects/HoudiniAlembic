@@ -81,6 +81,9 @@ public:
 
     bool		isOgawa() const		{ return myIsOgawa; }
 
+    /// Purge all object references
+    void		purgeObjects();
+
     /// Close and reopen the archive with the given number of file streams
     /// (-1 is to use the default)
     void		reopenStream(int num_ogawa_streams = -1);
@@ -162,6 +165,7 @@ private:
     UT_Array<gabc_streamentry> myStreams;
     IArchive		 myArchive;
     SetType		 myObjects;
+    bool		 myPurged;
     bool		 myIsOgawa;
 };
 
