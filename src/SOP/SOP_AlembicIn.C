@@ -442,7 +442,7 @@ static const char *objectPathMenuCommand =
     "        r.append(p)\n"
     "    return r\n"
     "return __import__('_alembic_hom_extensions')."
-	"alembicGetObjectPathListForMenu(getFileName(hou.pwd()))[:16380]";
+	"alembicGetObjectPathListForMenu(getFileName(hou.pwd()))";
 
 static PRM_ChoiceList	prm_objectPathMenu(PRM_CHOICELIST_TOGGLE,
 			    objectPathMenuCommand, CH_PYTHON_SCRIPT);

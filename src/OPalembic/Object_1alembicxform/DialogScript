@@ -248,7 +248,7 @@
 	type	string
 	default	{ "" }
 	menureplace	{
-	    [ "__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu(hou.pwd().hdaModule().GetFileName(hou.pwd()))[:16380]" ]
+	    [ "__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu(hou.pwd().hdaModule().GetFileName(hou.pwd()))" ]
 	    language	python
 	}
 	range	{ 0 1 }
