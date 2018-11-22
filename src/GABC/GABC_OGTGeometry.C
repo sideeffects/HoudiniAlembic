@@ -1656,7 +1656,11 @@ GABC_OGTGeometry::IntrinsicCache::needWrite(const GABC_OOptions &ctx,
 	const char *name, const GT_DataArrayHandle &data)
 {
     if (!strcmp(name, "P"))
-	return needWrite(ctx, data, myP);
+    {
+	// Always write positions to avoid samples being identified as
+	// partial samples by the Alembic library.
+	return true;
+    }
     if (!strcmp(name, "v"))
 	return needWrite(ctx, data, myVel);
     if (!strcmp(name, "uv"))
