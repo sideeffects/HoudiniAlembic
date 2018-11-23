@@ -1284,10 +1284,18 @@ namespace
 
 	// We pass in "vtx" for the point attributes since we can't
 	// differentiate between them at this point.
-	if (getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", vtx)
-	    == GABC_LayerOptions::LayerType::FULL || isFullShape)
+	if (isFullShape
+	    || getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", vtx)
+			== GABC_LayerOptions::LayerType::FULL)
 	{
 	    fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, vtx);
+	    if(Pw)
+	    {
+		iPosWeight = floatArray(Pw, storage.Pw());
+		homogenized_vals = homogenize(iPos, iPosWeight);
+		if(homogenized_vals)
+		    iPos.setVals(*homogenized_vals);
+	    }
 	    sample.setPositions(iPos.getVals());
 	}
 
@@ -1362,13 +1370,6 @@ namespace
 	    {
 		iPosWeight = floatArray(Pw, storage.Pw());
 		sample.setPositionWeights(iPosWeight);
-
-		homogenized_vals = homogenize(iPos, iPosWeight);
-		if(homogenized_vals)
-		{
-		    iPos.setVals(*homogenized_vals);
-		    sample.setPositions(iPos.getVals());
-		}
 	    }
 
 	    if (knots)
@@ -1461,10 +1462,18 @@ namespace
 	// differentiate between them at this point.
 	//
 	// Also pass in "detail" for primitive attributes.
-	if (getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", vtx)
-	    == GABC_LayerOptions::LayerType::FULL || isFullShape)
+	if (isFullShape
+	    || getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", vtx)
+			== GABC_LayerOptions::LayerType::FULL)
 	{
 	    fillP3f(iPos, cache, ctx, "P", storage.P(), rixlate, vtx);
+	    if(Pw)
+	    {
+		iPosWeight = floatArray(Pw, storage.Pw());
+		homogenized_vals = homogenize(iPos, iPosWeight);
+		if(homogenized_vals)
+		    iPos.setVals(*homogenized_vals);
+	    }
 	    sample.setPositions(iPos.getVals());
 	}
 
@@ -1486,13 +1495,6 @@ namespace
 	    {
 		iPosWeight = floatArray(Pw, storage.Pw());
 		sample.setPositionWeights(iPosWeight);
-
-		homogenized_vals = homogenize(iPos, iPosWeight);
-		if(homogenized_vals)
-		{
-		    iPos.setVals(*homogenized_vals);
-		    sample.setPositions(iPos.getVals());
-		}
 	    }
 
 	    sample.setNu(src.getNu());
@@ -1659,6 +1661,7 @@ GABC_OGTGeometry::IntrinsicCache::needWrite(const GABC_OOptions &ctx,
     {
 	// Always write positions to avoid samples being identified as
 	// partial samples by the Alembic library.
+	myP = data ? data->harden() : data;
 	return true;
     }
     if (!strcmp(name, "v"))
