@@ -102,18 +102,15 @@ public:
 
 	/// @{
 	/// Test whether topology arrays need to be written
-	bool	needVertex(const GABC_OOptions &ctx,
-			const GT_DataArrayHandle &vertex_list)
-		    { return needWrite(ctx, vertex_list, myVertexList); }
-	bool	needCounts(const GABC_OOptions &ctx,
-			const GT_DataArrayHandle &counts)
-		    { return needWrite(ctx, counts, myCounts); }
+	bool	needVertex(const GT_DataArrayHandle &vertex_list)
+		    { return needWrite(vertex_list, myVertexList); }
+	bool	needCounts(const GT_DataArrayHandle &counts)
+		    { return needWrite(counts, myCounts); }
 	/// @}
 
 	/// Test to see if the attribute needs to be written (true) or whether
 	/// we can use the sample from the previous frame (false)
-	bool	needWrite(const GABC_OOptions &ctx,
-			const char *name, const GT_DataArrayHandle &data);
+	bool	needWrite(const char *name, const GT_DataArrayHandle &data);
 
 	GT_DataArrayHandle	&vertexList()	{ return myVertexList; }
 	GT_DataArrayHandle	&counts()	{ return myCounts; }
@@ -128,8 +125,7 @@ public:
 	GT_DataArrayHandle	&vknots()	{ return myVKnots; }
 
     private:
-	bool	needWrite(const GABC_OOptions &ctx,
-			const GT_DataArrayHandle &data,
+	bool	needWrite(const GT_DataArrayHandle &data,
 			GT_DataArrayHandle &cache);
 	GT_DataArrayHandle	myVertexList;
 	GT_DataArrayHandle	myCounts;
@@ -170,51 +166,24 @@ public:
 	/// the values have changed or @c false if the previous values can be
 	/// used.  There's no way in the Alembic API to set trim components
 	/// individually.
-	bool	needTrimNCurves(const GABC_OOptions &ctx,
-				const GT_DataArrayHandle &data)
-		{
-		    { return needWrite(ctx, data, trimNCurves()); }
-		}
-	bool	needTrimN(const GABC_OOptions &ctx,
-				const GT_DataArrayHandle &data)
-		{
-		    { return needWrite(ctx, data, trimN()); }
-		}
-	bool	needTrimOrder(const GABC_OOptions &ctx,
-				const GT_DataArrayHandle &data)
-		{
-		    { return needWrite(ctx, data, trimOrder()); }
-		}
-	bool	needTrimKnot(const GABC_OOptions &ctx,
-				const GT_DataArrayHandle &data)
-		{
-		    { return needWrite(ctx, data, trimKnot()); }
-		}
-	bool	needTrimMin(const GABC_OOptions &ctx,
-				const GT_DataArrayHandle &data)
-		{
-		    { return needWrite(ctx, data, trimMin()); }
-		}
-	bool	needTrimMax(const GABC_OOptions &ctx,
-				const GT_DataArrayHandle &data)
-		{
-		    { return needWrite(ctx, data, trimMax()); }
-		}
-	bool	needTrimU(const GABC_OOptions &ctx,
-				const GT_DataArrayHandle &data)
-		{
-		    { return needWrite(ctx, data, trimU()); }
-		}
-	bool	needTrimV(const GABC_OOptions &ctx,
-				const GT_DataArrayHandle &data)
-		{
-		    { return needWrite(ctx, data, trimV()); }
-		}
-	bool	needTrimW(const GABC_OOptions &ctx,
-				const GT_DataArrayHandle &data)
-		{
-		    { return needWrite(ctx, data, trimW()); }
-		}
+	bool	needTrimNCurves(const GT_DataArrayHandle &data)
+		    { return needWrite(data, trimNCurves()); }
+	bool	needTrimN(const GT_DataArrayHandle &data)
+		    { return needWrite(data, trimN()); }
+	bool	needTrimOrder(const GT_DataArrayHandle &data)
+		    { return needWrite(data, trimOrder()); }
+	bool	needTrimKnot(const GT_DataArrayHandle &data)
+		    { return needWrite(data, trimKnot()); }
+	bool	needTrimMin(const GT_DataArrayHandle &data)
+		    { return needWrite(data, trimMin()); }
+	bool	needTrimMax(const GT_DataArrayHandle &data)
+		    { return needWrite(data, trimMax()); }
+	bool	needTrimU(const GT_DataArrayHandle &data)
+		    { return needWrite(data, trimU()); }
+	bool	needTrimV(const GT_DataArrayHandle &data)
+		    { return needWrite(data, trimV()); }
+	bool	needTrimW(const GT_DataArrayHandle &data)
+		    { return needWrite(data, trimW()); }
 
 	/// @{
 	/// Access to fixed subdivision tags
@@ -228,30 +197,23 @@ public:
 
 	/// @{
 	/// Check whether subdivision tags need to be written
-	bool	needCreaseIndices(const GABC_OOptions &ctx,
-			const GT_DataArrayHandle &data)
-		    { return needWrite(ctx, data, creaseIndices()); }
-	bool	needCreaseLengths(const GABC_OOptions &ctx,
-			const GT_DataArrayHandle &data)
-		    { return needWrite(ctx, data, creaseLengths()); }
-	bool	needCreaseSharpnesses(const GABC_OOptions &ctx,
-			const GT_DataArrayHandle &data)
-		    { return needWrite(ctx, data, creaseSharpnesses()); }
-	bool	needCornerIndices(const GABC_OOptions &ctx,
-			const GT_DataArrayHandle &data)
-		    { return needWrite(ctx, data, cornerIndices()); }
-	bool	needCornerSharpnesses(const GABC_OOptions &ctx,
-			const GT_DataArrayHandle &data)
-		    { return needWrite(ctx, data, cornerSharpnesses()); }
-	bool	needHoleIndices(const GABC_OOptions &ctx,
-			const GT_DataArrayHandle &data)
-		    { return needWrite(ctx, data, holeIndices()); }
+	bool	needCreaseIndices(const GT_DataArrayHandle &data)
+		    { return needWrite(data, creaseIndices()); }
+	//bool	needCreaseLengths(const GT_DataArrayHandle &data)
+		    //{ return needWrite(data, creaseLengths()); }
+	bool	needCreaseSharpnesses(const GT_DataArrayHandle &data)
+		    { return needWrite(data, creaseSharpnesses()); }
+	bool	needCornerIndices(const GT_DataArrayHandle &data)
+		    { return needWrite(data, cornerIndices()); }
+	bool	needCornerSharpnesses(const GT_DataArrayHandle &data)
+		    { return needWrite(data, cornerSharpnesses()); }
+	bool	needHoleIndices(const GT_DataArrayHandle &data)
+		    { return needWrite(data, holeIndices()); }
 	/// @}
 
     private:
 	void	clear();
-	bool	needWrite(const GABC_OOptions &ctx,
-			const GT_DataArrayHandle &data,
+	bool	needWrite(const GT_DataArrayHandle &data,
 			GT_DataArrayHandle &cache);
 	GT_DataArrayHandle	myData[9];
     };
