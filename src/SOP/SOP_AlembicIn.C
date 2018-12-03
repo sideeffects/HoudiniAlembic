@@ -762,6 +762,7 @@ SOP_AlembicIn::reloadGeo(void *data, int index, float time, const PRM_Template *
     for(auto &filename : filenames)
 	GABC_Util::clearCache(filename.c_str());
     me->unloadData();
+    me->forceRecook();
     return 1;
 }
 
@@ -1075,7 +1076,6 @@ SOP_AlembicIn::archiveClearEvent()
     myConstantUniqueId = -1;
     myPackedGdp.reset();
     unloadData();
-    forceRecook();
 }
 
 static void
