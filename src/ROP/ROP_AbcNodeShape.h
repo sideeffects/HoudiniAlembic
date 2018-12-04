@@ -41,7 +41,8 @@ class ROP_AbcNodeShape : public ROP_AbcNode
 {
 public:
     ROP_AbcNodeShape(const std::string &name)
-	: ROP_AbcNode(name), mySampleCount(0), myLocked(false) {}
+	: ROP_AbcNode(name), mySampleCount(0), myLocked(false)
+	{ myBounds.initBounds(); }
 
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
     virtual NodeType getNodeType() const { return NodeType::SHAPE; }
@@ -63,11 +64,11 @@ public:
 	    { myUserPropVals = vals; myUserPropMeta = meta; }
     /// Sets the current geometry.
     void setData(const GT_PrimitiveHandle &prim, bool visible,
-	const std::string &subd)
-	    { myPrim = prim; setVisibility(visible); mySubdGrp = subd; }
+	const std::string &subd);
 
 private:
     void clear();
+    void enlargeBounds(UT_BoundingBox &box);
 
     UT_UniquePtr<GABC_OGTGeometry> myWriter; 
     exint mySampleCount;
@@ -77,6 +78,7 @@ private:
     ROP_AbcUserProperties myUserProperties;
 
     GT_PrimitiveHandle myPrim;
+    UT_BoundingBox myBounds;
     bool myLocked;
     std::string mySubdGrp;
 };

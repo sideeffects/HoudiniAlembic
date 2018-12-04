@@ -128,26 +128,6 @@ ROP_AbcNodeShape::getUserPropNames(UT_SortedStringSet &names,
 	names, myUserPropVals, myUserPropMeta, err);
 }
 
-static void
-ropEnlargeBounds(UT_BoundingBox &box, const GT_PrimitiveHandle &prim)
-{
-    GT_TransformHandle xform = prim->getPrimitiveTransform();
-    if(!xform || xform->isIdentity())
-    {
-	prim->enlargeBounds(&box, 1);
-	return;
-    }
-
-    UT_Matrix4D m;
-    xform->getMatrix(m, 0);
-
-    UT_BoundingBox tmp;
-    tmp.initBounds();
-    prim->enlargeBounds(&tmp, 1);
-    tmp.transform(m);
-    box.enlargeBounds(tmp);
-}
-
 void
 ROP_AbcNodeShape::clearData(bool locked)
 {
@@ -246,12 +226,12 @@ ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
 	switch(myVisible)
 	{
 	    case GABC_LayerOptions::VizType::VISIBLE:
-		ropEnlargeBounds(box, myPrim);
+		enlargeBounds(box);
 		break;
 
 	    case GABC_LayerOptions::VizType::DEFER:
 		if(displayed)
-		    ropEnlargeBounds(box, myPrim);
+		    enlargeBounds(box);
 		break;
 
 	    default:
@@ -261,10 +241,39 @@ ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
 }
 
 void
+ROP_AbcNodeShape::setData(
+    const GT_PrimitiveHandle &prim, bool visible, const std::string &subd)
+{
+    myPrim = prim;
+    myBounds.initBounds();
+    setVisibility(visible);
+    mySubdGrp = subd;
+}
+
+void
 ROP_AbcNodeShape::clear()
 {
     myPrim = nullptr;
+    myBounds.initBounds();
     myVisible = GABC_LayerOptions::VizType::HIDDEN;
     myUserPropVals.clear();
     myUserPropMeta.clear();
+}
+
+void
+ROP_AbcNodeShape::enlargeBounds(UT_BoundingBox &box)
+{
+    if(!myBounds.isValid())
+    {
+	myPrim->enlargeBounds(&myBounds, 1);
+
+	GT_TransformHandle xform = myPrim->getPrimitiveTransform();
+	if(xform && !xform->isIdentity())
+	{
+	    UT_Matrix4D m;
+	    xform->getMatrix(m, 0);
+	    myBounds.transform(m);
+	}
+    }
+    box.enlargeBounds(myBounds);
 }
