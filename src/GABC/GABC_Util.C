@@ -429,6 +429,7 @@ namespace
 
         ArchiveCacheEntry()
 	    : myXformCacheBuilt(false)
+	    , myPurged(false)
 	    , myCache("Alembic Object Cache", 8)
 	    , myDynamicXforms("Alembic Transform Cache", 64)
 	    , myDynamicVisibility("Alembic Visibility Cache", 64)
@@ -444,7 +445,7 @@ namespace
 		    const ArchiveEventHandlerPtr   &handler = *it;
 		    if (handler->archive() == myArchive.get())
 		    {
-			handler->cleared();
+			handler->cleared(myPurged);
 			handler->setArchivePtr(NULL);
 		    }
 		}
@@ -945,6 +946,12 @@ namespace
 	    return myArchive;
         }
 
+	void purgeObjects()
+	{
+	    archive()->purgeObjects();
+	    myPurged = true;
+	}
+
 	void    setArchive(const GABC_IArchivePtr &a)   { myArchive = a; }
 	void    setError(const std::string &e)          { myError = e; }
 
@@ -959,6 +966,7 @@ namespace
 	PathList		myObjectList;
 	PathList		myFullObjectList;
 	bool			myXformCacheBuilt;
+	bool			myPurged;
 	AbcTransformMap		myStaticXforms;
 	UT_CappedCache		myCache;
 	UT_CappedCache		myDynamicXforms;
@@ -1773,7 +1781,7 @@ namespace
 		if(purge)
 		{
 		    for(auto &it : myItems)
-			it.second->archive()->purgeObjects();
+			it.second->purgeObjects();
 		}
 		myItems.clear();
 		myKeysWithPath.clear();
@@ -1806,7 +1814,7 @@ namespace
 	    {
 		auto it = myItems.find(paths);
 		if(it != myItems.end())
-		    it->second->archive()->purgeObjects();
+		    it->second->purgeObjects();
 	    }
 	    myItems.erase(paths);
 	}
