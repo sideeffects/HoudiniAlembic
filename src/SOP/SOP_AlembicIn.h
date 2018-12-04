@@ -54,7 +54,7 @@ public:
     static void installSOP(OP_OperatorTable *table);
 
     /// Called when an archive gets cleared from the cache
-    void	archiveClearEvent();
+    void	archiveClearEvent(bool purged);
     void	appendFileNames(std::vector<std::string> &filenames, fpreal t);
 
     /// Return the label for the given input
@@ -160,11 +160,11 @@ private:
 
 	void	setSOP(SOP_AlembicIn *sop)	{ mySOP = sop; }
 
-	virtual void	cleared() override
+	virtual void	cleared(bool purged) override
 	{
 	    if (mySOP)
 	    {
-		mySOP->archiveClearEvent();
+		mySOP->archiveClearEvent(purged);
 		mySOP = NULL;
 	    }
 	}

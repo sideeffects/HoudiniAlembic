@@ -169,7 +169,7 @@ public:
 
 	/// This method is called when the archive is cleared.  The handler
 	/// will no longer receive any events after the archive is cleared.
-	virtual void	cleared() = 0;
+	virtual void	cleared(bool purged) = 0;
 
 	/// @{
 	/// @private
