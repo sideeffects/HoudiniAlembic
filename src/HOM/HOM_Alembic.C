@@ -175,7 +175,7 @@ namespace
         if (!PY_PyArg_ParseTuple(args, "Osd", &fileList, &objectPath,
 				 &sampleTime))
 	{
-	    return NULL;
+            PY_Py_RETURN_NONE;
 	}
 
 	std::vector<std::string> filenames;
@@ -469,7 +469,7 @@ namespace
         if (!PY_PyArg_ParseTuple(args, "Ossd", &fileList, &objectPath,
                 &name, &sampleTime))
 	{
-	    return NULL;
+            PY_Py_RETURN_NONE;
 	}
 	std::vector<std::string> filenames;
 	appendFileList(filenames, fileList);
@@ -504,7 +504,7 @@ namespace
 
         if (!PY_PyArg_ParseTuple(args, "Os", &fileList, &objectPath))
         {
-            return NULL;
+            PY_Py_RETURN_NONE;
         }
 	std::vector<std::string> filenames;
 	appendFileList(filenames, fileList);
@@ -542,7 +542,7 @@ namespace
         if (!PY_PyArg_ParseTuple(args, "Ossd", &fileList, &objectPath,
                 &name, &sampleTime))
 	{
-	    return NULL;
+            PY_Py_RETURN_NONE;
 	}
 	std::vector<std::string> filenames;
 	appendFileList(filenames, fileList);
@@ -583,7 +583,7 @@ namespace
                 &objectPath,
                 &sampleTime))
         {
-            return NULL;
+            PY_Py_RETURN_NONE;
         }
 	std::vector<std::string> filenames;
 	appendFileList(filenames, fileList);
@@ -640,7 +640,7 @@ namespace
                 &objectPath,
                 &sampleTime))
         {
-            return NULL;
+            PY_Py_RETURN_NONE;
         }
 	std::vector<std::string> filenames;
 	appendFileList(filenames, fileList);
@@ -701,7 +701,7 @@ namespace
                 &objectPath,
                 &sampleTime))
         {
-            return NULL;
+            PY_Py_RETURN_NONE;
         }
 	std::vector<std::string> filenames;
 	appendFileList(filenames, fileList);
@@ -760,7 +760,7 @@ namespace
 
 	objectPath = "";
 	if (!PY_PyArg_ParseTuple(args, "O|s", &fileList, &objectPath))
-	    return NULL;
+            PY_Py_RETURN_NONE;
 	std::vector<std::string> filenames;
 	appendFileList(filenames, fileList);
 	if (!filenames.size())
@@ -819,7 +819,7 @@ namespace
         if (!PY_PyArg_ParseTuple(args, "Osd|i", &fileList, &objectPath,
                 &sampleTime, &check_parent))
 	{
-	    return NULL;
+            PY_Py_RETURN_NONE;
 	}
 	std::vector<std::string> filenames;
 	appendFileList(filenames, fileList);
@@ -861,7 +861,7 @@ namespace
     	if (!PY_PyArg_ParseTuple(args, "Osd", &fileList, &objectPath,
     	    &sampleTime))	
 	{
-	    return nullptr;
+            PY_Py_RETURN_NONE;
 	}
 
 	std::vector<std::string> filenames;
@@ -945,7 +945,7 @@ namespace
     static const char	*Doc_AlembicClearArchiveCache =
 	"alembicClearArchiveCache(abcPath)\n"
 	"\n"
-	"Clear the internal cache of Alembic files";
+	"Clear the internal cache of Alembic files.";
 
     PY_PyObject *
     Py_AlembicClearArchiveCache(PY_PyObject *self, PY_PyObject *args)
@@ -978,7 +978,7 @@ namespace
         unsigned int value;
 
         if (!PY_PyArg_ParseTuple(args, "I", &value))
-	    return NULL;
+            PY_Py_RETURN_NONE;
 
 	GABC_Util::setFileCacheSize(value);
 
@@ -1009,7 +1009,7 @@ namespace
     {
 	PY_PyObject *fileList;
         if (!PY_PyArg_ParseTuple(args, "O", &fileList))
-	    return NULL;
+            PY_Py_RETURN_NONE;
 	std::vector<std::string> filenames;
 	appendFileList(filenames, fileList);
 	if (!filenames.size())
@@ -1183,15 +1183,18 @@ namespace
 	PY_PyObject *fileList;
 	const char	*objectPath = NULL;
 	double		 sampleTime = 0.0;
-	PY_PyObject	*resultDict = PY_PyDict_New();
 
         if (!PY_PyArg_ParseTuple(args, "Osd", &fileList, &objectPath,
-                &sampleTime)) return NULL;
+                &sampleTime))
+	{
+	    PY_Py_RETURN_NONE;
+	}
 	std::vector<std::string> filenames;
 	appendFileList(filenames, fileList);
 	if (!filenames.size())
             PY_Py_RETURN_NONE;
 
+	PY_PyObject	*resultDict = PY_PyDict_New();
 	try
 	{
 	    GABC_IObject    obj = GABC_Util::findObject(filenames, objectPath);
@@ -1246,7 +1249,7 @@ namespace
                 &objectPath, 
                 &sampleTime))
         {
-            return NULL;
+            PY_Py_RETURN_NONE;
         }
 	std::vector<std::string> filenames;
 	appendFileList(filenames, fileList);
