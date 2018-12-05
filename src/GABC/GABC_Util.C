@@ -144,51 +144,51 @@ namespace
     using IV2iProperty = Alembic::Abc::IV2iProperty;
     using IV2fProperty = Alembic::Abc::IV2fProperty;
     using IV2dProperty = Alembic::Abc::IV2dProperty;
-                                   
+
     using IV3sProperty = Alembic::Abc::IV3sProperty;
     using IV3iProperty = Alembic::Abc::IV3iProperty;
     using IV3fProperty = Alembic::Abc::IV3fProperty;
     using IV3dProperty = Alembic::Abc::IV3dProperty;
-                                   
+
     using IP2sProperty = Alembic::Abc::IP2sProperty;
     using IP2iProperty = Alembic::Abc::IP2iProperty;
     using IP2fProperty = Alembic::Abc::IP2fProperty;
     using IP2dProperty = Alembic::Abc::IP2dProperty;
-                                   
+
     using IP3sProperty = Alembic::Abc::IP3sProperty;
     using IP3iProperty = Alembic::Abc::IP3iProperty;
     using IP3fProperty = Alembic::Abc::IP3fProperty;
     using IP3dProperty = Alembic::Abc::IP3dProperty;
-                                   
+
     using IBox2sProperty = Alembic::Abc::IBox2sProperty;
     using IBox2iProperty = Alembic::Abc::IBox2iProperty;
     using IBox2fProperty = Alembic::Abc::IBox2fProperty;
     using IBox2dProperty = Alembic::Abc::IBox2dProperty;
-                                   
+
     using IBox3sProperty = Alembic::Abc::IBox3sProperty;
     using IBox3iProperty = Alembic::Abc::IBox3iProperty;
     using IBox3fProperty = Alembic::Abc::IBox3fProperty;
     using IBox3dProperty = Alembic::Abc::IBox3dProperty;
-                                   
+
     using IM33fProperty = Alembic::Abc::IM33fProperty;
     using IM33dProperty = Alembic::Abc::IM33dProperty;
     using IM44fProperty = Alembic::Abc::IM44fProperty;
     using IM44dProperty = Alembic::Abc::IM44dProperty;
-                                   
+
     using IQuatfProperty = Alembic::Abc::IQuatfProperty;
     using IQuatdProperty = Alembic::Abc::IQuatdProperty;
-                                   
+
     using IC3hProperty = Alembic::Abc::IC3hProperty;
     using IC3fProperty = Alembic::Abc::IC3fProperty;
     using IC3cProperty = Alembic::Abc::IC3cProperty;
-                                   
+
     using IC4hProperty = Alembic::Abc::IC4hProperty;
     using IC4fProperty = Alembic::Abc::IC4fProperty;
     using IC4cProperty = Alembic::Abc::IC4cProperty;
-                                   
+
     using IN2fProperty = Alembic::Abc::IN2fProperty;
     using IN2dProperty = Alembic::Abc::IN2dProperty;
-                                   
+
     using IN3fProperty = Alembic::Abc::IN3fProperty;
     using IN3dProperty = Alembic::Abc::IN3dProperty;
 
@@ -946,13 +946,47 @@ namespace
 	    return myArchive;
         }
 
+	void
+	setArchive(const std::vector<std::string> &paths)
+	{
+	    myAccessTimes.clear();
+
+	    UT_FileStat stat;
+	    for(auto &p : paths)
+	    {
+		if(UTfileStat(p.c_str(), &stat))
+		{
+		    myAccessTimes.clear();
+		    return;
+		}
+
+		myAccessTimes.emplace(p, stat.myModTime);
+	    }
+	    myArchive = GABC_IArchive::open(paths);
+	}
+
+	bool
+	clearIfModified() const
+	{
+	    UT_FileStat stat;
+	    for(auto &it : myAccessTimes)
+	    {
+		if(UTfileStat(it.first.c_str(), &stat)
+		    || it.second != stat.myModTime)
+		{
+		    GABC_Util::clearCache(it.first.c_str());
+		    return true;
+		}
+	    }
+	    return false;
+	}
+
 	void purgeObjects()
 	{
 	    archive()->purgeObjects();
 	    myPurged = true;
 	}
 
-	void    setArchive(const GABC_IArchivePtr &a)   { myArchive = a; }
 	void    setError(const std::string &e)          { myError = e; }
 
     private:
@@ -962,6 +996,7 @@ namespace
         }
 
 	GABC_IArchivePtr	myArchive;
+	UT_Map<std::string, time_t> myAccessTimes;
 	std::string		myError;
 	PathList		myObjectList;
 	PathList		myFullObjectList;
@@ -1462,7 +1497,7 @@ namespace
 		    -1,				    NULL
 		);
 
-		auto abcPod = (PlainOldDataType) 
+		auto abcPod = (PlainOldDataType)
 		    theAlembicPODTable.findSymbol(pod.c_str());
 		myTraitPtr = getTraitPtr(abcPod, interpretation, extent);
 		myIsArray = isArray;
@@ -1542,7 +1577,7 @@ namespace
 		if (!myData)
 		{
 		    err.warning("Error parsing user property values: "
-			"no valid JSON map in attribute(s).");  
+			"no valid JSON map in attribute(s).");
 		}
 	    }
 
@@ -1715,7 +1750,7 @@ namespace
 	    }
 
 	    auto I = myItems.find(paths);
-	    if (I != myItems.end())
+	    if (I != myItems.end() && !I->second->clearIfModified())
 		return I->second;
 
 	    return ArchiveCacheEntryPtr();
@@ -1727,7 +1762,7 @@ namespace
 	    UT_AutoLock lock(theFileLock);
 
 	    auto I = myItems.find(paths);
-	    if (I != myItems.end())
+	    if (I != myItems.end() && !I->second->clearIfModified())
 		return I->second;
 
 	    if (!paths.size())
@@ -1743,7 +1778,7 @@ namespace
 	    }
 
 	    auto entry = ArchiveCacheEntryPtr(new ArchiveCacheEntry());
-	    entry->setArchive(GABC_IArchive::open(paths));
+	    entry->setArchive(paths);
 	    while (myItems.size() >= g_maxCache)
 	    {
 		long d = static_cast<long>(
@@ -1917,29 +1952,35 @@ GABC_Util::walk(const std::vector<std::string> &filenames,
         Walker &walker,
         const UT_StringArray &objects)
 {
-    auto cacheEntry = g_archiveCache->loadArchive(filenames);
-    WalkPushFile walkfile(walker, filenames);
-
-    if(!cacheEntry->isValid())
+    //try
     {
-	walker.myBadArchive = true;
-	return false;
-    }
-    for (exint i = 0; i < objects.entries(); ++i)
-    {
-	std::string     path(objects(i));
-	GABC_IObject obj = findObject(filenames, path);
-
-	if (obj.valid())
+	auto cacheEntry = g_archiveCache->loadArchive(filenames);
+	walker.myBadArchive = !cacheEntry->isValid();
+	if (!walker.myBadArchive)
 	{
-	    if (!walker.preProcess(obj))
-		return false;
-	    if (!cacheEntry->walkTree(obj, walker))
-		return false;
+	    WalkPushFile walkfile(walker, filenames);
+
+	    for (exint i = 0; i < objects.entries(); ++i)
+	    {
+		std::string     path(objects(i));
+		GABC_IObject obj = findObject(filenames, path);
+
+		if (obj.valid())
+		{
+		    if (!walker.preProcess(obj))
+			return false;
+		    if (!cacheEntry->walkTree(obj, walker))
+			return false;
+		}
+	    }
+	    return true;
 	}
     }
-
-    return true;
+    //catch (const std::exception &)
+    {
+	walker.myBadArchive = true;
+    }
+    return false;
 }
 
 bool
@@ -1947,41 +1988,56 @@ GABC_Util::walk(const std::vector<std::string> &filenames,
         Walker &walker,
         const UT_Set<std::string> &objects)
 {
-    auto cacheEntry = g_archiveCache->loadArchive(filenames);
-    WalkPushFile walkfile(walker, filenames);
-
-    if(!cacheEntry->isValid())
+    //try
     {
-	walker.myBadArchive = true;
-	return false;
-    }
-    for (auto it = objects.begin(); it != objects.end(); ++it)
-    {
-	GABC_IObject obj = findObject(filenames, *it);
-
-	if (obj.valid())
+	auto cacheEntry = g_archiveCache->loadArchive(filenames);
+	walker.myBadArchive = !cacheEntry->isValid();
+	if (!walker.myBadArchive)
 	{
-	    if (!walker.preProcess(obj))
-		return false;
-	    if (!cacheEntry->walkTree(obj, walker))
-		return false;
+	    WalkPushFile walkfile(walker, filenames);
+	    for (auto it = objects.begin(); it != objects.end(); ++it)
+	    {
+		GABC_IObject obj = findObject(filenames, *it);
+
+		if (obj.valid())
+		{
+		    if (!walker.preProcess(obj))
+			return false;
+		    if (!cacheEntry->walkTree(obj, walker))
+			return false;
+		}
+	    }
+	    return true;
 	}
     }
+    //catch (const std::exception &)
+    {
+	walker.myBadArchive = true;
+    }
 
-    return true;
+    return false;
 }
 
 bool
 GABC_Util::walk(const std::vector<std::string> &filenames, GABC_Util::Walker &walker)
 {
-    auto cacheEntry = g_archiveCache->loadArchive(filenames);
+    //try
+    {
+	auto cacheEntry = g_archiveCache->loadArchive(filenames);
 
-    walker.myBadArchive = !cacheEntry->isValid();
-    if (walker.myBadArchive)
-	return false;
+	walker.myBadArchive = !cacheEntry->isValid();
+	if (!walker.myBadArchive)
+	{
+	    WalkPushFile walkfile(walker, filenames);
+	    return cacheEntry->walk(walker);
+	}
+    }
+    //catch (const std::exception &)
+    {
+	walker.myBadArchive = true;
+    }
 
-    WalkPushFile walkfile(walker, filenames);
-    return cacheEntry->walk(walker);
+    return false;
 }
 
 void
@@ -2286,7 +2342,7 @@ GABC_Util::importUserPropertyDictionary(UT_JSONWriter *vals_writer,
         fpreal time)
 {
     UserPropStorage storage(obj, time);
-    
+
     if(meta_writer)
 	storage.writeJSONMetas(*meta_writer);
 
