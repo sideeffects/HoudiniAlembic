@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2018
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -915,7 +915,38 @@ namespace
 	    return myArchive;
         }
 
-	void    setArchive(const GABC_IArchivePtr &a)   { myArchive = a; }
+	void
+	setArchive(const std::string &path)
+	{
+	    myAccessTimes.clear();
+
+	    UT_FileStat stat;
+	    if(UTfileStat(path.c_str(), &stat))
+	    {
+		myAccessTimes.clear();
+		return;
+	    }
+
+	    myAccessTimes.emplace(path, stat.myModTime);
+	    myArchive = GABC_IArchive::open(path);
+	}
+
+	bool
+	clearIfModified() const
+	{
+	    UT_FileStat stat;
+	    for(auto &it : myAccessTimes)
+	    {
+		if(UTfileStat(it.first.c_str(), &stat)
+		    || it.second != stat.myModTime)
+		{
+		    GABC_Util::clearCache(it.first.c_str());
+		    return true;
+		}
+	    }
+	    return false;
+	}
+
 	void    setError(const std::string &e)          { myError = e; }
 
     private:
@@ -925,6 +956,7 @@ namespace
         }
 
 	GABC_IArchivePtr	myArchive;
+	UT_Map<std::string, time_t> myAccessTimes;
 	std::string		myError;
 	PathList		myObjectList;
 	PathList		myFullObjectList;
@@ -981,10 +1013,8 @@ namespace
 	if (pathMap(spath))
 	{
 	    I = g_archiveCache->find(spath.buffer());
-	    if (I != g_archiveCache->end())
-	    {
+	    if (I != g_archiveCache->end() && !I->second->clearIfModified())
 		return I->second;
-	    }
 	}
 
 	badFileWarning(path);
@@ -997,21 +1027,18 @@ namespace
 	UT_AutoLock	lock(theFileLock);
 
         ArchiveCache::iterator  I = g_archiveCache->find(path);
-        ArchiveCacheEntryPtr    entry;
+        if (I != g_archiveCache->end() && !I->second->clearIfModified())
+            return I->second;
 	UT_String               spath(path.c_str());
-
-        if (I != g_archiveCache->end())
-        {
-            return (*I).second;
-        }
 	if (!pathMap(spath))
 	{
 	    badFileWarning(path);
 	    return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
 	}
 
+        ArchiveCacheEntryPtr    entry;
         entry = ArchiveCacheEntryPtr(new ArchiveCacheEntry);
-	entry->setArchive(GABC_IArchive::open(spath.buffer()));
+	entry->setArchive(path);
         while (g_archiveCache->size() >= g_maxCache)
         {
             long d = static_cast<long>(
