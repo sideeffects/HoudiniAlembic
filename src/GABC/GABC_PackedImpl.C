@@ -458,7 +458,7 @@ GABC_PackedImpl::getPrimitiveName(const GU_PrimPacked *prim, UT_WorkBuffer &wbuf
 bool
 GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
 {
-    if (!myObject.valid())
+    if (!object().valid())
 	return false;
 
     if (myUseTransform)
@@ -511,9 +511,6 @@ GABC_PackedImpl::unpack(GU_Detail &destgdp, const UT_Matrix4D *transform) const
 bool
 GABC_PackedImpl::unpackUsingPolygons(GU_Detail &destgdp, const GU_PrimPacked *prim) const
 {
-    if (!object().valid())
-	return false;
-
     UT_Matrix4D transform;
     if (prim)
         prim->getFullTransform4(transform);
