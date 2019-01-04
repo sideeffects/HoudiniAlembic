@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -778,16 +778,25 @@ ROP_AlembicOut::buildRenderDependencies(const ROP_RenderDepParms &p)
 }
 
 SOP_Node *
-ROP_AlembicOut::getSopNode(fpreal time) const
+ROP_AlembicOut::getSopNode(fpreal time)
 {
     SOP_Node *sop = CAST_SOPNODE(getInput(0));
-    if(!sop && USE_SOP_PATH(time))
+    if(!sop)
     {
+	UT_ASSERT(USE_SOP_PATH(time));
 	UT_String sop_path;
 	SOP_PATH(sop_path, time);
 	sop_path.trimBoundingSpace();
 	if(sop_path.isstring())
-	    sop = CAST_SOPNODE(findNode(sop_path));
+	{
+	    sop = getSOPNode(sop_path);
+	    if(!sop && myArchive)
+	    {
+		UT_WorkBuffer warning;
+		warning.sprintf("Invalid SOP path: %s", sop_path.c_str());
+		addWarning(ROP_MESSAGE, warning.buffer());
+	    }
+	}
     }
     return sop;
 }
@@ -1059,16 +1068,6 @@ ROP_AlembicOut::clearAlembicTree()
 bool
 ROP_AlembicOut::buildAlembicTree(fpreal time)
 {
-    OBJ_Geometry *geo = nullptr;
-    SOP_Node *sop = getSopNode(time);
-    myFromSOP = (sop != nullptr);
-    if(myFromSOP)
-    {
-	OBJ_Node *obj = CAST_OBJNODE(sop->getCreator());
-	if(obj)
-	    geo = obj->castToOBJGeometry();
-    }
-
     UT_String packed;
     PACKED_TRANSFORM(packed, time);
     ROP_AlembicPackedTransform packedtransform;
@@ -1095,12 +1094,14 @@ ROP_AlembicOut::buildAlembicTree(fpreal time)
     bool save_hidden = SAVE_HIDDEN(time);
 
     // update tree
-    if(myFromSOP)
+    myFromSOP = USE_SOP_PATH(time);
+    if(!myFromSOP)
     {
-	return updateFromSop(geo, sop, packedtransform, facesetmode,
+	return updateFromHierarchy(packedtransform, facesetmode,
 	    use_instancing, shape_nodes, displaysop, save_hidden, time);
     }
-    return updateFromHierarchy(packedtransform, facesetmode,
+
+    return updateFromSop(getSopNode(time), packedtransform, facesetmode,
 	use_instancing, shape_nodes, displaysop, save_hidden, time);
 }
 
@@ -1831,7 +1832,6 @@ ropGetLocalTransform(UT_Matrix4D &m, OBJ_Node *obj, OP_Context &context)
 
 bool
 ROP_AlembicOut::updateFromSop(
-    OBJ_Geometry *geo,
     SOP_Node *sop,
     ROP_AlembicPackedTransform packedtransform,
     exint facesetmode,
@@ -1844,6 +1844,12 @@ ROP_AlembicOut::updateFromSop(
     if(!mySopAssignments)
 	mySopAssignments.reset(new ROP_AbcHierarchy(myRoot.get()));
 
+    if(!sop)
+	return false;
+
+    OP_Node *creator = sop->getCreator();
+    OBJ_Node *obj = CAST_OBJNODE(creator);
+    OBJ_Geometry *geo = obj ? obj->castToOBJGeometry() : nullptr;
     if(geo)
     {
 	int locked = 0;
@@ -1854,8 +1860,6 @@ ROP_AlembicOut::updateFromSop(
     }
 
     OP_Context context(time);
-    OP_Node *creator = sop->getCreator();
-
     GU_ConstDetailHandle gdh(ropGetCookedGeoHandle(sop, context, displaysop));
     GU_DetailHandleAutoReadLock rlock(gdh);
     const GU_Detail *gdp = rlock.getGdp();
@@ -2110,14 +2114,16 @@ ROP_AlembicOut::updateFromHierarchy(
 
     if(!root.isstring())
     {
-	addError(ROP_MESSAGE, "Require root for all objects");
+	if(myArchive)
+	    addError(ROP_MESSAGE, "Require root for all objects");
 	return false;
     }
 
     OP_Node *rootnode = findNode(root);
     if(!rootnode)
     {
-	addError(ROP_MESSAGE, "Can't find root node");
+	if(myArchive)
+	    addError(ROP_MESSAGE, "Can't find root node");
 	return false;
     }
 
@@ -2218,7 +2224,7 @@ ROP_AlembicOut::updateFromHierarchy(
 	    obj->evalParameterOrProperty("abc_collapse", 0, time, abc_collapse);
 	    if(abc_collapse)
 	    {
-		if(!rop_isStaticIdentity(obj, time))
+		if(!rop_isStaticIdentity(obj, time) && myArchive)
 		{
 		    UT_WorkBuffer warning;
 		    const char *objFullPath = obj->getFullPath();

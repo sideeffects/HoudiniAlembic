@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -56,7 +56,7 @@ public:
     virtual void resolveObsoleteParms(PRM_ParmList *obsolete_parms);
     virtual void buildRenderDependencies(const ROP_RenderDepParms &p);
 
-    SOP_Node *getSopNode(fpreal time) const;
+    SOP_Node *getSopNode(fpreal time);
     void getOutputNodesArray(UT_StringArray &array, fpreal time);
     void getAttrNamesByPattern(UT_SortedStringSet &names,
 	const UT_String &pattern, fpreal time);
@@ -84,7 +84,8 @@ protected:
     bool INITSIM(fpreal time) const
 		{ return evalInt("initsim", 0, time) != 0; }
     bool USE_SOP_PATH(fpreal time) const
-		{ return evalInt("use_sop_path", 0, time) != 0; }
+		{ return CAST_SOPNODE(getInput(0))
+				|| evalInt("use_sop_path", 0, time) != 0; }
     void SOP_PATH(UT_String &str, fpreal time) const
 		{ evalString(str, "sop_path", 0, time); }
     void SUBDGROUP(UT_String &str, fpreal time) const
@@ -203,7 +204,7 @@ private:
 			bool shape_nodes, bool displaysop,
 			bool save_hidden, fpreal time);
 
-    bool updateFromSop(OBJ_Geometry *geo, SOP_Node *sop,
+    bool updateFromSop(SOP_Node *sop,
 		       ROP_AlembicPackedTransform packedtransform,
 		       exint facesetmode, bool use_instancing,
 		       bool shape_nodes, bool displaysop,
