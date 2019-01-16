@@ -1361,6 +1361,10 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
 	offsets[std::make_tuple(p, subd)].append(offset);
     }
 
+    GA_ROHandleS up_vals_attr(gdp, GA_ATTRIB_PRIMITIVE, GABC_Util::theUserPropsValsAttrib);
+    GA_ROHandleS up_meta_attr(gdp, GA_ATTRIB_PRIMITIVE, GABC_Util::theUserPropsMetaAttrib);
+    bool update_user_props = (up_vals_attr.isValid() && up_meta_attr.isValid());
+
     // explicit and implicit xforms
     UT_Map<ROP_AbcHierarchySample *, GABC_IObject> implicit_nodes;
     UT_Map<ROP_AbcHierarchySample *, UT_Matrix4D> xforms;
@@ -1430,7 +1434,13 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
 	    xforms.emplace(child, m);
 
 	    GABC_IObject obj = impl->object();
-	    if(ropGetUserProperties(up_vals, up_meta, obj, time))
+	    if(update_user_props)
+	    {
+		GA_Offset offset = packed->getMapOffset();
+		child->setUserProperties(up_vals_attr.get(offset),
+					 up_meta_attr.get(offset));
+	    }
+	    else if(ropGetUserProperties(up_vals, up_meta, obj, time))
 		child->setUserProperties(up_vals.buffer(), up_meta.buffer());
 	}
     }
@@ -1489,9 +1499,6 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
 	}
     }
 
-    GA_ROHandleS up_vals_attr(gdp, GA_ATTRIB_PRIMITIVE, GABC_Util::theUserPropsValsAttrib);
-    GA_ROHandleS up_meta_attr(gdp, GA_ATTRIB_PRIMITIVE, GABC_Util::theUserPropsMetaAttrib);
-    bool update_user_props = (up_vals_attr.isValid() && up_meta_attr.isValid());
     // build GT prims for each partition
     UT_SortedMap<std::tuple<std::string, bool>, std::tuple<GT_PrimitiveHandle, std::string, std::string> > gt_part;
     for(auto &it : offsets)
