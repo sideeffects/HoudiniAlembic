@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -416,7 +416,7 @@ GABC_PackedImpl::getPrimitiveName(const GU_PrimPacked *prim, UT_WorkBuffer &wbuf
 bool
 GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
 {
-    if (!myUseTransform || !myObject.valid())
+    if (!myUseTransform || !object().valid())
 	return false;
 
     GEO_AnimationType	atype;
