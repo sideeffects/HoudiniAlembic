@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -123,11 +123,8 @@ GABC_IArchive::~GABC_IArchive()
     UT_DEC_COUNTER(theCount);
     GABC_AlembicLock	lock(*this);	// Lock for member data deletion
 
-    if(!myPurged)
-    {
-	for (auto &it : myObjects)
-	    it->purge();
-    }
+    for (auto &it : myObjects)
+	it->purge();
     theArchiveCache.erase(myFileNames);
 }
 
