@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -103,7 +103,7 @@ public:
     const UT_Matrix4D &getPreXform() const { return myPreXform; }
 
     // set user properties for this node
-    void setUserProperties(const char *vals, const char *meta)
+    void setUserProperties(const std::string &vals, const std::string &meta)
     {
 	myUserPropsVals = vals;
 	myUserPropsMeta = meta;

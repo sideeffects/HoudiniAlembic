@@ -1433,15 +1433,21 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
 		    parent->getChildXform(buf.toStdString());
 	    xforms.emplace(child, m);
 
-	    GABC_IObject obj = impl->object();
+	    std::string userprops;
+	    std::string userpropsmeta;
 	    if(update_user_props)
 	    {
 		GA_Offset offset = packed->getMapOffset();
-		child->setUserProperties(up_vals_attr.get(offset),
-					 up_meta_attr.get(offset));
+		userprops = up_vals_attr.get(offset);
+		userpropsmeta = up_meta_attr.get(offset);
 	    }
-	    else if(ropGetUserProperties(up_vals, up_meta, obj, time))
-		child->setUserProperties(up_vals.buffer(), up_meta.buffer());
+	    if(userprops.empty()
+		&& ropGetUserProperties(up_vals, up_meta, impl->object(), time))
+	    {
+		userprops = up_vals.buffer();
+		userpropsmeta = up_meta.buffer();
+	    }
+	    child->setUserProperties(userprops, userpropsmeta);
 	}
     }
 
@@ -1512,7 +1518,7 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
 	    userprops = up_vals_attr.get(it.second(0));
 	    userpropsmeta = up_meta_attr.get(it.second(0));
 	}
-	else if(it.second.entries() == 1)
+	if(userprops.empty() && it.second.entries() == 1)
 	{
 	    const GA_Primitive *prim = gdp->getPrimitive(it.second(0));
 	    if(GU_PrimPacked::isPackedPrimitive(*prim))
