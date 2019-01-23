@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -671,7 +671,7 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 	}
     }
     
-    if(GT_GEOPrimPacked::updateGeoPrim(dtl, refine))
+    if(GT_PackedAlembic::updateGeoPrim(dtl, refine))
 	changed = true;
 
     int cid = -2; // no Cd attrib
@@ -982,7 +982,7 @@ GABC_PackedAlembic::refine(GT_Refine &refiner,
 			   const GT_RefineParms *parms) const
 {
     if(gabcExprUseArchivePrims() == 0)
-	return GT_GEOPrimPacked::refine(refiner,parms);
+	return GT_PackedAlembic::refine(refiner,parms);
     
     GT_PrimitiveHandle	prim;
     UT_BoundingBox	box;
