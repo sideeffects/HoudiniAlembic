@@ -580,6 +580,24 @@ namespace
                 bool &isConstant,
                 bool &inheritsXform)
         {
+	    if(!obj.valid())
+		return false;
+
+	    GABC_NodeType type = obj.nodeType();
+	    if(type != GABC_XFORM)
+	    {
+		if(type == GABC_ROOT)
+		{
+		    x.makeIdentity();
+		    isConstant = true;
+		    inheritsXform = false;
+		    return true;
+		}
+
+		return getWorldTransform(x, obj.getParent(), now, isConstant,
+					 inheritsXform);
+	    }
+
             const std::string &path = obj.getFullName();
             ArchiveObjectKey key(path.c_str(), now);
             UT_CappedItemHandle item;
