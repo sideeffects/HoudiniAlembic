@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -179,6 +179,8 @@ ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
 			viz = GABC_LayerOptions::VizType::HIDDEN;
 
 		    myWriter.reset(new GABC_OGTGeometry(myName, myLayerNodeType));
+		    // transforms for exported geometry
+		    myCachedXform = myPrim->getPrimitiveTransform();
 		    myWriter->start(myPrim, myParent->getOObject(archive, err),
 				    archive.getOOptions(), layerOptions, err,
 				    GABC_LayerOptions::getOVisibility(viz),
@@ -204,6 +206,35 @@ ROP_AbcNodeShape::update(ROP_AbcArchive &archive,
 		}
 		else
 		{
+		    // guard against matrix roundoff errors producing
+		    // animated geometry
+		    GT_TransformHandle xform = myPrim->getPrimitiveTransform();
+		    bool similar = false;
+		    if(xform && myCachedXform)
+		    {
+			int nsegs0 = xform->getSegments();
+			int nsegs1 = myCachedXform->getSegments();
+			if(nsegs0 == nsegs1)
+			{
+			    similar = true;
+			    UT_Matrix4D m0, m1;
+			    for(int i = 0; i < nsegs0; ++i)
+			    {
+				xform->getMatrix(m0, i);
+				myCachedXform->getMatrix(m1, i);
+				if(!m0.isEqual(m1))
+				{
+				    similar = false;
+				    break;
+				}
+			    }
+			}
+		    }
+		    if(similar)
+			myPrim->setPrimitiveTransform(myCachedXform);
+		    else
+			myCachedXform = xform;
+
 		    myWriter->update(myPrim, archive.getOOptions(), layerOptions,
 				     err, GABC_LayerOptions::getOVisibility(viz));
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -78,6 +78,7 @@ private:
     ROP_AbcUserProperties myUserProperties;
 
     GT_PrimitiveHandle myPrim;
+    GT_TransformHandle myCachedXform;
     UT_BoundingBox myBounds;
     bool myLocked;
     std::string mySubdGrp;

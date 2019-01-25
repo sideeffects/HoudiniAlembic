@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -143,8 +143,13 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
 
 	    if(myLayerNodeType != GABC_LayerOptions::LayerType::SPARSE)
 	    {
+		// guard against matrix roundoff errors producing an
+		// animated transform
+		if(!mySampleCount || !myCachedMatrix.isEqual(myMatrix))
+		    myCachedMatrix = myMatrix;
+
 		XformSample sample;
-		sample.setMatrix(GABC_Util::getM(myMatrix));
+		sample.setMatrix(GABC_Util::getM(myCachedMatrix));
 		schema.set(sample);
 	    }
 	}
