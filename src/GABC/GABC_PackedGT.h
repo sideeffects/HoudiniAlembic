@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -156,8 +156,6 @@ public:
     
     virtual void 		getCachedTransform(GT_TransformHandle &ph) const;
     virtual void 		getCachedVisibility(bool &visible) const;
-
-    virtual GT_TransformHandle	getLocalTransform() const;
 
     virtual bool		updateGeoPrim(const GU_ConstDetailHandle &dtl,
 					      const GT_RefineParms &refine);

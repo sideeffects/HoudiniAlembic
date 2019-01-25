@@ -924,17 +924,6 @@ GABC_PackedAlembic::isVisible()
     return visible;
 }
 
-GT_TransformHandle
-GABC_PackedAlembic::getLocalTransform() const
-{
-    UT_Matrix4D m;
-    auto impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    if(impl->getLocalTransform(m))
-	return new GT_Transform(&m, 1);
-
-    return GT_TransformHandle();
-}
-
 GT_PrimitiveHandle
 GABC_PackedAlembic::getInstanceGeometry(const GT_RefineParms *p,
 					bool ignore_visibility) const
