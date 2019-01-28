@@ -940,7 +940,7 @@ GABC_PackedAlembic::getInstanceGeometry(const GT_RefineParms *p,
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    GT_PrimitiveHandle prim = impl->instanceGT(ignore_visibility);
+    GT_PrimitiveHandle prim = applyPrimTransform(impl->instanceGT(ignore_visibility));
 
     if(!prim && GT_GEOPrimPacked::useViewportLOD(p))
     {
@@ -958,12 +958,11 @@ GABC_PackedAlembic::getInstanceTransform() const
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
     GT_TransformHandle xform = impl->xformGT();
-    if(!xform)
-	return GT_TransformHandle();
-
     UT_Matrix4D m(1);
     getPrim()->multiplyByPrimTransform(m);
-    return xform->multiply(m);
+    if(xform)
+	return xform->multiply(m);
+    return GT_TransformHandle(new GT_Transform(&m, 1));
 }
 
 GT_PrimitiveHandle

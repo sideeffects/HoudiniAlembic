@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -66,6 +66,17 @@ namespace
     static const GABC_PackedImpl *implementation(const GU_PrimPacked *prim)
     {
 	return UTverify_cast<const GABC_PackedImpl *>(prim->implementation());
+    }
+
+    static GT_PrimitiveHandle fullGT(const GU_PrimPacked *packed)
+    {
+	GT_PrimitiveHandle prim = implementation(packed)->fullGT();
+	if(!prim)
+	    return GT_PrimitiveHandle();
+
+	UT_Matrix4D m(1);
+	packed->multiplyByPrimTransform(m);
+	return prim->copyTransformed(new GT_Transform(&m, 1));
     }
 
     static void
@@ -251,11 +262,11 @@ namespace
 	    exint				nsegs = myList.entries();
 	    UT_Array<GT_PrimitiveHandle>	gtlist(nsegs, nsegs);
 	    for (exint i = 0; i < nsegs; ++i)
-		gtlist(i) = implementation(myList(i))->fullGT();
+		gtlist(i) = fullGT(myList(i));
 
 	    if (myMergeInfo && myMergePrim)
 	    {
-		GT_PrimitiveHandle	aprim = implementation(myMergePrim)->fullGT();
+		GT_PrimitiveHandle	aprim = fullGT(myMergePrim);
 		if (aprim)
 		{
 		    for (exint i = 0; i < nsegs; ++i)
