@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1078,7 +1078,7 @@ GABC_PackedImpl::GTCache::refreshTransform(const GABC_PackedImpl *abc)
 	}
 
 	UT_Matrix4D		xform;
-	abc->getPrim()->getFullTransform4(xform);
+	abc->getLocalTransform(xform);
 	myTransform.reset(new GT_Transform(&xform, 1));
 	if (myAnimationType == GEO_ANIMATION_CONSTANT
 		&& abc->useTransform()

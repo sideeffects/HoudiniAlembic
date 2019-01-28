@@ -692,6 +692,16 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
     return changed;
 }
 
+GT_PrimitiveHandle
+GABC_PackedAlembic::applyPrimTransform(const GT_PrimitiveHandle &prim) const
+{
+    if(!prim)
+	return GT_PrimitiveHandle();
+
+    UT_Matrix4D m(1);
+    getPrim()->multiplyByPrimTransform(m);
+    return prim->copyTransformed(new GT_Transform(&m, 1));
+}
 
 void
 GABC_PackedAlembic::initVisAnim()
@@ -737,7 +747,7 @@ GABC_PackedAlembic::getPointCloud(const GT_RefineParms *, bool &xform) const
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
     xform = false;
-    return impl->pointGT();
+    return applyPrimTransform(impl->pointGT());
 }
 
 GT_PrimitiveHandle
@@ -777,7 +787,7 @@ GABC_PackedAlembic::getFullGeometry(const GT_RefineParms *parms,
     if(!GT_RefineParms::getAlembicSkipInvisible(parms))
 	load_style |= GABC_IObject::GABC_LOAD_IGNORE_VISIBILITY;
 
-    GT_PrimitiveHandle prim = impl->fullGT(load_style);
+    GT_PrimitiveHandle prim = applyPrimTransform(impl->fullGT(load_style));
     if(!prim && GT_GEOPrimPacked::useViewportLOD(parms))
     {
 	// Placeholder so the viewport can at least draw bboxes and decorations.
@@ -947,7 +957,13 @@ GABC_PackedAlembic::getInstanceTransform() const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    return impl->xformGT();
+    GT_TransformHandle xform = impl->xformGT();
+    if(!xform)
+	return GT_TransformHandle();
+
+    UT_Matrix4D m(1);
+    getPrim()->multiplyByPrimTransform(m);
+    return xform->multiply(m);
 }
 
 GT_PrimitiveHandle
@@ -955,7 +971,7 @@ GABC_PackedAlembic::getBoxGeometry(const GT_RefineParms *) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    return impl->boxGT();
+    return applyPrimTransform(impl->boxGT());
 }
 
 GT_PrimitiveHandle
@@ -963,7 +979,7 @@ GABC_PackedAlembic::getCentroidGeometry(const GT_RefineParms *) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    return impl->centroidGT();
+    return applyPrimTransform(impl->centroidGT());
 }
 
 bool

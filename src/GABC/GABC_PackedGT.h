@@ -160,6 +160,8 @@ public:
     virtual bool		updateGeoPrim(const GU_ConstDetailHandle &dtl,
 					      const GT_RefineParms &refine);
 private:
+    GT_PrimitiveHandle applyPrimTransform(const GT_PrimitiveHandle &prim) const;
+
     int64			myColorID;
     UT_Matrix4D			myTransform;
     mutable GABC_AlembicCache	myCache;
