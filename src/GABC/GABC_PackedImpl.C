@@ -482,7 +482,7 @@ GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, const UT_Matrix4D *transform
     // or it doesn't have access to the transform.
     loadstyle |= (GABC_IObject::GABC_LOAD_FORCE_UNTRANSFORMED);
 
-    GT_PrimitiveHandle	prim = fullGT(loadstyle);
+    GT_PrimitiveHandle	prim = fullGT(nullptr, loadstyle);
     if (prim)
     {
 	UT_Array<GU_Detail *>	details;
@@ -527,13 +527,24 @@ GABC_PackedImpl::visibleGT(bool *is_animated) const
     return myCache.visible(this, is_animated);
 }
 
+static GT_PrimitiveHandle
+gabcApplyPrimTransform(const GU_PrimPacked *packed, const GT_PrimitiveHandle &prim)
+{
+    if(!prim || !packed)
+	return prim;
+
+    UT_Matrix4D m(1);
+    packed->multiplyByPrimTransform(m);
+    return prim->copyTransformed(new GT_Transform(&m, 1));
+}
+
 GT_PrimitiveHandle
-GABC_PackedImpl::fullGT(int load_style) const
+GABC_PackedImpl::fullGT(const GU_PrimPacked *packed, int load_style) const
 {
     if (!object().valid())
 	return GT_PrimitiveHandle();
     
-    return myCache.full(this, load_style);
+    return gabcApplyPrimTransform(packed, myCache.full(this, load_style));
 }
 
 GT_PrimitiveHandle
@@ -549,39 +560,49 @@ GABC_PackedImpl::instanceGT(bool ignore_visibility) const
     if(ignore_visibility)
 	loadstyle |= (GABC_IObject::GABC_LOAD_IGNORE_VISIBILITY);
 	
-    return fullGT(loadstyle);
+    return fullGT(nullptr, loadstyle);
 }
 
 GT_PrimitiveHandle
-GABC_PackedImpl::pointGT() const
+GABC_PackedImpl::pointGT(const GU_PrimPacked *packed) const
 {
     if (!object().valid())
 	return GT_PrimitiveHandle();
-    return myCache.points(this);
+    return gabcApplyPrimTransform(packed, myCache.points(this));
 }
 
 GT_PrimitiveHandle
-GABC_PackedImpl::boxGT() const
+GABC_PackedImpl::boxGT(const GU_PrimPacked *packed) const
 {
     if (!object().valid())
 	return GT_PrimitiveHandle();
-    return myCache.box(this);
+    return gabcApplyPrimTransform(packed, myCache.box(this));
 }
 
 GT_PrimitiveHandle
-GABC_PackedImpl::centroidGT() const
+GABC_PackedImpl::centroidGT(const GU_PrimPacked *packed) const
 {
     if (!object().valid())
 	return GT_PrimitiveHandle();
-    return myCache.centroid(this);
+    return gabcApplyPrimTransform(packed, myCache.centroid(this));
 }
 
 GT_TransformHandle
-GABC_PackedImpl::xformGT() const
+GABC_PackedImpl::xformGT(const GU_PrimPacked *packed) const
 {
     if (!object().valid())
 	return GT_TransformHandle();
-    return myCache.xform(this);
+    GT_TransformHandle xform = myCache.xform(this);
+    if(packed)
+    {
+	UT_Matrix4D m(1);
+	packed->multiplyByPrimTransform(m);
+	if(xform)
+	    xform = xform->multiply(m);
+	else
+	    xform = GT_TransformHandle(new GT_Transform(&m, 1));
+    }
+    return xform;
 }
 
 UT_StringHolder

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -147,10 +147,10 @@ public:
     /// @{
     /// Return GT representations of geometry
     bool		visibleGT(bool *is_animated = NULL) const;
-    GT_PrimitiveHandle	fullGT(int load_style=GABC_IObject::GABC_LOAD_FULL) const;
-    GT_PrimitiveHandle	pointGT() const;
-    GT_PrimitiveHandle	boxGT() const;
-    GT_PrimitiveHandle	centroidGT() const;
+    GT_PrimitiveHandle	fullGT(const GU_PrimPacked *packed, int load_style=GABC_IObject::GABC_LOAD_FULL) const;
+    GT_PrimitiveHandle	pointGT(const GU_PrimPacked *packed) const;
+    GT_PrimitiveHandle	boxGT(const GU_PrimPacked *packed) const;
+    GT_PrimitiveHandle	centroidGT(const GU_PrimPacked *packed) const;
     /// @}
 
     /// Get the geometry for "instancing".  This geometry doesn't have the
@@ -161,7 +161,7 @@ public:
     /// The xformGT will return the transform for the primitive, regardless of
     /// whether the load_style for full geometry was set to force untransformed
     /// geometry.
-    GT_TransformHandle	xformGT() const;
+    GT_TransformHandle	xformGT(const GU_PrimPacked *packed) const;
 
     const GABC_IObject	&object() const;
     const UT_StringArray &filenames() const { return myFilenames; }
