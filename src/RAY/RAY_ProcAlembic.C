@@ -70,13 +70,7 @@ namespace
 
     static GT_PrimitiveHandle fullGT(const GU_PrimPacked *packed)
     {
-	GT_PrimitiveHandle prim = implementation(packed)->fullGT();
-	if(!prim)
-	    return GT_PrimitiveHandle();
-
-	UT_Matrix4D m(1);
-	packed->multiplyByPrimTransform(m);
-	return prim->copyTransformed(new GT_Transform(&m, 1));
+	return implementation(packed)->fullGT(packed);
     }
 
     static void

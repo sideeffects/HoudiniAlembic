@@ -692,17 +692,6 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
     return changed;
 }
 
-GT_PrimitiveHandle
-GABC_PackedAlembic::applyPrimTransform(const GT_PrimitiveHandle &prim) const
-{
-    if(!prim)
-	return GT_PrimitiveHandle();
-
-    UT_Matrix4D m(1);
-    getPrim()->multiplyByPrimTransform(m);
-    return prim->copyTransformed(new GT_Transform(&m, 1));
-}
-
 void
 GABC_PackedAlembic::initVisAnim()
 {
@@ -747,7 +736,7 @@ GABC_PackedAlembic::getPointCloud(const GT_RefineParms *, bool &xform) const
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
     xform = false;
-    return applyPrimTransform(impl->pointGT());
+    return impl->pointGT(getPrim());
 }
 
 GT_PrimitiveHandle
@@ -787,7 +776,7 @@ GABC_PackedAlembic::getFullGeometry(const GT_RefineParms *parms,
     if(!GT_RefineParms::getAlembicSkipInvisible(parms))
 	load_style |= GABC_IObject::GABC_LOAD_IGNORE_VISIBILITY;
 
-    GT_PrimitiveHandle prim = applyPrimTransform(impl->fullGT(load_style));
+    GT_PrimitiveHandle prim = impl->fullGT(getPrim(), load_style);
     if(!prim && GT_GEOPrimPacked::useViewportLOD(parms))
     {
 	// Placeholder so the viewport can at least draw bboxes and decorations.
@@ -940,7 +929,7 @@ GABC_PackedAlembic::getInstanceGeometry(const GT_RefineParms *p,
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    GT_PrimitiveHandle prim = applyPrimTransform(impl->instanceGT(ignore_visibility));
+    GT_PrimitiveHandle prim = impl->instanceGT(ignore_visibility);
 
     if(!prim && GT_GEOPrimPacked::useViewportLOD(p))
     {
@@ -957,12 +946,7 @@ GABC_PackedAlembic::getInstanceTransform() const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    GT_TransformHandle xform = impl->xformGT();
-    UT_Matrix4D m(1);
-    getPrim()->multiplyByPrimTransform(m);
-    if(xform)
-	return xform->multiply(m);
-    return GT_TransformHandle(new GT_Transform(&m, 1));
+    return impl->xformGT(getPrim());
 }
 
 GT_PrimitiveHandle
@@ -970,7 +954,7 @@ GABC_PackedAlembic::getBoxGeometry(const GT_RefineParms *) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    return applyPrimTransform(impl->boxGT());
+    return impl->boxGT(getPrim());
 }
 
 GT_PrimitiveHandle
@@ -978,7 +962,7 @@ GABC_PackedAlembic::getCentroidGeometry(const GT_RefineParms *) const
 {
     const GABC_PackedImpl	*impl;
     impl = UTverify_cast<const GABC_PackedImpl *>(getImplementation());
-    return applyPrimTransform(impl->centroidGT());
+    return impl->centroidGT(getPrim());
 }
 
 bool
