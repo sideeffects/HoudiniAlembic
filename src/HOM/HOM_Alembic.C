@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -420,7 +420,7 @@ namespace
 
     	    exint nkids = const_cast<GABC_IObject *>(&obj)->getNumChildren();
     	    PY_PyObject *result = PY_PyTuple_New(3);
-    	    PY_PyObject *kids = PY_PyTuple_New(nkids);;
+    	    PY_PyObject *kids = PY_PyTuple_New(nkids);
 
     	    PY_PyTuple_SET_ITEM(result, 0,
     		    PY_PyString_FromString(obj.getName().c_str()));
