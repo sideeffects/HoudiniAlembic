@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -922,13 +922,8 @@ namespace
 	    myAccessTimes.clear();
 
 	    UT_FileStat stat;
-	    if(UTfileStat(path.c_str(), &stat))
-	    {
-		myAccessTimes.clear();
-		return;
-	    }
-
-	    myAccessTimes.emplace(path, stat.myModTime);
+	    if(!UTfileStat(path.c_str(), &stat))
+		myAccessTimes.emplace(path, stat.myModTime);
 	    myArchive = GABC_IArchive::open(path);
 	}
 
