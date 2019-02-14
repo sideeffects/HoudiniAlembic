@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -135,7 +135,7 @@ namespace
 	if (!fileList)
 	    return;
 
-	if (PY_PyString_Check(fileList))
+	if (PY_PyString_Check(fileList) || PY_PyUnicode_Check(fileList))
 	{
 	    const char *fileStr = PY_PyString_AsString(fileList);
 	    if (fileStr && strlen(fileStr))
@@ -147,7 +147,7 @@ namespace
 	    for (int i = 0; i < numFiles; ++i)
 	    {
 		PY_PyObject *fileObj = PY_PySequence_GetItem(fileList, i);
-		if (PY_PyString_Check(fileObj))
+		if (PY_PyString_Check(fileObj) || PY_PyUnicode_Check(fileObj))
 		{
 		    const char *fileStr = PY_PyString_AsString(fileObj);
 		    if (fileStr && strlen(fileStr))
