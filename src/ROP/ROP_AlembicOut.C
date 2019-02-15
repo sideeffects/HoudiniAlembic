@@ -50,6 +50,7 @@
 #include <PRM/PRM_SpareData.h>
 #include <ROP/ROP_Error.h>
 #include <ROP/ROP_Shared.h>
+#include <ROP/ROP_Templates.h>
 #include <SOP/SOP_Node.h>
 #include <UT/UT_DSOVersion.h>
 #include <UT/UT_JSONWriter.h>
@@ -558,8 +559,22 @@ static PRM_Template theMultiUserTemplate[] =
     PRM_Template()
 };
 
+// Common spare data
+static PRM_Name ropDoRender("execute", "Save to Disk");
+static PRM_Name ropDoRenderBackground("executebackground", "Save to Disk in Background");
+
 static PRM_Template theParameters[] =
 {
+    PRM_Template(PRM_CALLBACK|PRM_TYPE_NOREFRESH|PRM_TYPE_JOIN_NEXT,
+		PRM_TYPE_NONE, 1, &ropDoRender, 0, 0, 0,
+		ROP_Node::doRenderCback, &theRopTakeAlways),
+    PRM_Template(PRM_CALLBACK|PRM_TYPE_NOREFRESH|PRM_TYPE_JOIN_NEXT,
+		PRM_TYPE_NONE, 1, &ropDoRenderBackground, 0, 0, 0,
+		ROP_Node::doRenderBackgroundCback, &theRopTakeAlways),
+    theRopTemplates[ROP_RENDERDIALOG_TPLATE],
+    theRopTemplates[ROP_TRANGE_TPLATE],
+    theRopTemplates[ROP_FRAMERANGE_TPLATE],
+    theRopTemplates[ROP_TAKENAME_TPLATE],
     PRM_Template(PRM_FILE, 1, &theFilenameName, &theFilenameDefault,
 		    0, 0, 0, &theAbcPattern),
     PRM_Template(PRM_ORD, 1, &theFormatName, &theFormatDefault, &theFormatMenu),
@@ -2371,15 +2386,11 @@ ROP_AlembicOut::reportCookErrors(OP_Node *node, fpreal time)
 void
 newDriverOperator(OP_OperatorTable *table)
 {
-    OP_TemplatePair pair(theParameters);
-    OP_TemplatePair templatepair(ROP_Node::getROPbaseTemplate(), &pair);
-    OP_VariablePair vp(ROP_Node::myVariableList);
-
     OP_Operator	*alembic_op = new OP_Operator(
         CUSTOM_ALEMBIC_TOKEN_PREFIX "alembic",		// Internal name
         CUSTOM_ALEMBIC_LABEL_PREFIX "Alembic",		// GUI name
 	ROP_AlembicOut::myConstructor,
-	&templatepair, 0, 9999, &vp,
+	theParameters, 0, 9999, ROP_Node::myVariableList,
 	OP_FLAG_UNORDERED | OP_FLAG_GENERATOR);
     alembic_op->setObsoleteTemplates(theObsoleteParameters);
     alembic_op->setIconName("ROP_alembic");
@@ -2389,15 +2400,11 @@ newDriverOperator(OP_OperatorTable *table)
 void
 newSopOperator(OP_OperatorTable *table)
 {
-    OP_TemplatePair pair(theParameters);
-    OP_TemplatePair templatepair(ROP_Node::getROPbaseTemplate(), &pair);
-    OP_VariablePair vp(ROP_Node::myVariableList);
-
     OP_Operator	*alembic_sop = new OP_Operator(
         CUSTOM_ALEMBIC_TOKEN_PREFIX "rop_alembic",
         CUSTOM_ALEMBIC_LABEL_PREFIX "ROP Alembic Output",
 	ROP_AlembicOut::myConstructor,
-	&templatepair, 0, 1, &vp,
+	theParameters, 0, 1, ROP_Node::myVariableList,
 	OP_FLAG_GENERATOR | OP_FLAG_MANAGER);
     alembic_sop->setObsoleteTemplates(theObsoleteParameters);
     alembic_sop->setIconName("ROP_alembic");
