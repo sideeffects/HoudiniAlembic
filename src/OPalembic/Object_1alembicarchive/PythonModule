@@ -35,62 +35,13 @@ def BuildHierarchyRoot(rootNode):
         return
 
     _abc.alembicClearArchiveCache(fileName)
-    buildSubnet = rootNode.evalParm('buildSubnet')
-    channelRefs = rootNode.evalParm('channelRef')
-    buildSingleGeoNode = rootNode.evalParm('buildSingleGeoNode')
-    flatVisibility = rootNode.evalParm('flattenVisibility')
-    userPropsLoadMode = rootNode.evalParm('loadUserProps')
-    pathList = [x for x in rootNode.evalParm('objectPath').strip('/').split('/') if x]
 
     tree = _abc.alembicGetSceneHierarchy(fileName, "")
     if not tree:
         return
 
-    if buildSingleGeoNode:
-        createGeoNode = [False]
-        
-        for entry in tree[2]:
-            cameraPathList = []
-            entryPathList = pathList
-            ScanHierarchy('', entry, cameraPathList, createGeoNode, entryPathList)
-
-            # Build camera nodes
-            for cameraPath in cameraPathList:
-                camera = [x for x in cameraPath.strip('/').split('/') if x]
-                WalkHierarchy(fileName,
-                                rootNode,
-                                rootNode,
-                                '',
-                                entry,
-                                camera,
-                                buildSubnet,
-                                channelRefs,
-                                buildSingleGeoNode,
-                                flatVisibility,
-                                userPropsLoadMode)
-                
-        # Build single geo node
-        if createGeoNode[0]:
-            createSingleGeoNode(fileName, rootNode, buildSubnet, channelRefs, flatVisibility, userPropsLoadMode)
-
-    else:
-        for entry in tree[2]:
-            WalkHierarchy(fileName,
-                            rootNode,
-                            rootNode,
-                            '',
-                            entry,
-                            pathList,
-                            buildSubnet,
-                            channelRefs,
-                            buildSingleGeoNode,
-                            flatVisibility,
-                            userPropsLoadMode)
-
-    rootNode.layoutChildren()
-
-    if not channelRefs:
-        PushParametersToChildren(rootNode)
+    pathList = [x for x in rootNode.evalParm('objectPath').strip('/').split('/') if x]
+    _AbcWalker(fileName, rootNode).build(tree, pathList)
 
 _primitiveTypes = frozenset((
     'polymesh',
@@ -125,87 +76,11 @@ def _setParmValue(node, parmname, value):
     if parm:
         parm.set(value)
 
-def _setFileName(node, filename):
-    if len(filename):
-        parm = node.parm('numlayers')
-        if parm:
-            layers = filename[:-1]
-            parm.set(len(layers))
-            for i, name in enumerate(layers):
-                _setParmValue(node, 'enablelayer%d' % (i + 1, ), 1)
-                _setParmValue(node, 'layer%d' % (i + 1, ), name)
-        _setParmValue(node, 'fileName', filename[-1])
-
 def _setNodeName(node, name):
     try:
         node.setName(name, True)
     except:
         node.setName(_sanitizeName(name), True)
-
-def _checkAnimatedVisibility(filename, objectpath):
-    vis = _abc.alembicVisibility(filename, objectpath, 0, 1)
-    return not vis[1] and vis[0] != -1
-
-def _setUserProperties(currentNode, currentPath, fileName, userPropsLoadMode):
-    # Exit quick if user properties shouldn't be loaded
-    if userPropsLoadMode == 0:
-        return False
-
-    # Check for user properties on node. Returns None if no user properties,
-    # true if properties are static, and false if properties are animated.
-    props = _abc.alembicHasUserProperties(fileName, currentPath)
-
-    if props is not None:
-        # Add spare parameter(s) for user properties
-        currentNode.addSpareParmTuple(hou.StringParmTemplate('userProps', 'User Properties', 1, ['']))
-        if userPropsLoadMode == 2:
-            currentNode.addSpareParmTuple(hou.StringParmTemplate('userPropsMeta', 'User Properties Metadata', 1, ['']))
-
-        if props and (userPropsLoadMode == 2):
-            values, metadata = _abc.alembicUserPropertyValuesAndMetadata(fileName, currentPath, 0)
-            currentNode.parm('userProps').set(values)
-            currentNode.parm('userPropsMeta').set(metadata)
-        elif props:
-            currentNode.parm('userProps').set(_abc.alembicUserPropertyValues(fileName, currentPath, 0))
-        else:
-            if (userPropsLoadMode == 2):
-                expr = '%s.alembicUserPropertyMetadata(%s, %s, ch("frame")/ch("fps"))' % (_AbcModule, repr(fileName), repr(currentPath))
-                currentNode.parm('userPropsMeta').setExpression(expr, hou.exprLanguage.Python)
-
-            expr = '%s.alembicUserPropertyValues(%s, %s, ch("frame")/ch("fps"))' % (_AbcModule, repr(fileName), repr(currentPath))
-            currentNode.parm('userProps').setExpression(expr, hou.exprLanguage.Python)
-            return True
-    return False
-
-def _setVisibility(node, filename, objectpath):
-    vis = _abc.alembicVisibility(filename, objectpath, 0)
-
-    if vis == None:
-        # Always visible - this is likely to occur when we reach the Alembic
-        # root.
-        return False;
-
-    if vis[1]:
-        if vis[0] == 0:
-            # Never visible (constant hidden)
-            _setParmValue(node, 'tdisplay', 1)
-            _setParmValue(node, 'display', 0)
-
-        elif vis[0] == -1:
-            # Always whatever parent is (constant deferred)
-            ppath = objectpath[:objectpath.rfind('/')]
-
-            if ppath != "":
-                return _setVisibility(node, filename, ppath)
-        return False
-    # Animated visibility
-    _setFileName(node, filename)
-    _setParmValue(node, 'tdisplay', 1)
-
-    disp = node.parm('display')
-    expr = 'node = hou.pwd()\nif node.type().name() != "alembicxform":\n    node = node.parent()\nreturn %s.alembicVisibility(node.hdaModule().GetFileName(node), %s, node.evalParm("frame")/node.evalParm("fps"), 1)[0]' % (_AbcModule, repr(objectpath))
-    disp.setExpression(expr, hou.exprLanguage.Python)
-    return True
 
 def ExpressionToParm(srcParm, dstParm, isString=False):
     relPath = dstParm.node().relativePathTo(srcParm.node())
@@ -236,18 +111,6 @@ def _setupAbcGeo(geo):
             'shop_geometrypath'])
     hou.hscript('opproperty -f -F Render %s mantra,prman* %s' % (geo.path(), parms))
 
-def _newAlembicNode(root, parent, node_type, subnet, run_init_scripts=True):
-    if subnet:
-        node = parent.createNode(node_type, run_init_scripts=run_init_scripts)
-        node.setInput(0, parent.indirectInputs()[0])
-    else:
-        node = root.createNode(node_type, run_init_scripts=run_init_scripts)
-        if node.parent() == parent.parent():
-            node.setInput(0, parent)
-        else:
-            node.setInput(0, parent.indirectInputs()[0])
-    return node
-
 def ScanHierarchy(parentPath, childEntry, cameraPathList, createGeoNode, pathList):
     name, typeName, children = childEntry
     if pathList:
@@ -263,179 +126,304 @@ def ScanHierarchy(parentPath, childEntry, cameraPathList, createGeoNode, pathLis
             ScanHierarchy(currentPath, entry, cameraPathList, createGeoNode, pathList)
     elif typeName in _primitiveTypes:
         createGeoNode[0] = True
-    else:
-        return
 
-def createSingleGeoNode(fileName, rootNode, buildSubnet, channelRefs, flatVisibility, userPropsLoadMode):
-    objectPath = rootNode.evalParm('objectPath')
+class _AbcWalker:
+    def __init__(self, fileName, rootNode):
+        self._fileName = fileName
+        self._rootNode = rootNode
+        self._buildSubnet = rootNode.evalParm('buildSubnet')
+        self._channelRefs = rootNode.evalParm('channelRef')
+        self._buildSingleGeoNode = rootNode.evalParm('buildSingleGeoNode')
+        self._flatVisibility = rootNode.evalParm('flattenVisibility')
+        self._userPropsLoadMode = rootNode.evalParm('loadUserProps')
+        self._warnings = []
 
-    currentNode = _newAlembicNode(rootNode, rootNode, 'geo', buildSubnet, run_init_scripts=False)
-    _setupAbcGeo(currentNode)
+    def build(self, tree, pathList):
+        if self._buildSingleGeoNode:
+            createGeoNode = [False]
 
-    _setNodeName(currentNode, 'geo')
-    if flatVisibility:
-        _setVisibility(currentNode, fileName, objectPath)
+            for entry in tree[2]:
+                cameraPathList = []
+                entryPathList = pathList
+                ScanHierarchy('', entry, cameraPathList, createGeoNode, entryPathList)
 
-    sopNode = currentNode.createNode('alembic')
-    _setNodeName(sopNode, 'alembic')
+                # Build camera nodes
+                for cameraPath in cameraPathList:
+                    camera = [x for x in cameraPath.strip('/').split('/') if x]
+                    self._walk(self._rootNode, '', entry, camera)
 
-    relPath = sopNode.relativePathTo(rootNode)
-    hou.hscript("opmultiparm %s 'abcName#' '%s/abcName#' 'hName#' '%s/hName#'" % (
-            sopNode.path(), relPath, relPath))
+            # Build single geo node
+            if createGeoNode[0]:
+                self._createSingleGeoNode()
+        else:
+            for entry in tree[2]:
+                self._walk(self._rootNode, '', entry, pathList)
 
-    _setParmValue(sopNode, "addpath", 0)
-    if channelRefs:
-        ExpressionToParm(rootNode.parm('remapAttributes'),
-            sopNode.parm('remapAttributes'),
-            isString=True)
-        ExpressionToFileNameParm(rootNode, sopNode)
-        ExpressionToParm(rootNode.parm('frame'), sopNode.parm('frame'))
-        ExpressionToParm(rootNode.parm('fps'), sopNode.parm('fps'))
-        ExpressionToParm(rootNode.parm('loadmode'), sopNode.parm('loadmode'))
-        ExpressionToParm(rootNode.parm('viewportlod'), sopNode.parm('viewportlod'))
-        ExpressionToParm(rootNode.parm('loadUserProps'), sopNode.parm('loadUserProps'))
- 
-    sopNode.parm('objectPath').set(objectPath)
-    sopNode.parm('includeXform').set(1)
-    sopNode.parm('usevisibility').set(1)
-    sopNode.parm('loadUserProps').set(userPropsLoadMode)
-    sopNode.parm('groupnames').set('none')
+        self._rootNode.layoutChildren()
 
-def _findNode(buildSubnet, parentNode, rootNode, currentPath):
-    if buildSubnet:
-        rootNode = parentNode
-    for child in rootNode.children():
-        objPath = child.parm('objectPath')
-        if not objPath:
-            continue
-        if currentPath == objPath.eval():
-            return child
+        if not self._channelRefs:
+            PushParametersToChildren(self._rootNode)
+        if self._warnings:
+            hou.ui.displayMessage('\n'.join(self._warnings), severity=hou.severityType.Warning)
+            self._warnings = []
 
-def WalkHierarchy(fileName, rootNode, parentNode, parentPath, childEntry, pathList,
-                buildSubnet, channelRefs, buildSingleGeoNode, flatVisibility, userPropsLoadMode):
-    name, typeName, children = childEntry
-    if pathList:
-        if pathList[0] != name:
-            return
-        pathList = pathList[1:]
+    def _createSingleGeoNode(self):
+        objectPath = self._rootNode.evalParm('objectPath')
 
-    currentPath = '%s/%s' % (parentPath, name)
-    if typeName in _primitiveTypes:
-        currentNode = _newAlembicNode(rootNode, parentNode, 'geo', buildSubnet, run_init_scripts=False)
-        #currentNode = parentNode.createNode('geo', run_init_scripts=False)
-        #currentNode.setInput(0, parentNode.indirectInputs()[0])
-        subd = (typeName == 'subdmesh')
+        currentNode = self._newAlembicNode(self._rootNode, 'geo', run_init_scripts=False)
         _setupAbcGeo(currentNode)
-        if subd:
-            for parmname in ('vm_rendersubd', 'ri_rendersubd'):
-                _setParmValue(currentNode, parmname, 1)
-        _setNodeName(currentNode, name)
-        if flatVisibility:
-            _setVisibility(currentNode, fileName, currentPath)
+
+        _setNodeName(currentNode, 'geo')
+        if self._flatVisibility:
+            self._setVisibility(currentNode, objectPath)
 
         sopNode = currentNode.createNode('alembic')
-        _setNodeName(sopNode, name)
+        _setNodeName(sopNode, 'alembic')
 
-        relPath = sopNode.relativePathTo(rootNode)
+        relPath = sopNode.relativePathTo(self._rootNode)
         hou.hscript("opmultiparm %s 'abcName#' '%s/abcName#' 'hName#' '%s/hName#'" % (
                 sopNode.path(), relPath, relPath))
 
         _setParmValue(sopNode, "addpath", 0)
-        if channelRefs:
-            ExpressionToParm(rootNode.parm('remapAttributes'),
+        if self._channelRefs:
+            ExpressionToParm(self._rootNode.parm('remapAttributes'),
                 sopNode.parm('remapAttributes'),
                 isString=True)
-            ExpressionToFileNameParm(rootNode, sopNode)
-            ExpressionToParm(rootNode.parm('frame'), sopNode.parm('frame'))
-            ExpressionToParm(rootNode.parm('fps'), sopNode.parm('fps'))
-            ExpressionToParm(rootNode.parm('loadmode'), sopNode.parm('loadmode'))
-            ExpressionToParm(rootNode.parm('viewportlod'), sopNode.parm('viewportlod'))
-            ExpressionToParm(rootNode.parm('loadUserProps'), sopNode.parm('loadUserProps'))
+            ExpressionToFileNameParm(self._rootNode, sopNode)
+            ExpressionToParm(self._rootNode.parm('frame'), sopNode.parm('frame'))
+            ExpressionToParm(self._rootNode.parm('fps'), sopNode.parm('fps'))
+            ExpressionToParm(self._rootNode.parm('loadmode'), sopNode.parm('loadmode'))
+            ExpressionToParm(self._rootNode.parm('viewportlod'), sopNode.parm('viewportlod'))
+            ExpressionToParm(self._rootNode.parm('loadUserProps'), sopNode.parm('loadUserProps'))
 
-        objectPath = currentPath
-        if ' ' in objectPath:
-            objectPath = ''.join(['"', currentPath, '"'])
         sopNode.parm('objectPath').set(objectPath)
-        sopNode.parm('includeXform').set(0)
-        sopNode.parm('usevisibility').set(not flatVisibility)
-        sopNode.parm('loadUserProps').set(userPropsLoadMode)
-        sopNode.parm('groupnames').set('none')  # Don't build groups
+        sopNode.parm('includeXform').set(1)
+        sopNode.parm('usevisibility').set(1)
+        sopNode.parm('loadUserProps').set(self._userPropsLoadMode)
+        sopNode.parm('groupnames').set('none')
 
-    elif typeName == 'xform' or typeName == 'cxform':
-        currentNode = None
-        if buildSingleGeoNode:
-            currentNode = _findNode(buildSubnet, parentNode, rootNode, currentPath)
+    def _walk(self, parentNode, parentPath, childEntry, pathList):
+        name, typeName, children = childEntry
+        if pathList:
+            if pathList[0] != name:
+                return
+            pathList = pathList[1:]
 
-        if not currentNode:
-            currentNode = _newAlembicNode(rootNode, parentNode, 'alembicxform', buildSubnet)
-
+        currentPath = '%s/%s' % (parentPath, name)
+        if typeName in _primitiveTypes:
+            currentNode = self._newAlembicNode(parentNode, 'geo', run_init_scripts=False)
+            #currentNode = parentNode.createNode('geo', run_init_scripts=False)
+            #currentNode.setInput(0, parentNode.indirectInputs()[0])
+            subd = (typeName == 'subdmesh')
+            _setupAbcGeo(currentNode)
+            if subd:
+                for parmname in ('vm_rendersubd', 'ri_rendersubd'):
+                    _setParmValue(currentNode, parmname, 1)
             _setNodeName(currentNode, name)
+            if self._flatVisibility:
+                self._setVisibility(currentNode, currentPath)
 
-            animated = typeName != 'cxform'
-            if _setUserProperties(currentNode, currentPath, fileName, userPropsLoadMode):
-                animated = True
+            sopNode = currentNode.createNode('alembic')
+            _setNodeName(sopNode, name)
 
-            if flatVisibility:
-                if _checkAnimatedVisibility(fileName, currentPath):
+            relPath = sopNode.relativePathTo(self._rootNode)
+            hou.hscript("opmultiparm %s 'abcName#' '%s/abcName#' 'hName#' '%s/hName#'" % (
+                    sopNode.path(), relPath, relPath))
+
+            _setParmValue(sopNode, "addpath", 0)
+            if self._channelRefs:
+                ExpressionToParm(self._rootNode.parm('remapAttributes'),
+                    sopNode.parm('remapAttributes'),
+                    isString=True)
+                ExpressionToFileNameParm(self._rootNode, sopNode)
+                ExpressionToParm(self._rootNode.parm('frame'), sopNode.parm('frame'))
+                ExpressionToParm(self._rootNode.parm('fps'), sopNode.parm('fps'))
+                ExpressionToParm(self._rootNode.parm('loadmode'), sopNode.parm('loadmode'))
+                ExpressionToParm(self._rootNode.parm('viewportlod'), sopNode.parm('viewportlod'))
+                ExpressionToParm(self._rootNode.parm('loadUserProps'), sopNode.parm('loadUserProps'))
+
+            objectPath = currentPath
+            if ' ' in objectPath:
+                objectPath = ''.join(['"', currentPath, '"'])
+            sopNode.parm('objectPath').set(objectPath)
+            sopNode.parm('includeXform').set(0)
+            sopNode.parm('usevisibility').set(not self._flatVisibility)
+            sopNode.parm('loadUserProps').set(self._userPropsLoadMode)
+            sopNode.parm('groupnames').set('none')  # Don't build groups
+
+        elif typeName == 'xform' or typeName == 'cxform':
+            currentNode = None
+            if self._buildSingleGeoNode:
+                currentNode = self._findNode(parentNode, currentPath)
+
+            if not currentNode:
+                currentNode = self._newAlembicNode(parentNode, 'alembicxform')
+
+                _setNodeName(currentNode, name)
+
+                animated = typeName != 'cxform'
+                if self._setUserProperties(currentNode, currentPath):
                     animated = True
+
+                if self._flatVisibility:
+                    if self._checkAnimatedVisibility(currentPath):
+                        animated = True
+                else:
+                    if self._setVisibility(currentNode, currentPath):
+                        animated = True
+
+                if self._channelRefs:
+                    ExpressionToFileNameParm(self._rootNode, currentNode)
+                    if animated:
+                        ExpressionToParm(self._rootNode.parm('frame'),
+                                currentNode.parm('frame'))
+                        ExpressionToParm(self._rootNode.parm('fps'),
+                                currentNode.parm('fps'))
+
+                currentNode.parm('objectPath').set(currentPath)
+                if not animated:
+                    currentNode.parm('abcConstant').set(1)
+
+            for entry in children:
+                self._walk(currentNode, currentPath, entry, pathList)
+
+            currentNode.layoutChildren()
+
+        elif typeName == 'camera':
+            currentNode = self._newAlembicNode(parentNode, 'cam')
+            _setNodeName(currentNode, name)
+            parent = currentNode.parent()
+            sampleTime = parent.parm('frame').eval() / parent.parm('fps').eval()
+            cameraDict = _abc.alembicGetCameraDict(self._fileName, currentPath, sampleTime)
+
+            # Set Houdini camera parameters
+            if cameraDict != None:
+                for parmName in (
+                        'aperture',
+                        'aspect',
+                        'focal',
+                        'near',
+                        'far',
+                        'focus',
+                        'fstop',
+                        'shutter',
+                        'winx',
+                        'winy',
+                        'winsizex',
+                        'winsizey'):
+                    currentNode.parm(parmName).setExpression('parent = hou.pwd().parent()\nreturn %s.alembicGetCameraDict(parent.hdaModule().GetFileName(parent), %s, parent.evalParm("frame")/parent.evalParm("fps")).get(%s)' % (_AbcModule, repr(currentPath), repr(parmName)), hou.exprLanguage.Python)
+
+                resTuple = _abc.alembicGetCameraResolution(self._fileName, currentPath, sampleTime)
+
+                if resTuple != None:
+                    currentNode.parm('resx').set(resTuple[0])
+                    currentNode.parm('resy').set(resTuple[1])
+
+                # Some imported camera (ex. Maya Camera) does not have a resolution.
+                # In this case, set the Houdini Camera resolution according to the film aspect ratio.
+                else:
+                    resy = currentNode.parm('resx').eval() / cameraDict['filmaspectratio']
+                    currentNode.parm('resy').set(int(resy))
+        else:
+            self._warnings.append('Ignoring Alembic object with unknown type: %s' % (currentPath, ))
+
+    def _findNode(self, parentNode, currentPath):
+        if self._buildSubnet:
+            rootNode = parentNode
+        else:
+            rootNode = self._rootNode
+        for child in rootNode.children():
+            objPath = child.parm('objectPath')
+            if not objPath:
+                continue
+            if currentPath == objPath.eval():
+                return child
+
+    def _setUserProperties(self, currentNode, currentPath):
+        # Exit quick if user properties shouldn't be loaded
+        if self._userPropsLoadMode == 0:
+            return False
+
+        # Check for user properties on node. Returns None if no user properties,
+        # true if properties are static, and false if properties are animated.
+        props = _abc.alembicHasUserProperties(self._fileName, currentPath)
+
+        if props is not None:
+            # Add spare parameter(s) for user properties
+            currentNode.addSpareParmTuple(hou.StringParmTemplate('userProps', 'User Properties', 1, ['']))
+            if self._userPropsLoadMode == 2:
+                currentNode.addSpareParmTuple(hou.StringParmTemplate('userPropsMeta', 'User Properties Metadata', 1, ['']))
+
+            if props and (self._userPropsLoadMode == 2):
+                values, metadata = _abc.alembicUserPropertyValuesAndMetadata(self._fileName, currentPath, 0)
+                currentNode.parm('userProps').set(values)
+                currentNode.parm('userPropsMeta').set(metadata)
+            elif props:
+                currentNode.parm('userProps').set(_abc.alembicUserPropertyValues(self._fileName, currentPath, 0))
             else:
-                if _setVisibility(currentNode, fileName, currentPath):
-                    animated = True
+                if (self._userPropsLoadMode == 2):
+                    expr = '%s.alembicUserPropertyMetadata(%s, %s, ch("frame")/ch("fps"))' % (_AbcModule, repr(self._fileName), repr(currentPath))
+                    currentNode.parm('userPropsMeta').setExpression(expr, hou.exprLanguage.Python)
 
-            if channelRefs:
-                ExpressionToFileNameParm(rootNode, currentNode)
-                if animated:
-                    ExpressionToParm(rootNode.parm('frame'),
-                            currentNode.parm('frame'))
-                    ExpressionToParm(rootNode.parm('fps'),
-                            currentNode.parm('fps'))
+                expr = '%s.alembicUserPropertyValues(%s, %s, ch("frame")/ch("fps"))' % (_AbcModule, repr(self._fileName), repr(currentPath))
+                currentNode.parm('userProps').setExpression(expr, hou.exprLanguage.Python)
+                return True
+        return False
 
-            currentNode.parm('objectPath').set(currentPath)
-            if not animated:
-                currentNode.parm('abcConstant').set(1)
+    def _checkAnimatedVisibility(self, objectpath):
+        vis = _abc.alembicVisibility(self._fileName, objectpath, 0, 1)
+        return not vis[1] and vis[0] != -1
 
-        for entry in children:
-            WalkHierarchy(fileName, rootNode, currentNode, currentPath,
-                        entry, pathList, buildSubnet, channelRefs, buildSingleGeoNode,
-                        flatVisibility, userPropsLoadMode)
+    def _setVisibility(self, node, objectpath):
+        filename = self._fileName
+        vis = _abc.alembicVisibility(filename, objectpath, 0)
 
-        currentNode.layoutChildren()
+        if vis == None:
+            # Always visible - this is likely to occur when we reach the Alembic
+            # root.
+            return False;
 
-    elif typeName == 'camera':
-        currentNode = _newAlembicNode(rootNode, parentNode, 'cam', buildSubnet)
-        _setNodeName(currentNode, name)
-        parent = currentNode.parent()
-        sampleTime = parent.parm('frame').eval() / parent.parm('fps').eval()
-        cameraDict = _abc.alembicGetCameraDict(fileName, currentPath, sampleTime)
+        if vis[1]:
+            if vis[0] == 0:
+                # Never visible (constant hidden)
+                _setParmValue(node, 'tdisplay', 1)
+                _setParmValue(node, 'display', 0)
 
-        # Set Houdini camera parameters
-        if cameraDict != None:
-            for parmName in (
-                    'aperture',
-                    'aspect',
-                    'focal',
-                    'near',
-                    'far',
-                    'focus',
-                    'fstop',
-                    'shutter',
-                    'winx',
-                    'winy',
-                    'winsizex',
-                    'winsizey'):
-                currentNode.parm(parmName).setExpression('parent = hou.pwd().parent()\nreturn %s.alembicGetCameraDict(parent.hdaModule().GetFileName(parent), %s, parent.evalParm("frame")/parent.evalParm("fps")).get(%s)' % (_AbcModule, repr(currentPath), repr(parmName)), hou.exprLanguage.Python)
+            elif vis[0] == -1:
+                # Always whatever parent is (constant deferred)
+                ppath = objectpath[:objectpath.rfind('/')]
 
-            resTuple = _abc.alembicGetCameraResolution(fileName, currentPath, sampleTime)
+                if ppath != "":
+                    return self._setVisibility(node, ppath)
+            return False
+        # Animated visibility
+        if len(filename):
+            parm = node.parm('numlayers')
+            if parm:
+                layers = filename[:-1]
+                parm.set(len(layers))
+                for i, name in enumerate(layers):
+                    _setParmValue(node, 'enablelayer%d' % (i + 1, ), 1)
+                    _setParmValue(node, 'layer%d' % (i + 1, ), name)
+            _setParmValue(node, 'fileName', filename[-1])
+        _setParmValue(node, 'tdisplay', 1)
 
-            if resTuple != None:
-                currentNode.parm('resx').set(resTuple[0])
-                currentNode.parm('resy').set(resTuple[1])
+        disp = node.parm('display')
+        expr = 'node = hou.pwd()\nif node.type().name() != "alembicxform":\n    node = node.parent()\nreturn %s.alembicVisibility(node.hdaModule().GetFileName(node), %s, node.evalParm("frame")/node.evalParm("fps"), 1)[0]' % (_AbcModule, repr(objectpath))
+        disp.setExpression(expr, hou.exprLanguage.Python)
+        return True
 
-            # Some imported camera (ex. Maya Camera) does not have a resolution. 
-            # In this case, set the Houdini Camera resolution according to the film aspect ratio.
+    def _newAlembicNode(self, parent, node_type, run_init_scripts=True):
+        if self._buildSubnet:
+            node = parent.createNode(node_type, run_init_scripts=run_init_scripts)
+            node.setInput(0, parent.indirectInputs()[0])
+        else:
+            node = self._rootNode.createNode(node_type, run_init_scripts=run_init_scripts)
+            if node.parent() == parent.parent():
+                node.setInput(0, parent)
             else:
-                resy = currentNode.parm('resx').eval() / cameraDict['filmaspectratio']
-                currentNode.parm('resy').set(int(resy))
+                node.setInput(0, parent.indirectInputs()[0])
+        return node
 
 def PushParametersToChildren(rootNode):
     WalkAndPush(rootNode, rootNode)
