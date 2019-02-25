@@ -988,12 +988,10 @@ GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
 	{
 	    myAnimationType = GEO_ANIMATION_CONSTANT;
 	    bool animated;
-	    bool vis = visible(abc, &animated);
+	    visible(abc, &animated);
 
 	    if(animated)
 		myAnimationType = GEO_ANIMATION_TRANSFORM;
-	    else if(!vis)
-		return myAnimationType;
 
 	    if(GT_PackedGeoCache::isCachingAvailable())
 	    {
