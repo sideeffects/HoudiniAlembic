@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -967,12 +967,10 @@ GABC_PackedImpl::GTCache::animationType(const GABC_PackedImpl *abc)
 	{
 	    myAnimationType = GEO_ANIMATION_CONSTANT;
 	    bool animated;
-	    bool vis = visible(abc, &animated);
+	    visible(abc, &animated);
 
 	    if(animated)
 		myAnimationType = GEO_ANIMATION_TRANSFORM;
-	    else if(!vis)
-		return myAnimationType;
 
 	    if(GT_PackedGeoCache::isCachingAvailable())
 	    {
