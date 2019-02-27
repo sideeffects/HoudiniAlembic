@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1516,8 +1516,8 @@ namespace {
 	abc = UTverify_cast<GABC_PackedImpl *>(packed->implementation());
 	UT_ASSERT(GAisValid(pt));
 	packed->setVertexPoint(pt);
-	packed->setAttributeNameMap(walk.nameMapPtr());
-        packed->setFacesetAttribute(walk.facesetAttribute());
+        abc->setAttributeNameMap(walk.nameMapPtr());
+        abc->setFacesetAttribute(walk.facesetAttribute());
 	packed->setViewportLOD(walk.viewportLOD());
 
 	if (!abc->isConstant())
@@ -2358,7 +2358,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
     , myRootObjectPath("")
     , myObjectPattern("*")
     , myNameMapPtr()
-    , myFacesetAttribute("*")
+    , myFacesetAttribute(GEO_PrimPacked::theDefaultFacesetAttribute)
     , myBoss(UTgetInterrupt())
     , myBossId(-1)
     , myMatrix(1)

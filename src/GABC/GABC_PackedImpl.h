@@ -144,6 +144,31 @@ public:
     /// Unpack without using polygon soups
     virtual bool        unpackUsingPolygons(GU_Detail &destgdp, const GU_PrimPacked *prim) const;
 
+    /// Alembic packed primitives do have a faceset attribute, so set it.
+    virtual void setFacesetAttribute(const UT_StringHolder &s)
+    {
+        myFacesetAttribute = s;
+    }
+
+    /// Alembic packed primitives do have a faceset attribute, so return it.
+    virtual const UT_StringHolder &facesetAttribute() const
+    { return myFacesetAttribute; }
+
+    virtual void setAttributeNameMap(const GEO_PackedNameMapPtr &m);
+
+    virtual const GEO_PackedNameMapPtr &attributeNameMap() const
+    {
+        if (mySharedNameMapData)
+        {
+            setupNameMap();
+        }
+        return myAttributeNameMap;
+    }
+
+    /// This should only be called during load.
+    virtual void setSharedNameMapData(GA_SharedDataHandlePtr s)
+    { mySharedNameMapData = std::move(s); }
+
     /// @{
     /// Return GT representations of geometry
     bool		visibleGT(bool *is_animated = NULL) const;
@@ -312,6 +337,11 @@ private:
     void	clearGT();
     bool	unpackGeometry(GU_Detail &destgdp, const UT_Matrix4D *transform, bool allow_psoup) const;
 
+    void setupNameMap() const;
+
+    UT_StringHolder             myFacesetAttribute;
+    GEO_PackedNameMapPtr	myAttributeNameMap;
+    GA_SharedDataHandlePtr	mySharedNameMapData;
     mutable UT_Lock		myLock;
     mutable GABC_IObject	myObject;
     mutable GTCache		myCache;

@@ -28,14 +28,6 @@
 #include "GABC_PackedImpl.h"
 #include "GABC_PackedGT.h"
 
-#include <UT/UT_Debug.h>
-#include <UT/UT_JSONParser.h>
-#include <UT/UT_JSONValue.h>
-#include <UT/UT_JSONWriter.h>
-#include <UT/UT_MemoryCounter.h>
-#include <UT/UT_StdUtil.h>
-#include <GU/GU_PackedFactory.h>
-#include <GU/GU_PrimPacked.h>
 #include <GT/GT_Primitive.h>
 #include <GT/GT_Util.h>
 #include <GT/GT_RefineParms.h>
@@ -43,6 +35,15 @@
 #include <GT/GT_PrimPointMesh.h>
 #include <GT/GT_PrimitiveBuilder.h>
 #include <GT/GT_PackedGeoCache.h>
+#include <GU/GU_PackedFactory.h>
+#include <GU/GU_PrimPacked.h>
+#include <GEO/GEO_PackedNameMap.h>
+#include <UT/UT_Debug.h>
+#include <UT/UT_JSONParser.h>
+#include <UT/UT_JSONValue.h>
+#include <UT/UT_JSONWriter.h>
+#include <UT/UT_MemoryCounter.h>
+#include <UT/UT_StdUtil.h>
 #include <SYS/SYS_Hash.h>
 
 #if !defined(GABC_PRIMITIVE_TOKEN)
@@ -169,6 +170,9 @@ GABC_PackedImpl::isInstalled()
 
 GABC_PackedImpl::GABC_PackedImpl()
     : GU_PackedImpl()
+    , myFacesetAttribute(GEO_PrimPacked::theDefaultFacesetAttribute)
+    , myAttributeNameMap()
+    , mySharedNameMapData()
     , myObject()
     , myCache()
     , myObjectPath()
@@ -184,6 +188,9 @@ GABC_PackedImpl::GABC_PackedImpl()
 
 GABC_PackedImpl::GABC_PackedImpl(const GABC_PackedImpl &src)
     : GU_PackedImpl(src)
+    , myFacesetAttribute(src.myFacesetAttribute)
+    , myAttributeNameMap(src.myAttributeNameMap)
+    , mySharedNameMapData(src.mySharedNameMapData)
     , myObject(src.myObject)
     , myCache()
     , myFilenames(src.myFilenames)
@@ -220,6 +227,9 @@ GABC_PackedImpl::getMemoryUsage(bool inclusive) const
 {
     int64 mem = inclusive ? sizeof(*this) : 0;
     
+    if (myAttributeNameMap)
+        mem += myAttributeNameMap->getMemoryUsage(true);
+
     // NOTE: This is currently very slow to compute, and slows down Alembic
     //       playback noticably. 
     // mem += myCache.getMemoryUsage(false);
@@ -238,6 +248,8 @@ GABC_PackedImpl::countMemory(UT_MemoryCounter &counter, bool inclusive) const
         UT_MEMORY_DEBUG_LOG("GABC_PackedImpl", int64(mem));
         counter.countUnshared(mem);
     }
+    if (myAttributeNameMap)
+        myAttributeNameMap->countMemory(counter, true);
 }
 
 bool
@@ -249,6 +261,9 @@ GABC_PackedImpl::isValid() const
 void
 GABC_PackedImpl::clearData()
 {
+    myFacesetAttribute = GEO_PrimPacked::theDefaultFacesetAttribute;
+    myAttributeNameMap.reset();
+    mySharedNameMapData.reset();
     myObject = GABC_IObject();
     myFilenames.clear();
     myObjectPath.clear();
@@ -515,6 +530,11 @@ GABC_PackedImpl::unpackUsingPolygons(GU_Detail &destgdp, const GU_PrimPacked *pr
     return unpackGeometry(destgdp, prim ? &transform : nullptr, false);
 }
 
+void
+GABC_PackedImpl::setAttributeNameMap(const GEO_PackedNameMapPtr &m)
+{
+    myAttributeNameMap = m;
+}
 
 bool
 GABC_PackedImpl::visibleGT(bool *is_animated) const
@@ -840,11 +860,11 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 
 	    if(!cached)
 	    {
-		myPrim = o.getPrimitive(abc->getPrim(), 
+		myPrim = o.getPrimitive(abc->getPrim(),
 					myFrame, 
 					atype,
-					abc->getPrim()->attributeNameMap(),
-					abc->getPrim()->facesetAttribute(), 
+					abc->attributeNameMap(),
+					abc->facesetAttribute(),
 					myLoadStyle);
 		// The above call only sets atype if it's deforming.
 		// Need to check for transform animation.
@@ -1061,7 +1081,7 @@ UT_StringHolder
 GABC_PackedImpl::getAttributeNames(GT_Owner owner) const
 {
     if (myObject.valid())
-        return myObject.getAttributes(getPrim()->attributeNameMap(), GABC_IObject::GABC_LOAD_FULL, owner);
+        return myObject.getAttributes(attributeNameMap(), GABC_IObject::GABC_LOAD_FULL, owner);
 
     UT_String emptyString;
     return emptyString;
@@ -1071,7 +1091,7 @@ UT_StringHolder
 GABC_PackedImpl::getFaceSetNames() const
 {
     if (myObject.valid())
-        return myObject.getFaceSets(getPrim()->facesetAttribute(), 0, GABC_IObject::GABC_LOAD_FULL);
+        return myObject.getFaceSets(facesetAttribute(), 0, GABC_IObject::GABC_LOAD_FULL);
 
     UT_String emptyString;
     return emptyString;
@@ -1164,4 +1184,25 @@ GABC_PackedImpl::getPropertiesHash() const
     }
     
     return myUniqueID;
+}
+
+void
+GABC_PackedImpl::setupNameMap() const
+{
+    UT_ASSERT(mySharedNameMapData);
+
+    // Need a non const version of ourselves (we want
+    // to be able to access from const prims)
+    GABC_PackedImpl* me = const_cast<GABC_PackedImpl*>(this);
+
+    // Resolve our shared data
+    // NOTE: Primitive pointer is only needed for volume primitives,
+    //       not packed primitives.
+    const GA_SharedLoadData* item = mySharedNameMapData->resolveSharedData(nullptr);
+    const GEO_PackedNameMap::LoadContainer* data = dynamic_cast<const GEO_PackedNameMap::LoadContainer*>(item);
+    if (data)
+    {
+        me->setAttributeNameMap(data->myNameMap);
+    }
+    me->mySharedNameMapData.reset();
 }
