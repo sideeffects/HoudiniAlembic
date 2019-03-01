@@ -31,11 +31,6 @@
 #include "GABC_IArchive.h"
 #include "GABC_Util.h"
 #include "GABC_GTUtil.h"
-#include <SYS/SYS_AtomicInt.h>
-#include <SYS/SYS_Hash.h>
-#include <GEO/GEO_PackedNameMap.h>
-#include <GEO/GEO_PrimPacked.h>
-#include <GU/GU_Detail.h>
 #include <GT/GT_CurveEval.h>
 #include <GT/GT_DABool.h>
 #include <GT/GT_DAConstantValue.h>
@@ -51,7 +46,11 @@
 #include <GT/GT_PrimSubdivisionMesh.h>
 #include <GT/GT_TrimNuCurves.h>
 #include <GT/GT_Util.h>
+#include <GU/GU_Detail.h>
+#include <GEO/GEO_PackedNameMap.h>
+#include <GEO/GEO_PrimPacked.h>
 #include <GA/GA_Names.h>
+#include <GA/GA_Types.h>
 #include <Alembic/AbcGeom/ArchiveBounds.h>
 #include <Alembic/AbcGeom/All.h>
 #include <Alembic/AbcMaterial/All.h>
@@ -59,6 +58,8 @@
 #include <UT/UT_StackBuffer.h>
 #include <UT/UT_DoubleLock.h>
 #include <UT/UT_ErrorLog.h>
+#include <SYS/SYS_AtomicInt.h>
+#include <SYS/SYS_Hash.h>
 
 using namespace GABC_NAMESPACE;
 

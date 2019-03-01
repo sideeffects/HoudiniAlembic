@@ -33,6 +33,7 @@
 #include "GABC_Types.h"
 #include "GABC_IItem.h"
 #include <GEO/GEO_PackedNameMap.h>
+#include <GA/GA_Types.h>
 #include <UT/UT_Matrix4.h>
 #include <UT/UT_BoundingBox.h>
 #include <GT/GT_DataArray.h>
@@ -40,7 +41,7 @@
 #include <Alembic/Abc/IObject.h>
 #include <Alembic/AbcGeom/GeometryScope.h>
 
-class GEO_Primitive;
+class GA_Detail;
 class UT_StringArray;
 
 namespace GABC_NAMESPACE
