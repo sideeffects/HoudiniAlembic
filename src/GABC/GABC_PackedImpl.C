@@ -486,7 +486,12 @@ GABC_PackedImpl::getLocalTransform(UT_Matrix4D &m) const
 }
 
 bool
-GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, const UT_Matrix4D *transform, bool allow_psoup) const
+GABC_PackedImpl::unpackGeometry(
+    GU_Detail &destgdp,
+    const GU_Detail *srcgdp,
+    const GA_Offset srcprimoff,
+    const UT_Matrix4D *transform,
+    bool allow_psoup) const
 {
     int loadstyle = GABC_IObject::GABC_LOAD_FULL;
     // We don't want to copy over the attributes from the Houdini geometry
@@ -498,15 +503,16 @@ GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, const UT_Matrix4D *transform
     GT_PrimitiveHandle	prim = fullGT(nullptr, loadstyle);
     if (prim)
     {
-	UT_Array<GU_Detail *>	details;
-	GT_RefineParms		rparms;
+	UT_Array<GU_Detail *> details;
+	GT_RefineParms rparms;
 	if (!allow_psoup)
 	    rparms.setAllowPolySoup(false);
 
 	GT_Util::makeGEO(details, prim, &rparms);
 	for (exint i = 0; i < details.entries(); ++i)
 	{
-	    copyPrimitiveGroups(*details(i), false);
+            if (srcgdp)
+                copyPrimitiveGroups(*details(i), *srcgdp, srcprimoff, false);
 	    // Transform as requested
 	    unpackToDetail(destgdp, details(i), transform);
 	    delete details(i);
@@ -516,9 +522,24 @@ GABC_PackedImpl::unpackGeometry(GU_Detail &destgdp, const UT_Matrix4D *transform
 }
 
 bool
-GABC_PackedImpl::unpack(GU_Detail &destgdp, const UT_Matrix4D *transform) const
+GABC_PackedImpl::unpack(
+    GU_Detail &destgdp,
+    const UT_Matrix4D *transform) const
 {
-    return unpackGeometry(destgdp, transform, true);
+    return unpackGeometry(destgdp, nullptr, GA_INVALID_OFFSET, transform, true);
+}
+
+bool
+GABC_PackedImpl::unpackWithPrim(
+    GU_Detail &destgdp,
+    const UT_Matrix4D *transform,
+    const GU_PrimPacked *prim) const
+{
+    return unpackGeometry(
+        destgdp,
+        prim ? (const GU_Detail *)&prim->getDetail() : nullptr,
+        prim ? prim->getMapOffset() : GA_INVALID_OFFSET,
+        transform, true);
 }
 
 bool
@@ -527,7 +548,11 @@ GABC_PackedImpl::unpackUsingPolygons(GU_Detail &destgdp, const GU_PrimPacked *pr
     UT_Matrix4D transform;
     if (prim)
         prim->getFullTransform4(transform);
-    return unpackGeometry(destgdp, prim ? &transform : nullptr, false);
+    return unpackGeometry(
+        destgdp,
+        prim ? (const GU_Detail *)&prim->getDetail() : nullptr,
+        prim ? prim->getMapOffset() : GA_INVALID_OFFSET,
+        prim ? &transform : nullptr, false);
 }
 
 void
@@ -562,7 +587,11 @@ GABC_PackedImpl::fullGT(const GU_PrimPacked *packed, int load_style) const
     if (!object().valid())
 	return GT_PrimitiveHandle();
     
-    return gabcApplyPrimTransform(packed, myCache.full(this, load_style));
+    return gabcApplyPrimTransform(packed,
+        myCache.full(
+            packed ? &packed->getDetail() : nullptr,
+            packed ? packed->getMapOffset() : GA_INVALID_OFFSET,
+            this, load_style));
 }
 
 GT_PrimitiveHandle
@@ -808,8 +837,11 @@ GABC_PackedImpl::GTCache::updateFrame(fpreal frame)
 
 
 const GT_PrimitiveHandle &
-GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
-			       int load_style)
+GABC_PackedImpl::GTCache::full(
+    const GA_Detail *detail,
+    const GA_Offset primoff,
+    const GABC_PackedImpl *abc,
+    int load_style)
 {
     if(!(load_style&GABC_IObject::GABC_LOAD_IGNORE_VISIBILITY) &&
        !visible(abc))
@@ -860,7 +892,7 @@ GABC_PackedImpl::GTCache::full(const GABC_PackedImpl *abc,
 
 	    if(!cached)
 	    {
-		myPrim = o.getPrimitive(abc->getPrim(),
+		myPrim = o.getPrimitive(detail, primoff,
 					myFrame, 
 					atype,
 					abc->attributeNameMap(),

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -801,24 +801,20 @@ namespace
 
 
     static void
-    fillHoudiniAttributes(GT_AttributeList &alist,
-		    const GEO_Primitive &prim,
-		    GA_AttributeOwner owner,
-		    bool *filled)
+    fillHoudiniAttributes(
+        GT_AttributeList &alist,
+        const GA_Detail &gdp,
+        GA_Offset offset,
+        GA_AttributeOwner owner,
+        bool *filled)
     {
-	const GA_Detail		&gdp = prim.getDetail();
-	const GA_AttributeDict	&dict = gdp.getAttributes().getDict(owner);
-	const GA_IndexMap		&indexmap = gdp.getIndexMap(owner);
-	GA_Offset			 offset;
-	if (owner == GA_ATTRIB_DETAIL)
-	    offset = GA_Offset(0);
-	else
-	    offset = prim.getMapOffset();
-	GA_Range	range(indexmap, offset, GA_Offset(offset+1));
+	const GA_AttributeDict &dict = gdp.getAttributes().getDict(owner);
+	const GA_IndexMap &indexmap = gdp.getIndexMap(owner);
+	GA_Range range(indexmap, offset, GA_Offset(offset+1));
 	for (GA_AttributeDict::iterator it = dict.begin(GA_SCOPE_PUBLIC);
 		!it.atEnd(); ++it)
 	{
-	    int			idx = alist.getIndex((*it)->getName());
+	    int idx = alist.getIndex((*it)->getName());
 	    if (idx >= 0 && !filled[idx])
 	    {
 		GT_DataArrayHandle h = GT_Util::extractAttribute(*(*it), range);
@@ -914,7 +910,8 @@ namespace
 	    exint expected_size,
 	    const GEO_PackedNameMapPtr &namemap,
 	    int load_style,
-	    const GEO_Primitive *prim,
+            const GA_Detail *detail,
+            const GA_Offset primoff,
 	    const GABC_IObject &obj,
 	    fpreal t,
 	    GA_AttributeOwner owner,
@@ -1009,10 +1006,10 @@ namespace
 	SET_GEOM_PARAM(N, "N", owner, GT_TYPE_NORMAL)
 	SET_GEOM_UVS_PARAM(uvs, "uv", owner)
 	SET_GEOM_PARAM(widths, "width", owner, GT_TYPE_NONE)
-	if (prim && matchScope(gabcConstantScope, scope, scope_size))
+	if (detail && matchScope(gabcConstantScope, scope, scope_size))
 	{
 	    setAttributeData(alist, obj, GT_Names::primitive_id,
-		    new GT_IntConstant(1, prim->getMapOffset()), filled);
+		    new GT_IntConstant(1, primoff), filled);
 	}
 	if (arb)
 	{
@@ -1046,12 +1043,12 @@ namespace
 	// We need to fill Houdini attributes last.  Otherwise, when converting
 	// two primitives, the Houdini attributes override the first primitive
 	// converted.
-	if (prim
+	if (detail
 		&& (load_style & GABC_IObject::GABC_LOAD_HOUDINI)
 		&& matchScope(gabcConstantScope, scope, scope_size))
 	{
-	    fillHoudiniAttributes(alist, *prim, GA_ATTRIB_PRIMITIVE, filled);
-	    fillHoudiniAttributes(alist, *prim, GA_ATTRIB_GLOBAL, filled);
+	    fillHoudiniAttributes(alist, *detail, primoff, GA_ATTRIB_PRIMITIVE, filled);
+	    fillHoudiniAttributes(alist, *detail, GA_DETAIL_OFFSET, GA_ATTRIB_DETAIL, filled);
 	}
 	for (exint i = 0; i < alist.entries(); ++i)
 	{
@@ -1088,16 +1085,16 @@ namespace
     }
 
     static void
-    initializeHoudiniAttributes(const GEO_Primitive &prim,
-				GT_AttributeMap &map,
-				GA_AttributeOwner owner)
+    initializeHoudiniAttributes(
+        const GA_Detail &gdp,
+        GT_AttributeMap &map,
+        GA_AttributeOwner owner)
     {
-	const GA_Detail		&gdp = prim.getDetail();
-	const GA_AttributeDict	&dict = gdp.getAttributes().getDict(owner);
+	const GA_AttributeDict &dict = gdp.getAttributes().getDict(owner);
 	for (GA_AttributeDict::iterator it = dict.begin(GA_SCOPE_PUBLIC);
 		!it.atEnd(); ++it)
 	{
-	    const GA_Attribute	*attrib = it.attrib();
+	    const GA_Attribute *attrib = it.attrib();
 	    
 	    if (attrib->getAIFTuple() || attrib->getAIFStringTuple())
 		map.add(attrib->getName(), false);
@@ -1105,24 +1102,26 @@ namespace
     }
 
     static GT_AttributeListHandle
-    initializeAttributeList(const GEO_Primitive *prim,
-			exint expected_size,
-			const GABC_IObject &obj,
-			const GEO_PackedNameMapPtr &namemap,
-			int load_style,
-			fpreal t,
-			GA_AttributeOwner owner,
-			const GeometryScope *scope,
-			int scope_size,
-			ICompoundProperty arb,
-			bool create_topology,
-			const IP3fArrayProperty *P = NULL,
-			const IV3fArrayProperty *v = NULL,
-			const IN3fGeomParam *N = NULL,
-			const IV2fGeomParam *uvs = NULL,
-			const IUInt64ArrayProperty *ids = NULL,
-			const IFloatGeomParam *widths = NULL,
-			const IFloatArrayProperty *Pw = NULL)
+    initializeAttributeList(
+        const GA_Detail *detail,
+        const GA_Offset primoff,
+        exint expected_size,
+        const GABC_IObject &obj,
+        const GEO_PackedNameMapPtr &namemap,
+        int load_style,
+        fpreal t,
+        GA_AttributeOwner owner,
+        const GeometryScope *scope,
+        int scope_size,
+        ICompoundProperty arb,
+        bool create_topology,
+        const IP3fArrayProperty *P = NULL,
+        const IV3fArrayProperty *v = NULL,
+        const IN3fGeomParam *N = NULL,
+        const IV2fGeomParam *uvs = NULL,
+        const IUInt64ArrayProperty *ids = NULL,
+        const IFloatGeomParam *widths = NULL,
+        const IFloatArrayProperty *Pw = NULL)
     {
 	GT_AttributeMap	*map = new GT_AttributeMap();
 
@@ -1136,7 +1135,7 @@ namespace
 	addGeomParamToMap(*map, "uv", uvs, owner, scope, scope_size, namemap);
 	addGeomParamToMap(*map, "width", widths, owner, scope, scope_size, namemap);
 
-	if (prim && matchScope(gabcConstantScope, scope, scope_size))
+	if (detail && matchScope(gabcConstantScope, scope, scope_size))
 	    map->add(GT_Names::primitive_id, true);
 	if (arb)
 	{
@@ -1165,13 +1164,13 @@ namespace
 	    }
 	}
 
-	if (prim
+	if (detail
 	    && (load_style & GABC_IObject::GABC_LOAD_HOUDINI)
 	    && !(load_style & GABC_IObject::GABC_LOAD_NO_PACKED_ATTRIBS)
 	    && matchScope(gabcConstantScope, scope, scope_size))
 	{
-	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_PRIMITIVE);
-	    initializeHoudiniAttributes(*prim, *map, GA_ATTRIB_GLOBAL);
+	    initializeHoudiniAttributes(*detail, *map, GA_ATTRIB_PRIMITIVE);
+	    initializeHoudiniAttributes(*detail, *map, GA_ATTRIB_GLOBAL);
 	}
 
 	if (!map->entries())
@@ -1185,7 +1184,8 @@ namespace
 	if (alist->entries())
 	{
 	    fillAttributeList<false>(*alist, expected_size, namemap, load_style,
-			prim, obj, t, owner, scope, scope_size,
+                        detail, primoff,
+                        obj, t, owner, scope, scope_size,
 			arb, P, v, N, uvs, ids, widths, Pw,
 			removals);
 	}
@@ -1252,34 +1252,36 @@ namespace
     }
 
     static GT_AttributeListHandle
-    updateAttributeList(const GT_AttributeListHandle &src,
-			const GEO_Primitive *prim,
-			exint expected_size,
-			const GABC_IObject &obj,
-			const GEO_PackedNameMapPtr &namemap,
-			int load_style,
-			fpreal t,
-			GA_AttributeOwner owner,
-			const GeometryScope *scope,
-			int scope_size,
-			ICompoundProperty arb,
-			const IP3fArrayProperty *P = NULL,
-			const IV3fArrayProperty *v = NULL,
-			const IN3fGeomParam *N = NULL,
-			const IV2fGeomParam *uvs = NULL,
-			const IUInt64ArrayProperty *ids = NULL,
-			const IFloatGeomParam *widths = NULL,
-			const IFloatArrayProperty *Pw = NULL)
+    updateAttributeList(
+        const GT_AttributeListHandle &src,
+        const GA_Detail *detail,
+        const GA_Offset primoff,
+        exint expected_size,
+        const GABC_IObject &obj,
+        const GEO_PackedNameMapPtr &namemap,
+        int load_style,
+        fpreal t,
+        GA_AttributeOwner owner,
+        const GeometryScope *scope,
+        int scope_size,
+        ICompoundProperty arb,
+        const IP3fArrayProperty *P = NULL,
+        const IV3fArrayProperty *v = NULL,
+        const IN3fGeomParam *N = NULL,
+        const IV2fGeomParam *uvs = NULL,
+        const IUInt64ArrayProperty *ids = NULL,
+        const IFloatGeomParam *widths = NULL,
+        const IFloatArrayProperty *Pw = NULL)
     {
 	if (!src || !src->entries())
 	    return src;
 
 	// Copy the existing attributes
-	GT_AttributeListHandle	alist(new GT_AttributeList(*src));
-	UT_StringArray		removals;
+	GT_AttributeListHandle alist(new GT_AttributeList(*src));
+	UT_StringArray removals;
 	// Only fill animating attributes
 	fillAttributeList<true>(*alist, expected_size, namemap, load_style,
-			prim, obj, t, owner, scope, scope_size,
+			detail, primoff, obj, t, owner, scope, scope_size,
 			arb, P, v, N, uvs, ids, widths, Pw,
 			removals);
 	return alist->removeAttributes(removals);
@@ -1295,49 +1297,53 @@ namespace
     class CreateAttributeList
     {
     public:
-	inline GT_AttributeListHandle	build(
-			    exint expected_size,
-			    const GEO_Primitive *prim,
-			    const GABC_IObject &obj,
-			    const GEO_PackedNameMapPtr &namemap,
-			    int load_style,
-			    fpreal t,
-			    GA_AttributeOwner owner,
-			    const GeometryScope *scope,
-			    int scope_size,
-			    const ICompoundProperty &arb,
-			    const IP3fArrayProperty *P = NULL,
-			    const IV3fArrayProperty *v = NULL,
-			    const IN3fGeomParam *N = NULL,
-			    const IV2fGeomParam *uvs = NULL,
-			    const IUInt64ArrayProperty *ids = NULL,
-			    const IFloatGeomParam *widths = NULL,
-			    const IFloatArrayProperty *Pw = NULL) const
+        inline GT_AttributeListHandle build(
+            exint expected_size,
+            const GA_Detail *detail,
+            const GA_Offset primoff,
+            const GABC_IObject &obj,
+            const GEO_PackedNameMapPtr &namemap,
+            int load_style,
+            fpreal t,
+            GA_AttributeOwner owner,
+            const GeometryScope *scope,
+            int scope_size,
+            const ICompoundProperty &arb,
+            const IP3fArrayProperty *P = NULL,
+            const IV3fArrayProperty *v = NULL,
+            const IN3fGeomParam *N = NULL,
+            const IV2fGeomParam *uvs = NULL,
+            const IUInt64ArrayProperty *ids = NULL,
+            const IFloatGeomParam *widths = NULL,
+            const IFloatArrayProperty *Pw = NULL) const
 	{
-	    return initializeAttributeList(prim, expected_size,
+	    return initializeAttributeList(
+                    detail, primoff, expected_size,
 		    obj, namemap, load_style, t,
 		    owner, scope, scope_size, arb, owner == GA_ATTRIB_DETAIL,
 		    P, v, N, uvs, ids, widths, Pw);
 	}
-	inline GT_AttributeListHandle	build(
-			    exint expected_size,
-			    const GEO_Primitive *prim,
-			    const GABC_IObject &obj,
-			    const GEO_PackedNameMapPtr &namemap,
-			    int load_style,
-			    fpreal t,
-			    GA_AttributeOwner owner,
-			    GeometryScope scope,
-			    const ICompoundProperty &arb,
-			    const IP3fArrayProperty *P = NULL,
-			    const IV3fArrayProperty *v = NULL,
-			    const IN3fGeomParam *N = NULL,
-			    const IV2fGeomParam *uvs = NULL,
-			    const IUInt64ArrayProperty *ids = NULL,
-			    const IFloatGeomParam *widths = NULL,
-			    const IFloatArrayProperty *Pw = NULL) const
+        inline GT_AttributeListHandle build(
+            exint expected_size,
+            const GA_Detail *detail,
+            const GA_Offset primoff,
+            const GABC_IObject &obj,
+            const GEO_PackedNameMapPtr &namemap,
+            int load_style,
+            fpreal t,
+            GA_AttributeOwner owner,
+            GeometryScope scope,
+            const ICompoundProperty &arb,
+            const IP3fArrayProperty *P = NULL,
+            const IV3fArrayProperty *v = NULL,
+            const IN3fGeomParam *N = NULL,
+            const IV2fGeomParam *uvs = NULL,
+            const IUInt64ArrayProperty *ids = NULL,
+            const IFloatGeomParam *widths = NULL,
+            const IFloatArrayProperty *Pw = NULL) const
 	{
-	    return initializeAttributeList(prim, expected_size,
+	    return initializeAttributeList(
+                    detail, primoff, expected_size,
 		    obj, namemap, load_style, t,
 		    owner, &scope, 1, arb, owner == GA_ATTRIB_DETAIL,
 		    P, v, N, uvs, ids, widths, Pw);
@@ -1367,48 +1373,50 @@ namespace
 	    }
 	    return myPrim->getPointAttributes();
 	}
-	inline GT_AttributeListHandle	build(
-			    exint expected_size,
-			    const GEO_Primitive *prim,
-			    const GABC_IObject &obj,
-			    const GEO_PackedNameMapPtr &namemap,
-			    int load_style,
-			    fpreal t,
-			    GA_AttributeOwner owner,
-			    const GeometryScope *scope,
-			    int scope_size,
-			    const ICompoundProperty &arb,
-			    const IP3fArrayProperty *P = NULL,
-			    const IV3fArrayProperty *v = NULL,
-			    const IN3fGeomParam *N = NULL,
-			    const IV2fGeomParam *uvs = NULL,
-			    const IUInt64ArrayProperty *ids = NULL,
-			    const IFloatGeomParam *widths = NULL,
-			    const IFloatArrayProperty *Pw = NULL) const
+        inline GT_AttributeListHandle build(
+            exint expected_size,
+            const GA_Detail *detail,
+            const GA_Offset primoff,
+            const GABC_IObject &obj,
+            const GEO_PackedNameMapPtr &namemap,
+            int load_style,
+            fpreal t,
+            GA_AttributeOwner owner,
+            const GeometryScope *scope,
+            int scope_size,
+            const ICompoundProperty &arb,
+            const IP3fArrayProperty *P = NULL,
+            const IV3fArrayProperty *v = NULL,
+            const IN3fGeomParam *N = NULL,
+            const IV2fGeomParam *uvs = NULL,
+            const IUInt64ArrayProperty *ids = NULL,
+            const IFloatGeomParam *widths = NULL,
+            const IFloatArrayProperty *Pw = NULL) const
 	{
-	    return updateAttributeList(getSource(owner), prim, expected_size,
+	    return updateAttributeList(getSource(owner), detail, primoff, expected_size,
 		    obj, namemap, load_style, t, owner, scope, scope_size,
 		    arb, P, v, N, uvs, ids, widths, Pw);
 	}
-	inline GT_AttributeListHandle	build(
-			    exint expected_size,
-			    const GEO_Primitive *prim,
-			    const GABC_IObject &obj,
-			    const GEO_PackedNameMapPtr &namemap,
-			    int load_style,
-			    fpreal t,
-			    GA_AttributeOwner owner,
-			    GeometryScope scope,
-			    const ICompoundProperty &arb,
-			    const IP3fArrayProperty *P = NULL,
-			    const IV3fArrayProperty *v = NULL,
-			    const IN3fGeomParam *N = NULL,
-			    const IV2fGeomParam *uvs = NULL,
-			    const IUInt64ArrayProperty *ids = NULL,
-			    const IFloatGeomParam *widths = NULL,
-			    const IFloatArrayProperty *Pw = NULL) const
+        inline GT_AttributeListHandle build(
+            exint expected_size,
+            const GA_Detail *detail,
+            const GA_Offset primoff,
+            const GABC_IObject &obj,
+            const GEO_PackedNameMapPtr &namemap,
+            int load_style,
+            fpreal t,
+            GA_AttributeOwner owner,
+            GeometryScope scope,
+            const ICompoundProperty &arb,
+            const IP3fArrayProperty *P = NULL,
+            const IV3fArrayProperty *v = NULL,
+            const IN3fGeomParam *N = NULL,
+            const IV2fGeomParam *uvs = NULL,
+            const IUInt64ArrayProperty *ids = NULL,
+            const IFloatGeomParam *widths = NULL,
+            const IFloatArrayProperty *Pw = NULL) const
 	{
-	    return updateAttributeList(getSource(owner), prim, expected_size,
+	    return updateAttributeList(getSource(owner), detail, primoff, expected_size,
 		    obj, namemap, load_style, t, owner, &scope, 1,
 		    arb, P, v, N, uvs, ids, widths, Pw);
 	}
@@ -1549,13 +1557,15 @@ namespace
 
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
-    buildPointMesh(const ATTRIB_CREATOR &acreate,
-		   const GEO_Primitive *prim,
-		   const GABC_IObject &obj,
-		   fpreal t,
-		   const GEO_PackedNameMapPtr &namemap,
-		   int load_style,
-		   GEO_AnimationType anim)
+    buildPointMesh(
+        const ATTRIB_CREATOR &acreate,
+        const GA_Detail *gdp,
+        const GA_Offset primoff,
+        const GABC_IObject &obj,
+        fpreal t,
+        const GEO_PackedNameMapPtr &namemap,
+        int load_style,
+        GEO_AnimationType anim)
     {
 	IPoints			 shape(obj.object(), gabcWrapExisting);
 	IPointsSchema		&ss = shape.getSchema();
@@ -1573,10 +1583,10 @@ namespace
 	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
 	    arb = ss.getArbGeomParams();
 
-	vertex = acreate.build(-1, prim, obj, namemap,
+	vertex = acreate.build(-1, gdp, primoff, obj, namemap,
 		load_style, t, GA_ATTRIB_POINT, vertex_scope, 3, arb,
 		&P, &v, NULL, NULL, &ids, &widths);
-	detail = acreate.build(1, prim, obj, namemap,
+	detail = acreate.build(1, gdp, primoff, obj, namemap,
 		load_style, t, GA_ATTRIB_DETAIL, detail_scope, 3, arb);
 	
 	detail = addFileObjectAttribs(detail, obj, t, anim);
@@ -1639,14 +1649,16 @@ namespace
 
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
-    buildSubDMesh(const ATTRIB_CREATOR &acreate,
-		  const GEO_Primitive *prim,
-		  const GABC_IObject &obj,
-		  fpreal t,
-		  const GEO_PackedNameMapPtr &namemap,
-		  const UT_StringHolder &facesetAttrib,
-		  int load_style,
-		  GEO_AnimationType anim)
+    buildSubDMesh(
+        const ATTRIB_CREATOR &acreate,
+        const GA_Detail *gdp,
+        const GA_Offset primoff,
+        const GABC_IObject &obj,
+        fpreal t,
+        const GEO_PackedNameMapPtr &namemap,
+        const UT_StringHolder &facesetAttrib,
+        int load_style,
+        GEO_AnimationType anim)
     {
 	ISubD			 shape(obj.object(), gabcWrapExisting);
 	ISubDSchema		&ss = shape.getSchema();
@@ -1675,17 +1687,17 @@ namespace
 	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 
-	point = acreate.build(maxArrayValue(indices), prim, obj, namemap,
+	point = acreate.build(maxArrayValue(indices), gdp, primoff, obj, namemap,
 			      load_style, t, GA_ATTRIB_POINT, point_scope, 2,
 			      arb, &P, &v, nullptr, &uvs);
-	vertex = acreate.build(indices->entries(), prim, obj, namemap,
+	vertex = acreate.build(indices->entries(), gdp, primoff, obj, namemap,
 			       load_style, t, GA_ATTRIB_VERTEX,
 			       gabcFacevaryingScope, arb, nullptr, nullptr,
 			       nullptr, &uvs);
-	uniform = acreate.build(counts->entries(), prim, obj, namemap,
+	uniform = acreate.build(counts->entries(), gdp, primoff, obj, namemap,
 				load_style, t, GA_ATTRIB_PRIMITIVE,
 				gabcUniformScope, arb);
-	detail = acreate.build(1, prim, obj, namemap, load_style, t,
+	detail = acreate.build(1, gdp, primoff, obj, namemap, load_style, t,
 			       GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
 				arb);
 
@@ -1809,14 +1821,16 @@ namespace
 
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
-    buildPolyMesh(const ATTRIB_CREATOR &acreate,
-		  const GEO_Primitive *prim,
-		  const GABC_IObject &obj,
-		  fpreal t,
-		  const GEO_PackedNameMapPtr &namemap,
-		  const UT_StringHolder &facesetAttrib,
-		  int load_style,
-		  GEO_AnimationType anim)
+    buildPolyMesh(
+        const ATTRIB_CREATOR &acreate,
+        const GA_Detail *gdp,
+        const GA_Offset primoff,
+        const GABC_IObject &obj,
+        fpreal t,
+        const GEO_PackedNameMapPtr &namemap,
+        const UT_StringHolder &facesetAttrib,
+        int load_style,
+        GEO_AnimationType anim)
     {
 	IPolyMesh		 shape(obj.object(), gabcWrapExisting);
 	IPolyMeshSchema		&ss = shape.getSchema();
@@ -1846,18 +1860,18 @@ namespace
 	const IN3fGeomParam	&N = ss.getNormalsParam();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 
-	point = acreate.build(maxArrayValue(indices), prim, obj, namemap,
+	point = acreate.build(maxArrayValue(indices), gdp, primoff, obj, namemap,
 			      load_style, t, GA_ATTRIB_POINT, point_scope, 2,
 			      arb, &P, &v, &N, &uvs);
-	vertex = acreate.build(indices->entries(), prim, obj, namemap,
+	vertex = acreate.build(indices->entries(), gdp, primoff, obj, namemap,
 			       load_style, t, GA_ATTRIB_VERTEX,
 			       gabcFacevaryingScope, arb, nullptr, nullptr, &N,
 			       &uvs);
 	uniform = acreate.build(counts->entries(),
-				prim, obj, namemap,
+				gdp, primoff, obj, namemap,
 				load_style, t, GA_ATTRIB_PRIMITIVE,
 				gabcUniformScope, arb);
-	detail = acreate.build(1, prim, obj, namemap,
+	detail = acreate.build(1, gdp, primoff, obj, namemap,
 				load_style, t,
 				GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
 				arb);
@@ -2036,13 +2050,16 @@ namespace
 
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
-    buildCurveMesh(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
-		   const GABC_IObject &obj,
-		   fpreal t,
-		   const GEO_PackedNameMapPtr &namemap,
-		   const UT_StringHolder &facesetAttrib,
-		   int load_style,
-		   GEO_AnimationType anim)
+    buildCurveMesh(
+        const ATTRIB_CREATOR &acreate,
+        const GA_Detail *gdp,
+        const GA_Offset primoff,
+        const GABC_IObject &obj,
+        fpreal t,
+        const GEO_PackedNameMapPtr &namemap,
+        const UT_StringHolder &facesetAttrib,
+        int load_style,
+        GEO_AnimationType anim)
     {
 	ICurves			 shape(obj.object(), gabcWrapExisting);
 	ICurvesSchema		&ss = shape.getSchema();
@@ -2068,7 +2085,7 @@ namespace
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 	IFloatGeomParam		 widths = ss.getWidthsParam();
 
-	vertex = acreate.build(-1, prim, obj, namemap, load_style, t,
+	vertex = acreate.build(-1, gdp, primoff, obj, namemap, load_style, t,
 			       GA_ATTRIB_VERTEX, vertex_scope, 3, arb, &P, &v,
 			       &N, &uvs, nullptr, &widths, &Pw);
 
@@ -2079,10 +2096,10 @@ namespace
 	    return GT_PrimitiveHandle();
 	}
 
-	uniform = acreate.build(counts->entries(), prim, obj, namemap,
+	uniform = acreate.build(counts->entries(), gdp, primoff, obj, namemap,
 				load_style, t, GA_ATTRIB_PRIMITIVE,
 				gabcUniformScope, arb);
-	detail = acreate.build(1, prim, obj, namemap, load_style, t,
+	detail = acreate.build(1, gdp, primoff, obj, namemap, load_style, t,
 			       GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
 			       arb);
 	
@@ -2279,9 +2296,11 @@ namespace
 	if (load_style & GABC_IObject::GABC_LOAD_ARBS)
 	{
 	    point = point->mergeNewAttributes(
-			acreate.build(1, NULL, obj, namemap, load_style, t,
-				      GA_ATTRIB_POINT, theConstantUnknownScope,
-				      2, ss.getArbGeomParams()));
+			acreate.build(
+                            1, nullptr, GA_INVALID_OFFSET,
+                            obj, namemap, load_style, t,
+			    GA_ATTRIB_POINT, theConstantUnknownScope,
+			    2, ss.getArbGeomParams()));
 	}
 
 	GT_AttributeListHandle detail;
@@ -2329,12 +2348,15 @@ namespace
 
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
-    buildNuPatch(const ATTRIB_CREATOR &acreate, const GEO_Primitive *prim,
-		 const GABC_IObject &obj,
-		 fpreal t,
-		 const GEO_PackedNameMapPtr &namemap,
-		 int load_style,
-		 GEO_AnimationType anim)
+    buildNuPatch(
+        const ATTRIB_CREATOR &acreate,
+        const GA_Detail *gdp,
+        const GA_Offset primoff,
+        const GABC_IObject &obj,
+        fpreal t,
+        const GEO_PackedNameMapPtr &namemap,
+        int load_style,
+        GEO_AnimationType anim)
     {
 	INuPatch		 shape(obj.object(), gabcWrapExisting);
 	INuPatchSchema		&ss = shape.getSchema();
@@ -2362,10 +2384,10 @@ namespace
 	const IN3fGeomParam	&N = ss.getNormalsParam();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 
-	vertex = acreate.build(-1, prim, obj, namemap, load_style, t,
+	vertex = acreate.build(-1, gdp, primoff, obj, namemap, load_style, t,
 				GA_ATTRIB_VERTEX, vertex_scope, 3, arb, &P, &v,
 				&N, &uvs, nullptr, nullptr, &Pw);
-	detail = acreate.build(1, prim, obj, namemap, load_style, t,
+	detail = acreate.build(1, gdp, primoff, obj, namemap, load_style, t,
 			       GA_ATTRIB_DETAIL, detail_scope, 3, arb);
 
 	detail = addFileObjectAttribs(detail, obj, t, anim);
@@ -3161,12 +3183,14 @@ GABC_IObject::getFaceSets(const UT_StringHolder &attrib, fpreal t, int load_styl
 }
 
 GT_PrimitiveHandle
-GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
-        fpreal t,
-        GEO_AnimationType &atype,
-        const GEO_PackedNameMapPtr &namemap,
-        const UT_StringHolder &facesetAttrib,
-        int load_style) const
+GABC_IObject::getPrimitive(
+    const GA_Detail *gdp,
+    const GA_Offset primoff,
+    fpreal t,
+    GEO_AnimationType &atype,
+    const GEO_PackedNameMapPtr &namemap,
+    const UT_StringHolder &facesetAttrib,
+    int load_style) const
 {
     GABC_AlembicLock	lock(archive());
     GT_PrimitiveHandle	prim;
@@ -3179,26 +3203,26 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 	switch (nodeType())
 	{
 	    case GABC_POLYMESH:
-		prim = buildPolyMesh(CreateAttributeList(), gprim,
+		prim = buildPolyMesh(CreateAttributeList(), gdp, primoff,
 				     *this, t, namemap, facesetAttrib,
 				     load_style, anim_type);
 		break;
 	    case GABC_SUBD:
-		prim = buildSubDMesh(CreateAttributeList(), gprim,
+		prim = buildSubDMesh(CreateAttributeList(), gdp, primoff,
 				     *this, t, namemap, facesetAttrib,
 				     load_style, anim_type);
 		break;
 	    case GABC_POINTS:
-		prim = buildPointMesh(CreateAttributeList(), gprim,
+		prim = buildPointMesh(CreateAttributeList(), gdp, primoff,
 				      *this, t, namemap, load_style, anim_type);
 		break;
 	    case GABC_CURVES:
-		prim = buildCurveMesh(CreateAttributeList(), gprim,
+		prim = buildCurveMesh(CreateAttributeList(), gdp, primoff,
 				      *this, t, namemap, facesetAttrib,
 				      load_style, anim_type);
 		break;
 	    case GABC_NUPATCH:
-		prim = buildNuPatch(CreateAttributeList(), gprim,
+		prim = buildNuPatch(CreateAttributeList(), gdp, primoff,
 				    *this, t, namemap, load_style, anim_type);
 		break;
 	    case GABC_XFORM:
@@ -3225,12 +3249,14 @@ GABC_IObject::getPrimitive(const GEO_Primitive *gprim,
 }
 
 GT_PrimitiveHandle
-GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
-				const GEO_Primitive *gprim,
-				fpreal new_time,
-				const GEO_PackedNameMapPtr &namemap,
-                                const UT_StringHolder &facesetAttrib,
-				int load_style) const
+GABC_IObject::updatePrimitive(
+    const GT_PrimitiveHandle &src,
+    const GA_Detail *gdp,
+    const GA_Offset primoff,
+    fpreal new_time,
+    const GEO_PackedNameMapPtr &namemap,
+    const UT_StringHolder &facesetAttrib,
+    int load_style) const
 {
     UT_ASSERT(src);
     GT_PrimitiveHandle	prim;
@@ -3240,27 +3266,27 @@ GABC_IObject::updatePrimitive(const GT_PrimitiveHandle &src,
 	switch (nodeType())
 	{
 	    case GABC_POLYMESH:
-		prim = buildPolyMesh(UpdateAttributeList(src), gprim,
+		prim = buildPolyMesh(UpdateAttributeList(src), gdp, primoff,
 				     *this, new_time, namemap, facesetAttrib,
 				     load_style, anim_type);
 		break;
 	    case GABC_SUBD:
-		prim = buildSubDMesh(UpdateAttributeList(src), gprim,
+		prim = buildSubDMesh(UpdateAttributeList(src), gdp, primoff,
 				     *this, new_time, namemap, facesetAttrib,
 				     load_style, anim_type);
 		break;
 	    case GABC_POINTS:
-		prim = buildPointMesh(UpdateAttributeList(src), gprim,
+		prim = buildPointMesh(UpdateAttributeList(src), gdp, primoff,
 				      *this, new_time, namemap, load_style,
 				      anim_type);
 		break;
 	    case GABC_CURVES:
-		prim = buildCurveMesh(UpdateAttributeList(src), gprim,
+		prim = buildCurveMesh(UpdateAttributeList(src), gdp, primoff,
 				      *this, new_time, namemap, facesetAttrib,
 				      load_style, anim_type);
 		break;
 	    case GABC_NUPATCH:
-		prim = buildNuPatch(UpdateAttributeList(src), gprim,
+		prim = buildNuPatch(UpdateAttributeList(src), gdp, primoff,
 				    *this, new_time, namemap, load_style,
 				    anim_type);
 		break;

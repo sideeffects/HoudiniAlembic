@@ -141,6 +141,18 @@ public:
     /// getGTFull() and converts the GT geometry to a GU_Detail.
     virtual bool        unpack(GU_Detail &destgdp, const UT_Matrix4D *transform) const;
 
+protected:
+    /// Unpack the procedural into a GU_Detail.  By default, this calls
+    /// getGTFull() and converts the GT geometry to a GU_Detail.
+    /// This signature is just for the questionable purpose of copying
+    /// primitive group membership from prim, so it might be removed
+    /// in the future.
+    virtual bool unpackWithPrim(
+        GU_Detail &destgdp,
+        const UT_Matrix4D *transform,
+        const GU_PrimPacked *prim) const;
+public:
+
     /// Unpack without using polygon soups
     virtual bool        unpackUsingPolygons(GU_Detail &destgdp, const GU_PrimPacked *prim) const;
 
@@ -296,8 +308,11 @@ protected:
 
 	bool				 visible(const GABC_PackedImpl *abc,
 						 bool *is_animated = NULL);
-	const GT_PrimitiveHandle	&full(const GABC_PackedImpl *abc,
-					      int load_style);
+	const GT_PrimitiveHandle &full(
+            const GA_Detail *detail,
+            const GA_Offset primoff,
+            const GABC_PackedImpl *abc,
+            int load_style);
 	const GT_PrimitiveHandle	&points(const GABC_PackedImpl *abc);
 	const GT_PrimitiveHandle	&box(const GABC_PackedImpl *abc);
 	const GT_PrimitiveHandle	&centroid(const GABC_PackedImpl *abc);
@@ -334,8 +349,13 @@ private:
     UT_StringHolder getAttributeNames(GT_Owner owner) const;
     UT_StringHolder getFaceSetNames() const;
 
-    void	clearGT();
-    bool	unpackGeometry(GU_Detail &destgdp, const UT_Matrix4D *transform, bool allow_psoup) const;
+    void clearGT();
+    bool unpackGeometry(
+        GU_Detail &destgdp,
+        const GU_Detail *srcgdp,
+        const GA_Offset srcprimoff,
+        const UT_Matrix4D *transform,
+        bool allow_psoup) const;
 
     void setupNameMap() const;
 

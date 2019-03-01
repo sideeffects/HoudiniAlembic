@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -176,23 +176,27 @@ public:
 
     UT_StringHolder getFaceSets(const UT_StringHolder &attrib, fpreal t, int load_style) const;
 
-    /// Get a representation of the shape.  If the @c GEO_Primitive pointer is
+    /// Get a representation of the shape.  If the @c GA_Detail pointer is
     /// non-NULL, the primitive attributes will be added as GT arrays.
-    GT_PrimitiveHandle	getPrimitive(const GEO_Primitive *prim,
-				fpreal t,
-				GEO_AnimationType &atype,
-				const GEO_PackedNameMapPtr &namemap,
-                                const UT_StringHolder &facesetAttrib,
-				int load_style=GABC_LOAD_FULL) const;
+    GT_PrimitiveHandle getPrimitive(
+        const GA_Detail *gdp,
+        const GA_Offset primoff,
+        fpreal t,
+        GEO_AnimationType &atype,
+        const GEO_PackedNameMapPtr &namemap,
+        const UT_StringHolder &facesetAttrib,
+        int load_style=GABC_LOAD_FULL) const;
 
     /// Update primitive time.  Given a primitive created by @c getPrimitive(),
     /// update the transform/attribute arrays with values from the new time.
-    GT_PrimitiveHandle	updatePrimitive(const GT_PrimitiveHandle &src,
-				const GEO_Primitive *prim,
-				fpreal new_time,
-				const GEO_PackedNameMapPtr &namemap,
-                                const UT_StringHolder &facesetAttrib,
-				int load_style=GABC_LOAD_FULL) const;
+    GT_PrimitiveHandle updatePrimitive(
+        const GT_PrimitiveHandle &src,
+        const GA_Detail *gdp,
+        const GA_Offset primoff,
+        fpreal new_time,
+        const GEO_PackedNameMapPtr &namemap,
+        const UT_StringHolder &facesetAttrib,
+        int load_style=GABC_LOAD_FULL) const;
 
     /// Get a representation of the point cloud.  This doesn't include any
     /// attributes.
