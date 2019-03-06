@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -247,7 +247,7 @@ SOP_AlembicPrimitive::cookMySop(OP_Context &context)
 	    // Set up local variable
 	    myCurPrimOff[0] = p->getMapOffset();
 	    myCurrPrim = UTverify_cast<GU_PrimPacked *>(p);
-	    myCurrAbc = UTverify_cast<GABC_PackedImpl *>(myCurrPrim->implementation());
+	    myCurrAbc = UTverify_cast<GABC_PackedImpl *>(myCurrPrim->hardenImplementation());
 	    if (!setProperties(myCurrPrim, myCurrAbc, context))
 		break;
 	}
