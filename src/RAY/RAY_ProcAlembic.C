@@ -301,7 +301,7 @@ namespace
 	    }
 
 	    for (exint i = 0; i < nsegs; ++i)
-		SYSconst_cast(myList(i))->implementation()->clearData();
+		SYSconst_cast(myList(i))->hardenImplementation()->clearData();
 	}
     private:
 	UT_Array<const GU_PrimPacked *>	 myList;
@@ -448,8 +448,8 @@ moveAlembicTime(GU_Detail &gdp, fpreal finc)
 	GEO_Primitive	*prim = gdp.getGEOPrimitive(*it);
 	if (prim->getTypeId() != abctype)
 	    continue;
-	GU_PrimPacked	*packed = UTverify_cast<GU_PrimPacked *>(prim);
-	GABC_PackedImpl	*abcprim = UTverify_cast<GABC_PackedImpl *>(packed->implementation());
+	GU_PrimPacked *packed = UTverify_cast<GU_PrimPacked *>(prim);
+	GABC_PackedImpl *abcprim = UTverify_cast<GABC_PackedImpl *>(packed->hardenImplementation());
 	if (abcprim)
 	    abcprim->setFrame(packed, abcprim->frame() + finc);
     }
