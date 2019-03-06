@@ -64,6 +64,7 @@ public:
     AlembicFactory()
 	: GU_PackedFactory(GABC_PRIMITIVE_TOKEN, GABC_PRIMITIVE_LABEL,
 	                   "SOP_alembic")
+        , theDefaultImpl(new GABC_PackedImpl())
     {
 	registerIntrinsic("abctypename",
 	    StringGetterCast(&GABC_PackedImpl::intrinsicNodeType));
@@ -110,8 +111,15 @@ public:
     {
     }
 
-    virtual GU_PackedImpl	*create() const
-				    { return new GABC_PackedImpl(); }
+    virtual const UT_IntrusivePtr<GU_PackedImpl> &defaultImpl() const
+    {
+        return theDefaultImpl;
+    }
+
+    virtual GU_PackedImpl *create() const
+    { return new GABC_PackedImpl(); }
+
+    UT_IntrusivePtr<GU_PackedImpl> theDefaultImpl;
 };
 
 static AlembicFactory	*theFactory = NULL;
@@ -136,7 +144,7 @@ GABC_PackedImpl::build(GU_Detail &gdp,
     // The Alembic creation code has an option to have a shared point for all
     // Alembic primitives, so this is handled separately.
     GU_PrimPacked *pack = UTverify_cast<GU_PrimPacked *>(prim);
-    GABC_PackedImpl *abc = UTverify_cast<GABC_PackedImpl *>(pack->implementation());
+    GABC_PackedImpl *abc = UTverify_cast<GABC_PackedImpl *>(pack->hardenImplementation());
     abc->setFilenames(pack, filenames);
     abc->setObject(obj);
     abc->setFrame(pack, frame);

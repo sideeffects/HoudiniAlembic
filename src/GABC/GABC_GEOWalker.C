@@ -1504,16 +1504,15 @@ namespace {
 	}
 	UT_StringArray filenames;
 	UTarrayFromStdVectorOfStrings(filenames, walk.filenames());
-	GU_PrimPacked	*packed = GABC_PackedImpl::build(walk.detail(),
+	GU_PrimPacked *packed = GABC_PackedImpl::build(walk.detail(),
 				filenames,
 				obj,
 				walk.time(),
 				walk.includeXform(),
 				walk.useVisibility());
-	GABC_PackedImpl		*abc;
-	GA_Offset		 pt = walk.getPointForAbcPrim();
+	GA_Offset pt = walk.getPointForAbcPrim();
 
-	abc = UTverify_cast<GABC_PackedImpl *>(packed->implementation());
+        GABC_PackedImpl *abc = UTverify_cast<GABC_PackedImpl *>(packed->hardenImplementation());
 	UT_ASSERT(GAisValid(pt));
 	packed->setVertexPoint(pt);
         abc->setAttributeNameMap(walk.nameMapPtr());
@@ -2519,10 +2518,10 @@ GABC_GEOWalker::updateAbcPrims()
     GA_Offset userpropsIndex(0);
     for (GA_Iterator it(detail().getPrimitiveRange()); !it.atEnd(); ++it)
     {
-	GEO_Primitive      *prim = detail().getGEOPrimitive(*it);
-	GU_PrimPacked      *pack = UTverify_cast<GU_PrimPacked *>(prim);
-	GABC_PackedImpl    *abc = UTverify_cast<GABC_PackedImpl *>(
-	                            pack->implementation());
+	GEO_Primitive *prim = detail().getGEOPrimitive(*it);
+	GU_PrimPacked *pack = UTverify_cast<GU_PrimPacked *>(prim);
+	GABC_PackedImpl *abc = UTverify_cast<GABC_PackedImpl *>(
+	                            pack->hardenImplementation());
 	const GABC_IObject &obj = abc->object();
 
 	if (!abc->isConstant())
@@ -3112,8 +3111,8 @@ GABC_GEOWalker::getPointForAbcPrim()
 void
 GABC_GEOWalker::setPointTransform(GU_PrimPacked *prim, GA_Offset pt) const
 {
-    GABC_PackedImpl	*abc = UTverify_cast<GABC_PackedImpl *>(
-			    prim->implementation());
+    GABC_PackedImpl *abc = UTverify_cast<GABC_PackedImpl *>(
+			    prim->hardenImplementation());
 
     abc->setUseTransform(prim, includeXform() &&
 	myAbcPrimPointMode != ABCPRIM_SHAPE_POINT);
