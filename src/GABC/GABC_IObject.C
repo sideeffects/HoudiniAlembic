@@ -2951,8 +2951,8 @@ GABC_IObject::getAnimationType(bool include_transform) const
 {
     if (!valid())
 	return GEO_ANIMATION_INVALID;
-    GABC_AlembicLock	lock(archive());
-    GEO_AnimationType	atype = GEO_ANIMATION_CONSTANT;
+    GABC_AlembicLock lock(archive());
+    GEO_AnimationType atype = GEO_ANIMATION_CONSTANT;
 
     try
     {
@@ -2960,6 +2960,7 @@ GABC_IObject::getAnimationType(bool include_transform) const
 	// initialize based on the shape topology, but if the shape topology is
 	// constant, there are still various factors which can make the
 	// primitive non-constant (i.e. Homogeneous).
+        bool is_locator = false;
 	switch (nodeType())
 	{
 	    case GABC_POLYMESH:
@@ -2979,7 +2980,10 @@ GABC_IObject::getAnimationType(bool include_transform) const
 		break;
 	    case GABC_XFORM:
 		if (isMayaLocator())
-		    atype = getLocatorAnimation(*this);
+                {
+                    atype = getLocatorAnimation(*this);
+                    is_locator = true;
+                }
 		else
 		    atype = getAnimation<IXform>(*this);
 		break;
@@ -2995,11 +2999,13 @@ GABC_IObject::getAnimationType(bool include_transform) const
 	    default:
 		break;
 	}
-	if (atype == GEO_ANIMATION_CONSTANT && include_transform
-		&& isTransformAnimated())
-	{
-	    atype = GEO_ANIMATION_TRANSFORM;
-	}
+        if (atype == GEO_ANIMATION_CONSTANT && (include_transform || is_locator)
+                && isTransformAnimated())
+        {
+            // Locators have attributes representing the transform,
+            // so an animated transform causes animated attributes.
+            atype = is_locator ? GEO_ANIMATION_ATTRIBUTE : GEO_ANIMATION_TRANSFORM;
+        }
     }
     catch (const std::exception &)
     {
