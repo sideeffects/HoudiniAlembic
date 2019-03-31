@@ -201,10 +201,10 @@ namespace
 	{
 	    exint		size = data->entries();
 	    int			tsize = data->getTupleSize();
-	    UT_StackBuffer<char *>	values(size*tsize);
+	    UT_StackBuffer<const char *>	values(size*tsize);
 	    for (exint i = 0; i < size; ++i)
 		for (int j = 0; j < tsize; ++j)
-		    values[i*tsize+j] = (char *)data->getS(i, j);
+		    values[i*tsize+j] = data->getS(i, j).c_str();
 	    if (size == 1 && tsize == 1 && isShader(name))
 		changeShader(p, name, values[0]);
 	    else

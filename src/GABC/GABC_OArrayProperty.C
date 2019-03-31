@@ -281,12 +281,7 @@ namespace
             for (int i = 0; i < entries; ++i)
             {
                 for (int j = 0; j < tuple_size; ++j)
-                {
-		    GT_String s = src->getS(i, j);
-		    if(!s)
-			s = "";
-                    data[j] = s;
-                }
+                    data[j] = src->getS(i, j).toStdString();
 
                 data += tuple_size;
             }

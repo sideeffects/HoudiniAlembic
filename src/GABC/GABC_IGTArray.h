@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -166,7 +166,8 @@ public:
 				    && offset<entries()*getTupleSize());
 			    return myData[offset];
 			}
-    virtual GT_String	getS(GT_Offset, int) const		{ return NULL; }
+    virtual GT_String	getS(GT_Offset, int) const
+			    { return UT_StringHolder::theEmptyString; }
     virtual GT_Size	getStringIndexCount() const		{ return -1; }
     virtual GT_Offset	getStringIndex(GT_Offset, int) const	{ return -1; }
     virtual void	getIndexedStrings(UT_StringArray &,
