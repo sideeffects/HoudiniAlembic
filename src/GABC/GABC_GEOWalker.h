@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -183,7 +183,7 @@ public:
 				    { return myExcludeObjects; }
     const GEO_PackedNameMapPtr	&nameMapPtr() const
 				    { return myNameMapPtr; }
-    const UT_String             &facesetAttribute() const
+    const UT_StringHolder       &facesetAttribute() const
                                     { return myFacesetAttribute; }
 
     fpreal	time() const		{ return myTime; }
@@ -230,8 +230,8 @@ public:
     void	setExcludeObjects(const char *s);
     void	setObjectPattern(const char *s)
 		    { myObjectPattern = s; }
-    void        setFacesetAttribute(const char *s)
-                    { myFacesetAttribute.harden(s); }
+    void        setFacesetAttribute(const UT_StringHolder &s)
+                    { myFacesetAttribute = s; }
     void	setNameMapPtr(const GEO_PackedNameMapPtr &ptr)
 		    { myNameMapPtr = ptr; }
     void	setPathAttribute(const GA_RWAttributeRef &a);
@@ -353,7 +353,7 @@ private:
     UT_Matrix4D		    myMatrix;
     UT_BoundingBox          myCullBox;
     UT_Interrupt           *myBoss;
-    UT_String               myFacesetAttribute;
+    UT_StringHolder         myFacesetAttribute;
     std::string		    myRootObjectPath;
     std::string		    myObjectPattern;
     UT_StringArray	    myExcludeObjects;
