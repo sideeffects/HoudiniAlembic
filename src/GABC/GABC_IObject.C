@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1699,19 +1699,34 @@ namespace
 					detail);
 
 	/// Add tags
+	Int32ArraySamplePtr	creaseLengths = sample.getCreaseLengths();
 	Int32ArraySamplePtr	creaseIndices = sample.getCreaseIndices();
 	FloatArraySamplePtr	creaseSharpness = sample.getCreaseSharpnesses();
 	Int32ArraySamplePtr	cornerIndices = sample.getCornerIndices();
 	FloatArraySamplePtr	cornerSharpness = sample.getCornerSharpnesses();
 	Int32ArraySamplePtr	holeIndices = sample.getHoles();
-	if (!isEmpty(creaseIndices) && !isEmpty(creaseSharpness))
+	if (!isEmpty(creaseLengths)
+		&& !isEmpty(creaseIndices)
+		&& !isEmpty(creaseSharpness))
 	{
-	    GT_Int32Array	*index = new GT_Int32Array(
-						creaseIndices->get(),
-						creaseIndices->size(), 1);
-	    GT_Real32Array	*weight = new GT_Real32Array(
-						creaseSharpness->get(),
-						creaseSharpness->size(), 1);
+	    GT_Int32Array *index = new GT_Int32Array(0, 1);
+	    GT_Real32Array *weight = new GT_Real32Array(0, 1);
+	    exint n = creaseLengths->size();
+	    UT_ASSERT(creaseSharpness->size() == n);
+	    exint idx = 0;
+	    for(exint i = 0; i < n; ++i)
+	    {
+		exint count = (*creaseLengths)[i];
+		UT_ASSERT(count >= 0 && idx + count <= creaseIndices->size());
+		float w = (*creaseSharpness)[i];
+		for(exint j = 1; j < count; ++j)
+		{
+		    index->append((*creaseIndices)[idx + j - 1]);
+		    index->append((*creaseIndices)[idx + j]);
+		    weight->append(w);
+		}
+		idx += count;
+	    }
 	    UT_ASSERT(index->entries() == weight->entries()*2);
 	    gt->appendIntTag("crease", GT_DataArrayHandle(index));
 	    gt->appendRealTag("crease", GT_DataArrayHandle(weight));
@@ -1721,9 +1736,17 @@ namespace
 	    GT_Int32Array	*index = new GT_Int32Array(
 						cornerIndices->get(),
 						cornerIndices->size(), 1);
-	    GT_Real32Array	*weight = new GT_Real32Array(
-						cornerSharpness->get(),
-						cornerSharpness->size(), 1);
+	    GT_DataArray	*weight;
+	    if(cornerSharpness->size() == 1 && cornerIndices->size() > 1)
+	    {
+		weight = new GT_DAConstantValue<fpreal32>(cornerIndices->size(),
+							(*cornerSharpness)[0]);
+	    }
+	    else
+	    {
+		weight = new GT_Real32Array(cornerSharpness->get(),
+					    cornerSharpness->size(), 1);
+	    }
 	    UT_ASSERT(index->entries() == weight->entries());
 	    gt->appendIntTag("corner", GT_DataArrayHandle(index));
 	    gt->appendRealTag("corner", GT_DataArrayHandle(weight));
