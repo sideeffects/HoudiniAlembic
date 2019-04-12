@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -383,6 +383,7 @@ namespace
             if (!prop->start(cp, exp_name.c_str(), data, err, ctx))
             {
                 delete prop;
+		err.error("Error saving attribute: %s", exp_name.c_str());
                 return false;
             }
 	    arb_map.insert(PropertyMapInsert(name, prop));
@@ -399,34 +400,40 @@ namespace
             GABC_OError &err,
             const GABC_OOptions &ctx)
     {
-        bool        result = true;
-
         if (!attribs || !arb_map.size())
-        {
             return true;
-        }
 
         for (PropertyMap::const_iterator it = arb_map.begin();
-                result && it != arb_map.end();
+                it != arb_map.end();
                 ++it)
         {
             int index = attribs->getIndex(it->first.c_str());
 
             if (index >= 0)
             {
-                result &= it->second->update(attribs->get(index), err, ctx);
+                if(!it->second->update(attribs->get(index), err, ctx))
+		{
+		    err.error("Error saving attribute: %s",
+			      attribs->getExportName(index).c_str());
+		    return false;
+		}
             }
             else
             {
                 exint   num_samples = it->second->getNumSamples();
                 if (num_samples)
                 {
-                    result &= it->second->updateFromPrevious();
+                    if(!it->second->updateFromPrevious())
+		    {
+			err.error("Error saving attribute: %s",
+				  attribs->getExportName(index).c_str());
+			return false;
+		    }
                 }
             }
         }
 
-        return result;
+        return true;
     }
 
     static void
@@ -2229,10 +2236,7 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
     }
 
     if (!makeArbProperties(prim, err, ctx, lopt))
-    {
-        err.error("Error saving attributes: ");
         return false;
-    }
 
     return update(prim, ctx, lopt, err, vis);
 }
@@ -2301,10 +2305,8 @@ GABC_OGTGeometry::update(const GT_PrimitiveHandle &src,
     }
 
     if (!writeArbProperties(prim, err, ctx))
-    {
-        err.error("Error saving attributes: ");
         return false;
-    }
+
     ++myElapsedFrames;
     return true;
 }

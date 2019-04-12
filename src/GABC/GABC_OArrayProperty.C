@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -975,7 +975,7 @@ GABC_OArrayProperty::update(const GT_DataArrayHandle &array,
     UT_ASSERT(myLayerType == GABC_LayerOptions::LayerType::FULL);
 
     if ((myPOD != pod)
-            || (myStorage != array->getStorage())
+            || !compatibleStorage(array->getStorage())
             || (myType != array->getTypeInfo()))
     {
         err.warning("Error trying to update user property: data type mismatch");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -90,6 +90,18 @@ public:
 
     /// Get number of samples written to property so far.
     virtual exint   getNumSamples() const = 0;
+
+    /// Returns true if storage only differs by precision.
+    bool compatibleStorage(GT_Storage storage)
+    {
+	if(myStorage == storage)
+	    return true;
+	if(GTisFloat(myStorage))
+	    return GTisFloat(storage);
+	if(GTisInteger(myStorage))
+	    return GTisInteger(storage);
+	return false;
+    }
 
 protected:
     GT_DataArrayHandle		 myCache;

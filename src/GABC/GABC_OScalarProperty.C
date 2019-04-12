@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -895,7 +895,7 @@ GABC_OScalarProperty::update(const GT_DataArrayHandle &array,
     UT_ASSERT(myLayerType == GABC_LayerOptions::LayerType::FULL);
 
     if ((myPOD != pod)
-            || (myStorage != array->getStorage())
+            || !compatibleStorage(array->getStorage())
             || (myTupleSize != array->getTupleSize())
             || (myType != array->getTypeInfo()))
     {
