@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -132,12 +132,6 @@ namespace
 	return selectAlembicNodes(data, index, t, tplate, true);
     }
 
-    static int
-    stringComparator(const UT_StringHolder *s1, const UT_StringHolder *s2)
-    {
-        return strcmp(s1->buffer(), s2->buffer());
-    }
-
     // Remove duplicates and redundant strings. Used to clean up
     // paths list.
     //
@@ -157,30 +151,63 @@ namespace
     //      }
     //
     static void
-    removeDuplicates(UT_StringArray &strings)
+    parseObjectPaths(UT_StringArray &olist, const char *s)
     {
-        if (strings.entries() < 2)
-            return;
+	olist.clear();
 
-        UT_StringHolder     str1, str2;
-        int i = 1;
+	UT_String opath(s);
+	UT_WorkArgs args;
+	opath.parse(args);
 
-        strings.sort(stringComparator);
+	UT_SortedSet<std::string> paths;
+	UT_WorkBuffer buf;
+	for (int i = 0; i < args.getArgc(); ++i)
+	{
+	    // clean up paths
+	    const char *a = args(i);
+	    for(;;)
+	    {
+		while(*a == '/')
+		    ++a;
+		if(*a)
+		{
+		    buf.append('/');
+		    while(*a && *a != '/')
+			buf.append(*a++);
+		}
+		else
+		{
+		    paths.insert(buf.toStdString());
+		    break;
+		}
+	    }
+	    buf.clear();
+	}
 
-        while (i < strings.entries())
-        {
-            str1 = strings(i - 1);
-            str2 = strings(i);
-
-            if (str2.startsWith(str1))
-            {
-                strings.remove(i);
-            }
-            else
-            {
-                ++i;
-            }
-        }
+	for(auto &p : paths)
+	{
+	    const char *a = p.c_str();
+	    for(;;)
+	    {
+		while(*a == '/')
+		    ++a;
+		if(*a)
+		{
+		    buf.append('/');
+		    while(*a && *a != '/')
+			buf.append(*a++);
+		    // skip if parent is in the list
+		    if(*a && paths.contains(buf.toStdString()))
+			break;
+		}
+		else
+		{
+		    olist.append(p == "" ? "/" : p.c_str());
+		    break;
+		}
+	    }
+	    buf.clear();
+	}
     }
 }
 
@@ -1350,19 +1377,12 @@ SOP_AlembicIn::cookMySop(OP_Context &context)
 
     if (reuse_prims && walk.buildAbcPrim())
 	walk.updateAbcPrims();
-    else if (parms.myObjectPath.isstring())
+    else
     {
-	UT_WorkArgs	args;
-	UT_String	opath(parms.myObjectPath);
-	opath.parse(args);
-	if (args.getArgc())
+	UT_StringArray olist;
+	parseObjectPaths(olist, parms.myObjectPath.c_str());
+	if (olist.entries())
 	{
-	    UT_StringArray	olist;
-	    for (int i = 0; i < args.getArgc(); ++i)
-		olist.append(args(i));
-
-	    removeDuplicates(olist);
-
 	    if (!GABC_Util::walk(parms.myFileNames, walk, olist))
 	    {
 		if (parms.myMissingFileError || !walk.badArchive())
@@ -1374,21 +1394,21 @@ SOP_AlembicIn::cookMySop(OP_Context &context)
 		}
 	    }
 	}
-    }
-    else if (!GABC_Util::walk(parms.myFileNames, walk))
-    {
-	UT_WorkBuffer msg;
-	if (parms.myMissingFileError || !walk.badArchive())
+	else if (!GABC_Util::walk(parms.myFileNames, walk))
 	{
-	    msg.sprintf("Error evaluating Alembic file (%s)",
-			GABC_IArchive::filenamesToString(parms.myFileNames).c_str());
-	    addError(SOP_MESSAGE, msg.buffer());
-	}
-	else
-	{
-	    msg.sprintf("Invalid or missing Alembic file (%s)",
-			GABC_IArchive::filenamesToString(parms.myFileNames).c_str());
-	    addWarning(SOP_MESSAGE, msg.buffer());
+	    UT_WorkBuffer msg;
+	    if (parms.myMissingFileError || !walk.badArchive())
+	    {
+		msg.sprintf("Error evaluating Alembic file (%s)",
+			    GABC_IArchive::filenamesToString(parms.myFileNames).c_str());
+		addError(SOP_MESSAGE, msg.buffer());
+	    }
+	    else
+	    {
+		msg.sprintf("Invalid or missing Alembic file (%s)",
+			    GABC_IArchive::filenamesToString(parms.myFileNames).c_str());
+		addWarning(SOP_MESSAGE, msg.buffer());
+	    }
 	}
     }
     setupEventHandler(parms.myFileNames);
