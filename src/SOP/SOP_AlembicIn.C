@@ -136,18 +136,19 @@ namespace
     // paths list.
     //
     // Ex:  {
-    //          aaa/bbb/ccc
-    //          aaa/bbb
-    //          aaa/bbb
-    //          aaa/ddd/eee/fff
-    //          aaa/ddd/eee/ggg
+    //          /aaa/bbb/ccc
+    //          /aaa/bbb
+    //          /aaa/bbb
+    //          /aaa/ddd/eee/fff
+    //          /aaa/ddd/eee/ggg
     //      }
     //
     //      would become:
     //
     //      {
-    //          aaa/bbb
-    //          aaa/ddd/eee
+    //          /aaa/bbb
+    //          /aaa/ddd/eee/fff
+    //          /aaa/ddd/eee/ggg
     //      }
     //
     static void
@@ -196,7 +197,7 @@ namespace
 		    buf.append('/');
 		    while(*a && *a != '/')
 			buf.append(*a++);
-		    // skip if parent is in the list
+		    // skip if an ancestor is in the list
 		    if(*a && paths.contains(buf.toStdString()))
 			break;
 		}
