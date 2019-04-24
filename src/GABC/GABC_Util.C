@@ -49,6 +49,7 @@
 #include <UT/UT_WorkBuffer.h>
 #include <UT/UT_UniquePtr.h>
 #include <FS/FS_Info.h>
+#include <SYS/SYS_Time.h>
 #include <hboost/tokenizer.hpp>
 
 using namespace GABC_NAMESPACE;
@@ -497,7 +498,6 @@ namespace
                 const M44d &parent)
 	{
             GABC_IObject    kid;
-            M44d            world;
 	    UT_WorkBuffer   fullpath;
 
 	    for (size_t i = 0; i < root.getNumChildren(); ++i)
@@ -507,16 +507,13 @@ namespace
 		    kid = root.getChild(i);
                     IXform          xform(kid.object(), gabcWrapExisting);
                     IXformSchema   &xs = xform.getSchema();
-                    XformSample     xsample;
-                    M44d            localXform;
-                    bool            inherits;
 
-		    world = parent;
 		    if (xs.isConstant())
 		    {
-			xsample = xs.getValue(ISampleSelector(0.0));
-			inherits = xs.getInheritsXforms();
-			localXform = xsample.getMatrix();
+			XformSample xsample = xs.getValue(ISampleSelector(0.0));
+			bool inherits = xs.getInheritsXforms();
+			M44d localXform = xsample.getMatrix();
+			M44d world;
 
 			if (inherits)
 			    world = localXform * parent;
@@ -969,26 +966,40 @@ namespace
 	{
 	    myAccessTimes.clear();
 
+	    exint t = exint(SYStime()); // truncate to seconds
 	    UT_FileStat stat;
 	    for(auto &p : paths)
 	    {
-		if(!UTfileStat(p.c_str(), &stat))
-		    myAccessTimes.emplace(p, stat.myModTime);
+		auto it = myAccessTimes.find(p);
+		// avoid excessive calls to stat
+		if(it == myAccessTimes.end() || it->second.second < t)
+		{
+		    if(!UTfileStat(p.c_str(), &stat))
+			myAccessTimes[p] = std::make_pair(stat.myModTime, t);
+		    else if(it != myAccessTimes.end())
+			it->second.second = t;
+		}
 	    }
 	    myArchive = GABC_IArchive::open(paths);
 	}
 
 	bool
-	clearIfModified() const
+	clearIfModified()
 	{
+	    exint t = exint(SYStime()); // truncate to seconds
 	    UT_FileStat stat;
 	    for(auto &it : myAccessTimes)
 	    {
-		if(UTfileStat(it.first.c_str(), &stat)
-		    || it.second != stat.myModTime)
+		// avoid excessive calls to stat
+		if(it.second.second < t)
 		{
-		    GABC_Util::clearCache(it.first.c_str());
-		    return true;
+		    it.second.second = t;
+		    if(UTfileStat(it.first.c_str(), &stat)
+			|| it.second.first != stat.myModTime)
+		    {
+			GABC_Util::clearCache(it.first.c_str());
+			return true;
+		    }
 		}
 	    }
 	    return false;
@@ -1009,7 +1020,7 @@ namespace
         }
 
 	GABC_IArchivePtr	myArchive;
-	UT_Map<std::string, time_t> myAccessTimes;
+	UT_Map<std::string, std::pair<time_t, exint> > myAccessTimes;
 	std::string		myError;
 	PathList		myObjectList;
 	PathList		myFullObjectList;
