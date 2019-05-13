@@ -1959,8 +1959,7 @@ namespace {
         exint			npoint = psample->size();
 	exint			nvertex = npoint;
 	exint			nprim = nvtx->size();
-	exint                   norders;
-	int                     uorder = 0;
+	int                     uorder;
 
 	switch (c_sample.getType())
         {
@@ -1973,16 +1972,14 @@ namespace {
                 break;
 
             case Alembic::AbcGeom::kVariableOrder:
+		// an order should be provided for each curve
                 orders = c_sample.getOrders();
-                if (!isEmpty(orders))
-                {
-                    norders = orders->size();
-                    if (norders == nprim)
-                    {
-                        uorder = 0;
-                        break;
-                    }
-                }
+                if (!isEmpty(orders) && orders->size() == nprim)
+		{
+		    uorder = 0;
+		    break;
+		}
+	        // Fall through to the unknown curve type case
 
             default:
                 walk.errorHandler().warning("Error reading order for %s - "
