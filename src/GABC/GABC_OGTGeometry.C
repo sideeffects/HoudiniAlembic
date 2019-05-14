@@ -828,7 +828,13 @@ namespace
 		auto &&s0 = data->getS(0);
 		for (exint i = 1, n = data->entries(); i < n; ++i)
 		{
-		    if (strcmp(s0, data->getS(i)) != 0)
+		    auto &&s1 = data->getS(i);
+		    if (s0 && s1)
+		    {
+			if (strcmp(s0, s1) != 0)
+			    return false;
+		    }
+		    else if(s0 != s1)
 			return false;
 		}
 		return true;
