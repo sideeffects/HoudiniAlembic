@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -131,7 +131,6 @@ ROP_AbcHierarchy::merge(
     const ROP_AbcHierarchySample &src,
     const ROP_AbcHierarchySample::InstanceMap &instance_map)
 {
-
     // assign existing instances if possible
     UT_Map<std::tuple<int, std::string, exint>, exint> mapping;
     UT_Map<exint, std::tuple<int, std::string, exint> > rev_mapping;
