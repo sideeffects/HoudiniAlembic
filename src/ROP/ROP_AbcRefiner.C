@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -345,14 +345,18 @@ ROP_AbcRefiner::appendShape(const GT_PrimitiveHandle &prim)
     }
 
     int type = prim->getPrimitiveType();
+    exint idx = -1;
     auto it = myInstanceShapeIndex.find(myInstanceKey);
-    exint idx;
     if(it != myInstanceShapeIndex.end())
     {
-	// use defined instance
-	idx = it->second[type]++;
+	auto it2 = it->second.find(type);
+	if(it2 != it->second.end())
+	{
+	    // use defined instance
+	    idx = it2->second++;
+	}
     }
-    else
+    if(idx < 0)
     {
 	// defining a new instance
 	auto &list = myInstanceMap[myInstanceKey][type];

@@ -1585,7 +1585,7 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
 	}
     }
 
-    UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > instance_map;
+    ROP_AbcHierarchySample::InstanceMap instance_map;
     ROP_AbcRefiner refiner(instance_map, *myErrors, packedtransform,
 			   facesetmode, use_instancing, shape_nodes,
 			   save_hidden);
@@ -1763,8 +1763,7 @@ ROP_AlembicOut::refineSop(
 	partitions[0][name];
     }
 
-    UT_Map<std::string, UT_Map<int, UT_Array<GT_PrimitiveHandle> > > instance_map;
-
+    ROP_AbcHierarchySample::InstanceMap instance_map;
     ROP_AbcRefiner refiner(instance_map, *myErrors, packedtransform,
 			   facesetmode, use_instancing, shape_nodes,
 			   save_hidden);
