@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -63,7 +63,7 @@ public:
 		      const std::string &subd_grp);
 
 private:
-    void appendShape(const GT_PrimitiveHandle &prim);
+    exint appendShape(const GT_PrimitiveHandle &prim, exint idx);
     bool processInstance(const GT_PrimitiveHandle &prim);
     bool processPacked(const GT_PrimitiveHandle &prim);
 
