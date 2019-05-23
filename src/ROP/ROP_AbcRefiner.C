@@ -291,7 +291,7 @@ void
 ROP_AbcRefiner::addPrimitive(const GT_PrimitiveHandle &prim)
 {
     if(GABC_OGTGeometry::isPrimitiveSupported(prim))
-	appendShape(prim);
+	appendShape(prim, -1);
     else if(!processInstance(prim) && !processPacked(prim))
     {
 	bool saved_vis = myVisible;
@@ -331,32 +331,27 @@ ROP_AbcRefiner::addPartition(
     addPrimitive(prim);
 }
 
-void
-ROP_AbcRefiner::appendShape(const GT_PrimitiveHandle &prim)
+exint
+ROP_AbcRefiner::appendShape(const GT_PrimitiveHandle &prim, exint idx)
 {
     if(!myShapeNodes)
-	return;
+	return idx;
 
     if(myInstanceKey.empty())
     {
 	myRoot->appendShape(myName, prim, myVisible,
 			    myUserPropsVals, myUserPropsMeta, mySubdGroup);
-	return;
+	return idx;
     }
 
     int type = prim->getPrimitiveType();
-    exint idx = -1;
     auto it = myInstanceShapeIndex.find(myInstanceKey);
     if(it != myInstanceShapeIndex.end())
     {
-	auto it2 = it->second.find(type);
-	if(it2 != it->second.end())
-	{
-	    // use defined instance
-	    idx = it2->second++;
-	}
+	if(idx < 0)
+	    idx = it->second[type]++;
     }
-    if(idx < 0)
+    else if(idx < 0)
     {
 	// defining a new instance
 	auto &list = myInstanceMap[myInstanceKey][type];
@@ -366,6 +361,7 @@ ROP_AbcRefiner::appendShape(const GT_PrimitiveHandle &prim)
     myRoot->appendInstancedShape(myName, prim->getPrimitiveType(),
 				 myInstanceKey, idx, myVisible,
 				 myUserPropsVals, myUserPropsMeta, mySubdGroup);
+    return idx;
 }
 
 bool
@@ -392,6 +388,7 @@ ROP_AbcRefiner::processInstance(const GT_PrimitiveHandle &prim)
 	GT_TransformArrayHandle xforms = inst->transforms();
 	exint n = xforms->entries();
 	UT_WorkBuffer buf;
+	exint idx = -1;
 	for(exint i = 0; i < n; ++i)
 	{
 	    GT_TransformHandle xform = xforms->get(i);
@@ -419,11 +416,8 @@ ROP_AbcRefiner::processInstance(const GT_PrimitiveHandle &prim)
 	    }
 
 	    myRoot = new_root;
-	    appendShape(geo);
+	    idx = appendShape(geo, idx);
 	    myRoot = saved_root;
-
-	    if(!myInstanceKey.empty())
-		myInstanceShapeIndex[myInstanceKey].clear();
 	}
     }
     else if(type == GT_GEO_PACKED || type == GT_PRIM_ALEMBIC_SHAPE)
@@ -473,6 +467,8 @@ ROP_AbcRefiner::processInstance(const GT_PrimitiveHandle &prim)
 				 inst->sourceGeometry());
 	instance.refineCopyTransformFrom(*prim);
 	instance.refine(*this, &myParms);
+	if(!myInstanceKey.empty())
+	    myInstanceShapeIndex[myInstanceKey].clear();
 	myInstanceKey = saved_key;
 	myVisible = saved_vis;
     }
