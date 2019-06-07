@@ -1200,6 +1200,7 @@ GABC_PackedImpl::markDirty(GU_PrimPacked *prim)
             prim->attributeDirty();
 	    break;
 	default:
+            clearBoxCache();
             prim->topologyDirty();
 	    break;
     }
