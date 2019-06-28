@@ -31,7 +31,7 @@ ifndef CXX
     CXX := g++
 endif
 
-ABCINC = /usr/local/alembic-1.7.9/include
+ABCINC = /usr/local/alembic-1.7.11/include
 ABCINC = $(HFS)/toolkit/include
 ABCDEF = \
     -DGABC_NAMESPACE=$(GABC_NAMESPACE) \
