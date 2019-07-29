@@ -243,26 +243,40 @@ namespace
 	bool	myParametric;
     };
 
+    // The GT library uses a null pointer for the storage when the array
+    // contains zero entries.  However, the Alembic library interprets null
+    // pointers as unprovided data.  forceNonNull() lets us tell the Alembic
+    // library we are actually providing an array with zero entries.
+    template <typename T>
+    static T *forceNonNull(T *p)
+    {
+	static T tmp = T();
+	return p ? p : &tmp;
+    }
+
     UInt8ArraySample
     uint8Array(const GT_DataArrayHandle &data, GT_DataArrayHandle &storage)
     {
-	return UInt8ArraySample(data->getU8Array(storage), data->entries());
+	return UInt8ArraySample(forceNonNull(data->getU8Array(storage)),
+				data->entries());
     }
     Int32ArraySample
     int32Array(const GT_DataArrayHandle &data, GT_DataArrayHandle &storage)
     {
-	return Int32ArraySample(data->getI32Array(storage), data->entries());
+	return Int32ArraySample(forceNonNull(data->getI32Array(storage)),
+				data->entries());
     }
     UInt64ArraySample
     uint64Array(const GT_DataArrayHandle &data, GT_DataArrayHandle &storage)
     {
-	return UInt64ArraySample((const uint64 *)data->getI64Array(storage),
-				data->entries());
+	return UInt64ArraySample((const uint64 *)forceNonNull(data->getI64Array(storage)),
+				 data->entries());
     }
     FloatArraySample
     floatArray(const GT_DataArrayHandle &data, GT_DataArrayHandle &storage)
     {
-	return FloatArraySample(data->getF32Array(storage), data->entries());
+	return FloatArraySample(forceNonNull(data->getF32Array(storage)),
+				data->entries());
     }
 #if 0
     Int32ArraySample
