@@ -668,6 +668,9 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 		myTransform = transform;
 		changed = true;
 	    }
+	    UT_BoundingBox bbox;
+	    if(pimpl->getBounds(bbox))
+		GT_Util::addBBoxAttrib(bbox, myDetailAttribs);
 	}
     }
     
