@@ -27,17 +27,20 @@
 
 #include "ROP_AbcNodeXform.h"
 
-typedef Alembic::Abc::OCompoundProperty OCompoundProperty;
-
 void
 ROP_AbcNodeXform::purgeObjects()
 {
     myOXform = OXform();
+    myOObject = OObject();
+    mySchema = OCompoundProperty();
     myVisibility = OVisibilityProperty();
+    myChildBounds = OBox3dProperty();
+    myUserProps = OCompoundProperty();
     ROP_AbcNode::purgeObjects();
     myUserProperties.clear();
     mySampleCount = 0;
     myIsValid = false;
+    myIsSparse = false;
     myVizValid = false;
 }
 
@@ -46,7 +49,7 @@ ROP_AbcNodeXform::getOObject(ROP_AbcArchive &archive, GABC_OError &err)
 {
     UT_ASSERT(myLayerNodeType != GABC_LayerOptions::LayerType::NONE);
     makeValid(archive, err);
-    return myOXform;
+    return myOObject;
 }
 
 void
@@ -118,8 +121,9 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
     {
         if(vizLayerOption != GABC_LayerOptions::VizType::NONE)
 	{
-	    myVisibility = CreateVisibilityProperty(myOXform,
-		archive.getTimeSampling());
+	    myVisibility =
+		Alembic::AbcGeom::CreateVisibilityProperty(myOObject,
+					 archive.getTimeSampling());
 	}
 	myVizValid = true;
     }
@@ -132,7 +136,6 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
     exint nsamples = archive.getSampleCount();
     for(; mySampleCount < nsamples; ++mySampleCount)
     {
-	auto &schema = myOXform.getSchema();
 	bool cur = (mySampleCount + 1 == nsamples);
 	auto viz = myVisible;
 
@@ -141,7 +144,7 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
 	    if(!cur)
 		viz = GABC_LayerOptions::VizType::HIDDEN;
 
-	    if(myLayerNodeType != GABC_LayerOptions::LayerType::SPARSE)
+	    if(!myIsSparse)
 	    {
 		// guard against matrix roundoff errors producing an
 		// animated transform
@@ -150,17 +153,15 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
 
 		XformSample sample;
 		sample.setMatrix(GABC_Util::getM(myCachedMatrix));
-		schema.set(sample);
+		myOXform.getSchema().set(sample);
 	    }
 	}
 	else
 	{
 	    viz = GABC_LayerOptions::VizType::HIDDEN;
 
-	    if(myLayerNodeType != GABC_LayerOptions::LayerType::SPARSE)
-	    {
-		schema.setFromPrevious();
-	    }
+	    if(!myIsSparse)
+		myOXform.getSchema().setFromPrevious();
 	}
 
 	// update visibility property
@@ -169,13 +170,38 @@ ROP_AbcNodeXform::update(ROP_AbcArchive &archive,
 
 	// update computed bounding box
 	if(full_bounds)
-	    schema.getChildBoundsProperty().set(abcBox);
+	{
+	    if(!myChildBounds)
+	    {
+		if(myIsSparse)
+		{
+		    myChildBounds =
+			OBox3dProperty(mySchema, ".childBnds",
+				       archive.getTimeSampling());
+		}
+		else
+		{
+		    myChildBounds =
+			myOXform.getSchema().getChildBoundsProperty();
+		}
+	    }
+	    myChildBounds.set(abcBox);
+	}
 
 	// update user properties
 	if(!myUserPropVals.empty() && !myUserPropMeta.empty())
 	{
-	    OCompoundProperty props = schema.getUserProperties();
-	    myUserProperties.update(props, myUserPropVals, myUserPropMeta,
+	    if(!myUserProps)
+	    {
+		if(myIsSparse)
+		{
+		    myUserProps =
+			OCompoundProperty(mySchema, ".userProperties");
+		}
+		else
+		    myUserProps = myOXform.getSchema().getUserProperties();
+	    }
+	    myUserProperties.update(myUserProps, myUserPropVals, myUserPropMeta,
 		archive, err, layerOptions, myLayerNodeType);
 	}
     }
@@ -189,12 +215,23 @@ ROP_AbcNodeXform::makeValid(ROP_AbcArchive &archive, GABC_OError &err)
     if(myIsValid)
 	return;
 
-    auto metadata = Alembic::Abc::MetaData();
-    auto sparseFlag = GABC_LayerOptions::getSparseFlag(myLayerNodeType);
-    GABC_LayerOptions::getMetadata(metadata, myLayerNodeType);
+    UT_ASSERT(myLayerNodeType != GABC_LayerOptions::LayerType::NONE);
+    if(myLayerNodeType == GABC_LayerOptions::LayerType::SPARSE)
+    {
+	myOObject = OObject(myParent->getOObject(archive, err), myName);
+	mySchema = OCompoundProperty(myOObject.getPtr()->getProperties(), ".xform");
+	myIsSparse = true;
+    }
+    else
+    {
+	auto sparseFlag = GABC_LayerOptions::getSparseFlag(myLayerNodeType);
+	auto metadata = Alembic::Abc::MetaData();
+	GABC_LayerOptions::getMetadata(metadata, myLayerNodeType);
 
-    myOXform = OXform(myParent->getOObject(archive, err),
-	myName, archive.getTimeSampling(), metadata, sparseFlag);
+	myOXform = OXform(myParent->getOObject(archive, err),
+	    myName, archive.getTimeSampling(), metadata, sparseFlag);
+	myOObject = myOXform;
+    }
 
     myIsValid = true;
 }

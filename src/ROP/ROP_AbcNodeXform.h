@@ -36,17 +36,18 @@
 
 #include "ROP_AbcUserProperties.h"
 
+typedef Alembic::AbcGeom::OBox3dProperty OBox3dProperty;
 typedef Alembic::AbcGeom::OVisibilityProperty OVisibilityProperty;
 typedef Alembic::AbcGeom::OXform OXform;
-typedef Alembic::AbcGeom::XformSample XformSample;
 typedef Alembic::AbcGeom::OXformSchema OXformSchema;
+typedef Alembic::AbcGeom::XformSample XformSample;
 
 /// Class describing a transform exported to an Alembic archive.
 class ROP_AbcNodeXform : public ROP_AbcNode
 {
 public:
     ROP_AbcNodeXform(const std::string &name)
-	: ROP_AbcNode(name), myMatrix(1), myIsValid(false),
+	: ROP_AbcNode(name), myMatrix(1), myIsValid(false), myIsSparse(false),
 	  myVizValid(false), mySampleCount(0) {}
 
     virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
@@ -73,7 +74,11 @@ private:
     void makeValid(ROP_AbcArchive &archive, GABC_OError &err);
 
     OXform myOXform;
+    OObject myOObject;
+    OCompoundProperty mySchema;
     OVisibilityProperty myVisibility;
+    OBox3dProperty myChildBounds;
+    OCompoundProperty myUserProps;
 
     std::string myUserPropVals;
     std::string myUserPropMeta;
@@ -83,6 +88,7 @@ private:
     UT_Matrix4D myCachedMatrix;
     exint mySampleCount;
     bool myIsValid;
+    bool myIsSparse;
     bool myVizValid;
 };
 
