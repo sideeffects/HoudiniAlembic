@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -2032,7 +2032,9 @@ namespace {
                 GA_Offset	        primoff(prims_prior + i);
                 GU_PrimNURBCurve	*curve = UTverify_cast<GU_PrimNURBCurve *>(
                                             walk.detail().getGEOPrimitive(primoff));
-                offset += setKnotVector(*curve->getBasis(), knots, offset);
+		GA_Basis *basis = curve->getBasis();
+		if(basis)
+		    offset += setKnotVector(*basis, knots, offset);
             }
 	}
 
