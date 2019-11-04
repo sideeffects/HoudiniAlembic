@@ -2028,7 +2028,9 @@ namespace {
                 GA_Offset	        primoff(prims_prior + i);
                 GU_PrimNURBCurve	*curve = UTverify_cast<GU_PrimNURBCurve *>(
                                             walk.detail().getGEOPrimitive(primoff));
-                offset += setKnotVector(*curve->getBasis(), knots, offset);
+		GA_Basis *basis = curve->getBasis();
+		if(basis)
+		    offset += setKnotVector(*basis, knots, offset);
             }
 	}
 
