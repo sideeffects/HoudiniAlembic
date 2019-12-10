@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2019
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -139,11 +139,6 @@ public:
 	bool		valid() const
 			{
 			    return myArray && myArray->valid();
-			}
-	Container	&operator=(const Container &src)
-			{
-			    myArray = src.myArray;
-			    return *this;
 			}
 	const void	*data() const
 			{

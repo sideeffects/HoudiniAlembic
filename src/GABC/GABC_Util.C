@@ -278,12 +278,6 @@ namespace
 	    , myConstant(is_const)
 	    , myInheritsXform(inherits)
 	{}
-	LocalWorldXform(const LocalWorldXform &x)
-	    : myLocal(x.myLocal)
-	    , myWorld(x.myWorld)
-	    , myConstant(x.myConstant)
-	    , myInheritsXform(x.myInheritsXform)
-	{}
 
 	const M44d &getLocal() const	    { return myLocal; }
 	const M44d &getWorld() const	    { return myWorld; }
