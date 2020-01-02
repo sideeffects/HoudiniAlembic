@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -551,7 +551,7 @@ public:
 #endif
 	    if(collect)
 	    {
-		for(auto p : prims)
+		for(const auto &p : prims)
 		    collect->appendPrimitive(p);
 	    }
 	    else
@@ -1608,7 +1608,7 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
 	    const int max_prims = 255;
 	    const int max_faces = 50000;
 
-	    for(auto mesh : meshes)
+	    for(const auto &mesh : meshes)
 	    {
 		auto pack = UTverify_cast<GABC_PackedAlembic *>(mesh.get());
 		GT_PrimitiveHandle meshh;
