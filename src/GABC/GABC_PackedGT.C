@@ -551,7 +551,7 @@ public:
 #endif
 	    if(collect)
 	    {
-		for(const auto &p : prims)
+		for(auto p : prims)
 		    collect->appendPrimitive(p);
 	    }
 	    else
@@ -1608,7 +1608,7 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
 	    const int max_prims = 255;
 	    const int max_faces = 50000;
 
-	    for(const auto &mesh : meshes)
+	    for(auto mesh : meshes)
 	    {
 		auto pack = UTverify_cast<GABC_PackedAlembic *>(mesh.get());
 		GT_PrimitiveHandle meshh;
