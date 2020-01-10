@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -158,7 +158,7 @@ ROP_AbcArchive::setTimeSampling(
 	{
 	    shutter_step /= mb_samples;
 	    // Uniform time sampling
-	    myTimeSampling.reset(new TimeSampling(tstep/mb_samples, tstart));
+	    myTimeSampling.reset(new TimeSampling(tstep/mb_samples, tstart + blur_offset * spf));
 	    for(exint i = 0; i < mb_samples; ++i, blur_offset += shutter_step)
 		myBlurTimes.append(blur_offset * spf);
 	}
