@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1284,12 +1284,11 @@ namespace
 	    // Creates new properties
 	    if(ancestor)
 	    {
+		const char *path = ancestor->getObject().getFullName().c_str();
 		for(auto it = myProps.begin(); it != myProps.end(); ++it)
 		{
-		    GABC_OProperty *prop;
 		    auto propltype = lopt.getUserPropType(
-			ancestor->getObject().getFullName().c_str(),
-			it->first, ltype);
+			path, it->first, ltype);
 
 		    if(propltype == GABC_LayerOptions::LayerType::NONE)
 			continue;
@@ -1343,6 +1342,7 @@ namespace
 		    if(!parent.valid())
 			continue;
 
+		    GABC_OProperty *prop;
 		    if(it->second->isArray())
 			prop = new GABC_OArrayProperty(propltype);
 		    else // IsScalar
