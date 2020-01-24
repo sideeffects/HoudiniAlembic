@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -51,6 +51,7 @@
 #include <GEO/GEO_PrimPacked.h>
 #include <GA/GA_Names.h>
 #include <GA/GA_Types.h>
+#include <Alembic/Abc/SourceName.h>
 #include <Alembic/AbcGeom/ArchiveBounds.h>
 #include <Alembic/AbcGeom/All.h>
 #include <Alembic/AbcMaterial/All.h>
@@ -1085,6 +1086,29 @@ namespace
 	}
     }
 
+    template <typename T>
+    static void
+    addGeomUVParamToMap(GT_AttributeMap &map, const GABC_IObject &obj, T *param,
+	    GA_AttributeOwner owner, const GeometryScope *scope, int scope_size,
+	    const GEO_PackedNameMapPtr &namemap)
+    {
+	if (param && param->valid()
+		&& matchScope(param->getScope(), scope, scope_size))
+	{
+	    if (!namemap || namemap->matchPattern(owner, "uv"))
+	    {
+		int idx = map.add("uv", false);
+		GABC_NodeType nodetype = obj.nodeType();
+		if((nodetype == GABC_POLYMESH || nodetype == GABC_SUBD) && idx >= 0)
+		{
+		    std::string sourceName = Alembic::Abc::GetSourceName(param->getMetaData());
+		    if(sourceName != "")
+			map.addExportName(idx, sourceName);
+		}
+	    }
+	}
+    }
+
     static void
     initializeHoudiniAttributes(
         const GA_Detail &gdp,
@@ -1133,7 +1157,7 @@ namespace
 	addPropertyToMap(*map, "v", v, namemap);
 	addPropertyToMap(*map, "id", ids, namemap);
 	addGeomParamToMap(*map, "N", N, owner, scope, scope_size, namemap);
-	addGeomParamToMap(*map, "uv", uvs, owner, scope, scope_size, namemap);
+	addGeomUVParamToMap(*map, obj, uvs, owner, scope, scope_size, namemap);
 	addGeomParamToMap(*map, "width", widths, owner, scope, scope_size, namemap);
 
 	if (detail && matchScope(gabcConstantScope, scope, scope_size))
@@ -1194,7 +1218,8 @@ namespace
     }
 
     static UT_StringHolder
-    getAttributeNames(const GEO_PackedNameMapPtr &namemap,
+    getAttributeNames(const GABC_IObject &obj,
+			const GEO_PackedNameMapPtr &namemap,
 			GA_AttributeOwner owner,
                         const GeometryScope *scope,
                         int scope_size,
@@ -1215,7 +1240,7 @@ namespace
         addPropertyToMap(map, "v", v, namemap);
         addPropertyToMap(map, "id", ids, namemap);
         addGeomParamToMap(map, "N", N, owner, scope, scope_size, namemap);
-        addGeomParamToMap(map, "uv", uvs, owner, scope, scope_size, namemap);
+	addGeomUVParamToMap(map, obj, uvs, owner, scope, scope_size, namemap);
         addGeomParamToMap(map, "width", widths, owner, scope, scope_size, namemap);
 
         if (arb)
@@ -1245,7 +1270,17 @@ namespace
             }
         }
 
-        UT_StringArray array = map.getNames();
+	// return the export names
+	UT_StringArray array;
+	int n = map.entries();
+	for(int i = 0; i < n; ++i)
+	{
+	    const UT_StringHolder &exportname = map.getExportName(i);
+	    if(exportname != "")
+		array.append(exportname);
+	    else
+		array.append(map.getName(i));
+	}
         array.sort();
         array.join(" ", names);
 
@@ -1620,13 +1655,13 @@ namespace
             case GT_OWNER_VERTEX:
                 return emptyString;
             case GT_OWNER_POINT:
-                return getAttributeNames(namemap, GA_ATTRIB_POINT,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_POINT,
 					 vertex_scope, 3, arb, &P, &v, nullptr,
 					 nullptr, &ids, &widths);
             case GT_OWNER_PRIMITIVE:
                 return emptyString;
             case GT_OWNER_DETAIL:
-                return getAttributeNames(namemap, GA_ATTRIB_DETAIL,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_DETAIL,
 					 detail_scope, 3, arb);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
@@ -1822,17 +1857,17 @@ namespace
         switch (owner)
         {
             case GT_OWNER_POINT:
-                return getAttributeNames(namemap, GA_ATTRIB_POINT, point_scope,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_POINT, point_scope,
 					 2, arb, &P, &v, nullptr, &uvs);
             case GT_OWNER_VERTEX:
-                return getAttributeNames(namemap, GA_ATTRIB_VERTEX,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_VERTEX,
 					 &gabcFacevaryingScope, 1, arb, nullptr,
 					 nullptr, nullptr, &uvs);
             case GT_OWNER_PRIMITIVE:
-                return getAttributeNames(namemap, GA_ATTRIB_PRIMITIVE,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_PRIMITIVE,
 					 &gabcUniformScope, 1, arb);
             case GT_OWNER_DETAIL:
-                return getAttributeNames(namemap, GA_ATTRIB_DETAIL,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_DETAIL,
 					 theConstantUnknownScope, 2, arb);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
@@ -1937,17 +1972,17 @@ namespace
         switch (owner)
         {
             case GT_OWNER_POINT:
-                return getAttributeNames(namemap, GA_ATTRIB_POINT, point_scope,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_POINT, point_scope,
 					 2, arb, &P, &v, &N, &uvs);
             case GT_OWNER_VERTEX:
-                return getAttributeNames(namemap, GA_ATTRIB_VERTEX,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_VERTEX,
 					 &gabcFacevaryingScope, 1, arb, nullptr,
 					 nullptr, &N, &uvs);
             case GT_OWNER_PRIMITIVE:
-                return getAttributeNames(namemap, GA_ATTRIB_PRIMITIVE,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_PRIMITIVE,
 					 &gabcUniformScope, 1, arb);
             case GT_OWNER_DETAIL:
-                return getAttributeNames(namemap, GA_ATTRIB_DETAIL,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_DETAIL,
 					 theConstantUnknownScope, 2, arb);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
@@ -2234,14 +2269,14 @@ namespace
             case GT_OWNER_POINT:
                 return emptyString;
             case GT_OWNER_VERTEX:
-                return getAttributeNames(namemap, GA_ATTRIB_VERTEX,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_VERTEX,
 					 vertex_scope, 3, arb, &P, &v, &N, &uvs,
 					 nullptr, &widths, &Pw);
             case GT_OWNER_PRIMITIVE:
-                return getAttributeNames(namemap, GA_ATTRIB_PRIMITIVE,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_PRIMITIVE,
 					 &gabcUniformScope, 1, arb);
             case GT_OWNER_DETAIL:
-                return getAttributeNames(namemap, GA_ATTRIB_DETAIL,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_DETAIL,
 					 theConstantUnknownScope, 2, arb);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
@@ -2488,13 +2523,13 @@ namespace
             case GT_OWNER_POINT:
                 return emptyString;
             case GT_OWNER_VERTEX:
-                return getAttributeNames(namemap, GA_ATTRIB_VERTEX,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_VERTEX,
 					 vertex_scope, 3, arb, &P, &v, &N, &uvs,
 					 nullptr, nullptr, &Pw);
             case GT_OWNER_PRIMITIVE:
                 return emptyString;
             case GT_OWNER_DETAIL:
-                return getAttributeNames(namemap, GA_ATTRIB_DETAIL,
+                return getAttributeNames(obj, namemap, GA_ATTRIB_DETAIL,
 					 detail_scope, 3, arb);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:

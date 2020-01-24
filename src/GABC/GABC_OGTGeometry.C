@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -317,6 +317,35 @@ namespace
 	}
     }
 
+    template <typename T>
+    static void
+    setUVExportName(T *shape, const GT_PrimitiveHandle &prim)
+    {
+	static GT_Owner owners[] =
+	{
+	    GT_OWNER_VERTEX,
+	    GT_OWNER_POINT,
+	    GT_OWNER_UNIFORM,
+	    GT_OWNER_DETAIL
+	};
+
+	for(int i = 0; i < sizeof(owners)/sizeof(GT_Owner); ++i)
+	{
+	    GT_AttributeListHandle h = prim->getAttributeList(owners[i]);
+	    if(h)
+	    {
+		int idx = h->getIndex("uv");
+		if(idx >= 0)
+		{
+		    const UT_StringHolder &exp_name = h->getExportName(idx);
+		    if(exp_name != "")
+			shape->getSchema().setUVSourceName(exp_name.toStdString());
+		    break;
+		}
+	    }
+	}
+    }
+
     static IgnoreList	thePolyMeshSkip("N", "uv", nullptr);
     static IgnoreList	theSubDSkip("uv", "creaseweight", "cornerweight",
 				    "osd_scheme",
@@ -354,6 +383,7 @@ namespace
         for (exint i = 0; i < attribs->entries(); ++i)
 	    ordering.emplace(attribs->getName(i).c_str(), i);
 
+	const char *path = cp.getObject().getFullName().c_str();
 	for (auto it = ordering.begin(); it != ordering.end(); ++it)
 	{
 	    exint	 i = it->second;
@@ -363,12 +393,11 @@ namespace
 	    auto	 scope = rixlate.getScope(name, owner);
 
 	    auto attrltype = lopt.getAttrType(
-		cp.getObject().getFullName().c_str(),
-		UT_String(exp_name), ltype);
+		path, UT_String(exp_name), ltype);
 
             if (!data
-                    || skips.contains(exp_name)
-                    || default_skips.contains(exp_name.c_str())
+                    || skips.contains(name)
+                    || default_skips.contains(name.c_str())
                     || !ctx.matchAttribute(scope, exp_name.c_str())
 		    || attrltype == GABC_LayerOptions::LayerType::NONE
                     || data->getTupleSize() < 1
@@ -1949,6 +1978,7 @@ GABC_OGTGeometry::makeFaceSets(const OObject &parent,
 	return;
 
     const char *subd = ctx.subdGroup();
+    const char *path = parent.getFullName().c_str();
 
     for (GT_FaceSetMap::iterator it = facesets->begin(); !it.atEnd(); ++it)
     {
@@ -1960,8 +1990,8 @@ GABC_OGTGeometry::makeFaceSets(const OObject &parent,
 	if (GA_Names::_3d_hidden_primitives == name)
 	    continue;
 
-	auto facesetltype = lopt.getFaceSetType(parent.getFullName().c_str(),
-	    name.c_str(), myLayerNodeType);
+	auto facesetltype =
+		lopt.getFaceSetType(path, name.c_str(), myLayerNodeType);
 
 	if (facesetltype == GABC_LayerOptions::LayerType::NONE)
 	    continue;
@@ -2176,6 +2206,7 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
                     ctx.timeSampling(),
 		    metadata,
 		    sparseFlag);
+	    setUVExportName(myShape.myPolyMesh, prim);
 	    if(outputViz)
 	    {
 		myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
@@ -2193,6 +2224,7 @@ GABC_OGTGeometry::start(const GT_PrimitiveHandle &src,
                     ctx.timeSampling(),
 		    metadata,
 		    sparseFlag);
+	    setUVExportName(myShape.mySubD, prim);
 	    if(outputViz)
 	    {
 		myVisibility = Alembic::AbcGeom::CreateVisibilityProperty(
