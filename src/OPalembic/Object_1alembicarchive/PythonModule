@@ -83,7 +83,7 @@ def _setNodeName(node, name):
         node.setName(_sanitizeName(name), True)
 
 def ExpressionToParm(srcParm, dstParm, isString=False):
-    relPath = dstParm.netitem().relativePathTo(srcParm.netitem())
+    relPath = dstParm.node().relativePathTo(srcParm.node())
     dstParm.setExpression('%s("%s/%s")' % (
             'chs' if isString else 'ch', relPath, srcParm.name()),
             hou.exprLanguage.Hscript)
