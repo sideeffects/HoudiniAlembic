@@ -154,7 +154,17 @@ Set Zero Time for Static Geometry:
 
 Primitive Groups:
     #id: groupnames
-    
+
+    NOTE:
+	This option can create a large number of disjoint groups.  This is
+	often a very inefficient workflow.  Instead, consider using a string
+	attribute to store what would be your group name using Attribute
+	Create or Attribute Wrangle.
+
+	To convert a set of disjoint groups, such as created by this option,
+	into a single string attribute use the Name from Group option of the
+	Name SOP.
+
     Whether to create group names on the Alembic shape nodes, or whether to use
     the transform (object) name. If a transform object has multiple shape
     nodes, it's sometimes useful to put the geometry into the same group.
