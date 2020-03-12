@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -29,6 +29,7 @@
 #include <UT/UT_StringStream.h>
 #include <UT/UT_WorkArgs.h>
 #include <UT/UT_DSOVersion.h>
+#include <UT/UT_UndoManager.h>
 #include <CMD/CMD_Manager.h>
 #include <OP/OP_OperatorTable.h>
 #include <PRM/PRM_Shared.h>
@@ -125,6 +126,8 @@ selectAlembicNodes(void *data, int index,
 	fprintf(stderr, "Invalid parameter callback\n");
 	return 0;
     }
+
+    UT_AutoUndoBlock	u("Pick Primitives", ANYLEVEL);
     int			 inst = SYSatoi(token+14);
     SOP_AlembicGroup	*sop = (SOP_AlembicGroup *)(data);
     CMD_Manager		*mgr = CMDgetManager();
@@ -173,7 +176,17 @@ selectAlembicNodes(void *data, int index,
     mgr->execute(cmd.buffer(), 0, &os);
     UT_String	result(os.str().buffer());
     result.trimBoundingSpace();
-    sop->setString(result, CH_STRING_LITERAL, parmname.buffer(), 0, t);
+
+    OP_Node *node = sop;
+    int vector_index = 0;
+
+    PRM_Parm *parm = sop->getParmList()->getParmPtr(parmname.buffer());
+    sop->followChannelReferences(OP_FollowChanRefsOptions(t),
+				 node, parm, vector_index);
+
+    if(node && parm)
+	node->setString(result, CH_STRING_LITERAL, parm->getToken(),
+			vector_index, t);
 
     return 0;
 }
