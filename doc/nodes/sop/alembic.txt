@@ -5,6 +5,7 @@
 #internal: alembic
 #icon: SOP/alembic
 #tags: alembic, io
+#since: 11.1
 
 """Loads the geometry from an Alembic scene archive (`.abc`) file into a geometry network."""
 

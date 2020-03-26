@@ -2,6 +2,7 @@
 #context: sop
 #internal: rop_alembic
 #icon: OBJ/geo
+#since: 12.5
 
 = Alembic ROP output driver =
 

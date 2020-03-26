@@ -5,6 +5,7 @@
 #internal: alembicgroup
 #icon: SOP/alembic
 #tags: alembic, groups
+#since: 12.5
 
 """Creates a geometry group for Alembic primitives."""
 

@@ -4,6 +4,7 @@
 #context: obj
 #internal: alembicxform
 #icon: SOP/alembic
+#since: 11.1
 
 """Loads only the transform from an object or objects in an Alembic scene 
 archive (`.abc`)."""

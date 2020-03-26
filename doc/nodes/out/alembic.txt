@@ -2,6 +2,7 @@
 #context: out
 #internal: alembic
 #icon: SOP/alembic
+#since: 12.0
 
 = Alembic =
 

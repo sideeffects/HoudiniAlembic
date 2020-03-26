@@ -5,6 +5,7 @@
 #internal: alembicprimitive
 #icon: SOP/alembic
 #tags: alembic, edit
+#since: 12.5
 
 """Modifies intrinsic properties of Alembic primitives."""
 

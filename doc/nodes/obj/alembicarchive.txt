@@ -4,6 +4,7 @@
 #context: obj
 #internal: alembicarchive
 #icon: SOP/alembic
+#since: 11.1
 
 """Loads the objects from an Alembic scene archive (`.abc`) file into the object level."""
 
