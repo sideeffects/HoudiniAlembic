@@ -1858,9 +1858,12 @@ namespace
 	    for(auto &p : paths)
 	    {
 		auto it = myKeysWithPath.find(p);
-		it->second.erase(paths);
-		if(it->second.empty())
-		    myKeysWithPath.erase(p);
+		if(it != myKeysWithPath.end())
+		{
+		    it->second.erase(paths);
+		    if(it->second.empty())
+			myKeysWithPath.erase(p);
+		}
 	    }
 
 	    if(purge)
