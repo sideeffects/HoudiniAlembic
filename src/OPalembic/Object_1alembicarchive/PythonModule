@@ -1,3 +1,4 @@
+from __future__ import print_function
 import string
 import _alembic_hom_extensions as _abc
 try:
@@ -31,7 +32,7 @@ def BuildHierarchyRoot(rootNode):
                 text='Please enter an Alembic file to load.',
                 severity=hou.severityType.Warning)
         else:
-            print 'No filename entered for Alembic scene.'
+            print('No filename entered for Alembic scene.')
         return
 
     _abc.alembicClearArchiveCache(fileName)
