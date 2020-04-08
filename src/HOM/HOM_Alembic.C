@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -63,6 +63,8 @@
 
 // The python developers recommend that Python.h be included before any other
 // header files.
+#include <Python.h>
+
 #include <PY/PY_CPythonAPI.h>
 // This file contains functions that will run arbitrary Python code
 #include <PY/PY_Python.h>
@@ -1298,9 +1300,46 @@ namespace
     }
 }
 
-void
-HOMextendLibrary()
+#if PY_MAJOR_VERSION >= 3
+struct module_state {
+    PyObject *error;
+};
+
+#define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
+
+static int hom_alembic_traverse(PyObject *m, visitproc visit, void *arg)
 {
+    Py_VISIT(GETSTATE(m)->error);
+    return 0;
+}
+
+static int hom_alembic_clear(PyObject *m)
+{
+    Py_CLEAR(GETSTATE(m)->error);
+    return 0;
+}
+#endif 
+
+#if defined(WIN32)
+PyMODINIT_FUNC
+#elif PY_MAJOR_VERSION >= 3
+// This is a replacement of PyMODINIT_FUNC but with the default visibility
+// attribute declaration injected in the middle.
+extern "C" __attribute__((visibility("default"))) PyObject*
+#else
+PyMODINIT_FUNC __attribute__((visibility("default")))
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+PyInit__alembic_hom_extensions(void)
+#else
+init_alembic_hom_extensions(void)
+#endif
+{
+#if PY_MAJOR_VERSION >= 3
+    PY_PyObject *module = nullptr;
+#endif
+
     {
     // A PY_InterpreterAutoLock will grab the Python global interpreter
     // lock (GIL).  It's important that we have the GIL before making
@@ -1353,9 +1392,14 @@ HOMextendLibrary()
 
         { NULL, NULL, 0, NULL }
     };
-    PY_Py_InitModule("_alembic_hom_extensions", alembic_hom_extension_methods);
-    }
 
+#if PY_MAJOR_VERSION >= 3
+    module = 
+#endif
+    PY_Py_InitModule(
+	"_alembic_hom_extensions", alembic_hom_extension_methods);
+
+    }
 
     PYrunPythonStatementsAndExpectNoErrors(
     "def _alembicGetCameraDict(self, archivePaths, objectPath, sampleTime):\n"
@@ -1364,4 +1408,8 @@ HOMextendLibrary()
     "    return _alembic_hom_extensions.alembicGetCameraDict(archivePaths, objectPath, sampleTime)\n"
     "__import__('hou').ObjNode.alembicGetCameraDict = _alembicGetCameraDict\n"
     "del _alembicGetCameraDict\n");
+
+#if PY_MAJOR_VERSION >= 3
+    return reinterpret_cast<PyObject *>(module);
+#endif
 }
