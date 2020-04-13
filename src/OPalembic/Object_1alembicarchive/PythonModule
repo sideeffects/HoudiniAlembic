@@ -299,6 +299,7 @@ class _AbcWalker:
 
             # Set Houdini camera parameters
             if cameraDict != None:
+                rootpath = currentNode.relativePathTo(self._rootNode)
                 for parmName in (
                         'aperture',
                         'aspect',
@@ -312,7 +313,7 @@ class _AbcWalker:
                         'winy',
                         'winsizex',
                         'winsizey'):
-                    currentNode.parm(parmName).setExpression('parent = hou.pwd().parent()\nreturn %s.alembicGetCameraDict(parent.hdaModule().GetFileName(parent), %s, parent.evalParm("frame")/parent.evalParm("fps")).get(%s)' % (_AbcModule, repr(currentPath), repr(parmName)), hou.exprLanguage.Python)
+                    currentNode.parm(parmName).setExpression('root = hou.pwd().node(%s)\nreturn %s.alembicGetCameraDict(root.hdaModule().GetFileName(root), %s, root.evalParm("frame")/root.evalParm("fps")).get(%s)' % (repr(rootpath), _AbcModule, repr(currentPath), repr(parmName)), hou.exprLanguage.Python)
 
                 resTuple = _abc.alembicGetCameraResolution(self._fileName, currentPath, sampleTime)
 
