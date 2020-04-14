@@ -1401,14 +1401,6 @@ init_alembic_hom_extensions(void)
 
     }
 
-    PYrunPythonStatementsAndExpectNoErrors(
-    "def _alembicGetCameraDict(self, archivePaths, objectPath, sampleTime):\n"
-    "    '''Return camera information.'''\n"
-    "    import _alembic_hom_extensions\n"
-    "    return _alembic_hom_extensions.alembicGetCameraDict(archivePaths, objectPath, sampleTime)\n"
-    "__import__('hou').ObjNode.alembicGetCameraDict = _alembicGetCameraDict\n"
-    "del _alembicGetCameraDict\n");
-
 #if PY_MAJOR_VERSION >= 3
     return reinterpret_cast<PyObject *>(module);
 #endif
