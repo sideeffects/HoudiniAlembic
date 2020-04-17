@@ -127,7 +127,6 @@ selectAlembicNodes(void *data, int index,
 	return 0;
     }
 
-    UT_AutoUndoBlock	u("Pick Primitives", ANYLEVEL);
     int			 inst = SYSatoi(token+14);
     SOP_AlembicGroup	*sop = (SOP_AlembicGroup *)(data);
     CMD_Manager		*mgr = CMDgetManager();
@@ -174,20 +173,13 @@ selectAlembicNodes(void *data, int index,
 
     UT_OStringStream	 os;
     mgr->execute(cmd.buffer(), 0, &os);
+    if(mgr->getStatusCode())
+	return 0;
+
     UT_String	result(os.str().buffer());
     result.trimBoundingSpace();
-
-    OP_Node *node = sop;
-    int vector_index = 0;
-
-    PRM_Parm *parm = sop->getParmList()->getParmPtr(parmname.buffer());
-    sop->followChannelReferences(OP_FollowChanRefsOptions(t),
-				 node, parm, vector_index);
-
-    if(node && parm)
-	node->setString(result, CH_STRING_LITERAL, parm->getToken(),
-			vector_index, t);
-
+    UT_AutoUndoBlock	u("Pick Primitives", ANYLEVEL);
+    sop->setChRefString(result, CH_STRING_LITERAL, parmname.buffer(), 0, t);
     return 0;
 }
 

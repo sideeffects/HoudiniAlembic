@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -33,6 +33,7 @@
 #include <UT/UT_StringStream.h>
 #include <UT/UT_WorkArgs.h>
 #include <UT/UT_WorkBuffer.h>
+#include <UT/UT_UndoManager.h>
 #include <UT/UT_UniquePtr.h>
 #include <UT/UT_InfoTree.h>
 #include <GU/GU_Detail.h>
@@ -111,8 +112,12 @@ namespace
 	CMD_Manager	*mgr = CMDgetManager();
 	UT_OStringStream	 os;
 	mgr->execute(cmd.buffer(), 0, &os);
+	if(mgr->getStatusCode())
+	    return 0;
+
 	UT_String	result(os.str().buffer());
 	result.trimBoundingSpace();
+	UT_AutoUndoBlock	u("Pick Alembic Objects", ANYLEVEL);
 	sop->setChRefString(result, CH_STRING_LITERAL, parm_name, 0, t);
 
 	return 0;

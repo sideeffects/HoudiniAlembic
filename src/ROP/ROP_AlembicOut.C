@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -454,14 +454,13 @@ ropNodePickerCallback(void *data, int index, fpreal t, const PRM_Template *tplat
     CMD_Manager	*mgr = CMDgetManager();
     UT_OStringStream	 os;
     mgr->execute(cmd.buffer(), 0, &os);
+    if(mgr->getStatusCode())
+	return 0;
+
     UT_String	result(os.str().buffer());
     result.trimBoundingSpace();
-
-    if(result.isstring())
-    {
-	UT_AutoUndoBlock u("Undo Set Node Pattern", ANYLEVEL);
-	rop->setChRefString(result, CH_STRING_LITERAL, attrName, 0, t);
-    }
+    UT_AutoUndoBlock u("Undo Set Node Pattern", ANYLEVEL);
+    rop->setChRefString(result, CH_STRING_LITERAL, attrName, 0, t);
 
     return 0;
 }
