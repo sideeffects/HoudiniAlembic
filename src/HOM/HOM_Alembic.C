@@ -1300,26 +1300,6 @@ namespace
     }
 }
 
-#if PY_MAJOR_VERSION >= 3
-struct module_state {
-    PyObject *error;
-};
-
-#define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
-
-static int hom_alembic_traverse(PyObject *m, visitproc visit, void *arg)
-{
-    Py_VISIT(GETSTATE(m)->error);
-    return 0;
-}
-
-static int hom_alembic_clear(PyObject *m)
-{
-    Py_CLEAR(GETSTATE(m)->error);
-    return 0;
-}
-#endif 
-
 #if defined(WIN32)
 PyMODINIT_FUNC
 #elif PY_MAJOR_VERSION >= 3
