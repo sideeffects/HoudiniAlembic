@@ -109,7 +109,7 @@ getAlembicPrimitivePaths(const GU_Detail *gdp, PathList &names,
 	    if (!excludeGrouped || !primIsInAnyGroup(gdp, p))
 	    {
 		const GU_PrimPacked	*pack = UTverify_cast<const GU_PrimPacked *>(p);
-		const GABC_PackedImpl *abc = UTverify_cast<const GABC_PackedImpl *>(pack->implementation());
+		const GABC_PackedImpl *abc = UTverify_cast<const GABC_PackedImpl *>(pack->sharedImplementation());
 		getAllPathComponents(abc->objectPath().c_str(), names, branches);
 	    }
 	}
@@ -367,7 +367,7 @@ SOP_AlembicGroup::selectPrimitives(GA_PrimitiveGroup *group,
 	    continue;
 
 	const GU_PrimPacked	*pack = UTverify_cast<const GU_PrimPacked *>(p);
-	const GABC_PackedImpl	*abc = UTverify_cast<const GABC_PackedImpl *>(pack->implementation());
+	const GABC_PackedImpl	*abc = UTverify_cast<const GABC_PackedImpl *>(pack->sharedImplementation());
 	if (objectPaths.size())
 	{
 	    const char	*path = abc->objectPath().c_str();

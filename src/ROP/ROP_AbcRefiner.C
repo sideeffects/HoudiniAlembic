@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -51,7 +51,7 @@ ropGetInstanceKey(std::string &key, bool subd, const GU_PrimPacked *packed)
     GA_PrimitiveTypeId type_id = packed->getTypeId();
     if(type_id == GU_PackedFragment::typeId())
     {
-	auto impl = static_cast<const GU_PackedFragment *>(packed->implementation());
+	auto impl = static_cast<const GU_PackedFragment *>(packed->sharedImplementation());
 	auto attrib = impl->attribute();
 	auto name = impl->name();
 	UT_WorkBuffer buf;
@@ -64,7 +64,7 @@ ropGetInstanceKey(std::string &key, bool subd, const GU_PrimPacked *packed)
 
     if(type_id == GU_PackedGeometry::typeId())
     {
-	auto impl = static_cast<const GU_PackedGeometry *>(packed->implementation());
+	auto impl = static_cast<const GU_PackedGeometry *>(packed->sharedImplementation());
 	UT_WorkBuffer buf;
 	buf.sprintf("g:%d:%d", int(subd), int(impl->geometryId()));
 	key = buf.buffer();
@@ -73,7 +73,7 @@ ropGetInstanceKey(std::string &key, bool subd, const GU_PrimPacked *packed)
 
     if(type_id == GU_PackedDisk::typeId())
     {
-	auto impl = static_cast<const GU_PackedDisk *>(packed->implementation());
+	auto impl = static_cast<const GU_PackedDisk *>(packed->sharedImplementation());
 	UT_WorkBuffer buf;
 	buf.sprintf("d:%d:%s", int(subd), impl->filename().c_str());
 	key = buf.buffer();
@@ -82,7 +82,7 @@ ropGetInstanceKey(std::string &key, bool subd, const GU_PrimPacked *packed)
 
     if(type_id == GU_PackedDiskSequence::typeId())
     {
-	auto impl = static_cast<const GU_PackedDiskSequence *>(packed->implementation());
+	auto impl = static_cast<const GU_PackedDiskSequence *>(packed->sharedImplementation());
 	UT_WorkBuffer buf;
 	buf.sprintf("ds:%d:%d:%g:",
 		    int(subd),
@@ -104,7 +104,7 @@ ropGetInstanceKey(std::string &key, bool subd, const GU_PrimPacked *packed)
     auto &&alembic_def = GUgetFactory().lookupDefinition("AlembicRef"_sh);
     if(alembic_def && type_id == alembic_def->getId())
     {
-	auto impl = static_cast<const GABC_PackedImpl *>(packed->implementation());
+	auto impl = static_cast<const GABC_PackedImpl *>(packed->sharedImplementation());
 	auto filenames = impl->intrinsicFilenamesJSON(packed);
 	auto sourcepath = impl->intrinsicSourcePath(packed);
 	auto point_attr = impl->intrinsicPoint(packed);
@@ -302,7 +302,7 @@ ROP_AbcRefiner::addPrimitive(const GT_PrimitiveHandle &prim)
 	    const GU_PrimPacked *pr =
 		static_cast<const GU_PrimPacked *>(packed->getPrim());
 	    const GABC_PackedImpl *impl =
-		static_cast<const GABC_PackedImpl *>(pr->implementation());
+		static_cast<const GABC_PackedImpl *>(pr->sharedImplementation());
 
 	    myVisible &= (impl->intrinsicFullVisibility(pr) != 0);
 	}
@@ -432,7 +432,7 @@ ROP_AbcRefiner::processInstance(const GT_PrimitiveHandle &prim)
 	if(type == GT_PRIM_ALEMBIC_SHAPE)
 	{
 	    const GABC_PackedImpl *impl =
-		static_cast<const GABC_PackedImpl *>(pr->implementation());
+		static_cast<const GABC_PackedImpl *>(pr->sharedImplementation());
 	    myVisible &= (impl->intrinsicFullVisibility(pr) != 0);
 	}
 
@@ -504,7 +504,7 @@ ROP_AbcRefiner::processPacked(const GT_PrimitiveHandle &prim)
     if(type == GT_PRIM_ALEMBIC_SHAPE)
     {
 	const GABC_PackedImpl *impl =
-	    static_cast<const GABC_PackedImpl *>(pr->implementation());
+	    static_cast<const GABC_PackedImpl *>(pr->sharedImplementation());
 	myVisible &= (impl->intrinsicFullVisibility(pr) != 0);
     }
 

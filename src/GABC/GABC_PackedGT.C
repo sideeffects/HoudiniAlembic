@@ -140,7 +140,7 @@ public:
 		    break;
 		
 		auto impl= UTverify_cast<const GABC_PackedImpl*>
-		    (itr->second(0)->implementation());
+		    (itr->second(0)->sharedImplementation());
 
 		// No need to pack if there is only a single instance.
 		if(itr->second.entries() == 1)
@@ -217,7 +217,7 @@ public:
 		    break;
 
 		auto impl= UTverify_cast<const GABC_PackedImpl*>
-		    (itr->second(0)->implementation());
+		    (itr->second(0)->sharedImplementation());
 
 		const UT_StringHolder &path = itr->first;
 
@@ -265,7 +265,7 @@ public:
 			use_vertex = false; // avoid if one instance has 0 verts
 
 		    auto impl= UTverify_cast<const GABC_PackedImpl*>
-			(pi->implementation());
+			(pi->sharedImplementation());
 			
 		    // check for an animated transform.
 		    if(anim_type < GEO_ANIMATION_TRANSFORM)
@@ -364,7 +364,7 @@ public:
 
     bool	append(const GU_PrimPacked &prim)
     {
-	auto impl= UTverify_cast<const GABC_PackedImpl*>(prim.implementation());
+	auto impl= UTverify_cast<const GABC_PackedImpl*>(prim.sharedImplementation());
 	if (mySkipInvisible
 	    && !(myAlembicInstancing && myUseViewportLOD) 
 	    && !impl->visibleGT())
@@ -659,7 +659,7 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 
 	    UT_Matrix4D transform;
 	    auto pimpl = UTverify_cast<const GABC_PackedImpl *>(
-		packed->implementation());
+		packed->sharedImplementation());
 
 	    myCache.getTransform(pimpl, transform);
 	    packed->multiplyByPrimTransform(transform);
@@ -1087,7 +1087,7 @@ public:
 		const GU_PrimPacked *prim = static_cast<const GU_PrimPacked *>
 		    (myDetail->getPrimitive(myOffsets(i)));
 		auto impl= UTverify_cast<const GABC_PackedImpl*>
-		    (prim->implementation());
+		    (prim->sharedImplementation());
 
 		UT_StringHolder path;
 		gabcViewportObjName(impl, path);
@@ -1528,7 +1528,7 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
 	const GU_PrimPacked *prim = static_cast<const GU_PrimPacked *>
 	    (gdplock->getPrimitive(offset));
 	auto impl= UTverify_cast<const GABC_PackedImpl*>
-	    (prim->implementation());
+	    (prim->sharedImplementation());
 
 	UT_StringHolder name;
 	gabcViewportObjName(impl, name);
@@ -1706,7 +1706,7 @@ GABC_PackedArchive::archiveMatch(const GT_PackedAlembicArchive *archive) const
 	const GU_PrimPacked *this_prim = static_cast<const GU_PrimPacked *>
 	    (this_dtl->getPrimitive(src_off));
 	auto this_impl = UTverify_cast<const GABC_PackedImpl*>
-	    (this_prim->implementation());
+	    (this_prim->sharedImplementation());
 
 	// If the objects are not the same, inplace updates can't occur.
 	if(objects(i) != this_impl->object().getFullName().c_str())
@@ -1789,7 +1789,7 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 		// Update geometry
 		GT_PrimitiveHandle geo =
 		    UTverify_cast<const GABC_PackedImpl *>(
-			pprim->implementation())->instanceGT(true);
+			pprim->sharedImplementation())->instanceGT(true);
 		if(geo != myGeometry)
 		{
 		    myGeometry = geo;
@@ -1817,7 +1817,7 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 		    {
 			UT_Matrix4D transform;
 			auto pimpl = UTverify_cast<const GABC_PackedImpl *>(
-			    pprim->implementation());
+			    pprim->sharedImplementation());
 
 			myCache(i).getTransform(pimpl, transform);
 			pprim->multiplyByPrimTransform(transform);
@@ -1849,7 +1849,7 @@ GABC_PackedInstance::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 		    {
 			bool visible = false;
 			auto pimpl = UTverify_cast<const GABC_PackedImpl *>(
-			    pprim->implementation());
+			    pprim->sharedImplementation());
 
 			myCache(i).getVisibility(pimpl, visible);
 		    

@@ -1366,7 +1366,7 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
 		abc_prims.emplace(p, packed);
 
 		// only refine shape nodes
-		if(!ropIsShape(static_cast<const GABC_PackedImpl *>(packed->implementation())->nodeType()))
+		if(!ropIsShape(static_cast<const GABC_PackedImpl *>(packed->sharedImplementation())->nodeType()))
 		    continue;
 	    }
 	}
@@ -1389,7 +1389,7 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
     {
 	// we only use the first transform primitive
 	const GU_PrimPacked *packed = it.second;
-	const GABC_PackedImpl *impl = static_cast<const GABC_PackedImpl *>(packed->implementation());
+	const GABC_PackedImpl *impl = static_cast<const GABC_PackedImpl *>(packed->sharedImplementation());
 
 	const char *s = it.first.c_str();
 	const char *r = assignments.getRoot()->getPath();
@@ -1541,7 +1541,7 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
 		if(alembic_def && packed->getTypeId() == alembic_def->getId())
 		{
 		    // grab user from the packed alembic primitive
-		    const GABC_PackedImpl *impl = static_cast<const GABC_PackedImpl *>(packed->implementation());
+		    const GABC_PackedImpl *impl = static_cast<const GABC_PackedImpl *>(packed->sharedImplementation());
 		    GABC_IObject obj = impl->object();
 		    if(ropGetUserProperties(up_vals, up_meta, obj, time))
 		    {

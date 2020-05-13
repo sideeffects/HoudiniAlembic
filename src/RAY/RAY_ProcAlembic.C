@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -65,7 +65,7 @@ namespace
 
     static const GABC_PackedImpl *implementation(const GU_PrimPacked *prim)
     {
-	return UTverify_cast<const GABC_PackedImpl *>(prim->implementation());
+	return UTverify_cast<const GABC_PackedImpl *>(prim->sharedImplementation());
     }
 
     static GT_PrimitiveHandle fullGT(const GU_PrimPacked *packed)

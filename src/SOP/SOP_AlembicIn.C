@@ -1574,7 +1574,7 @@ namespace
 					    GA_ATTRIB_PRIMITIVE, myPath, 1);
 		    if(a.isValid())
 		    {
-			auto abc_impl = UTverify_cast<const GABC_PackedImpl *>(pack->implementation());
+			auto abc_impl = UTverify_cast<const GABC_PackedImpl *>(pack->sharedImplementation());
 			auto path = abc_impl->objectPath();
 			for (auto it = GA_Iterator(marker.primitiveRange()); !it.atEnd(); ++it)
 			    a->setString(*it, path);
