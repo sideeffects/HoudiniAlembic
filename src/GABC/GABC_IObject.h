@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -74,7 +74,7 @@ public:
     GABC_IObject();
     GABC_IObject(const GABC_IObject &obj);
     GABC_IObject(const GABC_IArchivePtr &arch, const IObject &obj);
-    virtual ~GABC_IObject();
+    ~GABC_IObject() override;
 
     /// Initialize (called by GABC_IArchive)
     static void		init();
@@ -118,7 +118,7 @@ public:
 
     /// @{
     /// Interface from GABC_IItem
-    virtual void	purge();
+    void                purge() override;
     /// @}
 
     /// Test validity

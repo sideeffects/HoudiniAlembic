@@ -360,7 +360,7 @@ public:
 	, mySkipInvisible(GT_RefineParms::getAlembicSkipInvisible(parms))
 	, myAlembicInstancing(GT_RefineParms::getAlembicInstancing(parms))
     { }
-    virtual ~CollectData() {}
+    ~CollectData() override {}
 
     bool	append(const GU_PrimPacked &prim)
     {

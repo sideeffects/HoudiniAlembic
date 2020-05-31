@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -70,7 +70,7 @@ public:
         , myIsGeomParam(true)
     {}
 
-    ~GABC_OArrayProperty() {}
+    ~GABC_OArrayProperty() override {}
 
     /// See GABC_OProperty for information about methods.
     bool    start(OCompoundProperty &parent,
@@ -79,14 +79,14 @@ public:
                     GABC_OError &err,
                     const GABC_OOptions &options,
                     const PlainOldDataType pod =
-                        Alembic::Util::kUnknownPOD);
+                        Alembic::Util::kUnknownPOD) override;
     bool    update(const GT_DataArrayHandle &array,
                     GABC_OError &err,
                     const GABC_OOptions &options,
                     const PlainOldDataType pod
-                        = Alembic::Abc::kUnknownPOD);
-    bool    updateFromPrevious();
-    exint   getNumSamples() const
+                        = Alembic::Abc::kUnknownPOD) override;
+    bool    updateFromPrevious() override;
+    exint   getNumSamples() const override
             {
                 return myProperty.getNumSamples();
             }

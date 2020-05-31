@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -50,7 +50,7 @@ public:
 
     GABC_PackedImpl();
     GABC_PackedImpl(const GABC_PackedImpl &src);
-    virtual ~GABC_PackedImpl();
+    ~GABC_PackedImpl() override;
 
     /// Note: The caller is responsible for setting the vertex/point for the
     /// primitive.
@@ -67,79 +67,85 @@ public:
 
 
     /// Get the factory associated with this procedural
-    virtual GU_PackedFactory	*getFactory() const;
+    GU_PackedFactory    *getFactory() const override;
 
     /// Create a copy of this resolver
-    virtual GU_PackedImpl	*copy() const;
+    GU_PackedImpl       *copy() const override;
 
     /// Report memory usage (includes all shared memory)
-    virtual int64 getMemoryUsage(bool inclusive) const;
+    int64               getMemoryUsage(bool inclusive) const override;
 
     /// Count memory usage using a UT_MemoryCounter in order to count
     /// shared memory correctly.
-    virtual void countMemory(UT_MemoryCounter &counter, bool inclusive) const;
+    void                countMemory(UT_MemoryCounter &counter,
+                                bool inclusive) const override;
 
     /// Test whether the deferred load primitive data is valid
-    virtual bool	isValid() const;
+    bool                isValid() const override;
 
     /// Method to clear any data associated with the implementation.  It's
     /// possible that the implementation may need to re-construct the data, but
     /// this should clear what it can.
-    virtual void	clearData();
+    void                clearData() override;
 
     /// Give a UT_Options of load data, create resolver data for the primitive
-    virtual bool	load(GU_PrimPacked *prim, const UT_Options &options,
-				const GA_LoadMap &map)
+    bool                load(GU_PrimPacked *prim, const UT_Options &options,
+				const GA_LoadMap &map) override
 			    { return loadFrom(prim, options, map); }
-    virtual bool	supportsJSONLoad() const	{ return true; }
-    virtual bool	loadFromJSON(GU_PrimPacked *prim, const UT_JSONValueMap &options,
-				const GA_LoadMap &map)
+    bool                supportsJSONLoad() const override
+                            { return true; }
+    bool                loadFromJSON(GU_PrimPacked *prim,
+                                const UT_JSONValueMap &options,
+				const GA_LoadMap &map) override
 			    { return loadFrom(prim, options, map); }
 
     /// Depending on the update, the procedural should call one of:
     /// - prim->transformDirty()
     /// - prim->attributeDirty()
     /// - prim->topologyDirty()
-    virtual void	update(GU_PrimPacked *prim, const UT_Options &options);
+    void                update(GU_PrimPacked *prim,
+                                const UT_Options &options) override;
 
     /// Copy the resolver data into the UT_Options for saving
-    virtual bool	save(UT_Options &options,
-				const GA_SaveMap &map) const;
+    bool                save(UT_Options &options,
+				const GA_SaveMap &map) const override;
 
     /// Handle unknown token/value pairs when loading the primitive.  By
     /// default, this adds a warning and skips the next object.  Return false
     /// if there was a critical error.
-    virtual bool	loadUnknownToken(const char *token, UT_JSONParser &p,
-				const GA_LoadMap &map);
+    bool                loadUnknownToken(const char *token, UT_JSONParser &p,
+				const GA_LoadMap &map) override;
 
     /// Get the bounding box for the geometry (not including transforms)
-    virtual bool	getBounds(UT_BoundingBox &box) const;
+    bool                getBounds(UT_BoundingBox &box) const override;
 
     /// Get the rendering bounding box for the geometry (not including
     /// transforms).  For curve and point geometry, this needs to include any
     /// "width" attributes.
-    virtual bool	getRenderingBounds(UT_BoundingBox &box) const;
+    bool                getRenderingBounds(UT_BoundingBox &box) const override;
 
     /// When rendering with velocity blur, the renderer needs to know the
     /// bounds on velocity to accurately compute the bounding box.
-    virtual void	getVelocityRange(UT_Vector3 &min,
-				UT_Vector3 &max) const;
-    virtual void	getWidthRange(fpreal &min, fpreal &max) const;
+    void                getVelocityRange(UT_Vector3 &min,
+				UT_Vector3 &max) const override;
+    void                getWidthRange(fpreal &min, fpreal &max) const override;
 
     /// Return the primitive's "description".  This should be a unique
     /// identifier for the primitive and defaults to:
     ///	  <tt>"%s.%d" % (getFactory()->name(), prim->getMapIndex()) </tt>
-    virtual void	getPrimitiveName(const GU_PrimPacked *prim, UT_WorkBuffer &wbuf) const;
+    void                getPrimitiveName(const GU_PrimPacked *prim,
+                                UT_WorkBuffer &wbuf) const override;
 
     /// Some procedurals have an "intrinsic" transform.  These are combined
     /// with the local transform on the geometry primitive.
     ///
     /// The default method returns false and leaves the transform unchanged.
-    virtual bool	getLocalTransform(UT_Matrix4D &m) const;
+    bool                getLocalTransform(UT_Matrix4D &m) const override;
 
     /// Unpack the procedural into a GU_Detail.  By default, this calls
     /// getGTFull() and converts the GT geometry to a GU_Detail.
-    virtual bool        unpack(GU_Detail &destgdp, const UT_Matrix4D *transform) const;
+    bool                unpack(GU_Detail &destgdp,
+                                const UT_Matrix4D *transform) const override;
 
 protected:
     /// Unpack the procedural into a GU_Detail.  By default, this calls
@@ -147,28 +153,29 @@ protected:
     /// This signature is just for the questionable purpose of copying
     /// primitive group membership from prim, so it might be removed
     /// in the future.
-    virtual bool unpackWithPrim(
+    bool unpackWithPrim(
         GU_Detail &destgdp,
         const UT_Matrix4D *transform,
-        const GU_PrimPacked *prim) const;
+        const GU_PrimPacked *prim) const override;
 public:
 
     /// Unpack without using polygon soups
-    virtual bool        unpackUsingPolygons(GU_Detail &destgdp, const GU_PrimPacked *prim) const;
+    bool unpackUsingPolygons(GU_Detail &destgdp,
+                                const GU_PrimPacked *prim) const override;
 
     /// Alembic packed primitives do have a faceset attribute, so set it.
-    virtual void setFacesetAttribute(const UT_StringHolder &s)
+    void setFacesetAttribute(const UT_StringHolder &s) override
     {
         myFacesetAttribute = s;
     }
 
     /// Alembic packed primitives do have a faceset attribute, so return it.
-    virtual const UT_StringHolder &facesetAttribute() const
+    const UT_StringHolder &facesetAttribute() const override
     { return myFacesetAttribute; }
 
-    virtual void setAttributeNameMap(const GEO_PackedNameMapPtr &m);
+    void setAttributeNameMap(const GEO_PackedNameMapPtr &m) override;
 
-    virtual const GEO_PackedNameMapPtr &attributeNameMap() const
+    const GEO_PackedNameMapPtr &attributeNameMap() const override
     {
         if (mySharedNameMapData)
         {
@@ -178,7 +185,7 @@ public:
     }
 
     /// This should only be called during load.
-    virtual void setSharedNameMapData(GA_SharedDataHandlePtr s)
+    void setSharedNameMapData(GA_SharedDataHandlePtr s) override
     { mySharedNameMapData = std::move(s); }
 
     /// @{

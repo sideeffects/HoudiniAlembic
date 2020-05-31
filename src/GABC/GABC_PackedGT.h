@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -69,21 +69,21 @@ class GABC_CollectPacked : public GT_GEOPrimCollect
 {
 public:
 	     GABC_CollectPacked() {}
-    virtual ~GABC_CollectPacked();
+            ~GABC_CollectPacked() override;
 
     /// @{
     /// Interface defined for GT_GEOPrimCollect
-    virtual GT_GEOPrimCollectData *
+    GT_GEOPrimCollectData *
 		beginCollecting(const GT_GEODetailListHandle &geometry,
-				const GT_RefineParms *parms) const;
-    virtual GT_PrimitiveHandle
+				const GT_RefineParms *parms) const override;
+    GT_PrimitiveHandle
 			collect(const GT_GEODetailListHandle &geo,
 				const GEO_Primitive *const* prim_list,
 				int nsegments,
-				GT_GEOPrimCollectData *data) const;
-    virtual GT_PrimitiveHandle
+				GT_GEOPrimCollectData *data) const override;
+    GT_PrimitiveHandle
 		  endCollecting(const GT_GEODetailListHandle &geometry,
-				GT_GEOPrimCollectData *data) const;
+				GT_GEOPrimCollectData *data) const override;
     /// @}
 private:
 };
@@ -98,18 +98,18 @@ public:
 		       const GABC_NAMESPACE::GABC_IArchivePtr &archive,
 		       int index);
 
-    virtual const char	*className() const { return "GABC_PackedArchive"; }
+    const char          *className() const override { return "GABC_PackedArchive"; }
 
-    virtual bool	bucketPrims(const GT_PackedAlembicArchive *prev_archive,
+    bool                bucketPrims(const GT_PackedAlembicArchive *prev_archive,
 			    const GT_RefineParms *ref_parms,
-			    bool force_update);
+			    bool force_update) override;
 
-    virtual GT_PrimitiveHandle	doSoftCopy() const { return nullptr; }
+    GT_PrimitiveHandle  doSoftCopy() const override { return nullptr; }
     
     int			getIndex() const { return myIndex; }
     
 private:
-    virtual bool archiveMatch(const GT_PackedAlembicArchive *archive) const;
+    bool archiveMatch(const GT_PackedAlembicArchive *archive) const override;
 
     GABC_NAMESPACE::GABC_IArchivePtr myArchive;
     int myIndex;
@@ -126,39 +126,44 @@ public:
 				bool build_packed_attribs = false);
     
 	     GABC_PackedAlembic(const GABC_PackedAlembic &src);
-    virtual ~GABC_PackedAlembic();
+            ~GABC_PackedAlembic() override;
 
-    virtual void	 initVisAnim();
+    void                 initVisAnim() override;
     
-    virtual const char	*className() const	{ return "GABC_PackedAlembic"; }
-    virtual GT_PrimitiveHandle	doSoftCopy() const
-				    { return new GABC_PackedAlembic(*this); }
+    const char          *className() const override
+                            { return "GABC_PackedAlembic"; }
 
-    virtual GT_PrimitiveHandle	getPointCloud(const GT_RefineParms *p,
-					bool &xform) const;
-    virtual GT_PrimitiveHandle	getFullGeometry(const GT_RefineParms *p,
-					bool &xform) const;
-    virtual GT_PrimitiveHandle	getBoxGeometry(const GT_RefineParms *p) const;
-    virtual GT_PrimitiveHandle	getCentroidGeometry(const GT_RefineParms *p) const;
+    GT_PrimitiveHandle	doSoftCopy() const override
+			    { return new GABC_PackedAlembic(*this); }
 
-    virtual bool		canInstance() const	{ return true; }
-    virtual bool		getInstanceKey(UT_Options &options) const;
-    virtual GT_PrimitiveHandle	getInstanceGeometry(const GT_RefineParms *p,
-					bool ignore_visibility=false) const;
-    virtual GT_TransformHandle	getInstanceTransform() const;
+    GT_PrimitiveHandle  getPointCloud(const GT_RefineParms *p,
+				bool &xform) const override;
+    GT_PrimitiveHandle  getFullGeometry(const GT_RefineParms *p,
+				bool &xform) const override;
+    GT_PrimitiveHandle  getBoxGeometry(const GT_RefineParms *p) const override;
+    GT_PrimitiveHandle  getCentroidGeometry(
+                                const GT_RefineParms *p) const override;
 
-    virtual bool		isVisible();
+    bool                canInstance() const override    { return true; }
+    bool                getInstanceKey(UT_Options &options) const override;
+    GT_PrimitiveHandle  getInstanceGeometry(const GT_RefineParms *p,
+				bool ignore_visibility=false) const override;
+    GT_TransformHandle  getInstanceTransform() const override;
 
-    virtual bool		refine(GT_Refine &refiner,
-				       const GT_RefineParms *parms=NULL) const;
+    bool                isVisible() override;
 
-    virtual bool 		getCachedGeometry(GT_PrimitiveHandle &ph) const;
+    bool                refine(GT_Refine &refiner,
+			       const GT_RefineParms *parms=NULL) const override;
+
+    bool                getCachedGeometry(
+                                GT_PrimitiveHandle &ph) const override;
     
-    virtual void 		getCachedTransform(GT_TransformHandle &ph) const;
-    virtual void 		getCachedVisibility(bool &visible) const;
+    void                getCachedTransform(
+                                GT_TransformHandle &ph) const override;
+    void                getCachedVisibility(bool &visible) const override;
 
-    virtual bool		updateGeoPrim(const GU_ConstDetailHandle &dtl,
-					      const GT_RefineParms &refine);
+    bool                updateGeoPrim(const GU_ConstDetailHandle &dtl,
+			        const GT_RefineParms &refine) override;
 private:
     int64			myColorID;
     UT_Matrix4D			myTransform;
@@ -178,10 +183,10 @@ public:
 	    const GT_AttributeListHandle &uniform=GT_AttributeListHandle(),
 	    const GT_AttributeListHandle &detail=GT_AttributeListHandle(),
 	    const GT_GEODetailListHandle &source=GT_GEODetailListHandle());
-    virtual ~GABC_PackedInstance();
+    ~GABC_PackedInstance() override;
     
-    virtual bool	      updateGeoPrim(const GU_ConstDetailHandle &dtl,
-				    const GT_RefineParms &refine);
+    bool                updateGeoPrim(const GU_ConstDetailHandle &dtl,
+				    const GT_RefineParms &refine) override;
 
 private:
     mutable UT_Array<GABC_AlembicCache>	myCache;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -107,16 +107,16 @@ public:
         registerIntrinsic("abcfaceset",
             StringHolderGetterCast(&GABC_PackedImpl::intrinsicFaceSet));
     }
-    virtual ~AlembicFactory()
+    ~AlembicFactory() override
     {
     }
 
-    virtual const UT_IntrusivePtr<GU_PackedImpl> &defaultImpl() const
+    const UT_IntrusivePtr<GU_PackedImpl> &defaultImpl() const override
     {
         return theDefaultImpl;
     }
 
-    virtual GU_PackedImpl *create() const
+    GU_PackedImpl *create() const override
     { return new GABC_PackedImpl(); }
 
     UT_IntrusivePtr<GU_PackedImpl> theDefaultImpl;

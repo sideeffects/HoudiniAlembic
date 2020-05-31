@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -159,12 +159,12 @@ public:
 
     GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
 		   bool record_time_range=false);
-    virtual ~GABC_GEOWalker();
+    ~GABC_GEOWalker() override;
 
-    virtual bool	preProcess(const GABC_IObject &node);
+    bool                preProcess(const GABC_IObject &node) override;
 
-    virtual bool	process(const GABC_IObject &node);
-    virtual bool	interrupted() const;
+    bool                process(const GABC_IObject &node) override;
+    bool                interrupted() const override;
 
     /// Quickly update ABC primitives with the new time
     void		updateAbcPrims();

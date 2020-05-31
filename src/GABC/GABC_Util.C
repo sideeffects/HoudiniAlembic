@@ -307,7 +307,9 @@ namespace
 	    , myX(l, w, is_const, inherits_xform)
 	{}
 
-	virtual int64   getMemoryUsage() const  { return sizeof(*this); }
+	int64           getMemoryUsage() const override 
+                            { return sizeof(*this); }
+
 	const M44d     &getLocal() const        { return myX.getLocal(); }
 	const M44d     &getWorld() const        { return myX.getWorld(); }
 	bool            isConstant() const      { return myX.isConstant(); }
@@ -330,7 +332,7 @@ namespace
 	    , myVisibility(vis)
 	{}
 
-	virtual int64 getMemoryUsage() const  { return sizeof(*this); }
+	int64 getMemoryUsage() const override    { return sizeof(*this); }
 	GABC_VisibilityType visibility() const   { return myVisibility; }
 
     private:
@@ -351,7 +353,7 @@ namespace
 	    , myBox(box)
 	{}
 
-	virtual int64 getMemoryUsage() const  { return sizeof(*this); }
+	int64 getMemoryUsage() const override  { return sizeof(*this); }
 	void getBoundingBox(UT_BoundingBox &box) const { box = myBox; }
 
     private:
@@ -372,7 +374,7 @@ namespace
 	{}
 
 	// Approximate usage
-	virtual int64       getMemoryUsage() const { return 1024; }
+	int64               getMemoryUsage() const override { return 1024; }
 	const GABC_IObject &getObject() const { return myIObject; }
 
     private:
@@ -389,19 +391,19 @@ namespace
 	    , myKey(UT_String::ALWAYS_DEEP, key)
 	    , myTime(sample_time)
 	{}
-	virtual ~ArchiveObjectKey() {}
+	~ArchiveObjectKey() override {}
 
-	virtual UT_CappedKey    *duplicate() const
+        UT_CappedKey            *duplicate() const override
         {
             return new ArchiveObjectKey(myKey, myTime);
         }
-	virtual unsigned int    getHash() const
+        unsigned int            getHash() const override
         {
             uint    hash = SYSreal_hash(myTime);
             hash = SYSwang_inthash(hash)^myKey.hash();
             return hash;
         }
-	virtual bool            isEqual(const UT_CappedKey &cmp) const
+        bool                    isEqual(const UT_CappedKey &cmp) const override
         {
             const ArchiveObjectKey  *key = UTverify_cast<const ArchiveObjectKey *>(&cmp);
             return (myKey == key->myKey) && SYSalmostEqual(myTime, key->myTime);
@@ -906,7 +908,7 @@ namespace
 		, myFullObjectList(full)
 	    {}
 
-	    virtual bool    process(const GABC_IObject &obj)
+            bool process(const GABC_IObject &obj) override
 	    {
 		if (obj.nodeType() != GABC_FACESET)
 		    myObjectList.push_back(obj.getFullName());

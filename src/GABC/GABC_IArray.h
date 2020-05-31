@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -111,7 +111,7 @@ public:
 	, myIsConstant(is_constant)
     {
     }
-    virtual ~GABC_IArray();
+    ~GABC_IArray() override;
 
     GABC_IArray	&operator=(const GABC_IArray &src)
 		{
@@ -163,7 +163,7 @@ public:
     bool		 isConstant() const	{ return myIsConstant; }
 
     /// @{
-    virtual void	purge();
+    void                purge() override;
     /// @}
 
 private:

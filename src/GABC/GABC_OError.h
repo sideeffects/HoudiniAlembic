@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -42,7 +42,7 @@ public:
     GABC_OError(UT_Interrupt *interrupt)
 	: GABC_Error(interrupt)
     {}
-    virtual ~GABC_OError() {}
+    ~GABC_OError() override {}
 };
 
 } // end GABC_NAMESPACE
