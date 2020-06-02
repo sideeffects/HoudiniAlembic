@@ -338,7 +338,7 @@ namespace
 		if(idx >= 0)
 		{
 		    const UT_StringHolder &exp_name = h->getExportName(idx);
-		    if(exp_name != "")
+		    if(exp_name != "" && exp_name != "uv")
 			shape->getSchema().setUVSourceName(exp_name.toStdString());
 		    break;
 		}
