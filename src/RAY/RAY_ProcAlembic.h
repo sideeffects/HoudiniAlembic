@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -84,16 +84,16 @@ public:
     typedef UT_SharedPtr<ray_MergePatterns>	ray_MergePatternPtr;
 
     RAY_ProcAlembic();
-    virtual ~RAY_ProcAlembic();
+    ~RAY_ProcAlembic() override;
 
     static RAY_Procedural	*create(const char *);
     static RAY_ProceduralArg	 theArgs[];
 
-    virtual const char	*className() const;
+    const char          *className() const override;
 
-    virtual int		initialize(const UT_BoundingBox *box);
-    virtual void	getBoundingBox(UT_BoundingBox &box);
-    virtual void	render();
+    int                 initialize(const UT_BoundingBox *box) override;
+    void                getBoundingBox(UT_BoundingBox &box) override;
+    void                render() override;
 
 private:
     RAY_ROProceduralGeo	getDetail()

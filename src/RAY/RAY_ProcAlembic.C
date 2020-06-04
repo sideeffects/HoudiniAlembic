@@ -117,13 +117,13 @@ namespace
             , myGroupSharingHolder(group_sharing_holder)
 	{
 	}
-	virtual ~ray_ProcAlembicPrim()
+	~ray_ProcAlembicPrim() override
 	{
 	}
-	virtual const char	*className() const
+        const char      *className() const override
 				    { return "ray_ProcAlembicPrim"; }
 	static bool	isNullPtr(const GU_PrimPacked *p) { return !p; }
-	virtual int	initialize(const UT_BoundingBox *)
+        int             initialize(const UT_BoundingBox *) override
 	{
 	    // Prune out invisible segments
 	    for (int i = 0; i < myList.entries(); ++i)
@@ -145,7 +145,7 @@ namespace
 	    myList.collapseIf(isNullPtr);	// Remove invisible segments
 	    return myList.entries() > 0;
 	}
-	virtual void	 getBoundingBox(UT_BoundingBox &box)
+        void             getBoundingBox(UT_BoundingBox &box) override
 			 {
 			     box.initBounds();
 			     for (exint i = 0; i < myList.entries(); ++i)
@@ -251,7 +251,7 @@ namespace
 			    GTstorage(data->getStorage()));
 	    }
 	}
-	virtual void	 render()
+        void             render() override
 	{
 	    exint				nsegs = myList.entries();
 	    UT_Array<GT_PrimitiveHandle>	gtlist(nsegs, nsegs);
