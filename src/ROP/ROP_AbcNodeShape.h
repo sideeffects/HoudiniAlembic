@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -44,20 +44,20 @@ public:
 	: ROP_AbcNode(name), mySampleCount(0), myLocked(false)
 	{ myBounds.initBounds(); }
 
-    virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
-    virtual NodeType getNodeType() const { return NodeType::SHAPE; }
-    virtual void purgeObjects();
+    OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err) override;
+    NodeType getNodeType() const override { return NodeType::SHAPE; }
+    void purgeObjects() override;
 
-    virtual void getAttrNames(UT_SortedStringSet &names) const;
-    virtual void getFaceSetNames(UT_SortedStringSet &names) const;
-    virtual void getUserPropNames(UT_SortedStringSet &names,
-	GABC_OError &err) const;
+    void getAttrNames(UT_SortedStringSet &names) const override;
+    void getFaceSetNames(UT_SortedStringSet &names) const override;
+    void getUserPropNames(UT_SortedStringSet &names,
+	GABC_OError &err) const override;
 
-    virtual void clearData(bool locked);
-    virtual void updateLocked(bool locked);
-    virtual void update(ROP_AbcArchive &archive,
+    void clearData(bool locked) override;
+    void updateLocked(bool locked) override;
+    void update(ROP_AbcArchive &archive,
 	bool displayed, UT_BoundingBox &box,
-	const GABC_LayerOptions &layerOptions, GABC_OError &err);
+	const GABC_LayerOptions &layerOptions, GABC_OError &err) override;
 
     /// Sets the current user properties.
     void setUserProperties(const std::string &vals, const std::string &meta)

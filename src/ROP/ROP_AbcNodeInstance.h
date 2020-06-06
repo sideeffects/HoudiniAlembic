@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -37,12 +37,12 @@ public:
     ROP_AbcNodeInstance(const std::string &name, ROP_AbcNodeShape *src)
 	: ROP_AbcNode(name), mySource(src), myIsValid(false) {}
 
-    virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
-    virtual NodeType getNodeType() const { return NodeType::INSTANCE; }
-    virtual void purgeObjects();
-    virtual void update(ROP_AbcArchive &archive,
+    OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err) override;
+    NodeType getNodeType() const override { return NodeType::INSTANCE; }
+    void purgeObjects() override;
+    void update(ROP_AbcArchive &archive,
 	bool displayed, UT_BoundingBox &box,
-	const GABC_LayerOptions &layerOptions, GABC_OError &err);
+	const GABC_LayerOptions &layerOptions, GABC_OError &err) override;
 
 private:
     void makeValid(ROP_AbcArchive &archive,

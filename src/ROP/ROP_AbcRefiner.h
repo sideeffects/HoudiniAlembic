@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -52,9 +52,9 @@ public:
     bool getVisible() const { return myVisible; }
 
     // We need the primitives generated in a consistent order
-    virtual bool allowThreading() const { return false; }
+    bool allowThreading() const override { return false; }
 
-    virtual void addPrimitive(const GT_PrimitiveHandle &prim);
+    void addPrimitive(const GT_PrimitiveHandle &prim) override;
 
     // adds geometry to 'root' with the provided name
     void addPartition(ROP_AbcHierarchySample &root, const std::string &name,

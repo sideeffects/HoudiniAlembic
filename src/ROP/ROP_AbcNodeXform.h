@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -50,17 +50,17 @@ public:
 	: ROP_AbcNode(name), myMatrix(1), myIsValid(false), myIsSparse(false),
 	  myVizValid(false), mySampleCount(0) {}
 
-    virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
-    virtual NodeType getNodeType() const { return NodeType::XFORM; }
-    virtual void purgeObjects();
+    OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err) override;
+    NodeType getNodeType() const override { return NodeType::XFORM; }
+    void purgeObjects() override;
 
-    virtual void getUserPropNames(UT_SortedStringSet &names,
-	GABC_OError &err) const;
+    void getUserPropNames(UT_SortedStringSet &names,
+	GABC_OError &err) const override;
 
-    virtual void clearData(bool locked);
-    virtual void update(ROP_AbcArchive &archive,
+    void clearData(bool locked) override;
+    void update(ROP_AbcArchive &archive,
 	bool displayed, UT_BoundingBox &box,
-	const GABC_LayerOptions &layerOptions, GABC_OError &err);
+	const GABC_LayerOptions &layerOptions, GABC_OError &err) override;
 
     /// Sets the current user properties.
     void setUserProperties(const std::string &vals, const std::string &meta)

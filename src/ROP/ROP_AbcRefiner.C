@@ -162,7 +162,7 @@ public:
 			     const GT_PrimInstance &inst)
 	: rop_RefineHelper(refine, p), myInstance(inst) {}
 
-    virtual void refine(const GT_PrimitiveHandle &prim);
+    void refine(const GT_PrimitiveHandle &prim) override;
 
 private:
     const GT_PrimInstance &myInstance;

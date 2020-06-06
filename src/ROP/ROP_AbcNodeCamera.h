@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -42,11 +42,11 @@ public:
 	: ROP_AbcNode(name), myResX(resx), myResY(resy), myIsValid(false),
 	    mySampleCount(0) {}
 
-    virtual OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err);
-    virtual NodeType getNodeType() const { return NodeType::CAMERA; }
-    virtual void purgeObjects();
-    virtual void update(ROP_AbcArchive &archive, bool, UT_BoundingBox &box,
-	const GABC_LayerOptions &layerOptions, GABC_OError &err);
+    OObject getOObject(ROP_AbcArchive &archive, GABC_OError &err) override;
+    NodeType getNodeType() const override { return NodeType::CAMERA; }
+    void purgeObjects() override;
+    void update(ROP_AbcArchive &archive, bool, UT_BoundingBox &box,
+	const GABC_LayerOptions &layerOptions, GABC_OError &err) override;
 
     /// sets the current camera settings
     void setData(fpreal focal, fpreal fstop, fpreal focus, fpreal shutter,

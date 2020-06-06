@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -54,7 +54,7 @@ class ROP_AbcArchive
     public:
 	rop_OOptions(const TimeSamplingPtr &ts) : myTimeSampling(ts) {}
 
-	virtual const TimeSamplingPtr &timeSampling() const
+	const TimeSamplingPtr &timeSampling() const override
 	    { return myTimeSampling; }
 
     private:

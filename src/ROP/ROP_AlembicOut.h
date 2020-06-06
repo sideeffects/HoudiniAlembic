@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -50,11 +50,11 @@ class ROP_AlembicOut : public ROP_Node
 {
 public:
     static OP_Node *myConstructor(OP_Network *net, const char *name, OP_Operator *op);
-    virtual bool updateParmsFlags();
+    bool updateParmsFlags() override;
     /// We need to hint to the merge ROP that we can't be called one frame at a
     /// time.
-    virtual void resolveObsoleteParms(PRM_ParmList *obsolete_parms);
-    virtual void buildRenderDependencies(const ROP_RenderDepParms &p);
+    void resolveObsoleteParms(PRM_ParmList *obsolete_parms) override;
+    void buildRenderDependencies(const ROP_RenderDepParms &p) override;
 
     SOP_Node *getSopNode(fpreal time);
     void getOutputNodesArray(UT_StringArray &array, fpreal time);
@@ -67,13 +67,13 @@ public:
 
 protected:
     ROP_AlembicOut(OP_Network *net, const char *name, OP_Operator *entry);
-    virtual ~ROP_AlembicOut();
+    ~ROP_AlembicOut() override;
 
-    virtual void getDescriptiveParmName(UT_String &str) const
+    void getDescriptiveParmName(UT_String &str) const override
 			{ str = "filename"; }
-    virtual int startRender(int nframes, fpreal s, fpreal e);
-    virtual ROP_RENDER_CODE renderFrame(fpreal time, UT_Interrupt *boss);
-    virtual ROP_RENDER_CODE endRender();
+    int startRender(int nframes, fpreal s, fpreal e) override;
+    ROP_RENDER_CODE renderFrame(fpreal time, UT_Interrupt *boss) override;
+    ROP_RENDER_CODE endRender() override;
 
     void FILENAME(UT_String &str, fpreal time)
 		{ getOutputOverrideEx(str, time, "filename", "mkpath"); }
@@ -181,9 +181,9 @@ private:
     public:
 	rop_OError() : GABC_OError(UTgetInterrupt()) {}
 
-	virtual void handleError(const char *msg)
+	void handleError(const char *msg) override
 	    { myErrors.append(msg); }
-	virtual void handleWarning(const char *msg)
+	void handleWarning(const char *msg) override
 	    { myWarnings.append(msg); }
 
 	UT_StringArray myErrors;
