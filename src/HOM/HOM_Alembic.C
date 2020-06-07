@@ -357,9 +357,9 @@ namespace
     	PyWalker()
     	    : myRoot(NULL)
     	{}
-    	~PyWalker() {}
+    	~PyWalker() override {}
 
-    	virtual bool	process(const GABC_IObject &root)
+        bool            process(const GABC_IObject &root) override
     			{
     			    myRoot = walkNode(root);
     			    return false;
