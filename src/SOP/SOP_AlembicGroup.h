@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -43,14 +43,14 @@ public:
     static void installSOP(OP_OperatorTable *table);
 
     /// Return the label for the given input
-    virtual const char	*inputLabel(unsigned int idx) const;
+    const char  *inputLabel(unsigned int idx) const override;
 
 protected:
     SOP_AlembicGroup(OP_Network *net, const char *name, OP_Operator *op);
-    virtual ~SOP_AlembicGroup();
+    ~SOP_AlembicGroup() override;
 
-    virtual bool	updateParmsFlags();
-    virtual OP_ERROR	cookMySop(OP_Context &context);
+    bool        updateParmsFlags() override;
+    OP_ERROR    cookMySop(OP_Context &context) override;
 
     void	selectPrimitives(GA_PrimitiveGroup *group,
 			const PathList &objectPaths,

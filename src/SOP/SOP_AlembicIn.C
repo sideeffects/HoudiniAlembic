@@ -66,11 +66,11 @@ namespace
             : GABC_IError(interrupt)
             , myNode(node)
         {}
-        virtual void	handleError(const char *msg)
+        void	        handleError(const char *msg) override
                                 { myNode.abcError(msg); }
-        virtual void	handleWarning(const char *msg)
+        void	        handleWarning(const char *msg) override
                                 { myNode.abcWarning(msg); }
-        virtual void	handleInfo(const char *msg)
+        void	        handleInfo(const char *msg) override
                                 { myNode.abcInfo(msg); }
     private:
         SOP_AlembicIn  &myNode;
@@ -1471,11 +1471,11 @@ public:
     {
     }
 
-    virtual bool	isGeometricObject() const { return false; }
+    bool    isGeometricObject() const override { return false; }
 
-    virtual bool	applyEdits()		{ return true; }
+    bool    applyEdits() override { return true; }
 
-    virtual bool 	viewportLOD(GA_Offset, GEO_ViewportLOD &lod) const
+    bool    viewportLOD(GA_Offset, GEO_ViewportLOD &lod) const override
     {
 	UT_String	lod_name;
 	myObject->evalString(lod_name, "viewportlod", 0, CHgetEvalTime());
@@ -1484,7 +1484,7 @@ public:
     }
 
     using SOP_ObjectAppearance::setViewportLOD;
-    virtual bool	setViewportLOD(const char *, GEO_ViewportLOD lod)
+    bool    setViewportLOD(const char *, GEO_ViewportLOD lod) override
     {
 	UT_String lod_name(GEOviewportLOD(lod));
 	if (!lod_name.isstring())

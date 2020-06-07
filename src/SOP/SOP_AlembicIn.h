@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -58,9 +58,9 @@ public:
     void	appendFileNames(std::vector<std::string> &filenames, fpreal t);
 
     /// Return the label for the given input
-    virtual const char	*inputLabel(unsigned int idx) const override;
+    const char  *inputLabel(unsigned int idx) const override;
 
-    virtual SOP_ObjectAppearancePtr	getObjectAppearance() override;
+    SOP_ObjectAppearancePtr     getObjectAppearance() override;
 
     void	abcError(const char *message)
     		{
@@ -78,21 +78,21 @@ protected:
     //--------------------------------------------------------------------------
     // Standard hdk declarations
     SOP_AlembicIn(OP_Network *net, const char *name, OP_Operator *op);
-    virtual ~SOP_AlembicIn();
+    ~SOP_AlembicIn() override;
 
-    virtual bool	updateParmsFlags() override;
-    virtual OP_ERROR	cookMySop(OP_Context &context) override;
-    virtual OP_ERROR	cookMyGuide1(OP_Context &ctx) override;
-    virtual void	syncNodeVersion(const char *old_version,
+    bool                updateParmsFlags() override;
+    OP_ERROR            cookMySop(OP_Context &context) override;
+    OP_ERROR            cookMyGuide1(OP_Context &ctx) override;
+    void                syncNodeVersion(const char *old_version,
 				const char *new_version,
 				bool *node_deleted) override;
-    virtual void	getDescriptiveParmName(UT_String &name) const override
+    void                getDescriptiveParmName(UT_String &name) const override
 				{ name = "fileName"; }
     //--------------------------------------------------------------------------
-    virtual void        getNodeSpecificInfoText(OP_Context &context,
+    void                getNodeSpecificInfoText(OP_Context &context,
 				OP_NodeInfoParms &iparms) override;
 
-    virtual void	fillInfoTreeNodeSpecific(UT_InfoTree &tree, 
+    void                fillInfoTreeNodeSpecific(UT_InfoTree &tree, 
 				const OP_NodeInfoTreeParms &parms) override;
 
 private:
@@ -156,11 +156,11 @@ private:
 	    : mySOP(sop)
 	{
 	}
-	virtual ~EventHandler() {}
+	~EventHandler() override {}
 
 	void	setSOP(SOP_AlembicIn *sop)	{ mySOP = sop; }
 
-	virtual void	cleared(bool purged) override
+        void    cleared(bool purged) override
 	{
 	    if (mySOP)
 	    {
