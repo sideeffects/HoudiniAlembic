@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -28,6 +28,7 @@
 #include "GABC_OOptions.h"
 #include "GABC_OArrayProperty.h"
 #include <GT/GT_DANumeric.h>
+#include <UT/UT_Map.h>
 #include <UT/UT_StringArray.h>
 #include <UT/UT_StackBuffer.h>
 #include <UT/UT_EnvControl.h>
@@ -300,6 +301,7 @@ namespace
     {
 	UT_StringArray  gtstrings;
 	UT_IntArray     gtindices;
+	UT_Map<exint, exint>	lookup;
 	exint           nstrings = 0;
 	exint           nullstring = -1;
 
@@ -307,15 +309,12 @@ namespace
 	UT_StackBuffer<std::string>	strings(gtstrings.entries()+1);
 	for (exint i = 0; i < gtindices.entries(); ++i)
 	{
-	    if (gtindices(i) >= 0)
-	    {
-		if (nullstring < 0 && !gtstrings(i).isstring())
-		    nullstring = nstrings;
-		strings[nstrings] = gtstrings(i).toStdString();
-		gtindices(i) = nstrings;	// Destination target
-		nstrings++;
-	    }
+	    if (nullstring < 0 && !gtstrings(i).isstring())
+		nullstring = nstrings;
+	    lookup.emplace(gtindices(i), nstrings); // Destination target
+	    strings[nstrings++] = gtstrings(i).toStdString();
 	}
+
 	// Now, set the indices
 	GT_DataArrayHandle	 storage;
 	exint			 asize = src->entries();
@@ -353,22 +352,20 @@ namespace
 	int32	*data = indexstorage;
 	for (exint i = 0; i < numindex; ++i)
 	{
-	    if (data[i] < 0 || data[i] >= gtstrings.entries())
+	    auto it = lookup.find(data[i]);
+	    if (it == lookup.end())
 	    {
 		data[i] = nullstring < 0 ? nstrings : nullstring;
 		nullused = true;
 	    }
 	    else
-	    {
-		data[i] = gtindices(data[i]);
-	    }
+		data[i] = it->second;
 	}
 	indices = indexstorage;
 	if (nullstring < 0 && nullused)
 	{
 	    nullstring = nstrings;
-	    strings[nstrings] = "";
-	    nstrings++;
+	    strings[nstrings++] = "";
 	}
 	ArraySample	stringdata(strings, prop.getDataType(),
 				    Dimensions(nstrings));
