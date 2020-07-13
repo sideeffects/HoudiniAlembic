@@ -56,6 +56,7 @@
 #include <UT/UT_JSONWriter.h>
 #include <UT/UT_StringStream.h>
 #include <UT/UT_UndoManager.h>
+#include <FS/FS_Info.h>
 
 #if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
     #define CUSTOM_ALEMBIC_TOKEN_PREFIX ""
@@ -960,6 +961,10 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
     UT_String filename;
     FILENAME(filename, time);
     filename.trimBoundingSpace();
+
+	UT_String realfile;
+    if (FS_Info::getPathOnDisk(realfile,filename.c_str()))
+	filename = realfile;
 
     if(!myArchive || (myArchive->getFileName() != filename))
     {

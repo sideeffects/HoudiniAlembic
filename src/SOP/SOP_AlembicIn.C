@@ -46,6 +46,7 @@
 #include <OP/OP_OperatorTable.h>
 #include <OP/OP_Director.h>
 #include <OP/OP_NodeInfoParms.h>
+#include <FS/FS_Info.h>
 
 #if !defined(CUSTOM_ALEMBIC_TOKEN_PREFIX)
     #define CUSTOM_ALEMBIC_TOKEN_PREFIX	""
@@ -1112,10 +1113,12 @@ static void
 sopAppendFile(std::vector<std::string> &filenames, const char *name)
 {
     UT_String realname;
-
-    // complete a path search in case it is in the geometry path
-    UT_PathSearch::getInstance(UT_HOUDINI_GEOMETRY_PATH)->
-	    findFile(realname, name);
+    if (!FS_Info::getPathOnDisk(realname,name))
+    {
+        // complete a path search in case it is in the geometry path
+        UT_PathSearch::getInstance(UT_HOUDINI_GEOMETRY_PATH)->
+	        findFile(realname, name);
+    }
     filenames.push_back(realname.toStdString());
 }
 
