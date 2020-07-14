@@ -1673,14 +1673,14 @@ namespace
     }
 
     static exint
-    maxArrayValue(const GT_DataArrayHandle &array)
+    numPointsFromIndices(const GT_DataArrayHandle &array)
     {
 	if (array->entries() == 0)
 	    return 0;
 
 	exint	lo, hi;
 	array->getRange(lo, hi);
-	return hi;
+	return hi + 1;
     }
 
     template <typename ATTRIB_CREATOR>
@@ -1723,7 +1723,7 @@ namespace
 	IV3fArrayProperty	 v = ss.getVelocitiesProperty();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 
-	point = acreate.build(maxArrayValue(indices), gdp, primoff, obj, namemap,
+	point = acreate.build(numPointsFromIndices(indices), gdp, primoff, obj, namemap,
 			      load_style, t, GA_ATTRIB_POINT, point_scope, 2,
 			      arb, &P, &v, nullptr, &uvs);
 	vertex = acreate.build(indices->entries(), gdp, primoff, obj, namemap,
@@ -1919,7 +1919,7 @@ namespace
 	const IN3fGeomParam	&N = ss.getNormalsParam();
 	const IV2fGeomParam	&uvs = ss.getUVsParam();
 
-	point = acreate.build(maxArrayValue(indices), gdp, primoff, obj, namemap,
+	point = acreate.build(numPointsFromIndices(indices), gdp, primoff, obj, namemap,
 			      load_style, t, GA_ATTRIB_POINT, point_scope, 2,
 			      arb, &P, &v, &N, &uvs);
 	vertex = acreate.build(indices->entries(), gdp, primoff, obj, namemap,
