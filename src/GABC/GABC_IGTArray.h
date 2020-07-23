@@ -54,6 +54,9 @@ public:
     /// Raw access to the data array
     const POD_T		*data() const { return myData; }
 
+    /// Provide virtual access to the underlying backing data
+    const void          *getBackingData() const override { return myData; }
+
     /// @{
     /// Methods defined on GT_DataArray
     const char          *className() const override
