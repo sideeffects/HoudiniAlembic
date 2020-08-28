@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2020
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1133,7 +1133,7 @@ rop_abcfilter(OBJ_Node *obj, bool save_hidden, fpreal time)
     if(obj->getObjectType() == OBJ_CAMERA)
 	return obj->getName() != "ipr_camera";
 
-    return obj->getObjectType() == OBJ_SUBNET || obj->castToOBJGeometry();
+    return obj->castToOBJSubNet() || obj->castToOBJGeometry();
 }
 
 static bool
