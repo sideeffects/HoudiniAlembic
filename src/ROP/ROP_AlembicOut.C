@@ -1132,7 +1132,7 @@ rop_abcfilter(OBJ_Node *obj, bool save_hidden, fpreal time)
     if(obj->getObjectType() == OBJ_CAMERA)
 	return obj->getName() != "ipr_camera";
 
-    return obj->getObjectType() == OBJ_SUBNET || obj->castToOBJGeometry();
+    return obj->castToOBJSubNet() || obj->castToOBJGeometry();
 }
 
 static bool
