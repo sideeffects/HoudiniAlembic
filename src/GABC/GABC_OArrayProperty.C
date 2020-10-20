@@ -1047,10 +1047,15 @@ GABC_OArrayProperty::update(const GT_DataArrayHandle &array,
 			    key.clear();
 			}
 
-			ArraySample sample(uv_data_storage.array(), myProperty.getDataType(), Dimensions(uv_data_storage.entries()/myTupleSize));
+			exint dim = uv_data_storage.entries() / myTupleSize;
+			ArraySample sample(uv_data_storage.array(),
+					   myProperty.getDataType(),
+					   Dimensions(dim));
 			myProperty.set(sample);
 
-			ArraySample isample(uv_idx_storage.array(), myIndexProperty.getDataType(), Dimensions(n));
+			ArraySample isample(uv_idx_storage.array(),
+					    myIndexProperty.getDataType(),
+					    Dimensions(n));
 			myIndexProperty.set(isample);
 		    }
 		    else
