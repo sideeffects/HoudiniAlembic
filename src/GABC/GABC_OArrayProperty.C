@@ -854,7 +854,7 @@ GABC_OArrayProperty::start(OCompoundProperty &parent,
                             // where arrayExtent = 1 and podExtent = 2.
                             // See Bug #69971 for more information 
                             array_size = 1;
-                            DECL_PARAM(OV2fGeomParam);
+                            DECL_INDEX_PARAM(OV2fGeomParam);
                             myTupleSize = 2; // Clamp to 2
                         }
                         else
@@ -1011,7 +1011,50 @@ GABC_OArrayProperty::update(const GT_DataArrayHandle &array,
                     break;
 
                 case GT_STORE_REAL32:
-                    writeProperty<fpreal32>(myProperty, array, myTupleSize);
+		    if(myIndexProperty)
+		    {
+			// write as an indexed attribute
+			GT_DataArrayHandle buf;
+			const fpreal32 *flatarray = array->getF32Array(buf);
+
+			exint n = array->entries();
+			int tuple_size = array->getTupleSize();
+
+			UT_ValArray<uint32> uv_idx_storage;
+			UT_Fpreal32Array uv_data_storage;
+			UT_Map<std::vector<fpreal32>, int> map;
+
+			int idx = 0;
+			std::vector<fpreal32> key;
+			for(exint i = 0; i < n; ++i)
+			{
+			    for(int j = 0; j < myTupleSize; ++j)
+				key.push_back(flatarray[idx + j]);
+			    idx += tuple_size;
+
+			    int j;
+			    auto it = map.find(key);
+			    if(it != map.end())
+				j = it->second;
+			    else
+			    {
+				for(int j = 0; j < myTupleSize; ++j)
+				    uv_data_storage.append(key[j]);
+				j = map.size();
+				map.emplace(key, j);
+			    }
+			    uv_idx_storage.append(j);
+			    key.clear();
+			}
+
+			ArraySample sample(uv_data_storage.array(), myProperty.getDataType(), Dimensions(uv_data_storage.entries()/myTupleSize));
+			myProperty.set(sample);
+
+			ArraySample isample(uv_idx_storage.array(), myIndexProperty.getDataType(), Dimensions(n));
+			myIndexProperty.set(isample);
+		    }
+		    else
+			writeProperty<fpreal32>(myProperty, array, myTupleSize);
                     break;
 
                 case GT_STORE_REAL64:
