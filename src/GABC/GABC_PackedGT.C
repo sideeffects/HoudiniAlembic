@@ -634,7 +634,7 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 				  const GT_RefineParms &refine)
 {
     bool changed = false;
-    
+
     const GU_PrimPacked *packed = nullptr;
     if(GAisValid(myOffset))
     {
@@ -647,15 +647,18 @@ GABC_PackedAlembic::updateGeoPrim(const GU_ConstDetailHandle &dtl,
 	    GT_GEOPrimPacked::setDetailPrim(dtl, packed);
 	    
 	    GA_LocalIntrinsic fr = packed->findIntrinsic("abcframe");
-	    float frame = 0;
-	    if(packed->getIntrinsic(fr, frame))
-	    {
-		if(!SYSisEqual(myFrame, frame))
-		{
-		    myFrame = frame;
-		    changed = true;
-		}
-	    }
+            if(GAisValidLocalIntrinsic(fr))
+            {
+                float frame = 0;
+                if(packed->getIntrinsic(fr, frame))
+                {
+                    if(!SYSisEqual(myFrame, frame))
+                    {
+                        myFrame = frame;
+                        changed = true;
+                    }
+                }
+            }
 
 	    UT_Matrix4D transform;
 	    auto pimpl = UTverify_cast<const GABC_PackedImpl *>(
@@ -1457,7 +1460,7 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
 				bool force_update)
 {
     myAlembicVersion = GT_PackedGeoCache::getAlembicVersion(myName.c_str());
-    
+
     if(!force_update && prev_archive && archiveMatch(prev_archive))
 	return false;
 
