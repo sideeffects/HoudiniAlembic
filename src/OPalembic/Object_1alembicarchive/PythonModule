@@ -256,44 +256,6 @@ class _AbcWalker:
             sopNode.parm('loadUserProps').set(self._userPropsLoadMode)
             sopNode.parm('groupnames').set('none')  # Don't build groups
 
-        elif typeName == 'xform' or typeName == 'cxform':
-            currentNode = None
-            if self._buildSingleGeoNode:
-                currentNode = self._findNode(parentNode, currentPath)
-
-            if not currentNode:
-                currentNode = self._newAlembicNode(parentNode, 'alembicxform')
-
-                _setNodeName(currentNode, name)
-
-                animated = typeName != 'cxform'
-                if self._setUserProperties(currentNode, currentPath):
-                    animated = True
-
-                if self._flatVisibility:
-                    if self._checkAnimatedVisibility(currentPath):
-                        animated = True
-                else:
-                    if self._setVisibility(currentNode, currentPath):
-                        animated = True
-
-                if self._channelRefs:
-                    ExpressionToFileNameParm(self._rootNode, currentNode)
-                    if animated:
-                        ExpressionToParm(self._rootNode.parm('frame'),
-                                currentNode.parm('frame'))
-                        ExpressionToParm(self._rootNode.parm('fps'),
-                                currentNode.parm('fps'))
-
-                currentNode.parm('objectPath').set(currentPath)
-                if not animated:
-                    currentNode.parm('abcConstant').set(1)
-
-            for entry in children:
-                self._walk(currentNode, currentPath, entry, pathList)
-
-            currentNode.layoutChildren()
-
         elif typeName == 'camera':
             currentNode = self._newAlembicNode(parentNode, 'cam')
             _setNodeName(currentNode, name)
@@ -331,7 +293,44 @@ class _AbcWalker:
                     resy = currentNode.parm('resx').eval() / cameraDict['filmaspectratio']
                     currentNode.parm('resy').set(int(resy))
         else:
-            self._warnings.append('Ignoring Alembic object with unknown type: %s' % (currentPath, ))
+            if typeName != 'xform' and typeName != 'cxform':
+                self._warnings.append('Alembic object has unknown type: %s' % (currentPath, ))
+            currentNode = None
+            if self._buildSingleGeoNode:
+                currentNode = self._findNode(parentNode, currentPath)
+
+            if not currentNode:
+                currentNode = self._newAlembicNode(parentNode, 'alembicxform')
+
+                _setNodeName(currentNode, name)
+
+                animated = (typeName == 'xform')
+                if self._setUserProperties(currentNode, currentPath):
+                    animated = True
+
+                if self._flatVisibility:
+                    if self._checkAnimatedVisibility(currentPath):
+                        animated = True
+                else:
+                    if self._setVisibility(currentNode, currentPath):
+                        animated = True
+
+                if self._channelRefs:
+                    ExpressionToFileNameParm(self._rootNode, currentNode)
+                    if animated:
+                        ExpressionToParm(self._rootNode.parm('frame'),
+                                currentNode.parm('frame'))
+                        ExpressionToParm(self._rootNode.parm('fps'),
+                                currentNode.parm('fps'))
+
+                currentNode.parm('objectPath').set(currentPath)
+                if not animated:
+                    currentNode.parm('abcConstant').set(1)
+
+            for entry in children:
+                self._walk(currentNode, currentPath, entry, pathList)
+
+            currentNode.layoutChildren()
 
     def _findNode(self, parentNode, currentPath):
         if self._buildSubnet:
