@@ -294,7 +294,7 @@ class _AbcWalker:
                     currentNode.parm('resy').set(int(resy))
         else:
             if typeName != 'xform' and typeName != 'cxform':
-                self._warnings.append('Found Alembic object with unknown type: %s' % (currentPath, ))
+                self._warnings.append('Alembic object has unknown type: %s' % (currentPath, ))
             currentNode = None
             if self._buildSingleGeoNode:
                 currentNode = self._findNode(parentNode, currentPath)
