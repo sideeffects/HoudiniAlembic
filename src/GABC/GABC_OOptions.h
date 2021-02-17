@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -53,11 +53,6 @@ public:
     /// Method to return the time sampling pointer for output
     virtual const TimeSamplingPtr	&timeSampling() const = 0;
 
-    /// @{
-    /// The first frame of output
-    exint       firstFrame() const      { return myFirstFrame; }
-    void        setFirstFrame(exint f)  { myFirstFrame = f; }
-    /// @}
     /// @{
     /// Whether to cook full bounding boxes for all nodes
     bool	fullBounds() const	{ return myFullBounds; }
@@ -127,7 +122,6 @@ private:
     UT_String		myPrimToDetailPattern;
     UT_String		myArrayAttribPattern;
     UT_String           myUVAttribPattern;
-    exint               myFirstFrame;
     bool		myFullBounds;
     bool		myForcePrimToDetail;
 };
