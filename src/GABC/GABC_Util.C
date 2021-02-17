@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1427,7 +1427,7 @@ namespace
 	class Item
 	{
 	public:
-	     Item() : myIsArray(false) {}
+	     Item() : myIsArray(false), myTraitPtr(nullptr) {}
 	    ~Item() {}
 
 	    bool isArray() const { return myIsArray; }
@@ -1665,7 +1665,10 @@ namespace
 		    data->resize(index);
 
 		if (!succ_parsing || err_parsing)
-		    return GT_DataArrayHandle();
+		{
+		    delete data;
+		    data = nullptr;
+		}
 
 		return GT_DataArrayHandle(data);
 	    }
@@ -1710,7 +1713,10 @@ namespace
 		}
 
 		if (!succ_parsing || err_parsing)
-		    return GT_DataArrayHandle();
+		{
+		    delete data;
+		    data = nullptr;
+		}
 
 		return GT_DataArrayHandle(data);
 	    }

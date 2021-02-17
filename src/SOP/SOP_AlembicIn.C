@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -774,6 +774,8 @@ SOP_AlembicIn::SOP_AlembicIn(OP_Network *net, const char *name,
     , myEntireSceneIsConstant(false)
     , myConstantUniqueId(-1)
     , myComputedFrameRange(false)
+    , myStartFrame(0.0)
+    , myEndFrame(0.0)
 {
     mySopFlags.setNeedGuide1(1);
 }
