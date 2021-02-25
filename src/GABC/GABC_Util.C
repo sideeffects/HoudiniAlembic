@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -2193,12 +2193,16 @@ GABC_Util::getWorldTransform(
 	{
 	    auto &filenames = obj.archive()->filenames();
 	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
-	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
-	    success = cacheEntry->getWorldTransform(wxform,
+	    if (obj.valid())
+	    {
+		success = cacheEntry->getWorldTransform(wxform,
 	            obj,
                     sample_time,
                     isConstant,
                     inheritsXform);
+	    }
+	    else
+		UT_ASSERT_P(0 && "Alembic archive on disk changed?");
 	}
 	catch (const std::exception &)
 	{
@@ -2221,8 +2225,10 @@ GABC_Util::isTransformAnimated(const GABC_IObject &obj)
 	{
 	    auto &filenames = obj.archive()->filenames();
 	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
-	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
-	    animated = cacheEntry->isObjectAnimated(obj);
+	    if (obj.valid())
+		animated = cacheEntry->isObjectAnimated(obj);
+	    else
+		UT_ASSERT_P(0 && "Alembic archive on disk changed?");
 	}
 	catch (const std::exception &)
 	{
@@ -2247,9 +2253,11 @@ GABC_Util::getVisibility(
 	{
 	    auto &filenames = obj.archive()->filenames();
 	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
-	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
-	    vis = cacheEntry->getVisibility(obj, sample_time, animated,
-					    check_parent);
+	    if (obj.valid())
+		vis = cacheEntry->getVisibility(obj, sample_time, animated,
+						check_parent);
+	    else
+		UT_ASSERT_P(0 && "Alembic archive on disk changed?");
 	}
 	catch (const std::exception &)
 	{
@@ -2273,8 +2281,9 @@ GABC_Util::getBoundingBox(
 	{
 	    auto &filenames = obj.archive()->filenames();
 	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
-	    UT_ASSERT_P(cacheEntry->getObject(obj.getFullName()).valid());
-	    return cacheEntry->getBoundingBox(obj, sample_time, box, isconst);
+	    if (obj.valid())
+		return cacheEntry->getBoundingBox(obj, sample_time, box, isconst);
+	    UT_ASSERT_P(0 && "Alembic archive on disk changed?");
 	}
 	catch (const std::exception &)
 	{
