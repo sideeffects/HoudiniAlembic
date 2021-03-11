@@ -264,7 +264,7 @@ class _AbcWalker:
             cameraDict = _abc.alembicGetCameraDict(self._fileName, currentPath, sampleTime)
 
             # Set Houdini camera parameters
-            if cameraDict != None:
+            if cameraDict is not None:
                 rootpath = currentNode.relativePathTo(self._rootNode)
                 for parmName in (
                         'aperture',
@@ -283,7 +283,7 @@ class _AbcWalker:
 
                 resTuple = _abc.alembicGetCameraResolution(self._fileName, currentPath, sampleTime)
 
-                if resTuple != None:
+                if resTuple is not None:
                     currentNode.parm('resx').set(resTuple[0])
                     currentNode.parm('resy').set(resTuple[1])
 
@@ -383,7 +383,7 @@ class _AbcWalker:
         filename = self._fileName
         vis = _abc.alembicVisibility(filename, objectpath, 0)
 
-        if vis == None:
+        if vis is None:
             # Always visible - this is likely to occur when we reach the Alembic
             # root.
             return False;
@@ -435,14 +435,14 @@ def PushParametersToChildren(rootNode):
 
 def ReloadGeometry(rootNode):
     for child in rootNode.children():
-        if child.parm('reload') != None:
+        if child.parm('reload') is not None:
             child.parm('reload').pressButton()
         if not child.isLockedHDA():
             ReloadGeometry(child)
 
 def _pushStringParm(name, fnode, tnode):
     tparm = tnode.parm(name)
-    if tparm == None:
+    if tparm is None:
         return
 
     fparm = fnode.parm(name)
