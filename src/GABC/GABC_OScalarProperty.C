@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -208,9 +208,8 @@ namespace
 	    const GT_DataArrayHandle &src)
     {
 	std::string sample;
-	const char *s = src->getS(0, 0);
-	if(s)
-	    sample = s;
+	auto s = src->getS(0, 0);
+	sample = s;
 	prop.set((void *)(&sample));
     }
 }
