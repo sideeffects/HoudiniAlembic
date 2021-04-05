@@ -5,6 +5,7 @@ try:
 except:
     ui = None
 
+import shlex
 import sys
 if sys.version_info.major >= 3:
     translate_util = str
@@ -46,8 +47,9 @@ def BuildHierarchyRoot(rootNode):
     if not tree:
         return
 
-    pathList = [x for x in rootNode.evalParm('objectPath').strip('/').split('/') if x]
-    _AbcWalker(fileName, rootNode).build(tree, pathList)
+    for path in shlex.split(rootNode.evalParm('objectPath')):
+        pathList = [x for x in path.strip('/').split('/') if x]
+        _AbcWalker(fileName, rootNode).build(tree, pathList)
 
 _primitiveTypes = frozenset((
     'polymesh',
@@ -159,7 +161,10 @@ class _AbcWalker:
 
             # Build single geo node
             if createGeoNode[0]:
-                self._createSingleGeoNode()
+		objectPath = '/' + '/'.join(pathList)
+		if ' ' in objectPath:
+		    objectPath = '"%s"' % (objectPath, )
+                self._createSingleGeoNode(objectPath)
         else:
             for entry in tree[2]:
                 self._walk(self._rootNode, '', entry, pathList)
@@ -172,9 +177,7 @@ class _AbcWalker:
             hou.ui.displayMessage('\n'.join(self._warnings), severity=hou.severityType.Warning)
             self._warnings = []
 
-    def _createSingleGeoNode(self):
-        objectPath = self._rootNode.evalParm('objectPath')
-
+    def _createSingleGeoNode(self, objectPath):
         currentNode = self._newAlembicNode(self._rootNode, 'geo', run_init_scripts=False)
         _setupAbcGeo(currentNode)
 
@@ -249,7 +252,7 @@ class _AbcWalker:
 
             objectPath = currentPath
             if ' ' in objectPath:
-                objectPath = ''.join(['"', currentPath, '"'])
+                objectPath = '"%s"' % (currentPath, )
             sopNode.parm('objectPath').set(objectPath)
             sopNode.parm('includeXform').set(0)
             sopNode.parm('usevisibility').set(not self._flatVisibility)
