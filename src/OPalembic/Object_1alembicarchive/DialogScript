@@ -325,10 +325,9 @@
 	label	"Object Path"
 	type	string
 	default	{ "" }
-	menureplace	{
-	    [ "__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu(hou.pwd().hdaModule().GetFileName(hou.pwd()))" ]
-	    language	python
-	}
+        parmtag { "script_action" "import shlex\nnode = kwargs['node']\nitems = [ a for i, a in enumerate(__import__('_alembic_hom_extensions').alembicGetObjectPathListForMenu(node.hdaModule().GetFileName(node))) if i % 2 == 0 ]\npicked = shlex.split(node.parm('objectPath').eval())\nselected = [ '\"%s\"' % (s, ) if ' ' in s else s for s in hou.ui.selectFromTree(items, picked, message='Select Alembic Objects', title='Select Alembic Objects') ]\nnode.parm('objectPath').set(' '.join(selected))" }
+        parmtag { "script_action_help" "Select Alembic objects." }
+        parmtag { "script_action_icon" "BUTTONS_chooser_node" }
 	range	{ 0 1 }
 	export	none
     }
