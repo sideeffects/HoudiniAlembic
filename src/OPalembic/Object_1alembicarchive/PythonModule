@@ -47,7 +47,10 @@ def BuildHierarchyRoot(rootNode):
     if not tree:
         return
 
-    for path in shlex.split(rootNode.evalParm('objectPath')):
+    paths = shlex.split(rootNode.evalParm('objectPath'))
+    if len(paths) == 0:
+	paths.append('')
+    for path in paths:
         pathList = [x for x in path.strip('/').split('/') if x]
         _AbcWalker(fileName, rootNode).build(tree, pathList)
 
