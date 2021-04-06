@@ -49,7 +49,7 @@ def BuildHierarchyRoot(rootNode):
 
     paths = shlex.split(rootNode.evalParm('objectPath'))
     if len(paths) == 0:
-	paths.append('')
+        paths.append('')
     for path in paths:
         pathList = [x for x in path.strip('/').split('/') if x]
         _AbcWalker(fileName, rootNode).build(tree, pathList)
@@ -164,9 +164,9 @@ class _AbcWalker:
 
             # Build single geo node
             if createGeoNode[0]:
-		objectPath = '/' + '/'.join(pathList)
-		if ' ' in objectPath:
-		    objectPath = '"%s"' % (objectPath, )
+                objectPath = '/' + '/'.join(pathList)
+                if ' ' in objectPath:
+                    objectPath = '"%s"' % (objectPath, )
                 self._createSingleGeoNode(objectPath)
         else:
             for entry in tree[2]:
