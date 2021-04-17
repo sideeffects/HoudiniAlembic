@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -42,6 +42,13 @@
 #include <UT/UT_StdUtil.h>
 #include <UT/UT_WorkArgs.h>
 #include <algorithm>
+
+// Disable warning C4468: 'fallthrough': attribute must be followed by a case
+// label or a default label
+// This is a bug see https://developercommunity.visualstudio.com/t/warning-c4468-is-erroneously-triggered-in-if-else/1212201
+#if _MSC_VER && !defined(__clang__)
+#pragma warning(disable: 4468)
+#endif
 
 namespace Alembic {
     namespace Abc {
@@ -275,6 +282,7 @@ namespace {
 	switch (owner)
 	{
 	    case GA_ATTRIB_POINT:
+                SYS_PRAGMA_PUSH_WARN()
                 // If an attribute is encountered as both a point and vertex
                 // attribute, upgrade point attribute data to vertex data.
                 if (walk.detail().findVertexAttribute(name))
