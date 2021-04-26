@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -2157,7 +2157,8 @@ namespace
 
 	uniform = acreate.build(counts->entries(), gdp, primoff, obj, namemap,
 				load_style, t, GA_ATTRIB_PRIMITIVE,
-				gabcUniformScope, arb);
+				gabcUniformScope, arb, nullptr, nullptr,
+				nullptr, nullptr, nullptr, &widths);
 	detail = acreate.build(1, gdp, primoff, obj, namemap, load_style, t,
 			       GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
 			       arb);
@@ -2274,7 +2275,9 @@ namespace
 					 nullptr, &widths, &Pw);
             case GT_OWNER_PRIMITIVE:
                 return getAttributeNames(obj, namemap, GA_ATTRIB_PRIMITIVE,
-					 &gabcUniformScope, 1, arb);
+					 &gabcUniformScope, 1, arb, nullptr,
+					 nullptr, nullptr, nullptr, nullptr,
+					 &widths);
             case GT_OWNER_DETAIL:
                 return getAttributeNames(obj, namemap, GA_ATTRIB_DETAIL,
 					 theConstantUnknownScope, 2, arb);
