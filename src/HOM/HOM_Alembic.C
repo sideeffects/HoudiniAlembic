@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1298,6 +1298,36 @@ namespace
 
         return result;
     }
+
+    static const char   *Doc_AlembicGetChildrenHash =
+        "alembicGetChildrenHash(abcPath, objectPath)\n"
+        "\n"
+        "Returns the aggregated child objects hash if it exists.\n";
+
+    PY_PyObject *
+    Py_AlembicGetChildrenHash(PY_PyObject *self, PY_PyObject *args)
+    {
+	PY_PyObject *fileList;
+        const char         *objectPath;
+
+        if (!PY_PyArg_ParseTuple(args, "Os", &fileList, &objectPath))
+        {
+            PY_Py_RETURN_NONE;
+        }
+	std::vector<std::string> filenames;
+	appendFileList(filenames, fileList);
+	if (!filenames.size())
+            PY_Py_RETURN_NONE;
+
+        GABC_IObject obj = GABC_Util::findObject(filenames, objectPath);
+        if (!obj.valid())
+        {
+            PY_Py_RETURN_NONE;
+        }
+
+	std::string result = obj.getChildrenHash();
+        return PY_PyString_FromString(result.c_str());
+    }
 }
 
 #if defined(WIN32)
@@ -1369,6 +1399,8 @@ init_alembic_hom_extensions(void)
 		PY_METH_VARARGS(), Doc_AlembicVisibility },
 	{ "alembicTimeRange", Py_AlembicTimeRange,
 		PY_METH_VARARGS(), Doc_AlembicTimeRange },
+        { "alembicGetChildrenHash", Py_AlembicGetChildrenHash,
+                PY_METH_VARARGS(), Doc_AlembicGetChildrenHash},
 
         { NULL, NULL, 0, NULL }
     };
