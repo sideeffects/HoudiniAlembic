@@ -3678,6 +3678,24 @@ GABC_IObject::getUserProperties() const
     return ICompoundProperty();
 }
 
+std::string
+GABC_IObject::getChildrenHash() const
+{
+    GABC_AlembicLock	lock(archive());
+    std::string result;
+    try
+    {
+	Alembic::Util::Digest digest;
+	if(const_cast<IObject &>(myObject).getChildrenHash(digest))
+	    result = digest.str();
+    }
+    catch (const std::exception &)
+    {
+	UT_ASSERT(0 && "Alembic exception");
+    }
+    return result;
+}
+
 exint
 GABC_IObject::getNumGeometryProperties() const
 {

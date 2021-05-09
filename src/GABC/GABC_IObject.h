@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -298,6 +298,9 @@ public:
 
     /// Get the user properties for this node
     ICompoundProperty   getUserProperties() const;
+
+    /// Get the aggregated child objects hash if it exists
+    std::string		getChildrenHash() const;
 
 private:
     ICompoundProperty   getArbGeomParams() const;
