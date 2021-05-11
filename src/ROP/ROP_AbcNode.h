@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -62,8 +62,8 @@ public:
     }
 
     /// Returns name of this node.
-    const char *getName() const { return myName.c_str(); }
-    const char *getPath() const { return myPath.c_str(); }
+    const std::string &getName() const { return myName; }
+    const std::string &getPath() const { return myPath; }
 
     /// Sets the layer node type of this node.
     void setLayerNodeType(GABC_LayerOptions::LayerType type)

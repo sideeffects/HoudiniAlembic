@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -818,7 +818,7 @@ ROP_AlembicOut::getSopNode(fpreal time)
 static void
 ropAppendNodeNames(UT_StringArray &array, ROP_AbcNode *node)
 {
-    const char *path = node->getPath();
+    auto path = node->getPath();
     auto type = node->getNodeType();
 
     // We don't want the user to select root or instance node in layering mode.
@@ -1392,7 +1392,7 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
 	const GABC_PackedImpl *impl = static_cast<const GABC_PackedImpl *>(packed->sharedImplementation());
 
 	const char *s = it.first.c_str();
-	const char *r = assignments.getRoot()->getPath();
+	const char *r = assignments.getRoot()->getPath().c_str();
 
 	buf.clear();
 	if(::strlen(r) > 1)
@@ -1723,7 +1723,7 @@ ROP_AlembicOut::refineSop(
 
     UT_SortedMap<std::string, GA_OffsetList> partitions[2];
 
-    std::string name = sop->getName().c_str();
+    std::string name(sop->getName());
     UT_WorkBuffer buf;
     UT_WorkBuffer part_name;
     for(GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
@@ -2229,7 +2229,8 @@ ROP_AlembicOut::updateFromHierarchy(
 		}
 		if(cam && myCamAssignments.find(cam) == myCamAssignments.end())
 		{
-		    std::string name("cameraProperties");
+		    std::string name = parent->getName();
+		    name += "Camera";
 
 		    // handle name collisions
 		    parent->makeCollisionFreeName(name, *myErrors);

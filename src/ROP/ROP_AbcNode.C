@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -59,7 +59,7 @@ ROP_AbcNode::addChild(ROP_AbcNode *child)
 
     UT_ASSERT(!child->myParent);
     UT_WorkBuffer buf;
-    buf.append(getPath());
+    buf.append(getPath().c_str());
     buf.append("/");
     buf.append(name);
     child->myPath = buf.buffer();
