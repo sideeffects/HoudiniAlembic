@@ -1527,7 +1527,10 @@ namespace {
         abc->setFacesetAttribute(walk.facesetAttribute());
 	packed->setViewportLOD(walk.viewportLOD());
 
-	if (!abc->isConstant())
+	bool animated = false;
+	if (walk.useVisibility())
+	    obj.visibility(animated, walk.time(), true);
+	if (animated || !abc->isConstant())
 	    walk.setNonConstant();
 	else if (walk.staticTimeZero())
 	    abc->setFrame(packed, 0);
@@ -2531,7 +2534,10 @@ GABC_GEOWalker::updateAbcPrims()
 	                            pack->hardenImplementation());
 	const GABC_IObject &obj = abc->object();
 
-	if (!abc->isConstant())
+	bool animated = false;
+	if (useVisibility())
+	    obj.visibility(animated, time(), true);
+	if (animated || !abc->isConstant())
 	{
 	    abc->setFrame(pack, time());
 	    setNonConstant();
