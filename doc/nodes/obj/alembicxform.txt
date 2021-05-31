@@ -11,15 +11,15 @@ archive (`.abc`)."""
 
 @parameters
 
-[Include:/nodes/sop/alembic#numlayers]
+:include /nodes/sop/alembic#numlayers:
 
-[Include:/nodes/sop/alembic#fileName]
+:include /nodes/sop/alembic#fileName:
 
-[Include:/nodes/sop/alembic#objectPath]
+:include /nodes/sop/alembic#objectPath:
 
-[Include:/nodes/sop/alembic#frame]
+:include /nodes/sop/alembic#frame:
 
-[Include:/nodes/sop/alembic#fps]
+:include /nodes/sop/alembic#fps:
 
 Fetch World Transform:
     #id: fetchworldxform
