@@ -20,6 +20,8 @@ To use the functions in this module, launch `hython` and import `_alembic_hom_ex
 
 * While the functions work with file paths, they don't open and close the files every time a function is called. The code keeps an internal cache of open Alembic files to make repeated calls on the same file efficient.
 
+* The tuple of 16 floats returned by `getLocalXform` and `getWorldXform` can be directly passed to the [Hom:hou.Matrix4] constructor to create a [Hom:hou.Matrix4] representation of the transform.
+
 == Common arguments ==
 
 `abcPath`:
