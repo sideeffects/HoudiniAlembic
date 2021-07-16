@@ -204,7 +204,7 @@ Collapse Objects:
 
         Any transformations on these nodes will be lost during the save.
 
-    If you add a spare paramter to an object named `abc_collapse` and it's value is not zero, this node will skip that object and omit it from the archive. This allows fine-grained per-object control regardless of the setting of this parameter.
+    If you add a spare parameter to an object named `abc_collapse` and it's value is not zero, this node will skip that object and omit it from the archive. This allows fine-grained per-object control regardless of the setting of this parameter.
 
 Save All Non-Displayed (Hidden) Objects:
     #id: save_hidden
