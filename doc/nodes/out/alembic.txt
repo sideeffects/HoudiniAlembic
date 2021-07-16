@@ -12,7 +12,7 @@ See the following link for further information about the [Alembic format|http://
 
 == Tips and notes ==
 
-* If you add a spare paramter to an object named `abc_collapse` and it's value is not zero, this node will skip that object and omit it from the archive. See also the __Collapse__ parameter.
+* If you add a spare paramter to an object named `abc_collapse` and its value is not zero, this node will skip that object and omit it from the archive. See also the __Collapse__ parameter.
 
 * The Alembic library has some expectations of geometry attributes that this node attempts to satisfy. For polygon meshes, the Alembic library treats position (`P`), normal (`N`), texture coordinates (`uv`), and velocity (`v`) differently from other attributes. This node tries to express geometry in the form expected by the Alembic library for better compatibility with other applications.
 
@@ -204,7 +204,7 @@ Collapse Objects:
 
         Any transformations on these nodes will be lost during the save.
 
-    If you add a spare parameter to an object named `abc_collapse` and it's value is not zero, this node will skip that object and omit it from the archive. This allows fine-grained per-object control regardless of the setting of this parameter.
+    If you add a spare parameter to an object named `abc_collapse` and its value is not zero, this node will skip that object and omit it from the archive. This allows fine-grained per-object control regardless of the setting of this parameter.
 
 Save All Non-Displayed (Hidden) Objects:
     #id: save_hidden
