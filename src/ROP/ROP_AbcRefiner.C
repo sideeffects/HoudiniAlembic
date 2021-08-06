@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -36,6 +36,7 @@
 #include <GU/GU_PackedDiskSequence.h>
 #include <GU/GU_PackedFragment.h>
 #include <GU/GU_PackedGeometry.h>
+#include <GA/GA_Names.h>
 
 using namespace UT::Literal;
 
