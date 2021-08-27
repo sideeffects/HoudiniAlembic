@@ -1917,7 +1917,9 @@ void
 GABC_Util::Walker::computeTimeRange(const GABC_IObject &obj)
 {
     TimeSamplingPtr ts = obj.timeSampling();
-    if (ts)
+    // Ignore time sampling 0 as it is used for items that are not intended to
+    // be sampled over time.
+    if (ts && ts != obj.object().getArchive().getTimeSampling(0))
     {
         exint nSamples = obj.numSamples();
 
