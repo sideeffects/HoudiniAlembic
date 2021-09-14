@@ -166,8 +166,8 @@ namespace
 	    bool localx)
     {
 	UT_Matrix4D     xform;
-	const char     *objectPath = NULL;
-	const double   *data = NULL;
+	const char     *objectPath = nullptr;
+	const double   *data = nullptr;
 	double          sampleTime = 0.0;
 	bool            isConstant = true;
 	bool            inheritsXform = true;
@@ -355,7 +355,7 @@ namespace
     {
         public:
     	PyWalker()
-    	    : myRoot(NULL)
+    	    : myRoot(nullptr)
     	{}
     	~PyWalker() override {}
 
@@ -573,11 +573,9 @@ namespace
     PY_PyObject *
     Py_AlembicUserPropertyValues(PY_PyObject *self, PY_PyObject *args)
     {
-        UT_JSONWriter      *data_writer;
-        UT_WorkBuffer       data_dictionary;
 	PY_PyObject *fileList;
-        const char         *objectPath;
-        double              sampleTime;
+        const char *objectPath;
+        double sampleTime;
 
         if (!PY_PyArg_ParseTuple(args,
                 "Osd",
@@ -604,17 +602,15 @@ namespace
             PY_Py_RETURN_NONE;
         }
 
-        data_writer = UT_JSONWriter::allocWriter(data_dictionary);
-        if (!GABC_Util::importUserPropertyDictionary(data_writer,
-                NULL,
+        UT_WorkBuffer data_dictionary;
+        UT_UniquePtr<UT_JSONWriter> data_writer(UT_JSONWriter::allocWriter(data_dictionary));
+        if (!GABC_Util::importUserPropertyDictionary(data_writer.get(),
+                nullptr,
                 obj,
                 sampleTime))
         {
-            delete data_writer;
             PY_Py_RETURN_NONE;
         }
-
-        delete data_writer;
 
         PY_PyObject    *result = PY_PyString_FromString(data_dictionary.buffer());
 
@@ -630,11 +626,9 @@ namespace
     PY_PyObject *
     Py_AlembicUserPropertyMetadata(PY_PyObject *self, PY_PyObject *args)
     {
-        UT_JSONWriter      *meta_writer;
-        UT_WorkBuffer       meta_dictionary;
 	PY_PyObject *fileList;
-        const char         *objectPath;
-        double              sampleTime;
+        const char *objectPath;
+        double sampleTime;
 
         if (!PY_PyArg_ParseTuple(args,
                 "Osd",
@@ -661,17 +655,15 @@ namespace
             PY_Py_RETURN_NONE;
         }
 
-        meta_writer = UT_JSONWriter::allocWriter(meta_dictionary);
-        if (!GABC_Util::importUserPropertyDictionary(NULL,
-                meta_writer,
+        UT_WorkBuffer meta_dictionary;
+        UT_UniquePtr<UT_JSONWriter> meta_writer(UT_JSONWriter::allocWriter(meta_dictionary));
+        if (!GABC_Util::importUserPropertyDictionary(nullptr,
+                meta_writer.get(),
                 obj,
                 sampleTime))
         {
-            delete meta_writer;
             PY_Py_RETURN_NONE;
         }
-
-        delete meta_writer;
 
         PY_PyObject    *result = PY_PyString_FromString(meta_dictionary.buffer());
 
@@ -689,13 +681,9 @@ namespace
     PY_PyObject *
     Py_AlembicUserPropertyValuesAndMetadata(PY_PyObject *self, PY_PyObject *args)
     {
-        UT_JSONWriter      *data_writer;
-        UT_JSONWriter      *meta_writer;
-        UT_WorkBuffer       data_dictionary;
-        UT_WorkBuffer       meta_dictionary;
 	PY_PyObject *fileList;
-        const char         *objectPath;
-        double              sampleTime;
+        const char *objectPath;
+        double sampleTime;
 
         if (!PY_PyArg_ParseTuple(args,
                 "Osd",
@@ -722,20 +710,17 @@ namespace
             PY_Py_RETURN_NONE;
         }
 
-        data_writer = UT_JSONWriter::allocWriter(data_dictionary);
-        meta_writer = UT_JSONWriter::allocWriter(meta_dictionary);
-        if (!GABC_Util::importUserPropertyDictionary(data_writer,
-                meta_writer,
+        UT_WorkBuffer data_dictionary;
+        UT_WorkBuffer meta_dictionary;
+        UT_UniquePtr<UT_JSONWriter> data_writer(UT_JSONWriter::allocWriter(data_dictionary));
+        UT_UniquePtr<UT_JSONWriter> meta_writer(UT_JSONWriter::allocWriter(meta_dictionary));
+        if (!GABC_Util::importUserPropertyDictionary(data_writer.get(),
+                meta_writer.get(),
                 obj,
                 sampleTime))
         {
-            delete data_writer;
-            delete meta_writer;
             PY_Py_RETURN_NONE;
         }
-
-        delete data_writer;
-        delete meta_writer;
 
         PY_PyObject    *result = PY_PyTuple_New(2);
         PY_PyTuple_SetItem(result, 0, PY_PyString_FromString(data_dictionary.buffer()));
@@ -921,7 +906,7 @@ namespace
     {
         PY_PyObject    *result;
 	PY_PyObject *fileList;
-        const char     *objectPath = NULL;
+        const char     *objectPath = nullptr;
         if (!PY_PyArg_ParseTuple(args, "Os", &fileList, &objectPath))
 	    PY_Py_RETURN_NONE;
 	std::vector<std::string> filenames;
@@ -1183,7 +1168,7 @@ namespace
     Py_AlembicGetCameraDict(PY_PyObject *self, PY_PyObject *args)
     {
 	PY_PyObject *fileList;
-	const char	*objectPath = NULL;
+	const char	*objectPath = nullptr;
 	double		 sampleTime = 0.0;
 
         if (!PY_PyArg_ParseTuple(args, "Osd", &fileList, &objectPath,
@@ -1402,7 +1387,7 @@ init_alembic_hom_extensions(void)
         { "alembicGetChildrenHash", Py_AlembicGetChildrenHash,
                 PY_METH_VARARGS(), Doc_AlembicGetChildrenHash},
 
-        { NULL, NULL, 0, NULL }
+        { nullptr, nullptr, 0, nullptr }
     };
 
 #if PY_MAJOR_VERSION >= 3
