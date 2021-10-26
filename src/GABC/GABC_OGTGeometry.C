@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2021
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -221,9 +221,8 @@ namespace
 	{
 	    auto	it = myMap.find(Key(name, owner));
 	    if (it != myMap.end())
-	    {
 		return it->second.scope();
-	    }
+
 	    switch (owner)
 	    {
 		case GT_OWNER_POINT:
@@ -384,9 +383,9 @@ namespace
 	    ordering.emplace(attribs->getName(i).c_str(), i);
 
 	const char *path = cp.getObject().getFullName().c_str();
-	for (auto it = ordering.begin(); it != ordering.end(); ++it)
+	for (auto &it : ordering)
 	{
-	    exint	 i = it->second;
+	    exint	 i = it.second;
 	    std::string	 name = attribs->getName(i).c_str();
 	    std::string	 exp_name = attribs->getExportName(i).c_str();
 	    auto	&data = attribs->get(i);
@@ -443,37 +442,31 @@ namespace
             GABC_OError &err,
             const GABC_OOptions &ctx)
     {
-        if (!attribs || !arb_map.size())
+        if (!attribs)
             return true;
 
-        for (PropertyMap::const_iterator it = arb_map.begin();
-                it != arb_map.end();
-                ++it)
+        for (auto &it : arb_map)
         {
-            int index = attribs->getIndex(it->first.c_str());
+            int index = attribs->getIndex(it.first.c_str());
 
             if (index >= 0)
             {
-                if(!it->second->update(attribs->get(index), err, ctx))
+                if(!it.second->update(attribs->get(index), err, ctx))
 		{
 		    err.error("Error saving attribute: %s",
 			      attribs->getExportName(index).c_str());
 		    return false;
 		}
             }
-            else
-            {
-                exint   num_samples = it->second->getNumSamples();
-                if (num_samples)
-                {
-                    if(!it->second->updateFromPrevious())
-		    {
-			err.error("Error saving attribute: %s",
-				  attribs->getExportName(index).c_str());
-			return false;
-		    }
-                }
-            }
+            else if (it.second->getNumSamples())
+	    {
+		if (!it.second->updateFromPrevious())
+		{
+		    err.error("Error saving attribute: %s",
+			      attribs->getExportName(index).c_str());
+		    return false;
+		}
+	    }
         }
 
         return true;
@@ -482,24 +475,12 @@ namespace
     static void
     writePropertiesFromPrevious(const PropertyMap &pmap)
     {
-        if (!pmap.size())
-        {
-            return;
-        }
-
-        exint   num_samples;
-
         // Write a new sample using the previous sample (if a previous
         // sample exists)
-        for (PropertyMap::const_iterator it = pmap.begin();
-                it != pmap.end();
-                ++it)
+        for (auto &it : pmap)
         {
-            num_samples = it->second->getNumSamples();
-            if (num_samples)
-            {
-                it->second->updateFromPrevious();
-            }
+            if (it.second->getNumSamples())
+                it.second->updateFromPrevious();
         }
     }
 
@@ -637,7 +618,7 @@ namespace
 	else if (detail && detail->getIndex(attrName) >= 0)
 	    matches = ctx.matchAttribute(GA_ATTRIB_DETAIL, attrName);
 
-	if(matches == false)
+	if (!matches)
 	    return GABC_LayerOptions::LayerType::NONE;
 
 	return lopt.getAttrType(nodeName, attrName, ltype);
@@ -774,9 +755,7 @@ namespace
         V3f                 *homogenized_vals = new V3f[size];
 
         for(exint i = 0; i < size; ++i)
-        {
             homogenized_vals[i] = sample_vals[i] * weight_vals[i];
-        }
 
         // Use custom destructor to free homogenized_vals memory
         return P3fArraySamplePtr(new P3fArraySample(homogenized_vals, size),
@@ -804,10 +783,8 @@ namespace
 		sample.setFaces(int32Array(items, store));
 	    }
 	    else
-	    {
 		sample.setFaces(Int32ArraySample(NULL, 0));
-	    }
-	    
+
 	    ss.set(sample);
 	}
     }
@@ -815,10 +792,9 @@ namespace
     static void
     fillFaceSetsFromPrevious(const FaceSetMap &fs_map)
     {
-	for (FaceSetMap::const_iterator it = fs_map.begin();
-		it != fs_map.end(); ++it)
+	for (auto &it : fs_map)
 	{
-	    OFaceSetSchema		&ss = it->second->getSchema();
+	    OFaceSetSchema		&ss = it.second->getSchema();
 	    OFaceSetSchema::Sample	 sample;
 
 	    sample.setFaces(Int32ArraySample(NULL, 0));
@@ -937,17 +913,10 @@ namespace
 		clist = clist->addAttribute(name, cval, true);
 		cidx++;
 	    }
+	    else if (ulist)
+		ulist = ulist->addAttribute(name, data, true);
 	    else
-	    {
-		if (!ulist)
-		{
-		    ulist = GT_AttributeList::createAttributeList(name, data);
-		}
-		else
-		{
-		    ulist = ulist->addAttribute(name, data, true);
-		}
-	    }
+		ulist = GT_AttributeList::createAttributeList(name, data);
 	}
 	// Now, we have new uniform and constant attribute lists.
 	T	*newmesh = new T(mesh, mesh.getPointAttributes(),
@@ -1765,9 +1734,7 @@ GABC_OGTGeometry::IgnoreList::IgnoreList(const char *arg0, ...)
         va_list	 args;
         va_start(args, arg0);
         for (const char *s = arg0; s; s = va_arg(args, const char *))
-        {
             insert(UTmakeUnsafeRef(s));
-        }
         va_end(args);
     }
 }
@@ -1853,12 +1820,8 @@ GABC_OGTGeometry::clearArbProperties()
 {
     for (int i = 0; i < MAX_PROPERTIES; ++i)
     {
-	for (PropertyMap::const_iterator it = myArbProperties[i].begin();
-	        it != myArbProperties[i].end();
-	        ++it)
-	{
-	    delete it->second;
-	}
+	for (auto &it : myArbProperties[i])
+	    delete it.second;
 	myArbProperties[i].clear();
     }
 }
@@ -1866,11 +1829,8 @@ GABC_OGTGeometry::clearArbProperties()
 void
 GABC_OGTGeometry::clearFaceSets()
 {
-    for (FaceSetMap::const_iterator it = myFaceSets.begin();
-	it != myFaceSets.end(); ++it)
-    {
-	delete it->second;
-    }
+    for (auto &it : myFaceSets)
+	delete it.second;
 
     myFaceSets.clear();
 }
