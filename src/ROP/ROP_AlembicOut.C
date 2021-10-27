@@ -1326,9 +1326,10 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
 
 	// normalise path
 	buf.clear();
-	const char *s = path_handle.isValid() ? path_handle.get(offset) : nullptr;
-	if(s)
+	if(path_handle.isValid())
 	{
+	    auto &path = path_handle.get(offset);
+	    const char *s = path;
 	    while(*s)
 	    {
 		// skip initial path separators
