@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -30,7 +30,6 @@
 #include <UT/UT_Map.h>
 #include <UT/UT_SysClone.h>
 #include <UT/UT_String.h>
-#include <UT/UT_Access.h>
 #include <UT/UT_FileStat.h>
 #include <UT/UT_PathSearch.h>
 #include <UT/UT_WorkArgs.h>
@@ -147,9 +146,7 @@ GABC_IArchive::openArchive(
 	UT_PathSearch::pathMap(tmp);
 
 	UT_FileStat file_stat;
-	if(UTfileStat(tmp.c_str(), &file_stat)
-	    || !file_stat.isFile()
-	    || (UTaccess(tmp.c_str(), R_OK) < 0))
+	if(UTfileStat(tmp.c_str(), &file_stat) || !file_stat.isFile())
 	{
 	    canAccess = false;
 	    break;
@@ -157,10 +154,10 @@ GABC_IArchive::openArchive(
 	mapped_paths.push_back(tmp.c_str());
     }
 
+#if defined(GABC_OGAWA)
     // Try to open using standard Ogawa file access
     if (canAccess)
     {
-#if defined(GABC_OGAWA)
 	IFactory	factory;
 
 	if(num_streams != -1)
