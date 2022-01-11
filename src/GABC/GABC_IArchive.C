@@ -30,7 +30,6 @@
 #include <UT/UT_Map.h>
 #include <UT/UT_SysClone.h>
 #include <UT/UT_String.h>
-#include <UT/UT_Access.h>
 #include <UT/UT_FileStat.h>
 #include <UT/UT_PathSearch.h>
 #include <UT/UT_WorkArgs.h>
