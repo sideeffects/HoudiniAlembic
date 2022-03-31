@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -343,16 +343,15 @@ GABC_PackedImpl::loadFrom(GU_PrimPacked *prim, const T &options, const GA_LoadMa
 void
 GABC_PackedImpl::update(GU_PrimPacked *prim, const UT_Options &options)
 {
-    bool	changed = false;
     bool	bval;
     UT_StringHolder tmpFilenames;
-    changed |= options.importOption("filenames", tmpFilenames);
+    options.importOption("filenames", tmpFilenames);
     setFilenamesJSON(prim, tmpFilenames);
-    changed |= options.importOption("object", myObjectPath);
-    changed |= options.importOption("frame", myFrame);
-    changed |= options.importOption("usetransform", bval);
+    options.importOption("object", myObjectPath);
+    options.importOption("frame", myFrame);
+    options.importOption("usetransform", bval);
     setUseTransform(prim, bval);
-    changed |= options.importOption("usevisibility", bval);
+    options.importOption("usevisibility", bval);
     setUseVisibility(prim, bval);
 }
 
