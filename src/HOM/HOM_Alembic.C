@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -74,6 +74,7 @@
 #include <HOM/HOM_Module.h>
 #include <UT/UT_DSOVersion.h>
 #include <UT/UT_JSONWriter.h>
+#include <UT/UT_PathSearch.h>
 #include <UT/UT_StackBuffer.h>
 #include <GT/GT_DataArray.h>
 #include <CH/CH_Channel.h>

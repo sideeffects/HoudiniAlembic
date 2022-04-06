@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -30,12 +30,13 @@
 #include <GABC/GABC_PackedImpl.h>
 
 #include <UT/UT_DSOVersion.h>
+#include <UT/UT_InfoTree.h>
+#include <UT/UT_PathSearch.h>
 #include <UT/UT_StringStream.h>
-#include <UT/UT_WorkArgs.h>
-#include <UT/UT_WorkBuffer.h>
 #include <UT/UT_UndoManager.h>
 #include <UT/UT_UniquePtr.h>
-#include <UT/UT_InfoTree.h>
+#include <UT/UT_WorkArgs.h>
+#include <UT/UT_WorkBuffer.h>
 #include <GU/GU_Detail.h>
 #include <GU/GU_MergeUtils.h>
 #include <GU/GU_PrimPacked.h>
