@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -2487,15 +2487,11 @@ namespace
 			    sample.getTrimW(), is_const);
 	    curveUVW = joinVector3Array(curveU, curveV, curveW);
 
-	    GT_TrimNuCurves	*trims = new GT_TrimNuCurves(loopCount,
-				    curveCount, curveOrders,
-				    curveKnots, curveMin, curveMax, curveUVW);
-	    if (!trims->isValid())
-	    {
-		delete trims;
-		trims = NULL;
-	    }
-	    gt->adoptTrimCurves(trims);
+            auto trims = UTmakeUnique<GT_TrimNuCurves>(
+                    loopCount, curveCount, curveOrders, curveKnots, curveMin,
+                    curveMax, curveUVW);
+            if (trims->isValid())
+                gt->setTrimCurves(std::move(trims));
 	}
 
 	return GT_PrimitiveHandle(gt);
