@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -43,6 +43,9 @@
     #endif
     #if !defined(OPENEXR_DLL)
 	#define OPENEXR_DLL
+    #endif
+    #if !defined(IMATH_DLL)
+	#define IMATH_DLL
     #endif
 #endif
 
