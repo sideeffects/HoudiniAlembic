@@ -42,7 +42,7 @@ ABCDEF = \
 ABCHUGE = libAbcHuge.so
 
 # Extra file for half.h
-HALFDIR = $(HFS)/toolkit/include/OpenEXR
+HALFDIR = $(HFS)/toolkit/include/Imath
 
 HLIB = $(HFS)/dsolib
 EXTRALIBS = \
