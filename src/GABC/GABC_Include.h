@@ -41,12 +41,6 @@
     #if !defined(HBOOST_DATE_TIME_DYN_LINK)
 	#define HBOOST_DATE_TIME_DYN_LINK
     #endif
-    #if !defined(OPENEXR_DLL)
-	#define OPENEXR_DLL
-    #endif
-    #if !defined(IMATH_DLL)
-	#define IMATH_DLL
-    #endif
 #endif
 
 #endif
