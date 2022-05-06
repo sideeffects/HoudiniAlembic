@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -24,7 +24,6 @@
  *
  *----------------------------------------------------------------------------
  */
-#include <GABC/GABC_Include.h>	// For Windows linking
 
 #include "RAY_ProcAlembic.h"
 #include <GABC/GABC_GEOWalker.h>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -30,7 +30,6 @@
 
 #include "GABC_API.h"
 #include "GABC_IError.h"
-#include "GABC_Include.h"
 #include "GABC_Util.h"
 #include <GA/GA_Handle.h>
 #include <GU/GU_Detail.h>
