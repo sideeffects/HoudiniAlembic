@@ -1105,15 +1105,13 @@ SOP_AlembicIn::clearEventHandler()
 //-*****************************************************************************
 
 void
-SOP_AlembicIn::archiveClearEvent(bool purged)
+SOP_AlembicIn::archiveClearEvent()
 {
     // Clear out the last-cook parameters
     myLastParms = Parms();
     myConstantUniqueId = -1;
     myPackedGdp.reset();
-    unloadData();
-    if(purged)
-	forceRecook();
+    forceRecook();
 }
 
 static void

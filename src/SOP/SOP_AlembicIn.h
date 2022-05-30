@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -54,7 +54,7 @@ public:
     static void installSOP(OP_OperatorTable *table);
 
     /// Called when an archive gets cleared from the cache
-    void	archiveClearEvent(bool purged);
+    void	archiveClearEvent();
     void	appendFileNames(std::vector<std::string> &filenames, fpreal t);
 
     /// Return the label for the given input
@@ -164,8 +164,10 @@ private:
 	{
 	    if (mySOP)
 	    {
-		mySOP->archiveClearEvent(purged);
-		mySOP = NULL;
+		if(purged)
+		    mySOP->unloadData();
+		mySOP->archiveClearEvent();
+		mySOP = nullptr;
 	    }
 	}
     private:
