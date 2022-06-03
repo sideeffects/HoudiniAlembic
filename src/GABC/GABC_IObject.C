@@ -1736,7 +1736,7 @@ namespace
 				nullptr, &uvs);
 	detail = acreate.build(1, gdp, primoff, obj, namemap, load_style, t,
 			       GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
-				arb);
+			       arb, nullptr, nullptr, nullptr, &uvs);
 
 	detail = addFileObjectAttribs(detail, obj, t, anim);
 
@@ -1870,7 +1870,8 @@ namespace
 					 nullptr, nullptr, &uvs);
             case GT_OWNER_DETAIL:
                 return getAttributeNames(obj, namemap, GA_ATTRIB_DETAIL,
-					 theConstantUnknownScope, 2, arb);
+					 theConstantUnknownScope, 2, arb,
+					 nullptr, nullptr, nullptr, &uvs);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
                 UT_ASSERT(0 && "Unexpected attribute type");
@@ -2165,7 +2166,8 @@ namespace
 				&N, &uvs, nullptr, &widths);
 	detail = acreate.build(1, gdp, primoff, obj, namemap, load_style, t,
 			       GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
-			       arb);
+			       arb, nullptr, nullptr, &N, &uvs, nullptr,
+			       &widths);
 	
 	detail = addFileObjectAttribs(detail, obj, t, anim);
 
@@ -2283,7 +2285,9 @@ namespace
 					 nullptr, &N, &uvs, nullptr, &widths);
             case GT_OWNER_DETAIL:
                 return getAttributeNames(obj, namemap, GA_ATTRIB_DETAIL,
-					 theConstantUnknownScope, 2, arb);
+					 theConstantUnknownScope, 2, arb,
+					 nullptr, nullptr, &N, &uvs, nullptr,
+					 &widths);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
                 UT_ASSERT(0 && "Unexpected attribute type");
