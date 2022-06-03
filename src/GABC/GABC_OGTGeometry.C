@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -983,7 +983,7 @@ namespace
 	auto uv_layer_type = getAttrLayerType(ctx, lopt, ltype,
 	    dest.getFullName().c_str(), "uv", pt, vtx, uniform);
 	auto normal_layer_type = getAttrLayerType(ctx, lopt, ltype,
-	    dest.getFullName().c_str(), "N", pt, vtx);
+	    dest.getFullName().c_str(), "N", pt, vtx, uniform);
 	auto vel_layer_type = getAttrLayerType(ctx, lopt, ltype,
 	    dest.getFullName().c_str(), "v", pt, vtx);
 
@@ -1001,7 +1001,7 @@ namespace
 
 	if (normal_layer_type == GABC_LayerOptions::LayerType::FULL)
 	{
-	    fillN3f(iNml, cache, "N", storage.N(), rixlate, pt, vtx);
+	    fillN3f(iNml, cache, "N", storage.N(), rixlate, pt, vtx, uniform);
 	    sample.setNormals(iNml);
 	}
 	else if (normal_layer_type == GABC_LayerOptions::LayerType::PRUNE)
@@ -1404,7 +1404,7 @@ namespace
 	auto uv_layer_type = getAttrLayerType(ctx, lopt, ltype,
 	    dest.getFullName().c_str(), "uv", GT_AttributeListHandle(), vtx, uniform);
 	auto normal_layer_type = getAttrLayerType(ctx, lopt, ltype,
-	    dest.getFullName().c_str(), "N", vtx);
+	    dest.getFullName().c_str(), "N", GT_AttributeListHandle(), vtx, uniform);
 	auto vel_layer_type = getAttrLayerType(ctx, lopt, ltype,
 	    dest.getFullName().c_str(), "v", vtx);
 	auto width_layer_type = getAttrLayerType(ctx, lopt, ltype,
@@ -1425,7 +1425,7 @@ namespace
 	if (normal_layer_type == GABC_LayerOptions::LayerType::FULL)
         {
 	    fillN3f(iNml, cache, "N", storage.N(), rixlate,
-		GT_AttributeListHandle(), vtx);
+		GT_AttributeListHandle(), vtx, uniform);
 	    sample.setNormals(iNml);
         }
 	else if (normal_layer_type == GABC_LayerOptions::LayerType::PRUNE)
@@ -1565,7 +1565,7 @@ namespace
 	auto uv_layer_type = getAttrLayerType(ctx, lopt, ltype,
 	    dest.getFullName().c_str(), "uv", GT_AttributeListHandle(), vtx, detail);
 	auto normal_layer_type = getAttrLayerType(ctx, lopt, ltype,
-	    dest.getFullName().c_str(), "N", vtx);
+	    dest.getFullName().c_str(), "N", GT_AttributeListHandle(), vtx, detail);
 	auto vel_layer_type = getAttrLayerType(ctx, lopt, ltype,
 	    dest.getFullName().c_str(), "v", vtx);
 
@@ -1583,7 +1583,8 @@ namespace
 
 	if (normal_layer_type == GABC_LayerOptions::LayerType::FULL)
 	{
-	    fillN3f(iNml, cache, "N", storage.N(), rixlate, vtx);
+	    fillN3f(iNml, cache, "N", storage.N(), rixlate,
+		    GT_AttributeListHandle(), vtx, detail);
 	    sample.setNormals(iNml);
 	}
 	else if (normal_layer_type == GABC_LayerOptions::LayerType::PRUNE)
