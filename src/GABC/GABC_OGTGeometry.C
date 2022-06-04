@@ -1308,10 +1308,11 @@ namespace
 	// We pass in "vtx" for the point attributes since we can't
 	// differentiate between them at this point.
 	if (isFullShape
-	    || getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", vtx)
+	    || getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", GT_AttributeListHandle(), vtx)
 			== GABC_LayerOptions::LayerType::FULL)
 	{
-	    fillP3f(iPos, cache, "P", storage.P(), rixlate, vtx);
+	    fillP3f(iPos, cache, "P", storage.P(), rixlate,
+		    GT_AttributeListHandle(), vtx);
 	    if(Pw)
 	    {
 		iPosWeight = floatArray(Pw, storage.Pw());
@@ -1489,10 +1490,11 @@ namespace
 	//
 	// Also pass in "detail" for primitive attributes.
 	if (isFullShape
-	    || getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", vtx)
+	    || getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", GT_AttributeListHandle(), vtx)
 			== GABC_LayerOptions::LayerType::FULL)
 	{
-	    fillP3f(iPos, cache, "P", storage.P(), rixlate, vtx);
+	    fillP3f(iPos, cache, "P", storage.P(), rixlate,
+		    GT_AttributeListHandle(), vtx);
 	    if(Pw)
 	    {
 		iPosWeight = floatArray(Pw, storage.Pw());
@@ -1599,7 +1601,8 @@ namespace
 
 	if (vel_layer_type == GABC_LayerOptions::LayerType::FULL)
 	{
-	    fillV3f(iVel, cache, "v", storage.v(), rixlate, vtx);
+	    fillV3f(iVel, cache, "v", storage.v(), rixlate,
+		    GT_AttributeListHandle(), vtx);
 	    sample.setVelocities(iVel.getVals());
 	}
 	else if (vel_layer_type == GABC_LayerOptions::LayerType::PRUNE)

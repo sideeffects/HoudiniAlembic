@@ -1662,7 +1662,8 @@ namespace
                 return emptyString;
             case GT_OWNER_DETAIL:
                 return getAttributeNames(obj, namemap, GA_ATTRIB_DETAIL,
-					 detail_scope, 3, arb);
+					 detail_scope, 3, arb, nullptr, nullptr,
+					 nullptr, nullptr, nullptr, &widths);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
                 UT_ASSERT(0 && "Unexpected attribute type");
@@ -1937,7 +1938,7 @@ namespace
 	detail = acreate.build(1, gdp, primoff, obj, namemap,
 				load_style, t,
 				GA_ATTRIB_DETAIL, theConstantUnknownScope, 2,
-				arb);
+				arb, nullptr, nullptr, &N, &uvs);
 
 	detail = addFileObjectAttribs(detail, obj, t, anim);
 
@@ -1988,7 +1989,8 @@ namespace
 					 nullptr, &N, &uvs);
             case GT_OWNER_DETAIL:
                 return getAttributeNames(obj, namemap, GA_ATTRIB_DETAIL,
-					 theConstantUnknownScope, 2, arb);
+					 theConstantUnknownScope, 2, arb,
+					 nullptr, nullptr, &N, &uvs);
             case GT_OWNER_MAX:
             case GT_OWNER_INVALID:
                 UT_ASSERT(0 && "Unexpected attribute type");
@@ -2273,10 +2275,10 @@ namespace
 
         switch (owner)
         {
-            case GT_OWNER_POINT:
-                return emptyString;
             case GT_OWNER_VERTEX:
-                return getAttributeNames(obj, namemap, GA_ATTRIB_VERTEX,
+                return emptyString;
+            case GT_OWNER_POINT:
+                return getAttributeNames(obj, namemap, GA_ATTRIB_POINT,
 					 vertex_scope, 3, arb, &P, &v, &N, &uvs,
 					 nullptr, &widths, &Pw);
             case GT_OWNER_PRIMITIVE:
@@ -2527,10 +2529,10 @@ namespace
 
         switch (owner)
         {
-            case GT_OWNER_POINT:
-                return emptyString;
             case GT_OWNER_VERTEX:
-                return getAttributeNames(obj, namemap, GA_ATTRIB_VERTEX,
+                return emptyString;
+            case GT_OWNER_POINT:
+                return getAttributeNames(obj, namemap, GA_ATTRIB_POINT,
 					 vertex_scope, 3, arb, &P, &v, &N, &uvs,
 					 nullptr, nullptr, &Pw);
             case GT_OWNER_PRIMITIVE:
