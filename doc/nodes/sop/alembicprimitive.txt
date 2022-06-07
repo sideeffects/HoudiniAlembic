@@ -21,7 +21,7 @@ Frame:
     
     Sets the animation frame for the primitive.
 
-Frames Per Second:
+Frames per Second:
     #id: fps
 
     Combined with the __Frame__ parameter, this is used to convert from Houdini's frame values to the Alembic time base.
