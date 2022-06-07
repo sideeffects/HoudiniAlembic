@@ -341,7 +341,7 @@
     }
     parm {
 	name	"fps"
-	label	"Frames Per Second"
+	label	"Frames per Second"
 	type	float
 	default	{ "$FPS" }
 	range	{ 0 10 }

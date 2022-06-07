@@ -416,7 +416,7 @@ static PRM_Name prm_reloadbutton("reload", "Reload Geometry");
 static PRM_Name prm_numlayersName("numlayers", "Number of Layers");
 static PRM_Name prm_filenameName("fileName", "File Name");
 static PRM_Name prm_frameName("frame", "Frame");
-static PRM_Name prm_fpsName("fps", "Frames Per Second");
+static PRM_Name prm_fpsName("fps", "Frames per Second");
 static PRM_Name prm_missingFileName("missingfile", "Missing File");
 
 static PRM_Name prm_abcxformName("abcxform", "Create Primitives For");
