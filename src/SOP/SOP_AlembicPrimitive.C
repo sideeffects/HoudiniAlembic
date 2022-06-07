@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -44,7 +44,7 @@ namespace
 {
 static PRM_Name		prm_groupName("group", "Group Name");
 static PRM_Name		prm_frameName("frame", "Frame");
-static PRM_Name		prm_fpsName("fps", "Frames Per Second");
+static PRM_Name		prm_fpsName("fps", "Frames per Second");
 static PRM_Name		prm_visibilityName("usevisibility", "Use Visibility");
 static PRM_Name		prm_lodName("viewportlod", "Display As");
 static PRM_Default	prm_frameDefault(1, "$FF");
