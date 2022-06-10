@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -28,10 +28,11 @@
 #include "GABC_OOptions.h"
 #include "GABC_OArrayProperty.h"
 #include <GT/GT_DANumeric.h>
-#include <UT/UT_Map.h>
-#include <UT/UT_StringArray.h>
-#include <UT/UT_StackBuffer.h>
 #include <UT/UT_EnvControl.h>
+#include <UT/UT_Map.h>
+#include <UT/UT_StackBuffer.h>
+#include <UT/UT_StringArray.h>
+#include <UT/UT_ValArray.h>
 
 using namespace GABC_NAMESPACE;
 
