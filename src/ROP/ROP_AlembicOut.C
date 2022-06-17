@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -758,7 +758,7 @@ ROP_AlembicOut::resolveObsoleteParms(PRM_ParmList *obsolete_parms)
     if(!obsolete_parms)
 	return;
 
-    int mode = obsolete_parms->evalInt(thePackedModeName.getToken(), 0, 0.0f);
+    int mode = obsolete_parms->evalInt(thePackedModeName, 0, 0.0f);
     switch(mode)
     {
 	case 1:
@@ -999,20 +999,20 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	if(SAVE_ATTRIBUTES(time))
 	{
 	    UT_String pattern;
-	    evalString(pattern, thePointAttributesName.getToken(), 0, time);
+	    evalString(pattern, thePointAttributesName, 0, time);
 	    options.setAttributePattern(GA_ATTRIB_POINT, pattern);
-	    evalString(pattern, theVertexAttributesName.getToken(), 0, time);
+	    evalString(pattern, theVertexAttributesName, 0, time);
 	    options.setAttributePattern(GA_ATTRIB_VERTEX, pattern);
-	    evalString(pattern, thePrimitiveAttributesName.getToken(), 0, time);
+	    evalString(pattern, thePrimitiveAttributesName, 0, time);
 	    options.setAttributePattern(GA_ATTRIB_PRIMITIVE, pattern);
-	    evalString(pattern, theDetailAttributesName.getToken(), 0, time);
+	    evalString(pattern, theDetailAttributesName, 0, time);
 	    options.setAttributePattern(GA_ATTRIB_DETAIL, pattern);
 	    PRIM_TO_DETAIL_PATTERN(pattern, time);
 	    options.setPrimToDetailPattern(pattern);
 	    options.setForcePrimToDetail(FORCE_PRIM_TO_DETAIL(time));
-	    evalString(pattern, theArrayAttribsPatternName.getToken(), 0, time);
+	    evalString(pattern, theArrayAttribsPatternName, 0, time);
 	    options.setArrayAttribPattern(pattern);
-	    evalString(pattern, theUVAttribPatternName.getToken(), 0, time);
+	    evalString(pattern, theUVAttribPatternName, 0, time);
 	    options.setUVAttribPattern(pattern);
 	}
     }

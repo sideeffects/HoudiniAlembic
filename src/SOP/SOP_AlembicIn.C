@@ -1077,7 +1077,7 @@ SOP_AlembicIn::evaluateParms(Parms &parms, OP_Context &context)
     for (int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
     {
 	UT_String	pattern;
-	evalString(pattern, theAttributePatternNames[i].getToken(), 0, now);
+	evalString(pattern, theAttributePatternNames[i], 0, now);
 	parms.myNameMapPtr->setPattern((GA_AttributeOwner)i, pattern);
     }
 }
