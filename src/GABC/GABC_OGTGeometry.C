@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -981,6 +981,7 @@ namespace
 	const GT_AttributeListHandle   &pt = pointAttributes(src);
 	const GT_AttributeListHandle   &vtx = vertexAttributes(src);
 	const GT_AttributeListHandle   &uniform = uniformAttributes(src);
+	const GT_AttributeListHandle   &detail = detailAttributes(src);
 	RiXlate				rixlate(src, GT_PRIM_POLYGON_MESH);
 
 	OPolyMeshSchema::Sample		sample;
@@ -1012,9 +1013,9 @@ namespace
 	}
 
 	auto uv_layer_type = getAttrLayerType(ctx, lopt, ltype,
-	    dest.getFullName().c_str(), "uv", pt, vtx, uniform);
+	    dest.getFullName().c_str(), "uv", pt, vtx, uniform, detail);
 	auto normal_layer_type = getAttrLayerType(ctx, lopt, ltype,
-	    dest.getFullName().c_str(), "N", pt, vtx);
+	    dest.getFullName().c_str(), "N", pt, vtx, uniform, detail);
 	auto vel_layer_type = getAttrLayerType(ctx, lopt, ltype,
 	    dest.getFullName().c_str(), "v", pt, vtx);
 
@@ -1023,8 +1024,7 @@ namespace
 	if (uv_layer_type == GABC_LayerOptions::LayerType::FULL)
 	{
 	    fillV2f(iUVs, cache, "uv", storage.uv(), rixlate, pt, vtx,
-		    uniform, GT_AttributeListHandle(),
-		    &uv_idx_storage, &uv_data_storage);
+		    uniform, detail, &uv_idx_storage, &uv_data_storage);
 	    sample.setUVs(iUVs);
 	}
 	else if (uv_layer_type == GABC_LayerOptions::LayerType::PRUNE)
@@ -1032,7 +1032,8 @@ namespace
 
 	if (normal_layer_type == GABC_LayerOptions::LayerType::FULL)
 	{
-	    fillN3f(iNml, cache, "N", storage.N(), rixlate, pt, vtx);
+	    fillN3f(iNml, cache, "N", storage.N(), rixlate, pt, vtx, uniform,
+		    detail);
 	    sample.setNormals(iNml);
 	}
 	else if (normal_layer_type == GABC_LayerOptions::LayerType::PRUNE)
@@ -1079,6 +1080,7 @@ namespace
 	const GT_AttributeListHandle   &pt = pointAttributes(src);
 	const GT_AttributeListHandle   &vtx = vertexAttributes(src);
 	const GT_AttributeListHandle   &uniform = uniformAttributes(src);
+	const GT_AttributeListHandle   &detail = detailAttributes(src);
 	RiXlate				rixlate(src, GT_PRIM_SUBDIVISION_MESH);
 	const GT_PrimSubdivisionMesh::Tag	*tag;
 
@@ -1200,7 +1202,7 @@ namespace
 	}
 
 	auto uv_layer_type = getAttrLayerType(ctx, lopt, ltype,
-	    dest.getFullName().c_str(), "uv", pt, vtx, uniform);
+	    dest.getFullName().c_str(), "uv", pt, vtx, uniform, detail);
 	auto vel_layer_type = getAttrLayerType(ctx, lopt, ltype,
 	    dest.getFullName().c_str(), "v", pt, vtx);
 
@@ -1209,8 +1211,7 @@ namespace
 	if (uv_layer_type == GABC_LayerOptions::LayerType::FULL)
 	{
 	    fillV2f(iUVs, cache, "uv", storage.uv(), rixlate, pt, vtx,
-		    uniform, GT_AttributeListHandle(),
-		    &uv_idx_storage, &uv_data_storage);
+		    uniform, detail, &uv_idx_storage, &uv_data_storage);
 	    sample.setUVs(iUVs);
 	}
 	else if (uv_layer_type == GABC_LayerOptions::LayerType::PRUNE)
@@ -1338,10 +1339,11 @@ namespace
 	// We pass in "vtx" for the point attributes since we can't
 	// differentiate between them at this point.
 	if (isFullShape
-	    || getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", vtx)
+	    || getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", GT_AttributeListHandle(), vtx)
 			== GABC_LayerOptions::LayerType::FULL)
 	{
-	    fillP3f(iPos, cache, "P", storage.P(), rixlate, vtx);
+	    fillP3f(iPos, cache, "P", storage.P(), rixlate,
+		    GT_AttributeListHandle(), vtx);
 	    if(Pw)
 	    {
 		iPosWeight = floatArray(Pw, storage.Pw());
@@ -1433,21 +1435,24 @@ namespace
 	}
 
 	auto uv_layer_type = getAttrLayerType(ctx, lopt, ltype,
-	    dest.getFullName().c_str(), "uv", GT_AttributeListHandle(), vtx, uniform);
+	    dest.getFullName().c_str(), "uv", GT_AttributeListHandle(), vtx,
+	    uniform, detail);
 	auto normal_layer_type = getAttrLayerType(ctx, lopt, ltype,
-	    dest.getFullName().c_str(), "N", vtx);
+	    dest.getFullName().c_str(), "N", GT_AttributeListHandle(), vtx,
+	    uniform, detail);
 	auto vel_layer_type = getAttrLayerType(ctx, lopt, ltype,
 	    dest.getFullName().c_str(), "v", vtx);
 	auto width_layer_type = getAttrLayerType(ctx, lopt, ltype,
-	    dest.getFullName().c_str(), "width", GT_AttributeListHandle(), vtx, uniform, detail);
+	    dest.getFullName().c_str(), "width", GT_AttributeListHandle(), vtx,
+	    uniform, detail);
 
 	UT_ValArray<uint32> uv_idx_storage;
 	UT_Fpreal32Array uv_data_storage;
 	if (uv_layer_type == GABC_LayerOptions::LayerType::FULL)
         {
 	    fillV2f(iUVs, cache, "uv", storage.uv(), rixlate,
-		GT_AttributeListHandle(), vtx, uniform,
-		GT_AttributeListHandle(), &uv_idx_storage, &uv_data_storage);
+		GT_AttributeListHandle(), vtx, uniform, detail,
+		&uv_idx_storage, &uv_data_storage);
 	    sample.setUVs(iUVs);
         }
 	else if (uv_layer_type == GABC_LayerOptions::LayerType::PRUNE)
@@ -1456,7 +1461,7 @@ namespace
 	if (normal_layer_type == GABC_LayerOptions::LayerType::FULL)
         {
 	    fillN3f(iNml, cache, "N", storage.N(), rixlate,
-		GT_AttributeListHandle(), vtx);
+		GT_AttributeListHandle(), vtx, uniform, detail);
 	    sample.setNormals(iNml);
         }
 	else if (normal_layer_type == GABC_LayerOptions::LayerType::PRUNE)
@@ -1516,10 +1521,11 @@ namespace
 	//
 	// Also pass in "detail" for primitive attributes.
 	if (isFullShape
-	    || getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", vtx)
+	    || getAttrLayerType(ctx, lopt, ltype, dest.getFullName().c_str(), "P", GT_AttributeListHandle(), vtx)
 			== GABC_LayerOptions::LayerType::FULL)
 	{
-	    fillP3f(iPos, cache, "P", storage.P(), rixlate, vtx);
+	    fillP3f(iPos, cache, "P", storage.P(), rixlate,
+		    GT_AttributeListHandle(), vtx);
 	    if(Pw)
 	    {
 		iPosWeight = floatArray(Pw, storage.Pw());
@@ -1594,9 +1600,11 @@ namespace
 	}
 
 	auto uv_layer_type = getAttrLayerType(ctx, lopt, ltype,
-	    dest.getFullName().c_str(), "uv", GT_AttributeListHandle(), vtx, detail);
+	    dest.getFullName().c_str(), "uv", GT_AttributeListHandle(), vtx,
+	    GT_AttributeListHandle(), detail);
 	auto normal_layer_type = getAttrLayerType(ctx, lopt, ltype,
-	    dest.getFullName().c_str(), "N", vtx);
+	    dest.getFullName().c_str(), "N", GT_AttributeListHandle(), vtx,
+	    GT_AttributeListHandle(), detail);
 	auto vel_layer_type = getAttrLayerType(ctx, lopt, ltype,
 	    dest.getFullName().c_str(), "v", vtx);
 
@@ -1605,8 +1613,8 @@ namespace
 	if (uv_layer_type == GABC_LayerOptions::LayerType::FULL)
 	{
 	    fillV2f(iUVs, cache, "uv", storage.uv(), rixlate,
-		GT_AttributeListHandle(), vtx, detail,
-		GT_AttributeListHandle(), &uv_idx_storage, &uv_data_storage);
+		GT_AttributeListHandle(), vtx, GT_AttributeListHandle(),
+		detail, &uv_idx_storage, &uv_data_storage);
 	    sample.setUVs(iUVs);
 	}
 	else if (uv_layer_type == GABC_LayerOptions::LayerType::PRUNE)
@@ -1614,7 +1622,9 @@ namespace
 
 	if (normal_layer_type == GABC_LayerOptions::LayerType::FULL)
 	{
-	    fillN3f(iNml, cache, "N", storage.N(), rixlate, vtx);
+	    fillN3f(iNml, cache, "N", storage.N(), rixlate,
+		    GT_AttributeListHandle(), vtx, GT_AttributeListHandle(),
+		    detail);
 	    sample.setNormals(iNml);
 	}
 	else if (normal_layer_type == GABC_LayerOptions::LayerType::PRUNE)
@@ -1622,7 +1632,8 @@ namespace
 
 	if (vel_layer_type == GABC_LayerOptions::LayerType::FULL)
 	{
-	    fillV3f(iVel, cache, "v", storage.v(), rixlate, vtx);
+	    fillV3f(iVel, cache, "v", storage.v(), rixlate,
+		    GT_AttributeListHandle(), vtx);
 	    sample.setVelocities(iVel.getVals());
 	}
 	else if (vel_layer_type == GABC_LayerOptions::LayerType::PRUNE)
