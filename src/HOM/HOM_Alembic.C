@@ -1318,23 +1318,15 @@ namespace
 
 #if defined(WIN32)
 PyMODINIT_FUNC
-#elif PY_MAJOR_VERSION >= 3
+#else
 // This is a replacement of PyMODINIT_FUNC but with the default visibility
 // attribute declaration injected in the middle.
 extern "C" __attribute__((visibility("default"))) PyObject*
-#else
-PyMODINIT_FUNC __attribute__((visibility("default")))
 #endif
 
-#if PY_MAJOR_VERSION >= 3
 PyInit__alembic_hom_extensions(void)
-#else
-init_alembic_hom_extensions(void)
-#endif
 {
-#if PY_MAJOR_VERSION >= 3
     PY_PyObject *module = nullptr;
-#endif
 
     {
     // A PY_InterpreterAutoLock will grab the Python global interpreter
@@ -1391,15 +1383,10 @@ init_alembic_hom_extensions(void)
         { nullptr, nullptr, 0, nullptr }
     };
 
-#if PY_MAJOR_VERSION >= 3
-    module = 
-#endif
-    PY_Py_InitModule(
+    module = PY_Py_InitModule(
 	"_alembic_hom_extensions", alembic_hom_extension_methods);
 
     }
 
-#if PY_MAJOR_VERSION >= 3
     return reinterpret_cast<PyObject *>(module);
-#endif
 }
