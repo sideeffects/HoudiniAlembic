@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1647,8 +1647,9 @@ namespace
 		bool err_parsing = false;
 
 		int index = 0;
-		for(auto array_it = parser->beginArray();
-		    !array_it.atEnd(); array_it.advance(), ++index)
+		for(succ_parsing &= parser->parseBeginArray(err_parsing);
+		    succ_parsing & !parser->parseEndArray(err_parsing);
+		    ++index)
 		{
 		    succ_parsing &= parser->parseString(buffer);
 
@@ -1685,8 +1686,9 @@ namespace
 		bool			 err_parsing = false;
 
 		int index = 0;
-		for(auto array_it = parser->beginArray();
-		    !array_it.atEnd(); array_it.advance(), ++index)
+		for(succ_parsing &= parser->parseBeginArray(err_parsing);
+		    succ_parsing & !parser->parseEndArray(err_parsing);
+		    ++index)
 		{
 		    if(tuple_size > 1)
 		    {
