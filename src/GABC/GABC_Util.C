@@ -1127,10 +1127,10 @@ namespace
 	    UT_WorkBuffer key;
 
 	    // Parse the meta data.
-	    for(auto meta_it = meta_data->beginMap();
-		!meta_it.atEnd(); meta_it.advance())
+	    for(succ_parsing &= meta_data->parseBeginMap(err_parsing);
+		succ_parsing && !meta_data->parseEndMap(err_parsing);)
 	    {
-		if(!meta_it.getKey(key))
+		if(!meta_data->parseKey(key))
 		{
 		    err.warning("Invalid key while parsing "
 			"user property metadatas.");
@@ -1183,10 +1183,10 @@ namespace
 	    }
 
 	    // Parse the values
-	    for(auto vals_it = vals_data->beginMap();
-		!vals_it.atEnd(); vals_it.advance())
+	    for(succ_parsing &= vals_data->parseBeginMap(err_parsing);
+		succ_parsing && !vals_data->parseEndMap(err_parsing);)
 	    {
-		if(!vals_it.getKey(key))
+		if(!vals_data->parseKey(key))
 		{
 		    err.warning("Invalid key while parsing "
 			"user property values.");
