@@ -41,6 +41,7 @@
 #include <UT/UT_Debug.h>
 #include <UT/UT_JSONParser.h>
 #include <UT/UT_JSONValue.h>
+#include <UT/UT_JSONValueArray.h>
 #include <UT/UT_JSONWriter.h>
 #include <UT/UT_MemoryCounter.h>
 #include <UT/UT_StdUtil.h>

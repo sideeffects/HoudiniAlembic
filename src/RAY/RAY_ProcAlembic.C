@@ -37,6 +37,7 @@
 #include <UT/UT_EnvControl.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_JSONValue.h>
+#include <UT/UT_JSONValueMap.h>
 #include <UT/UT_JSONParser.h>
 #include <UT/UT_StringMMPattern.h>
 #include <UT/UT_WorkArgs.h>
