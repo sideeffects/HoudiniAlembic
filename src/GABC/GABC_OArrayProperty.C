@@ -877,7 +877,8 @@ GABC_OArrayProperty::start(OCompoundProperty &parent,
                                 || myTupleSize != 1
                                 || array->getStringIndexCount() < 0
                                 || array->getStringIndexCount() > array->entries()/2
-                                || UT_EnvControl::getInt(ENV_HOUDINI_DISABLE_ALEMBIC_INDEXED_ARRAYS))
+                                || UT_EnvControl::getInt(ENV_HOUDINI_DISABLE_ALEMBIC_INDEXED_ARRAYS)
+                                || !options.outputIndexedArrays())
                         {
                             DECL_PARAM(OStringGeomParam);
                         }

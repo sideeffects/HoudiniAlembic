@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -118,6 +118,8 @@ protected:
 		{ return evalInt("shape_nodes", 0, time) != 0; }
     bool SAVE_ATTRIBUTES(fpreal time) const
 		{ return evalInt("save_attributes", 0, time) != 0; }
+    bool OUTPUT_INDEXED_ARRAYS(fpreal time) const
+		{ return evalInt("outputindexedarrays", 0, time) != 0; }
     void PRIM_TO_DETAIL_PATTERN(UT_String &str, fpreal time) const
 		{ evalString(str, "prim_to_detail_pattern", 0, time); }
     bool FORCE_PRIM_TO_DETAIL(fpreal time) const

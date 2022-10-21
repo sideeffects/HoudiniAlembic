@@ -114,6 +114,14 @@ public:
     void        setUVAttribPattern(const char *pattern) { myUVAttribPattern.harden(pattern); }
     /// @}
 
+    /// @{
+    /// Output string arrays as a compount property consisting of
+    /// an array of unique strings and an integer arrays with indices into the
+    /// strings.
+    bool        outputIndexedArrays() const        { return myOutputIndexedArrays; }
+    void        setOutputIndexedArrays(bool value) { myOutputIndexedArrays = value; }
+    /// @}
+
 private:
     UT_String		mySubdGroup;
     UT_String		myPathAttribute;
@@ -123,6 +131,7 @@ private:
     UT_String           myUVAttribPattern;
     bool		myFullBounds;
     bool		myForcePrimToDetail;
+    bool                myOutputIndexedArrays;
 };
 
 }   // end GABC_NAMESPACE

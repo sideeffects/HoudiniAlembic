@@ -293,6 +293,13 @@ Save Attributes:
     If this checkbox is turned on, geometry attributes will be saved to the
     Alembic file as arbitrary geometry parameters.
 
+Output Indexed Arrays:
+    #id: outputindexedarrays
+
+    Disable saving string attributes as Alembic indexed arrays. By default,
+    Houdini will save strings as indexed attributes in cases where it makes
+    sense. This option will disable this feature.
+
 Point Attributes:
     #id: pointAttributes
 
