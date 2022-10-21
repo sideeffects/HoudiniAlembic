@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -91,6 +91,7 @@ static PRM_Name thePackedTransformName("packed_transform", "Packed Transform");
 static PRM_Name theUseInstancingName("use_instancing", "Use Instancing Where Possible");
 static PRM_Name theShapeNodesName("shape_nodes", "Create Shape Nodes");
 static PRM_Name theSaveAttributesName("save_attributes", "Save Attributes");
+static PRM_Name theOutputIndexedArraysName("outputindexedarrays", "Output Indexed Arrays");
 static PRM_Name thePointAttributesName("pointAttributes", "Point Attributes");
 static PRM_Name theVertexAttributesName("vertexAttributes", "Vertex Attributes");
 static PRM_Name thePrimitiveAttributesName("primitiveAttributes", "Primitive Attributes");
@@ -607,6 +608,7 @@ static PRM_Template theParameters[] =
     PRM_Template(PRM_TOGGLE, 1, &theUseInstancingName, PRMoneDefaults),
     PRM_Template(PRM_TOGGLE, 1, &theShapeNodesName, PRMoneDefaults),
     PRM_Template(PRM_TOGGLE, 1, &theSaveAttributesName, PRMoneDefaults),
+    PRM_Template(PRM_TOGGLE, 1, &theOutputIndexedArraysName, PRMoneDefaults),
     PRM_Template(PRM_STRING, 1, &thePointAttributesName, &theStarDefault),
     PRM_Template(PRM_STRING, 1, &theVertexAttributesName, &theStarDefault),
     PRM_Template(PRM_STRING, 1, &thePrimitiveAttributesName, &theStarDefault),
@@ -733,6 +735,7 @@ ROP_AlembicOut::updateParmsFlags()
     changed |= enableParm("partition_mode", partition_mode);
     changed |= enableParm("partition_attribute", partition_attrib);
     changed |= enableParm("save_attributes", shape_nodes);
+    changed |= enableParm("outputindexedarrays", save_attributes);
     changed |= enableParm("vertexAttributes", save_attributes);
     changed |= enableParm("pointAttributes", save_attributes);
     changed |= enableParm("primitiveAttributes", save_attributes);
@@ -1014,6 +1017,8 @@ ROP_AlembicOut::renderFrame(fpreal time, UT_Interrupt *boss)
 	    options.setArrayAttribPattern(pattern);
 	    evalString(pattern, theUVAttribPatternName.getToken(), 0, time);
 	    options.setUVAttribPattern(pattern);
+	    evalString(pattern, theArrayAttribsPatternName, 0, time);
+            options.setOutputIndexedArrays(OUTPUT_INDEXED_ARRAYS(time));
 	}
     }
 
