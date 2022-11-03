@@ -46,6 +46,7 @@
 #include <UT/UT_StringArray.h>
 #include <UT/UT_SymbolTable.h>
 #include <UT/UT_SysClone.h>
+#include <UT/UT_TaskLock.h>
 #include <UT/UT_WorkBuffer.h>
 #include <UT/UT_UniquePtr.h>
 #include <FS/FS_Info.h>
@@ -228,7 +229,7 @@ namespace
     using UPSampleMap = UT_Map<GABC_OProperty *, UPSample>;
     using UPSampleMapInsert = std::pair<GABC_OProperty *, UPSample>;
 
-    static UT_Lock		theFileLock;
+    static UT_TaskLockWithArena theFileLock;
     static UT_Lock		theOCacheLock;
     static UT_Lock		theXCacheLock;
     static UT_Lock		theVisibilityCacheLock;
@@ -1787,42 +1788,51 @@ namespace
 	ArchiveCacheEntryPtr
 	loadArchive(const std::vector<std::string> &paths)
 	{
-	    UT_AutoLock lock(theFileLock);
-
-	    auto I = myItems.find(paths);
-	    if (I != myItems.end() && !I->second->clearIfModified())
-		return I->second;
-
-	    if (!paths.size())
-		return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
-
-	    for (auto &it : paths)
+	    ArchiveCacheEntryPtr result;
+	    theFileLock.lockedExecute([&]()
 	    {
-		if (!pathMap(it))
+		auto I = myItems.find(paths);
+		if (I != myItems.end() && !I->second->clearIfModified())
 		{
-		    badFileWarning(it);
-		    return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
+		    result = I->second;
+		    return;
 		}
-	    }
 
-	    auto entry = ArchiveCacheEntryPtr(new ArchiveCacheEntry());
-	    entry->setArchive(paths);
-	    while (myItems.size() >= g_maxCache)
-	    {
-		long d = static_cast<long>(
-			std::floor(static_cast<double>(std::rand())
-				    / RAND_MAX * g_maxCache - 0.5));
-		if (d < 0)
-		    d = 0;
+		if (!paths.size())
+		{
+		    result = ArchiveCacheEntryPtr(new ArchiveCacheEntry());
+		    return;
+		}
 
-		auto it = myItems.begin();
-		for (; d > 0; --d)
-		    ++it;
-		removeCacheEntry(it->first, false);
-	    }
+		for (auto &it : paths)
+		{
+		    if (!pathMap(it))
+		    {
+			badFileWarning(it);
+			result = ArchiveCacheEntryPtr(new ArchiveCacheEntry());
+			return;
+		    }
+		}
 
-	    addCacheEntry(paths, entry);
-	    return entry;
+		result = ArchiveCacheEntryPtr(new ArchiveCacheEntry());
+		result->setArchive(paths);
+		while (myItems.size() >= g_maxCache)
+		{
+		    long d = static_cast<long>(
+			    std::floor(static_cast<double>(std::rand())
+					/ RAND_MAX * g_maxCache - 0.5));
+		    if (d < 0)
+			d = 0;
+
+		    auto it = myItems.begin();
+		    for (; d > 0; --d)
+			++it;
+		    removeCacheEntry(it->first, false);
+		}
+
+		addCacheEntry(paths, result);
+	    });
+	    return result;
 	}
 
 	void
