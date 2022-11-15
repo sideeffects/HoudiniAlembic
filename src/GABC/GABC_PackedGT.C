@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1524,7 +1524,6 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
     PRINT_TIMER("Create primitives");
 
     UT_Array<GT_PrimitiveHandle> alem_meshes;
-    int ccount = 0;
     // Sort the primitives into buckets based on animation.
     for(auto offset : myAlembicOffsets)
     {
@@ -1634,7 +1633,6 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
 		combineMeshes(meshes, combined, myCombinedShapes, myConstShapes,
 			      myTransformShapes, null_shape,
 			      max_mesh_size, max_prims, max_faces);
-		ccount++;
 	    }
 	}
 	else
