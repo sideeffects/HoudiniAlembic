@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2022
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -34,6 +34,7 @@ GABC_OOptions::GABC_OOptions()
     , myPrimToDetailPattern()
     , myFullBounds(false)
     , myForcePrimToDetail(false)
+    , myOutputIndexedArrays(false)
 {
     for(int i = 0; i < GA_ATTRIB_OWNER_N; ++i)
 	myAttributePatterns[i] = "*";
