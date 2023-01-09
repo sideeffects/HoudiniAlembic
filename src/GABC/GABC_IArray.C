@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -91,11 +91,22 @@ GABC_IArray::getSample(GABC_IArchive &arch,
     if (!sample->valid())
 	return GABC_IArray();
 
-    UT_ASSERT(array_extent == 1 || sample->size() % array_extent == 0);
+    UT_ASSERT(array_extent != 0 && sample->size() % array_extent == 0);
 
     const DataType	&dtype = sample->getDataType();
-    GT_Size		 size = sample->size()/array_extent;
-    GT_Size		 tsize = dtype.getExtent() * array_extent;
+    GT_Size size;
+    GT_Size tsize;
+    if (array_extent)
+    {
+	size = sample->size() / array_extent;
+	tsize = dtype.getExtent() * array_extent;
+    }
+    else
+    {
+        // gracefully handle the unexpected situation of array_extent == 0
+	size = 0;
+	tsize = 0;
+    }
     GT_Storage		 store = GABC_GTUtil::getGTStorage(dtype);
     return GABC_IArray(arch, sample, size, tsize, store, tinfo, is_constant);
 }
