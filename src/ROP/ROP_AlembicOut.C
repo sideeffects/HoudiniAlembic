@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -150,7 +150,7 @@ static PRM_SpareData theAbcPattern(
 static PRM_Default mainSwitcher[] =
 {
     PRM_Default(13, "Hierarchy"),
-    PRM_Default(13, "Geometry"),
+    PRM_Default(14, "Geometry"),
     PRM_Default(7,  "Layering"),
     PRM_Default(3,  "Motion Blur"),
 };
