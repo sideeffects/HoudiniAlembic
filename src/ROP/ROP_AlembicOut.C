@@ -153,6 +153,7 @@ static PRM_Default mainSwitcher[] =
     PRM_Default(14, "Geometry"),
     PRM_Default(7,  "Layering"),
     PRM_Default(3,  "Motion Blur"),
+    PRM_Default(12, "Scripts"),
 };
 
 static PRM_Name theFormatChoices[] =
@@ -581,7 +582,7 @@ static PRM_Template theParameters[] =
     PRM_Template(PRM_TOGGLE, 1, &ROPmkpath, PRMoneDefaults),
     PRM_Template(PRM_TOGGLE, 1, &theRenderFullRange, PRMoneDefaults),
     PRM_Template(PRM_TOGGLE, 1, &theInitSim),
-    PRM_Template(PRM_SWITCHER, 4, &PRMswitcherName, mainSwitcher),
+    PRM_Template(PRM_SWITCHER, 5, &PRMswitcherName, mainSwitcher),
     PRM_Template(PRM_TOGGLE, 1, &theSingleSopModeName),
     PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH, 1, &theSOPPathName,
 		    0, 0, 0, 0, &PRM_SpareData::sopPath),
@@ -634,6 +635,18 @@ static PRM_Template theParameters[] =
     PRM_Template(PRM_TOGGLE, 1, &theMotionBlurName),
     PRM_Template(PRM_INT, 1, &theSampleName, &theSampleDefault),
     PRM_Template(PRM_FLT, 2, &theShutterName, theShutterDefault),
+    theRopTemplates[ROP_TPRERENDER_TPLATE],
+    theRopTemplates[ROP_PRERENDER_TPLATE],
+    theRopTemplates[ROP_LPRERENDER_TPLATE],
+    theRopTemplates[ROP_TPREFRAME_TPLATE],
+    theRopTemplates[ROP_PREFRAME_TPLATE],
+    theRopTemplates[ROP_LPREFRAME_TPLATE],
+    theRopTemplates[ROP_TPOSTFRAME_TPLATE],
+    theRopTemplates[ROP_POSTFRAME_TPLATE],
+    theRopTemplates[ROP_LPOSTFRAME_TPLATE],
+    theRopTemplates[ROP_TPOSTRENDER_TPLATE],
+    theRopTemplates[ROP_POSTRENDER_TPLATE],
+    theRopTemplates[ROP_LPOSTRENDER_TPLATE],
     PRM_Template(),
 };
 

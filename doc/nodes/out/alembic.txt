@@ -421,3 +421,5 @@ Shutter:
     #id: shutter
 
     The open/close of the shutter for sub-frame motion samples.
+
+:include standard#scripts_tab:
