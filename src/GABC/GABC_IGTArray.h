@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -31,6 +31,7 @@
 #include "GABC_API.h"
 #include <GT/GT_DataArray.h>
 #include <GT/GT_DAIndexedString.h>
+#include <UT/UT_ParallelUtil.h>
 #include "GABC_IArray.h"
 
 namespace GABC_NAMESPACE
@@ -293,12 +294,21 @@ private:
 		    else
 		    {
 			const POD_T *src = myData+start*getTupleSize();
-			for (GT_Offset i = 0; i < length; ++i,
-					src += getTupleSize(), dest += stride)
-			{
-			    for (int j = 0; j < n; ++j)
-				dest[j] = src[j];
-			}
+			UTparallelForLightItems(UT_BlockedRange<exint>(0, length),
+			    [&](const UT_BlockedRange<exint> &r)
+			    {
+				exint rstart = r.begin();
+				exint rend = r.end();
+				POD_T *d = dest + rstart * stride;
+				const POD_T *s = src + rstart * getTupleSize();
+				for (exint i = rstart;
+				     i < rend;
+				     ++i, s += getTupleSize(), d += stride)
+				{
+				    for (int j = 0; j < n; ++j)
+					d[j] = s[j];
+				}
+			    });
 		    }
 		}
 
@@ -311,12 +321,21 @@ private:
 		    stride = SYSmax(stride, tsize);
 		    int n = SYSmin(tsize, getTupleSize());
 		    const POD_T *src = myData+start*getTupleSize();
-		    for (GT_Offset i = 0; i < length; ++i,
-					src += getTupleSize(), dest += stride)
-		    {
-			for (int j = 0; j < n; ++j)
-			    dest[j] = src[j];
-		    }
+		    UTparallelForLightItems(UT_BlockedRange<exint>(0, length),
+			[&](const UT_BlockedRange<exint> &r)
+			{
+			    exint rstart = r.begin();
+			    exint rend = r.end();
+			    DEST_POD_T *d = dest + rstart * stride;
+			    const POD_T *s = src + rstart * getTupleSize();
+			    for (exint i = rstart;
+				 i < rend;
+				 ++i, s += getTupleSize(), d += stride)
+			    {
+				for (int j = 0; j < n; ++j)
+				    d[j] = s[j];
+			    }
+			});
 		}
 
     GABC_IArray	 myArray;	// Shared pointer to TypedArraySample
