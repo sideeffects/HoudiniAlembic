@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -230,10 +230,6 @@ namespace
     using UPSampleMapInsert = std::pair<GABC_OProperty *, UPSample>;
 
     static UT_TaskLockWithArena theFileLock;
-    static UT_Lock		theOCacheLock;
-    static UT_Lock		theXCacheLock;
-    static UT_Lock		theVisibilityCacheLock;
-    static UT_Lock		theBoundingBoxCacheLock;
 
     const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
@@ -476,7 +472,7 @@ namespace
 	    if (!myXformCacheBuilt)
 	    {
 		// Double lock
-		UT_AutoLock	lock(theXCacheLock);
+		UT_AutoLock	lock(myXCacheLock);
 		if (!myXformCacheBuilt)
 		{
 		    M44d	id;
@@ -771,7 +767,7 @@ namespace
 		bool &animated,
 		bool check_parent)
         {
-            UT_AutoLock	lock(theVisibilityCacheLock);
+            UT_AutoLock	lock(myVisibilityLock);
 	    return getVisibilityInternal(obj, now, animated, check_parent);
 	}
 
@@ -826,7 +822,7 @@ namespace
 		UT_BoundingBox &box,
 		bool &isconst)
         {
-            UT_AutoLock	lock(theBoundingBoxCacheLock);
+            UT_AutoLock	lock(myBoundingBoxLock);
 	    return getBoundingBoxInternal(obj, now, box, isconst);
 	}
 
@@ -837,7 +833,7 @@ namespace
 	        UT_WorkBuffer &fullpath,
 	        const char *component)
         {
-            UT_AutoLock	lock(theOCacheLock);
+            UT_AutoLock	lock(myOCacheLock);
             fullpath.append("/");
             fullpath.append(component);
 
@@ -1034,6 +1030,10 @@ namespace
 	UT_CappedCache		myDynamicBoundingBoxes;
 	HandlerSetType		myHandlers;
 	UT_Lock			myTransformLock;
+	UT_Lock			myOCacheLock;
+	UT_Lock			myXCacheLock;
+	UT_Lock			myVisibilityLock;
+	UT_Lock			myBoundingBoxLock;
     };
 
     struct AlembicTraitEquivalence
