@@ -28,7 +28,7 @@ Render to Disk:
 
     Begins the render with the last render control settings.
 
-Controls...:
+Controls:
     #id: renderdialog
 
     Opens the render control dialog to allow adjustments of the render parameters before rendering.
@@ -36,11 +36,11 @@ Controls...:
 Valid Frame Range:
     #id: trange
 
-    Controls whether this render node outputs the current frame (__Render any frame__) or the image sequence specified in the __Start/End/Inc__ parameters (__Render Frame Range__).
+    Controls whether this render node outputs the current frame (__Render Current Frame__) or the image sequence specified in the __Start/End/Inc__ parameters (__Render Frame Range__).
 
-    __Render Frame Range (strict)__ will render frames START to END when it is rendered, but will not allow frames outside this range to be rendered at all. __Render Frame Range__ will allow outside frames to be rendered. This is used in conjunction with render dependencies. It also affects the behavior of the 'Override Frame Range' in the Render Control dialog.
+    __Render Frame Range Only (Strict)__ will render frames START to END when it is rendered, but will not allow frames outside this range to be rendered at all. __Render Frame Range__ will allow outside frames to be rendered. This is used in conjunction with render dependencies. It also affects the behavior of the 'Override Frame Range' in the Render Control dialog.
 
-    Two possible cases where you'd want the strict behavior:
+    Two possible cases where you would want the strict behavior:
 
     - A 60 frame walk cycle written out to a geo, but part of a larger ROP net to render out a larger frame range.
 
@@ -54,7 +54,7 @@ Valid Frame Range:
     Render Frame Range:
         Renders a sequence of frames. If an output render node is connected, this range is generally ignored in favor of frames requested by the output render node.
 
-    Render Frame Range (Strict):
+    Render Frame Range Only (Strict):
         Renders a sequence of frames. If an output render node is connected, this range restricts its requested frames to this frame range.
 
 Start/End/Inc:
@@ -143,7 +143,7 @@ Initialize Simulation OPs:
 Use SOP Path:
     #id: use_sop_path
 
-    Instead of exporting objects contained under a root object, the Alembic ROP can export a single geometry detail specified by a SOP path. The SOP path export method is enabled by this parameter.
+    When turned on, the Alembic ROP exports a single geometry detail specified in __SOP Path__ instead of exporting objects contained under a root object.
 
 SOP Path:
     #id: sop_path
@@ -209,7 +209,7 @@ Collapse Objects:
 Save All Non-Displayed (Hidden) Objects:
     #id: save_hidden
 
-    If this checkbox is turned on, hidden objects matching the __Objects__ pattern/bundle will also written to the Alembic archive.
+    If this checkbox is turned on, hidden objects matching the __Objects__ pattern/bundle will also be written to the Alembic archive.
 
 Use Display SOP:
     #id: displaysop
@@ -363,13 +363,13 @@ Face Sets:
 Enable Layering:
     #id: uselayering
 
-    When enabled, the resulting Alembic archive will only export the
-    subset of the scene specified by parameters on the __Layering__ tab.
+    When turned on, the resulting Alembic archive will only export the
+    subset of the scene specified by the parameters on the __Layering__ tab.
 
 Create Full Ancestors for Output Nodes:
     #id: fullancestor
 
-    When enabled, all data for ancestors to non-pruned nodes specified by
+    When turned on, all data for ancestors to non-pruned nodes specified by
     the __Nodes__ multiparm will be exported.
 
 Nodes:
