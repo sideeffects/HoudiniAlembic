@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -109,8 +109,7 @@ namespace
 	    GT_OWNER_POINT,	"pt",
 	    GT_OWNER_VERTEX,	"vtx",
 	    GT_OWNER_PRIMITIVE,	"prim",
-	    GT_OWNER_DETAIL,	"detail",
-	    GT_OWNER_INVALID,	NULL
+	    GT_OWNER_DETAIL,	"detail"
     );
 
     class RiXlate

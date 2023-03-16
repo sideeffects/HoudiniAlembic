@@ -1513,9 +1513,7 @@ namespace
 		    Alembic::Util::kFloat32POD,     "float32",
 		    Alembic::Util::kFloat64POD,     "float64",
 		    Alembic::Util::kStringPOD,      "string",
-		    Alembic::Util::kWstringPOD,     "wstring",
-
-		    -1,				    NULL
+		    Alembic::Util::kWstringPOD,     "wstring"
 		);
 
 		auto abcPod = (PlainOldDataType)

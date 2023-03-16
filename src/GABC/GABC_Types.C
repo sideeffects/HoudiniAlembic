@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -42,8 +42,7 @@ namespace
 	GABC_POINTS,		"Points",
 	GABC_NUPATCH,		"NuPatch",
 	GABC_LIGHT,		"Light",
-	GABC_MATERIAL,		"Material",
-	-1, NULL
+	GABC_MATERIAL,		"Material"
     );
 }
 
