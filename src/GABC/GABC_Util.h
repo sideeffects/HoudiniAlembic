@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -236,8 +236,9 @@ public:
     static GABC_IObject findObject(const std::vector<std::string> &filenames,
                                 ObjectReaderPtr reader);
     /// Return a list of all the objects in an Alembic file
-    static const PathList	&getObjectList(const std::vector<std::string> &filenames,
-					bool include_face_sets=false);
+    static void getObjectList(PathList &objectpaths,
+			      const std::vector<std::string> &filenames,
+			      bool include_face_sets=false);
 
     //
     //  Matrix Conversion

@@ -46,7 +46,7 @@
 #include <UT/UT_StringArray.h>
 #include <UT/UT_SymbolTable.h>
 #include <UT/UT_SysClone.h>
-#include <UT/UT_TaskLock.h>
+#include <UT/UT_Lock.h>
 #include <UT/UT_WorkBuffer.h>
 #include <UT/UT_UniquePtr.h>
 #include <FS/FS_Info.h>
@@ -229,7 +229,7 @@ namespace
     using UPSampleMap = UT_Map<GABC_OProperty *, UPSample>;
     using UPSampleMapInsert = std::pair<GABC_OProperty *, UPSample>;
 
-    static UT_TaskLockWithArena theFileLock;
+    static UT_Lock theFileLock;
 
     const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
@@ -455,15 +455,6 @@ namespace
 	    myHandlers.insert(handler);
 	    handler->setArchivePtr(myArchive.get());
 	    return true;
-        }
-
-	bool
-	walk(GABC_Util::Walker &walker)
-        {
-            if (!walker.preProcess(root()))
-                return false;
-
-            return walkTree(root(), walker);
         }
 
 	inline void
@@ -919,15 +910,19 @@ namespace
 	    PathList   &myFullObjectList;
 	};
 
-	const PathList &
-	getObjectList(bool full)
+	void
+	getObjectList(PathList &objectpaths, bool full)
         {
             if (isValid() && !myFullObjectList.size())
             {
                 PathListWalker	func(myObjectList, myFullObjectList);
-                walk(func);
+		if (func.preProcess(root()))
+		    walkTree(root(), func);
             }
-            return full ? myFullObjectList : myObjectList;
+            if (full)
+		objectpaths = myFullObjectList;
+	    else
+		objectpaths = myObjectList;
         }
 
 	static bool
@@ -1006,12 +1001,12 @@ namespace
 
 	void    setError(const std::string &e)          { myError = e; }
 
-    private:
 	GABC_IObject		root()
         {
             return myArchive ? myArchive->getTop() : GABC_IObject();
         }
 
+    private:
 	GABC_IArchivePtr	myArchive;
 	UT_Map<std::string, std::pair<time_t, exint> > myAccessTimes;
 	std::string		myError;
@@ -1786,50 +1781,40 @@ namespace
 	ArchiveCacheEntryPtr
 	loadArchive(const std::vector<std::string> &paths)
 	{
-	    ArchiveCacheEntryPtr result;
-	    theFileLock.lockedExecute([&]()
+	    auto I = myItems.find(paths);
+	    if (I != myItems.end() && !I->second->clearIfModified())
+		return I->second;
+
+	    if (!paths.size())
+		return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
+
+	    for (auto &it : paths)
 	    {
-		auto I = myItems.find(paths);
-		if (I != myItems.end() && !I->second->clearIfModified())
+		if (!pathMap(it))
 		{
-		    result = I->second;
-		    return;
+		    badFileWarning(it);
+		    return ArchiveCacheEntryPtr(new ArchiveCacheEntry());
 		}
+	    }
 
-		if (!paths.size())
-		{
-		    result = ArchiveCacheEntryPtr(new ArchiveCacheEntry());
-		    return;
-		}
+	    ArchiveCacheEntryPtr result =
+			ArchiveCacheEntryPtr(new ArchiveCacheEntry());
+	    result->setArchive(paths);
+	    while (myItems.size() >= g_maxCache)
+	    {
+		long d = static_cast<long>(
+			std::floor(static_cast<double>(std::rand())
+				    / RAND_MAX * g_maxCache - 0.5));
+		if (d < 0)
+		    d = 0;
 
-		for (auto &it : paths)
-		{
-		    if (!pathMap(it))
-		    {
-			badFileWarning(it);
-			result = ArchiveCacheEntryPtr(new ArchiveCacheEntry());
-			return;
-		    }
-		}
+		auto it = myItems.begin();
+		for (; d > 0; --d)
+		    ++it;
+		removeCacheEntry(it->first, false);
+	    }
 
-		result = ArchiveCacheEntryPtr(new ArchiveCacheEntry());
-		result->setArchive(paths);
-		while (myItems.size() >= g_maxCache)
-		{
-		    long d = static_cast<long>(
-			    std::floor(static_cast<double>(std::rand())
-					/ RAND_MAX * g_maxCache - 0.5));
-		    if (d < 0)
-			d = 0;
-
-		    auto it = myItems.begin();
-		    for (; d > 0; --d)
-			++it;
-		    removeCacheEntry(it->first, false);
-		}
-
-		addCacheEntry(paths, result);
-	    });
+	    addCacheEntry(paths, result);
 	    return result;
 	}
 
@@ -1867,7 +1852,7 @@ namespace
 	    for(auto &p : paths)
 		myKeysWithPath[p].insert(paths);
 
-	    myItems[paths] = entry;
+	    myItems.emplace(paths, entry);
 	}
 
 	void
@@ -1995,8 +1980,11 @@ GABC_Util::walk(const std::vector<std::string> &filenames,
 {
     //try
     {
-	auto cacheEntry = g_archiveCache->loadArchive(filenames);
-	walker.myBadArchive = !cacheEntry->isValid();
+	{
+	    UT_AutoLock auto_lock(theFileLock);
+	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
+	    walker.myBadArchive = !cacheEntry->isValid();
+	}
 	if (!walker.myBadArchive)
 	{
 	    WalkPushFile walkfile(walker, filenames);
@@ -2010,7 +1998,7 @@ GABC_Util::walk(const std::vector<std::string> &filenames,
 		{
 		    if (!walker.preProcess(obj))
 			return false;
-		    if (!cacheEntry->walkTree(obj, walker))
+		    if (!ArchiveCacheEntry::walkTree(obj, walker))
 			return false;
 		}
 	    }
@@ -2031,8 +2019,11 @@ GABC_Util::walk(const std::vector<std::string> &filenames,
 {
     //try
     {
-	auto cacheEntry = g_archiveCache->loadArchive(filenames);
-	walker.myBadArchive = !cacheEntry->isValid();
+	{
+	    UT_AutoLock auto_lock(theFileLock);
+	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
+	    walker.myBadArchive = !cacheEntry->isValid();
+	}
 	if (!walker.myBadArchive)
 	{
 	    WalkPushFile walkfile(walker, filenames);
@@ -2044,7 +2035,7 @@ GABC_Util::walk(const std::vector<std::string> &filenames,
 		{
 		    if (!walker.preProcess(obj))
 			return false;
-		    if (!cacheEntry->walkTree(obj, walker))
+		    if (!ArchiveCacheEntry::walkTree(obj, walker))
 			return false;
 		}
 	    }
@@ -2064,13 +2055,19 @@ GABC_Util::walk(const std::vector<std::string> &filenames, GABC_Util::Walker &wa
 {
     //try
     {
-	auto cacheEntry = g_archiveCache->loadArchive(filenames);
+	GABC_IObject root;
+	{
+	    UT_AutoLock auto_lock(theFileLock);
+	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
+	    walker.myBadArchive = !cacheEntry->isValid();
+	    root = cacheEntry->root();
+	}
 
-	walker.myBadArchive = !cacheEntry->isValid();
 	if (!walker.myBadArchive)
 	{
 	    WalkPushFile walkfile(walker, filenames);
-	    return cacheEntry->walk(walker);
+            return walker.preProcess(root)
+		&& ArchiveCacheEntry::walkTree(root, walker);
 	}
     }
     //catch (const std::exception &)
@@ -2084,6 +2081,7 @@ GABC_Util::walk(const std::vector<std::string> &filenames, GABC_Util::Walker &wa
 void
 GABC_Util::clearCache(const char *filename)
 {
+    UT_AutoLock auto_lock(theFileLock);
     g_archiveCache->clearArchive(filename, true);
     GT_PackedGeoCache::clearAlembics(filename);
 }
@@ -2104,6 +2102,7 @@ GABC_IObject
 GABC_Util::findObject(const std::vector<std::string> &filenames,
 	const std::string &objectpath)
 {
+    UT_AutoLock auto_lock(theFileLock);
     auto cacheEntry = g_archiveCache->loadArchive(filenames);
     return cacheEntry->isValid()
             ? cacheEntry->getObject(objectpath)
@@ -2113,6 +2112,7 @@ GABC_Util::findObject(const std::vector<std::string> &filenames,
 GABC_IObject
 GABC_Util::findObject(const std::vector<std::string> &filenames, ObjectReaderPtr reader)
 {
+    UT_AutoLock auto_lock(theFileLock);
     auto cacheEntry = g_archiveCache->loadArchive(filenames);
     return cacheEntry->isValid()
             ? cacheEntry->getObject(reader)
@@ -2132,6 +2132,7 @@ GABC_Util::getLocalTransform(const std::vector<std::string> &filenames,
 
     try
     {
+	UT_AutoLock auto_lock(theFileLock);
 	auto cacheEntry = g_archiveCache->loadArchive(filenames);
 	if (cacheEntry->isValid())
 	{
@@ -2170,6 +2171,7 @@ GABC_Util::getWorldTransform(const std::vector<std::string> &filenames,
 
     try
     {
+	UT_AutoLock auto_lock(theFileLock);
 	auto cacheEntry = g_archiveCache->loadArchive(filenames);
 	if (cacheEntry->isValid())
 	{
@@ -2209,6 +2211,7 @@ GABC_Util::getWorldTransform(
     {
 	try
 	{
+	    UT_AutoLock auto_lock(theFileLock);
 	    auto &filenames = obj.archive()->filenames();
 	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
 	    if (obj.valid())
@@ -2241,6 +2244,7 @@ GABC_Util::isTransformAnimated(const GABC_IObject &obj)
     {
 	try
 	{
+	    UT_AutoLock auto_lock(theFileLock);
 	    auto &filenames = obj.archive()->filenames();
 	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
 	    if (obj.valid())
@@ -2269,6 +2273,7 @@ GABC_Util::getVisibility(
     {
 	try
 	{
+	    UT_AutoLock auto_lock(theFileLock);
 	    auto &filenames = obj.archive()->filenames();
 	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
 	    if (obj.valid())
@@ -2297,6 +2302,7 @@ GABC_Util::getBoundingBox(
     {
 	try
 	{
+	    UT_AutoLock auto_lock(theFileLock);
 	    auto &filenames = obj.archive()->filenames();
 	    auto cacheEntry = g_archiveCache->loadArchive(filenames);
 	    if (obj.valid())
@@ -2317,6 +2323,7 @@ GABC_Util::addEventHandler(const std::vector<std::string> &paths,
 {
     if (handler)
     {
+	UT_AutoLock auto_lock(theFileLock);
 	auto arch = g_archiveCache->findArchive(paths);
 	if (arch && arch->addHandler(handler))
 	    return true;
@@ -2325,21 +2332,21 @@ GABC_Util::addEventHandler(const std::vector<std::string> &paths,
     return false;
 }
 
-const PathList &
+void
 GABC_Util::getObjectList(
+    PathList &objectpaths,
     const std::vector<std::string> &filenames, bool with_fsets)
 {
-    static PathList theEmptyList;
+    objectpaths.clear();
 
     try
     {
+	UT_AutoLock auto_lock(theFileLock);
 	auto cacheEntry = g_archiveCache->loadArchive(filenames);
-	return cacheEntry->getObjectList(with_fsets);
+	cacheEntry->getObjectList(objectpaths, with_fsets);
     }
     catch (const std::exception &)
     {}
-
-    return theEmptyList;
 }
 
 bool
