@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -58,8 +58,6 @@ using namespace GABC_NAMESPACE;
 
 namespace
 {
-    typedef GABC_Util::PathList		PathList;
-
     class SOP_AlembicInErr : public GABC_NAMESPACE::GABC_IError
     {
     public:
@@ -97,7 +95,8 @@ namespace
 	std::vector<std::string> filenames;
 	sop->appendFileNames(filenames, t);
 	sop->evalString(objectpath, parm_name, 0, t);
-	const PathList	&abcobjects = GABC_Util::getObjectList(filenames);
+	GABC_Util::PathList abcobjects;
+	GABC_Util::getObjectList(abcobjects, filenames);
 
 	if (objectpath.isstring())
 	{

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1004,7 +1004,8 @@ namespace
             PY_Py_RETURN_NONE;
 
 	// TODO: Would be nice to have a tree instead of a flat list
-	const GABC_Util::PathList &objects = GABC_Util::getObjectList(filenames);
+	GABC_Util::PathList objects;
+	GABC_Util::getObjectList(objects, filenames);
 	exint		 nobj = objects.size();
 	PY_PyObject	*result = PY_PyList_New(nobj*2);
 	for (exint i = 0; i < nobj; ++i)
