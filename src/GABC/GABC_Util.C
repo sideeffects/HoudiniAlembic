@@ -230,10 +230,6 @@ namespace
     using UPSampleMapInsert = std::pair<GABC_OProperty *, UPSample>;
 
     static UT_Lock theFileLock;
-    static UT_Lock		theOCacheLock;
-    static UT_Lock		theXCacheLock;
-    static UT_Lock		theVisibilityCacheLock;
-    static UT_Lock		theBoundingBoxCacheLock;
 
     const WrapExistingFlag gabcWrapExisting = Alembic::Abc::kWrapExisting;
 
@@ -466,16 +462,11 @@ namespace
 	{
 	    if (!myXformCacheBuilt)
 	    {
-		// Double lock
-		UT_AutoLock	lock(theXCacheLock);
-		if (!myXformCacheBuilt)
-		{
-		    M44d	id;
-		    id.makeIdentity();
-		    buildTransformCache(root(), "", id);
-		    SYSstoreFence();
-		    myXformCacheBuilt = true;
-		}
+		M44d	id;
+		id.makeIdentity();
+		buildTransformCache(root(), "", id);
+		SYSstoreFence();
+		myXformCacheBuilt = true;
 	    }
 	}
 
@@ -604,8 +595,6 @@ namespace
             }
             else
             {
-		UT_AutoLock	lock(myTransformLock);
-
                 // Get our local transform
                 GABC_IObject    dad = obj.getParent();
                 M44d            localXform;
@@ -641,8 +630,9 @@ namespace
             return true;
         }
 
+	/// Get an object's visibility
 	GABC_VisibilityType
-	getVisibilityInternal(const GABC_IObject &obj,
+	getVisibility(const GABC_IObject &obj,
 	        fpreal now,
 		bool &animated,
 		bool check_parent)
@@ -739,7 +729,7 @@ namespace
 		{
 		    // recurse up to parent
 		    bool parent_animated;
-		    vis = getVisibilityInternal(parent, now, parent_animated, true);
+		    vis = getVisibility(parent, now, parent_animated, true);
 		    animated |= parent_animated;
 		}
 		else
@@ -755,19 +745,9 @@ namespace
 	    return vis;
 	}
 
-	/// Get an object's visibility
-	GABC_VisibilityType
-	getVisibility(const GABC_IObject &obj,
-	        fpreal now,
-		bool &animated,
-		bool check_parent)
-        {
-            UT_AutoLock	lock(theVisibilityCacheLock);
-	    return getVisibilityInternal(obj, now, animated, check_parent);
-	}
-
+	/// Get an object's bounds
 	bool
-	getBoundingBoxInternal(const GABC_IObject &obj,
+	getBoundingBox(const GABC_IObject &obj,
 	        fpreal now,
 		UT_BoundingBox &box,
 		bool &isconst)
@@ -810,17 +790,6 @@ namespace
 	    return success;
 	}
 
-	/// Get an object's bounds
-	bool
-	getBoundingBox(const GABC_IObject &obj,
-	        fpreal now,
-		UT_BoundingBox &box,
-		bool &isconst)
-        {
-            UT_AutoLock	lock(theBoundingBoxCacheLock);
-	    return getBoundingBoxInternal(obj, now, box, isconst);
-	}
-
 	/// Find an object in the object cache -- this prevents having to
 	/// traverse from the root every time we need an object.
 	GABC_IObject
@@ -828,7 +797,6 @@ namespace
 	        UT_WorkBuffer &fullpath,
 	        const char *component)
         {
-            UT_AutoLock	lock(theOCacheLock);
             fullpath.append("/");
             fullpath.append(component);
 
@@ -1028,7 +996,6 @@ namespace
 	AbcBoundingBoxMap	myStaticBoundingBoxes;
 	UT_CappedCache		myDynamicBoundingBoxes;
 	HandlerSetType		myHandlers;
-	UT_Lock			myTransformLock;
     };
 
     struct AlembicTraitEquivalence
