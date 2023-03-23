@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -663,7 +663,7 @@ RAY_ProcAlembic::initialize(const UT_BoundingBox *box)
 		fpreal	fps;
 		if (!import("global:fps", &fps, 1))
 		{
-		    fps = UT_EnvControl::getInt(ENV_HOUDINI_FPS);
+		    fps = UT_EnvControl::getFloat(ENV_HOUDINI_FPS);
 		}
 		if (!import("camera:shutter", shutter, 2))
 		{
