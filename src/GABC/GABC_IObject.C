@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -32,7 +32,6 @@
 #include "GABC_Util.h"
 #include "GABC_GTUtil.h"
 #include <GT/GT_CurveEval.h>
-#include <GT/GT_DABool.h>
 #include <GT/GT_DAConstantValue.h>
 #include <GT/GT_DAIndirect.h>
 #include <GT/GT_DANumeric.h>

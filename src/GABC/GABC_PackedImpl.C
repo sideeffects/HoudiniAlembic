@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -31,7 +31,6 @@
 #include <GT/GT_Primitive.h>
 #include <GT/GT_Util.h>
 #include <GT/GT_RefineParms.h>
-#include <GT/GT_DAConstantValue.h>
 #include <GT/GT_PrimPointMesh.h>
 #include <GT/GT_PrimitiveBuilder.h>
 #include <GT/GT_PackedGeoCache.h>
