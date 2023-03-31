@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -29,7 +29,6 @@
 #define __GABC_Util__
 
 #include "GABC_API.h"
-#include "GABC_Include.h"
 #include "GABC_IArchive.h"
 #include "GABC_IObject.h"
 #include "GABC_OProperty.h"
@@ -237,8 +236,9 @@ public:
     static GABC_IObject findObject(const std::vector<std::string> &filenames,
                                 ObjectReaderPtr reader);
     /// Return a list of all the objects in an Alembic file
-    static const PathList	&getObjectList(const std::vector<std::string> &filenames,
-					bool include_face_sets=false);
+    static void getObjectList(PathList &objectpaths,
+			      const std::vector<std::string> &filenames,
+			      bool include_face_sets=false);
 
     //
     //  Matrix Conversion
