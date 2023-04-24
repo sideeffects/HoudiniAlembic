@@ -857,6 +857,22 @@ namespace
 		}
 		return true;
 	    }
+	    case GT_STORE_DICT:
+	    {
+		auto &&dict_0 = data->getDict(0);
+		for (exint i = 1, n = data->entries(); i < n; ++i)
+		{
+		    auto &&dict_i = data->getDict(i);
+		    if(dict_0 && dict_i)
+		    {
+			if (!dict_0.isEqual(dict_i, 0.0))
+			    return false;
+		    }
+		    else if(dict_0 != dict_i)
+			return false;
+		}
+		return true;
+	    }
 	    case GT_STORE_INVALID:
 	    case GT_NUM_STORAGE_TYPES:
 		UT_ASSERT(0);
