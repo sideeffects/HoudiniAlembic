@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2023
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -263,7 +263,7 @@ GABC_PackedImpl::countMemory(UT_MemoryCounter &counter, bool inclusive) const
 bool
 GABC_PackedImpl::isValid() const
 {
-    return myObject.valid();
+    return object().valid();
 }
 
 void
@@ -445,7 +445,7 @@ GABC_PackedImpl::getVelocityRange(UT_Vector3 &vmin, UT_Vector3 &vmax) const
 {
     vmin = 0;
     vmax = 0;
-    if (!myObject.valid())
+    if (!object().valid())
 	return;
 
     GEO_AnimationType	atype;
@@ -457,7 +457,7 @@ void
 GABC_PackedImpl::getWidthRange(fpreal &wmin, fpreal &wmax) const
 {
     wmin = wmax = 0;
-    if (!myObject.valid())
+    if (!object().valid())
 	return;
 
     GEO_AnimationType	atype;
