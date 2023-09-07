@@ -15,7 +15,8 @@
     <toolMenuContext name="network">
       <contextOpType>$HDA_TABLE/$HDA_NAME</contextOpType>
     </toolMenuContext>
-    <toolSubmenu>Geometry</toolSubmenu>
+    <toolSubmenu>File IO/Import</toolSubmenu>
+    <toolSubmenu>Scene Graph/Alembic</toolSubmenu>
     <script scriptType="python"><![CDATA[import objecttoolutils
 
 objecttoolutils.genericTool(kwargs, '$HDA_NAME')]]></script>
