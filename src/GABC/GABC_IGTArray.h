@@ -185,6 +185,11 @@ public:
     void                getIndexedStrings(UT_StringArray &,
 				    UT_IntArray &) const override {}
 
+	GT_Size				getDictIndexCount() const override 
+			    			{ return -1; }
+    GT_Offset			getDictIndex(GT_Offset, int) const override 
+			    			{ return -1; }
+
     const uint8         *getU8Array(GT_DataArrayHandle &buffer) const override
 		{
 		    if (SYSisSame<POD_T, uint8>())
