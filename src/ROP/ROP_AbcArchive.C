@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -33,6 +33,7 @@
     #include <Alembic/AbcCoreOgawa/All.h>
 #endif
 
+#include <CH/CH_Manager.h>
 #include <FS/FS_Writer.h>
 #include <OP/OP_Director.h>
 #include <SYS/SYS_Version.h>
@@ -103,6 +104,9 @@ ROP_AbcArchive::ROP_AbcArchive(
 		     hipfile.buffer(), timestamp.buffer());
     md.set(Alembic::Abc::kUserDescriptionKey, userinfo.buffer());
     myFileName.harden(filename);
+
+    fpreal fps = CHgetManager()->getSamplesPerSec();
+    md.set(Alembic::Abc::kDCCFPSKey, std::to_string(fps));
 
     try
     {
