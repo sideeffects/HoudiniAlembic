@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -86,6 +86,7 @@ static PRM_Name theSaveHiddenName("save_hidden", "Save All Non-Displayed (Hidden
 static PRM_Name theDisplaySOPName("displaysop", "Use Display SOP");
 static PRM_Name thePartitionModeName("partition_mode", "Partition Mode");
 static PRM_Name thePartitionAttributeName("partition_attribute", "Partition Attribute");
+static PRM_Name theCameraSuffixName("camera_suffix", "Camera Suffix");
 static PRM_Name theFullBoundsName("full_bounds", "Full Bounding Box Tree");
 static PRM_Name thePackedTransformName("packed_transform", "Packed Transform");
 static PRM_Name theUseInstancingName("use_instancing", "Use Instancing Where Possible");
@@ -133,6 +134,7 @@ static PRM_Name theShutterName("shutter", "Shutter");
 static PRM_Default theFilenameDefault(0, "$HIP/output.abc");
 static PRM_Default theFormatDefault(0, "default");
 static PRM_Default theRootDefault(0, "/obj");
+static PRM_Default theCameraSuffixDefault(0, "Camera");
 static PRM_Default theStarDefault(0, "*");
 static PRM_Default theLayerReplaceDefault(0, "replace");
 static PRM_Default theAttrLayerDefault(0, "* ^P");
@@ -149,7 +151,7 @@ static PRM_SpareData theAbcPattern(
 
 static PRM_Default mainSwitcher[] =
 {
-    PRM_Default(13, "Hierarchy"),
+    PRM_Default(14, "Hierarchy"),
     PRM_Default(14, "Geometry"),
     PRM_Default(7,  "Layering"),
     PRM_Default(3,  "Motion Blur"),
@@ -603,6 +605,7 @@ static PRM_Template theParameters[] =
     PRM_Template(PRM_ORD, 1, &thePartitionModeName, 0, &thePartitionModeMenu),
     PRM_Template(PRM_STRING, 1, &thePartitionAttributeName, 0,
 		    &thePartitionAttributeMenu),
+    PRM_Template(PRM_STRING, 1, &theCameraSuffixName, &theCameraSuffixDefault),
     PRM_Template(PRM_TOGGLE, 1, &theFullBoundsName),
     PRM_Template(PRM_ORD, 1, &thePackedTransformName,
 		    &thePackedTransformDefault, &thePackedTransformMenu),
@@ -1129,8 +1132,12 @@ ROP_AlembicOut::buildAlembicTree(fpreal time)
     myFromSOP = USE_SOP_PATH(time);
     if(!myFromSOP)
     {
+	UT_String camera_suffix;
+	CAMERA_SUFFIX(camera_suffix, time);
+
 	return updateFromHierarchy(packedtransform, facesetmode,
-	    use_instancing, shape_nodes, displaysop, save_hidden, time);
+	    use_instancing, shape_nodes, displaysop, save_hidden,
+	    camera_suffix, time);
     }
 
     return updateFromSop(getSopNode(time), packedtransform, facesetmode,
@@ -2151,6 +2158,7 @@ ROP_AlembicOut::updateFromHierarchy(
     bool shape_nodes,
     bool displaysop,
     bool save_hidden,
+    const UT_String &camera_suffix,
     fpreal time)
 {
     UT_String root;
@@ -2249,7 +2257,7 @@ ROP_AlembicOut::updateFromHierarchy(
 		if(cam && myCamAssignments.find(cam) == myCamAssignments.end())
 		{
 		    std::string name = parent->getName();
-		    name += "Camera";
+		    name += camera_suffix.c_str();
 
 		    // handle name collisions
 		    parent->makeCollisionFreeName(name, *myErrors);

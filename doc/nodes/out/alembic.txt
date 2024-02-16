@@ -253,6 +253,12 @@ Partition Attribute:
     the `abcPath` attribute to split a single piece of Houdini geometry into
     different Alembic shape nodes based on the string value.
 
+Camera Suffix:
+    #id: camera_suffix
+
+    Specifies a string to append to the name of shape nodes representing
+    cameras in the generated Alembic archive.
+
 Full Bounding Box Tree:
     #id: full_bounds
 

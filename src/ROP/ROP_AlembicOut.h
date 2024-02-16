@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -108,6 +108,8 @@ protected:
 		{ evalString(sval, "partition_mode", 0, time); }
     void PARTITION_ATTRIBUTE(UT_String &str, fpreal time) const
 		{ evalString(str, "partition_attribute", 0, time); }
+    void CAMERA_SUFFIX(UT_String &str, fpreal time) const
+		{ evalString(str, "camera_suffix", 0, time); }
     bool FULL_BOUNDS(fpreal time) const
 		{ return evalInt("full_bounds", 0, time) != 0; }
     void PACKED_TRANSFORM(UT_String &str, fpreal time) const
@@ -220,7 +222,8 @@ private:
     bool updateFromHierarchy(ROP_AlembicPackedTransform packedtransform,
 			     exint facesetmode, bool use_instancing,
 			     bool shape_nodes, bool displaysop,
-			     bool save_hidden, fpreal time);
+			     bool save_hidden, const UT_String &camera_suffix,
+			     fpreal time);
 
     void reportCookErrors(OP_Node *node, fpreal time);
 
