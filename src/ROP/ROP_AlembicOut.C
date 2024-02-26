@@ -1145,22 +1145,6 @@ ROP_AlembicOut::buildAlembicTree(fpreal time)
 }
 
 static bool
-rop_abcfilter(OBJ_Node *obj, bool save_hidden, fpreal time)
-{
-    // ignore hidden objects
-    if(!save_hidden &&
-       !obj->isDisplayTimeDependent() && !obj->getObjectDisplay(time))
-    {
-	return false;
-    }
-
-    if(obj->getObjectType() == OBJ_CAMERA)
-	return obj->getName() != "ipr_camera";
-
-    return obj->castToOBJSubNet() || obj->castToOBJGeometry();
-}
-
-static bool
 rop_isStaticIdentity(OBJ_Node *obj, fpreal time)
 {
     // check if it is static
@@ -2219,6 +2203,20 @@ ROP_AlembicOut::updateFromHierarchy(
 	if(obj->getObjectType() == OBJ_GEOMETRY)
 	    geo = obj->castToOBJGeometry();
 
+	// ignore hidden objects
+	if(!save_hidden &&
+	    !obj->isDisplayTimeDependent() && !obj->getObjectDisplay(time))
+	    continue;
+
+	if(obj->getObjectType() == OBJ_CAMERA)
+	{
+	    // ignore ipr_camera
+	    if(obj->getName() == "ipr_camera")
+		continue;
+	}
+	else if(!obj->castToOBJSubNet() && !obj->castToOBJGeometry())
+	    continue;
+
 	ancestors.clear();
 	for(;;)
 	{
@@ -2269,9 +2267,6 @@ ROP_AlembicOut::updateFromHierarchy(
 		}
 		break;
 	    }
-
-	    if(!rop_abcfilter(obj, save_hidden, time))
-		break;
 
 	    // skip collapsed objects
 	    int abc_collapse = 0;
