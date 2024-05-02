@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1107,10 +1107,10 @@ void
 SOP_AlembicIn::archiveClearEvent()
 {
     // Clear out the last-cook parameters
+    unloadData();
     myLastParms = Parms();
     myConstantUniqueId = -1;
     myPackedGdp.reset();
-    forceRecook();
 }
 
 static void

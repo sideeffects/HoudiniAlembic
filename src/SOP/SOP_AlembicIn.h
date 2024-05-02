@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -164,9 +164,9 @@ private:
 	{
 	    if (mySOP)
 	    {
-		if(purged)
-		    mySOP->unloadData();
 		mySOP->archiveClearEvent();
+		if (purged)
+		    mySOP->forceRecook();
 		mySOP = nullptr;
 	    }
 	}
