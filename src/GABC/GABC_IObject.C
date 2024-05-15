@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1532,7 +1532,7 @@ namespace
 	if (faces && faces->valid())
 	{
 	    set = new GT_FaceSet();
-	    set->addFaces(faces->get(), faces->size());
+	    set->addElements(faces->get(), faces->size());
 	    return true;
 	}
 	return false;
