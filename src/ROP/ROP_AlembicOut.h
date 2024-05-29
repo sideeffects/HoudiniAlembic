@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -206,8 +206,7 @@ private:
 			bool shape_nodes, bool displaysop,
 			bool save_hidden, fpreal time);
 
-    bool updateFromSop(SOP_Node *sop,
-		       ROP_AlembicPackedTransform packedtransform,
+    bool updateFromSop(ROP_AlembicPackedTransform packedtransform,
 		       exint facesetmode, bool use_instancing,
 		       bool shape_nodes, bool displaysop,
 		       bool save_hidden, fpreal time);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -810,25 +810,19 @@ ROP_AlembicOut::buildRenderDependencies(const ROP_RenderDepParms &p)
 SOP_Node *
 ROP_AlembicOut::getSopNode(fpreal time)
 {
-    SOP_Node *sop = CAST_SOPNODE(getInput(0));
-    if(!sop)
+    OP_Input *input = getInputReferenceConst(0);
+    if(input)
     {
-	UT_ASSERT(USE_SOP_PATH(time));
-	UT_String sop_path;
-	SOP_PATH(sop_path, time);
-	sop_path.trimBoundingSpace();
-	if(sop_path.isstring())
-	{
-	    sop = getSOPNode(sop_path);
-	    if(!sop && myArchive)
-	    {
-		UT_WorkBuffer warning;
-		warning.sprintf("Invalid SOP path: %s", sop_path.c_str());
-		addWarning(ROP_MESSAGE, warning.buffer());
-	    }
-	}
+	SOP_Node *sop = CAST_SOPNODE(input->getNode());
+	if(sop)
+	    return input->getNodeOutputIndex() == 0 ? sop : nullptr;
     }
-    return sop;
+
+    UT_ASSERT(USE_SOP_PATH(time));
+    UT_String sop_path;
+    SOP_PATH(sop_path, time);
+    sop_path.trimBoundingSpace();
+    return sop_path.isstring() ? getSOPNode(sop_path) : nullptr;
 }
 
 static void
@@ -1133,7 +1127,7 @@ ROP_AlembicOut::buildAlembicTree(fpreal time)
 	    use_instancing, shape_nodes, displaysop, save_hidden, time);
     }
 
-    return updateFromSop(getSopNode(time), packedtransform, facesetmode,
+    return updateFromSop(packedtransform, facesetmode,
 	use_instancing, shape_nodes, displaysop, save_hidden, time);
 }
 
@@ -1279,7 +1273,8 @@ ROP_AlembicOut::getSubdGroup(
 }
 
 static GU_ConstDetailHandle
-ropGetCookedGeoHandle(SOP_Node *sop, OP_Context &context, bool displaysop)
+ropGetCookedGeoHandle(
+    SOP_Node *sop, int outputidx, OP_Context &context, bool displaysop)
 {
     if(!sop)
 	return GU_ConstDetailHandle();
@@ -1291,7 +1286,7 @@ ropGetCookedGeoHandle(SOP_Node *sop, OP_Context &context, bool displaysop)
 	val = creator->isCookingRender();
 	creator->setCookingRender(displaysop ? 0 : 1);
     }
-    GU_ConstDetailHandle gdh(sop->getCookedGeoHandle(context));
+    GU_ConstDetailHandle gdh(sop->cookOutput(context, outputidx, nullptr));
     if(creator)
 	creator->setCookingRender(val);
     return gdh;
@@ -1676,7 +1671,7 @@ ROP_AlembicOut::refineSop(
     fpreal time)
 {
     OP_Context context(time);
-    GU_ConstDetailHandle gdh(ropGetCookedGeoHandle(sop, context, displaysop));
+    GU_ConstDetailHandle gdh(ropGetCookedGeoHandle(sop, 0, context, displaysop));
     GU_DetailHandleAutoReadLock rlock(gdh);
     const GU_Detail *gdp = rlock.getGdp();
     if(!gdp)
@@ -1877,7 +1872,6 @@ ropGetLocalTransform(UT_Matrix4D &m, OBJ_Node *obj, OP_Context &context)
 
 bool
 ROP_AlembicOut::updateFromSop(
-    SOP_Node *sop,
     ROP_AlembicPackedTransform packedtransform,
     exint facesetmode,
     bool use_instancing,
@@ -1888,6 +1882,32 @@ ROP_AlembicOut::updateFromSop(
 {
     if(!mySopAssignments)
 	mySopAssignments.reset(new ROP_AbcHierarchy(myRoot.get()));
+
+    SOP_Node *sop = nullptr;
+    int outputidx = 0;
+    OP_Input *input = getInputReferenceConst(0);
+    if(input)
+    {
+	sop = CAST_SOPNODE(input->getNode());
+	outputidx = (int)input->getNodeOutputIndex();
+    }
+    if(!sop)
+    {
+	UT_ASSERT(USE_SOP_PATH(time));
+	UT_String sop_path;
+	SOP_PATH(sop_path, time);
+	sop_path.trimBoundingSpace();
+	if(sop_path.isstring())
+	{
+	    sop = getSOPNode(sop_path);
+	    if(!sop && myArchive)
+	    {
+		UT_WorkBuffer warning;
+		warning.sprintf("Invalid SOP path: %s", sop_path.c_str());
+		addWarning(ROP_MESSAGE, warning.buffer());
+	    }
+	}
+    }
 
     if(!sop)
 	return false;
@@ -1905,7 +1925,7 @@ ROP_AlembicOut::updateFromSop(
     }
 
     OP_Context context(time);
-    GU_ConstDetailHandle gdh(ropGetCookedGeoHandle(sop, context, displaysop));
+    GU_ConstDetailHandle gdh(ropGetCookedGeoHandle(sop, outputidx, context, displaysop));
     GU_DetailHandleAutoReadLock rlock(gdh);
     const GU_Detail *gdp = rlock.getGdp();
     if(!gdp)
