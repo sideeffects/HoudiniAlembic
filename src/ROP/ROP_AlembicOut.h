@@ -208,8 +208,7 @@ private:
 			bool shape_nodes, bool displaysop,
 			bool save_hidden, fpreal time);
 
-    bool updateFromSop(SOP_Node *sop,
-		       ROP_AlembicPackedTransform packedtransform,
+    bool updateFromSop(ROP_AlembicPackedTransform packedtransform,
 		       exint facesetmode, bool use_instancing,
 		       bool shape_nodes, bool displaysop,
 		       bool save_hidden, fpreal time);
