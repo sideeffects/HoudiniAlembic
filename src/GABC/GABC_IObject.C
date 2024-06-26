@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -2151,7 +2151,7 @@ namespace
 	IFloatGeomParam		 widths = ss.getWidthsParam();
 
 	vertex = acreate.build(-1, gdp, primoff, obj, namemap, load_style, t,
-			       GA_ATTRIB_VERTEX, vertex_scope, 3, arb, &P, &v,
+			       GA_ATTRIB_POINT, vertex_scope, 3, arb, &P, &v,
 			       &N, &uvs, nullptr, &widths, &Pw);
 
 	// guard against corrupt curves
