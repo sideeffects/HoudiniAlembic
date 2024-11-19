@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023
+ * Copyright (c) 2024
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -2049,8 +2049,10 @@ void
 GABC_Util::clearCache(const char *filename)
 {
     UT_AutoLock auto_lock(theFileLock);
-    g_archiveCache->clearArchive(filename, true);
     GT_PackedGeoCache::clearAlembics(filename);
+    // Ensure call to clearArchive() is last as "filename" as may be free'd by
+    // clearArchive().
+    g_archiveCache->clearArchive(filename, true);
 }
 
 void
