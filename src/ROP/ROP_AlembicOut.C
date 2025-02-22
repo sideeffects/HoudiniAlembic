@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024
+ * Copyright (c) 2025
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1322,7 +1322,7 @@ ROP_AlembicOut::partitionPrims(ROP_AbcHierarchy &assignments,
     UT_Map<std::tuple<std::string, bool>, GA_OffsetList> offsets;
 
     // partition geometry
-    const UT_String &name = sop->getName();
+    const UT_StringHolder &name = sop->getName();
     UT_WorkBuffer buf;
     for(GA_Iterator it(gdp->getPrimitiveRange()); !it.atEnd(); ++it)
     {
