@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023
+ * Copyright (c) 2025
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -63,8 +63,6 @@
 
 // The python developers recommend that Python.h be included before any other
 // header files.
-#include <Python.h>
-
 #include <PY/PY_CPythonAPI.h>
 // This file contains functions that will run arbitrary Python code
 #include <PY/PY_Python.h>
@@ -1317,14 +1315,7 @@ namespace
     }
 }
 
-#if defined(WIN32)
-PyMODINIT_FUNC
-#else
-// This is a replacement of PyMODINIT_FUNC but with the default visibility
-// attribute declaration injected in the middle.
-extern "C" __attribute__((visibility("default"))) PyObject*
-#endif
-
+PY_PyMODINIT_FUNC
 PyInit__alembic_hom_extensions(void)
 {
     PY_PyObject *module = nullptr;
@@ -1389,5 +1380,5 @@ PyInit__alembic_hom_extensions(void)
 
     }
 
-    return reinterpret_cast<PyObject *>(module);
+    return module;
 }
