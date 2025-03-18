@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023
+ * Copyright (c) 2025
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -400,6 +400,8 @@ namespace
 		    || attrltype == GABC_LayerOptions::LayerType::NONE
                     || data->getTupleSize() < 1
                     || data->getTypeInfo() == GT_TYPE_HIDDEN
+                    || data->hasArrayEntries()
+		    || data->getStorage() == GT_STORE_DICT
                     || arb_map.count(exp_name.c_str()))
             {
                 continue;
