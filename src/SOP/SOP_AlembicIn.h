@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024
+ * Copyright (c) 2025
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -58,7 +58,7 @@ public:
     void	appendFileNames(std::vector<std::string> &filenames, fpreal t);
 
     /// Return the label for the given input
-    const char  *inputLabel(unsigned int idx) const override;
+    const char  *inputLabel(OP_InputIdx idx) const override;
 
     SOP_ObjectAppearancePtr     getObjectAppearance() override;
 

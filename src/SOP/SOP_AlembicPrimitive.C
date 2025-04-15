@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2025
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -262,7 +262,7 @@ SOP_AlembicPrimitive::cookMySop(OP_Context &context)
 }
 
 const char *
-SOP_AlembicPrimitive::inputLabel(unsigned int idx) const
+SOP_AlembicPrimitive::inputLabel(OP_InputIdx idx) const
 {
     UT_ASSERT(idx == 0);
     return "Alembic Geometry";
