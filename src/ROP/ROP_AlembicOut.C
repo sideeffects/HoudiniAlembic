@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024
+ * Copyright (c) 2025
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -2193,9 +2193,11 @@ ROP_AlembicOut::updateFromHierarchy(
     OBJECTS(objects, time);
 
     UT_Array<OBJ_Node *> work;
+    OP_Network *net = rootnode->isNetwork()
+			? static_cast<OP_Network *>(rootnode)
+			: OPgetDirector()->getManager("obj");
     OP_Bundle *bundle =
-		getParmBundle("objects", 0, objects,
-			    OPgetDirector()->getManager("obj"), "!!OBJ!!");
+		getParmBundle("objects", 0, objects, net, "!!OBJ!!");
     if(bundle)
     {
 	UT_Set<OBJ_Node *> visited;
