@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2025
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -35,6 +35,7 @@
 #include <GU/GU_Detail.h>
 #include <stack>
 
+class GA_RWAttributeRef;
 class GU_PrimPacked;
 class UT_StringArray;
 

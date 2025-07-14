@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021
+ * Copyright (c) 2025
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -28,6 +28,7 @@
 #include "GABC_GEOWalker.h"
 #include "GABC_PackedImpl.h"
 #include <Alembic/AbcGeom/All.h>
+#include <GA/GA_AttributeRef.h>
 #include <GEO/GEO_PrimNURBCurve.h>
 #include <GEO/GEO_PrimRBezCurve.h>
 #include <GU/GU_PrimPacked.h>
