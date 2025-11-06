@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023
+ * Copyright (c) 2025
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -63,7 +63,7 @@ class AlembicFactory : public GU_PackedFactory
 public:
     AlembicFactory()
 	: GU_PackedFactory(GABC_PRIMITIVE_TOKEN, GABC_PRIMITIVE_LABEL,
-	                   "SOP_alembic")
+	                   "PRIMITIVES_packedalembic")
         , theDefaultImpl(new GABC_PackedImpl())
     {
 	registerIntrinsic("abctypename",
