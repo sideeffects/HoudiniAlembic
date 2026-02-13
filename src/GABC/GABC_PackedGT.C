@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2026
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1459,7 +1459,13 @@ GABC_PackedArchive::bucketPrims(const GT_PackedAlembicArchive *prev_archive,
 				const GT_RefineParms *parms,
 				bool force_update)
 {
+    // versions are only incremented, so sum will always be unique
     myAlembicVersion = GT_PackedGeoCache::getAlembicVersion(myName.c_str());
+    for (auto filename : myArchive->filenames())
+    {
+        exint version = GT_PackedGeoCache::getAlembicVersion(filename.c_str());
+        myAlembicVersion += version;
+    }
 
     if(!force_update && prev_archive && archiveMatch(prev_archive))
 	return false;
