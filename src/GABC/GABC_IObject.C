@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024
+ * Copyright (c) 2026
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -36,8 +36,12 @@
 #include <GT/GT_DAIndirect.h>
 #include <GT/GT_DANumeric.h>
 #include <GT/GT_Names.h>
+#include <GT/GT_GEOAttributeFilter.h>
+#include <GT/GT_GEOSupport.h>
+#include <GT/GT_GEODetailList.h>
 #include <GT/GT_PackedGeoCache.h>
 #include <GT/GT_PrimCurveMesh.h>
+#include <GT/GT_PrimCamera.h>
 #include <GT/GT_PrimitiveBuilder.h>
 #include <GT/GT_PrimNuPatch.h>
 #include <GT/GT_PrimPointMesh.h>
@@ -57,6 +61,7 @@
 #include <Alembic/AbcCoreHDF5/All.h>
 #include <UT/UT_StackBuffer.h>
 #include <UT/UT_DoubleLock.h>
+#include <UT/UT_CameraParms.h>
 #include <UT/UT_ErrorLog.h>
 #include <SYS/SYS_AtomicInt.h>
 #include <SYS/SYS_Hash.h>
@@ -69,6 +74,7 @@ namespace
     using chrono_t = Alembic::Abc::chrono_t;
     using DataType = Alembic::Abc::DataType;
     using M44d = Alembic::Abc::M44d;
+    using V2d = Alembic::Abc::V2d;
     using V3d = Alembic::Abc::V3d;
     using Quatd = Alembic::Abc::Quatd;
     using IObject = Alembic::Abc::IObject;
@@ -86,6 +92,7 @@ namespace
     using IBox3dProperty = Alembic::Abc::IBox3dProperty;
     using IArrayProperty = Alembic::Abc::IArrayProperty;
     using IScalarProperty = Alembic::Abc::IScalarProperty;
+    using ScalarPropertyReaderPtr = Alembic::Abc::ScalarPropertyReaderPtr;
     using ArraySamplePtr = Alembic::Abc::ArraySamplePtr;
     using UcharArraySamplePtr = Alembic::Abc::UcharArraySamplePtr;
     using Int32ArraySamplePtr = Alembic::Abc::Int32ArraySamplePtr;
@@ -108,8 +115,12 @@ namespace
     using INuPatchSchema = Alembic::AbcGeom::INuPatchSchema;
     using IFaceSetSchema = Alembic::AbcGeom::IFaceSetSchema;
     using ICamera = Alembic::AbcGeom::ICamera;
+    using ICameraSchema = Alembic::AbcGeom::ICameraSchema;
+    using ICameraSchema = Alembic::AbcGeom::ICameraSchema;
+    using CameraSample = Alembic::AbcGeom::CameraSample;
     using XformSample = Alembic::AbcGeom::XformSample;
     using XformOp = Alembic::AbcGeom::XformOp;
+    using FilmBackXformOp = Alembic::AbcGeom::FilmBackXformOp; 
     using XformOperationType = Alembic::AbcGeom::XformOperationType;
     using GeometryScope = Alembic::AbcGeom::GeometryScope;
     using IN3fGeomParam = Alembic::AbcGeom::IN3fGeomParam;
@@ -2320,6 +2331,121 @@ namespace
 
     template <typename ATTRIB_CREATOR>
     static GT_PrimitiveHandle
+    buildCamera(
+	const ATTRIB_CREATOR &acreate,
+        const GA_Detail *gdp,
+        const GA_Offset primoff,
+        const GABC_IObject &obj,
+        fpreal t,
+        const GEO_PackedNameMapPtr &namemap,
+        int load_style,
+        GEO_AnimationType anim)
+
+    {
+        UT_Matrix4D xform(1);
+        UT_CameraParms cparms;
+        
+        GT_GEOOffsetList offsets(&primoff, 1);
+
+   	ICamera icam(obj.object(), gabcWrapExisting);
+	ICameraSchema icamschema = icam.getSchema();
+	ICompoundProperty props = obj.getUserProperties();
+        auto userPropPtr = GetCompoundPropertyReaderPtr(props);
+	CameraSample camsample;
+	icamschema.get(camsample, t);
+	
+	const TimeSamplingPtr tsampling = obj.timeSampling();
+	double fps = 24.0;
+	if (tsampling)
+		fps = 1.0 / tsampling->getTimeSamplingType().getTimePerCycle();
+
+	cparms.focal = camsample.getFocalLength();
+	cparms.fstop = camsample.getFStop();
+	cparms.focusdistance = camsample.getFocusDistance();
+	// alembic shutter is in seconds so we need to multiply
+	// by the fps
+	double shutter = fps * 
+		(camsample.getShutterClose() - camsample.getShutterClose());
+	
+	cparms.shutteropen  = -shutter * .5;
+	cparms.shutterclose =  shutter * .5;
+
+	// pixelaspect
+	cparms.pixelaspect = camsample.getLensSqueezeRatio();
+	// aperture
+	double haperture = camsample.getHorizontalAperture();
+	double vaperture = camsample.getVerticalAperture();
+
+	// UT_CameraParms is max of haperture and vaperture
+	// and is in mm while abc is in cm
+	cparms.aperture = SYSmax(haperture, vaperture) 
+	                  * 10.0 * cparms.pixelaspect; 
+
+	
+	cparms.clipnear = camsample.getNearClippingPlane();
+	cparms.clipfar = camsample.getFarClippingPlane();
+
+        ScalarPropertyReaderPtr resxPtr = userPropPtr->getScalarProperty("resx");
+        ScalarPropertyReaderPtr resyPtr = userPropPtr->getScalarProperty("resy");
+
+		
+        Alembic::Util::float32_t resx = 0;
+        Alembic::Util::float32_t resy = 0;
+        if (resxPtr)
+        {
+        	resxPtr->getSample(resxPtr->getNearIndex(t).first, &resx);
+        	cparms.resx = resx;
+        }
+        if (resyPtr)
+        {
+	        resyPtr->getSample(resyPtr->getNearIndex(t).first, &resy);
+		cparms.resy = resy;
+	}
+
+	// NOTE: these are not being used by the python importer either
+	// and I'm not sure how they would translate
+	// camsample.getOverScanLeft()	
+	// camsample.getOverScanRight()	
+	// camsample.getOverScanTop()	
+	// camsample.getOverScanBottom()	
+	
+	fpreal  winx = camsample.getHorizontalFilmOffset()
+	               / camsample.getHorizontalAperture();
+	fpreal  winy = camsample.getVerticalFilmOffset() 
+	               / camsample.getVerticalAperture();
+
+	// FROM HOM_Alembic.C
+	//TODO, full 2D transformations
+	V2d postscale(1.0, 1.0);
+	for ( size_t i = 0; i < camsample.getNumOps(); ++i )
+	{
+		const FilmBackXformOp	&op = camsample.getOp(i);
+
+		if (op.isScaleOp()
+		    && ((op.getHint().compare(0, 7, "filmFit"))
+		        || ((op.getHint().compare(7, 4, "Fill"))
+		            && (op.getHint().compare(7, 4, "Horz"))
+		            && (op.getHint().compare(7, 4, "Over"))
+		            && (op.getHint().compare(7, 4, "Vert")))
+		    ))
+		{
+		    postscale *= op.getScale();
+		}
+	}
+	
+
+	cparms.setWindow(winx, winy, postscale[0], postscale[1]);
+
+	// attributes
+        GT_AttributeListHandle attribh;
+	
+    	GT_Primitive *gt = new GT_PrimCamera(xform, cparms, attribh);
+    	return gt;
+    	
+    }
+
+    template <typename ATTRIB_CREATOR>
+    static GT_PrimitiveHandle
     buildLocator(const ATTRIB_CREATOR &acreate, const GABC_IObject &obj,
 		 fpreal t, const GEO_PackedNameMapPtr &namemap, int load_style)
     {
@@ -3167,6 +3293,8 @@ GABC_IObject::timeSampling() const
 	    return abcTimeSampling<INuPatch>(object());
 	case GABC_XFORM:
 	    return abcTimeSampling<IXform>(object());
+	case GABC_CAMERA:
+	    return abcTimeSampling<ICamera>(object());
 	default:
 	    break;
     }
@@ -3190,6 +3318,8 @@ GABC_IObject::numSamples() const
 	    return abcNumSamples<INuPatch>(object());
         case GABC_XFORM:
             return abcNumSamples<IXform>(object());
+	case GABC_CAMERA:
+	    return abcNumSamples<ICamera>(object());
 	default:
 	    break;
     }
@@ -3299,6 +3429,10 @@ GABC_IObject::getPrimitive(
 		prim = buildNuPatch(CreateAttributeList(), gdp, primoff,
 				    *this, t, namemap, load_style, anim_type);
 		break;
+	    case GABC_CAMERA:
+		prim = buildCamera(CreateAttributeList(), gdp, primoff,
+				   *this, t, namemap, load_style, anim_type);
+	    	break;
 	    case GABC_XFORM:
 		if (isMayaLocator())
 		{
@@ -3307,6 +3441,7 @@ GABC_IObject::getPrimitive(
 		}
 		else
 		    prim = buildTransform(*this);
+	    	
 	    default:
 		break;
 	}

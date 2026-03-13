@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025
+ * Copyright (c) 2026
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -31,6 +31,7 @@
 #include <GA/GA_AttributeRef.h>
 #include <GEO/GEO_PrimNURBCurve.h>
 #include <GEO/GEO_PrimRBezCurve.h>
+#include <GEO/GEO_PrimCamera.h>
 #include <GU/GU_PrimPacked.h>
 #include <GU/GU_PrimPoly.h>
 #include <GU/GU_PrimPolySoup.h>
@@ -1507,6 +1508,7 @@ namespace {
 	    case GABC_POINTS:
 	    case GABC_NUPATCH:
 	    case GABC_XFORM:
+	    case GABC_CAMERA:
 		break;
 	    default:
 		return;	// Invalid primitive type
