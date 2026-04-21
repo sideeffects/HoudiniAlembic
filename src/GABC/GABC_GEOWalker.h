@@ -370,7 +370,7 @@ private:
     GA_Offset	myVertexCount;		// Vertices added
     int		myBossId;
     bool	myBuildAbcXform;	// Build primitives for transforms
-    bool	myBuildAbcShape;	// Build primitives for transforms
+    bool	myBuildAbcShape;	// Build primitives for shapes
     bool	myBuildAbcCamera;	// Build primitives for cameras
     bool	myBuildLocator;		// Whether to build Maya locators
     bool	myIncludeXform;		// Transform geometry

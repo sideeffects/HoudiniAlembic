@@ -2419,12 +2419,12 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
     , myLoadUserProps(UP_LOAD_NONE)
     , myBuildAbcShape(true)
     , myBuildAbcXform(false)
+    , myBuildAbcCamera(false)
     , myIsConstant(true)
     , myTopologyConstant(true)
     , myTransformConstant(true)
     , myAllTransformConstant(true)
     , myRebuiltNURBS(false)
-    , myBuildAbcCamera(false)
 {
     if (myBoss)
     {

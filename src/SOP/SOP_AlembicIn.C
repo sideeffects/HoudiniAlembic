@@ -226,6 +226,7 @@ SOP_AlembicIn::Parms::Parms()
     , myPointMode(GABC_GEOWalker::ABCPRIM_CENTROID_POINT)
     , myBuildAbcShape(true)
     , myBuildAbcXform(false)
+    , myBuildAbcCamera(false)
     , myRootObjectPath()
     , myObjectPath()
     , myObjectPattern()
@@ -246,7 +247,6 @@ SOP_AlembicIn::Parms::Parms()
     , myFileNameAttribute("")
     , myNameMapPtr()
     , myFacesetAttribute("*")
-    , myBuildAbcCamera(false)
 {
     myBoundBox.makeInvalid();
 }
@@ -700,7 +700,6 @@ PRM_Template SOP_AlembicIn::myTemplateList[] =
     PRM_Template(PRM_TOGGLE, 1, &prm_importCamerasName, 
                  PRMzeroDefaults),
 
-    
     PRM_Template(PRM_ORD, 1, &prm_loadmodeName, &prm_loadmodeDefault,
 	    &menu_loadmode),
     PRM_Template(PRM_ORD, 1, &prm_viewportlod, &prm_viewportlodDefault,
