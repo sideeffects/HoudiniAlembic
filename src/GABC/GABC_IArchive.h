@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2026
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -77,6 +77,12 @@ public:
 
     /// Access to the underlying archive
     const IArchive	&archive() const	{ return myArchive; }
+
+    /// Access to archive metadata
+    Alembic::Abc::MetaData getMetadata() 
+    { 
+        return myArchive.getPtr()->getMetaData(); 
+    }
 
     bool		isOgawa() const		{ return myIsOgawa; }
 

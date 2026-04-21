@@ -31,6 +31,7 @@
 #include <GA/GA_AttributeRef.h>
 #include <GEO/GEO_PrimNURBCurve.h>
 #include <GEO/GEO_PrimRBezCurve.h>
+#include <GEO/GEO_PrimCamera.h>
 #include <GU/GU_PrimPacked.h>
 #include <GU/GU_PrimPoly.h>
 #include <GU/GU_PrimPolySoup.h>
@@ -1506,11 +1507,27 @@ namespace {
 	    case GABC_CURVES:
 	    case GABC_POINTS:
 	    case GABC_NUPATCH:
+	    {
+	    	if (!walk.buildAbcShape())
+	    		return;
+	    	break;
+	    }
 	    case GABC_XFORM:
-		break;
+	    {
+	    	if (!walk.buildAbcXform() && !walk.buildLocator())
+	    		return;
+	    	break;
+	    }
+	    case GABC_CAMERA:
+	    {
+	    	if (!walk.buildAbcCamera())
+	    		return;
+	    	break;
+	    }
 	    default:
 		return;	// Invalid primitive type
 	}
+	
 	UT_StringArray filenames;
 	UTarrayFromStdVectorOfStrings(filenames, walk.filenames());
 	GU_PrimPacked *packed = GABC_PackedImpl::build(walk.detail(),
@@ -2407,6 +2424,7 @@ GABC_GEOWalker::GABC_GEOWalker(GU_Detail &gdp, GABC_IError &err,
     , myTransformConstant(true)
     , myAllTransformConstant(true)
     , myRebuiltNURBS(false)
+    , myBuildAbcCamera(false)
 {
     if (myBoss)
     {
@@ -2678,7 +2696,7 @@ GABC_GEOWalker::process(const GABC_IObject &obj)
 	    process_children = false;
 	}
     }
-    else if (buildAbcShape() && filterObject(obj)
+    else if ((buildAbcShape() || buildAbcCamera()) && filterObject(obj)
         && (!vis || (myVisibilityStack.top() == GABC_VISIBLE_VISIBLE)))
     {
 	switch (myLoadMode)

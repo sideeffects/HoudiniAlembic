@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025
+ * Copyright (c) 2026
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -246,6 +246,7 @@ SOP_AlembicIn::Parms::Parms()
     , myFileNameAttribute("")
     , myNameMapPtr()
     , myFacesetAttribute("*")
+    , myBuildAbcCamera(false)
 {
     myBoundBox.makeInvalid();
 }
@@ -269,6 +270,7 @@ SOP_AlembicIn::Parms::operator=(const SOP_AlembicIn::Parms &src)
     myBoundBox = src.myBoundBox;
     myBuildAbcShape = src.myBuildAbcShape;
     myBuildAbcXform = src.myBuildAbcXform;
+    myBuildAbcCamera = src.myBuildAbcCamera;
     myIncludeXform = src.myIncludeXform;
     myMissingFileError = src.myMissingFileError;
     myUseVisibility = src.myUseVisibility;
@@ -320,6 +322,8 @@ SOP_AlembicIn::Parms::needsNewGeometry(const SOP_AlembicIn::Parms &src)
 	return true;
     if (myBuildAbcXform != src.myBuildAbcXform)
 	return true;
+    if (myBuildAbcCamera != src.myBuildAbcCamera)
+        return true;
     if (myFileNames != src.myFileNames)
 	return true;
     if (myGroupMode != src.myGroupMode)
@@ -419,6 +423,9 @@ static PRM_Name prm_fpsName("fps", "Frames per Second");
 static PRM_Name prm_missingFileName("missingfile", "Missing File");
 
 static PRM_Name prm_abcxformName("abcxform", "Create Primitives For");
+static PRM_Name prm_importShapesName("importshapes", "Shapes");
+static PRM_Name prm_importXformsName("importxforms", "Transforms");
+static PRM_Name prm_importCamerasName("importcameras", "Cameras");
 static PRM_Name prm_loadmodeName("loadmode", "Load As");
 static PRM_Name prm_viewportlod("viewportlod", "Display As");
 static PRM_Name prm_pointModeName("pointmode", "Point Mode");
@@ -681,8 +688,19 @@ PRM_Template SOP_AlembicIn::myTemplateList[] =
     // Geometry tab 
     // Currently there are 10 elements (10 PRM_Template() calls below) in this tab, 
     // which matches PRM_Default(10, "Geometry") defined in mainSwitcher
-    PRM_Template(PRM_ORD, 1, &prm_abcxformName, &prm_abcxformDefault,
-            &menu_abcxform),
+    
+    // replaces the drop down to pick transforms or shapes
+    // to now include cameras as well
+    PRM_Template((PRM_Type)(PRM_TOGGLE|PRM_TYPE_JOIN_NEXT), 
+                 1, &prm_importShapesName, 
+                 PRMoneDefaults),   
+    PRM_Template((PRM_Type)(PRM_TOGGLE|PRM_TYPE_JOIN_NEXT), 
+                 1, &prm_importXformsName, 
+                 PRMzeroDefaults),
+    PRM_Template(PRM_TOGGLE, 1, &prm_importCamerasName, 
+                 PRMzeroDefaults),
+
+    
     PRM_Template(PRM_ORD, 1, &prm_loadmodeName, &prm_loadmodeDefault,
 	    &menu_loadmode),
     PRM_Template(PRM_ORD, 1, &prm_viewportlod, &prm_viewportlodDefault,
@@ -875,6 +893,41 @@ SOP_AlembicIn::getSizeCullMode(GABC_GEOWalker::SizeCompare &cmp, fpreal &size, f
     return mode;
 }
 
+PRM_Template SOP_AlembicIn::myObsoleteList[] = {
+        PRM_Template(PRM_ORD, 1, &prm_abcxformName, &prm_abcxformDefault,
+                &menu_abcxform),
+        PRM_Template()
+};
+
+void
+SOP_AlembicIn::resolveObsoleteParms(PRM_ParmList *obsolete_parms)
+{
+    if (!obsolete_parms)
+        return;
+
+    // 0 -> shape nodes only
+    // 1 -> shape and transform nodes
+    // 2 -> transforms only
+    int abcxform_menu = obsolete_parms->evalInt(prm_abcxformName,0, 0.0f);
+    if (abcxform_menu == 0)
+    {
+        // default value is the same so it shouldn't do anything
+    }
+    else if (abcxform_menu == 1)
+    {
+        setInt(prm_importShapesName.getToken(), 0, 0, 1);
+        setInt(prm_importXformsName.getToken(), 0, 0, 1);
+    }
+    else
+    {
+        setInt(prm_importShapesName.getToken(), 0, 0, 0);
+        setInt(prm_importXformsName.getToken(), 0, 0, 1);
+    }
+
+    SOP_Node::resolveObsoleteParms(obsolete_parms);
+}
+
+
 //-*****************************************************************************
 
 bool
@@ -934,22 +987,10 @@ SOP_AlembicIn::evaluateParms(Parms &parms, OP_Context &context)
     else if (sval == "unpack")
 	parms.myLoadMode = GABC_GEOWalker::LOAD_ABC_UNPACKED;
 
-    switch (evalInt("abcxform", 0, now))
-    {
-        case 0:
-        default:
-            parms.myBuildAbcShape = true;
-            parms.myBuildAbcXform = false;
-            break;
-        case 1:
-            parms.myBuildAbcShape = true;
-            parms.myBuildAbcXform = true;
-            break;
-        case 2:
-            parms.myBuildAbcShape = false;
-            parms.myBuildAbcXform = true;
-            break;
-    }
+    parms.myBuildAbcShape  = (bool)evalInt("importshapes", 0, now);
+    parms.myBuildAbcXform  = (bool)evalInt("importxforms", 0, now);
+    parms.myBuildAbcCamera = (bool)evalInt("importcameras",0, now);
+
 
     parms.myBoundMode = getCullingBox(parms.myBoundBox, context);
     parms.mySizeCullMode = getSizeCullMode(parms.mySizeCompare, parms.mySize, now);
@@ -1329,6 +1370,7 @@ SOP_AlembicIn::cookMySop(OP_Context &context)
     walk.setLoadMode(parms.myLoadMode);
     walk.setBuildAbcShape(parms.myBuildAbcShape);
     walk.setBuildAbcXform(parms.myBuildAbcXform);
+    walk.setBuildAbcCamera(parms.myBuildAbcCamera);
     walk.setNameMapPtr(parms.myNameMapPtr);
     walk.setFacesetAttribute(parms.myFacesetAttribute);
     walk.setSizeCullMode(parms.mySizeCullMode,
@@ -1636,6 +1678,7 @@ SOP_AlembicIn::installSOP(OP_OperatorTable *table)
         0,				// Local variables
 	OP_FLAG_GENERATOR);		// Generator flag
     alembic_op->setIconName("SOP_alembic");
+    alembic_op->setObsoleteTemplates(SOP_AlembicIn::myObsoleteList);
     table->addOperator(alembic_op);
 }
 

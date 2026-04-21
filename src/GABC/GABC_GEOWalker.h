@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025
+ * Copyright (c) 2026
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -197,8 +197,9 @@ public:
     bool	buildAbcPrim() const
 			{ return myLoadMode == LOAD_ABC_PRIMITIVES
 				|| myLoadMode == LOAD_ABC_UNPACKED; }
-    bool	buildAbcShape() const	{ return myBuildAbcShape; }
-    bool	buildAbcXform() const	{ return myBuildAbcXform; }
+    bool	buildAbcShape()  const	{ return myBuildAbcShape; }
+    bool	buildAbcXform()  const	{ return myBuildAbcXform; }
+    bool	buildAbcCamera() const	{ return myBuildAbcCamera; }
     bool	pathAttributeChanged() const { return myPathAttributeChanged; }
     /// @}
 
@@ -248,6 +249,7 @@ public:
     void	setLoadMode(LoadMode mode)	{ myLoadMode = mode; }
     void	setBuildAbcShape(bool v)	{ myBuildAbcShape = v; }
     void	setBuildAbcXform(bool v)	{ myBuildAbcXform = v; }
+    void	setBuildAbcCamera(bool v)	{ myBuildAbcCamera = v; }
     void	setPathAttributeChanged(bool v)	{ myPathAttributeChanged = v; }
     void	setUserProps(LoadUserPropsMode m) { myLoadUserProps = m; }
     void	setGroupMode(GroupMode m)	{ myGroupMode = m; }
@@ -369,6 +371,7 @@ private:
     int		myBossId;
     bool	myBuildAbcXform;	// Build primitives for transforms
     bool	myBuildAbcShape;	// Build primitives for transforms
+    bool	myBuildAbcCamera;	// Build primitives for cameras
     bool	myBuildLocator;		// Whether to build Maya locators
     bool	myIncludeXform;		// Transform geometry
     bool	myPathAttributeChanged;	// Whether path attrib name changed

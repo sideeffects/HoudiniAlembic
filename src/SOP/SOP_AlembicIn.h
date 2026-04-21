@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025
+ * Copyright (c) 2026
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -46,6 +46,9 @@ public:
     static OP_Node *myConstructor(OP_Network *net, const char *name,
 		    OP_Operator *entry);
     static PRM_Template myTemplateList[];
+    static PRM_Template myObsoleteList[];
+    void resolveObsoleteParms(PRM_ParmList *obsolete_parms) override final;
+
 
     /// Reload callback
     static int reloadGeo(void *data, int index,
@@ -143,6 +146,7 @@ private:
 	bool					myMissingFileError;
 	bool					myBuildAbcShape;
 	bool					myBuildAbcXform;
+	bool					myBuildAbcCamera;
 	bool					myIncludeXform;
 	bool					myUseVisibility;
 	bool					myStaticTimeZero;
