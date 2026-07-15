@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025
+ * Copyright (c) 2026
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -1245,4 +1245,17 @@ GABC_PackedImpl::setupNameMap() const
         me->setAttributeNameMap(data->myNameMap);
     }
     me->mySharedNameMapData.reset();
+}
+
+UT_Optional<exint>
+GABC_PackedImpl::getNumPackedPrims(const GU_PrimPacked *) const
+{
+    // Assume that AlembicRefs always have 0 children.
+    // When we import alembics we don't import geometries nested.
+    // They are all primitives of the main geometry, with a path attribute
+    // pointing to their actual path in their hierarchy.
+
+    // So if you somehow manage to packFolder a geometry as a child
+    // to an AlembicRef then you are on your own!
+    return 0;
 }

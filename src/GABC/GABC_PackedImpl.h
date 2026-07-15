@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020
+ * Copyright (c) 2026
  *	Side Effects Software Inc.  All rights reserved.
  *
  * Redistribution and use of Houdini Development Kit samples in source and
@@ -129,6 +129,8 @@ public:
     void                getVelocityRange(UT_Vector3 &min,
 				UT_Vector3 &max) const override;
     void                getWidthRange(fpreal &min, fpreal &max) const override;
+
+    UT_Optional<exint>  getNumPackedPrims(const GU_PrimPacked *prim) const;
 
     /// Return the primitive's "description".  This should be a unique
     /// identifier for the primitive and defaults to:
