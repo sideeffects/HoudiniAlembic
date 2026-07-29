@@ -2380,21 +2380,23 @@ namespace
 	cparms.clipnear = camsample.getNearClippingPlane();
 	cparms.clipfar = camsample.getFarClippingPlane();
 
-        ScalarPropertyReaderPtr resxPtr = userPropPtr->getScalarProperty("resx");
-        ScalarPropertyReaderPtr resyPtr = userPropPtr->getScalarProperty("resy");
-
-		
         Alembic::Util::float32_t resx = 0;
         Alembic::Util::float32_t resy = 0;
-        if (resxPtr)
-        {
-        	resxPtr->getSample(resxPtr->getNearIndex(t).first, &resx);
-        	cparms.resx = resx;
-        }
-        if (resyPtr)
-        {
-	        resyPtr->getSample(resyPtr->getNearIndex(t).first, &resy);
-		cparms.resy = resy;
+
+	if (userPropPtr)
+	{
+	    ScalarPropertyReaderPtr resxPtr = userPropPtr->getScalarProperty("resx");
+	    if (resxPtr)
+	    {
+		    resxPtr->getSample(resxPtr->getNearIndex(t).first, &resx);
+		    cparms.resx = resx;
+	    }
+	    ScalarPropertyReaderPtr resyPtr = userPropPtr->getScalarProperty("resy");
+	    if (resyPtr)
+	    {
+		    resyPtr->getSample(resyPtr->getNearIndex(t).first, &resy);
+		    cparms.resy = resy;
+	    }
 	}
 
 	// NOTE: these are not being used by the python importer either
